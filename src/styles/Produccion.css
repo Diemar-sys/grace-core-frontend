@@ -1,0 +1,410 @@
+/* src/styles/Produccion.css
+   Estilos específicos para el módulo de Producción (Recetas + Registro de Producción) */
+
+/* ══ CONTENEDOR DE PESTAÑAS ══════════════════════════════ */
+.prod-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #f0dcc2;
+  padding-bottom: 0;
+}
+.prod-tab-btn {
+  padding: 10px 24px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: #8b6a4e;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.18s;
+  font-family: inherit;
+}
+.prod-tab-btn:hover { color: #7a3f0a; }
+.prod-tab-btn.active {
+  color: #7a3f0a;
+  border-bottom-color: #7a3f0a;
+}
+
+/* ══ ALERTA STOCK BAJO ═══════════════════════════════════ */
+.prod-stock-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #92400e;
+  font-weight: 500;
+}
+.prod-stock-alert svg { flex-shrink: 0; }
+
+/* ══ TABLA DE RECETAS ════════════════════════════════════ */
+.prod-lista-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.prod-lista-header h3 { margin: 0; font-size: 18px; color: #3f2b1a; }
+
+.prod-badge-activa {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #d1fae5;
+  color: #065f46;
+}
+.prod-badge-borrador {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ══ MODAL DE NUEVA RECETA ═══════════════════════════════ */
+.receta-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 30, 5, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px;
+  overflow-y: auto;
+}
+.receta-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 1200px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.2s ease;
+}
+.receta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 32px;
+  border-bottom: 1px solid #f0dcc2;
+}
+.receta-header h2 { margin: 0; font-size: 22px; color: #7a3f0a; }
+.receta-body { padding: 28px 32px; }
+
+/* ══ FORMULARIO RECETA ══════════════════════════════════ */
+.receta-meta-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.receta-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b6a4e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.receta-field input,
+.receta-field select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #e5d2b8;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #3f2b1a;
+  box-sizing: border-box;
+}
+.receta-field input:focus,
+.receta-field select:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+/* ══ TABLA DE INGREDIENTES ═══════════════════════════════ */
+.ingredientes-section h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3f2b1a;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ingredientes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+.ingredientes-table th {
+  background: #f3f4f6;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  text-align: left;
+}
+.ingredientes-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0dcc2;
+}
+.ingredientes-table input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5d2b8;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.ingredientes-table input:focus {
+  outline: none;
+  border-color: #f59e0b;
+}
+.btn-add-ingrediente {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px dashed #e5d2b8;
+  border-radius: 8px;
+  background: #fffbf6;
+  color: #7a3f0a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.btn-add-ingrediente:hover { background: #fff1de; border-color: #c9a073; }
+.btn-remove-row {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-remove-row:hover { background: #fee2e2; }
+
+/* ══ BUSCADOR INLINE DE INGREDIENTES ════════════════════ */
+.ingrediente-search-wrap {
+  position: relative;
+}
+.ingrediente-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5d2b8;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.ingrediente-dropdown-item {
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ingrediente-dropdown-item:hover { background: #fff6ea; }
+.ingrediente-dropdown-item .item-code { color: #9ca3af; font-size: 11px; font-family: monospace; }
+
+/* ══ FOOTER ACCIONES ════════════════════════════════════ */
+.receta-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #f0dcc2;
+}
+.btn-guardar-receta {
+  padding: 9px 22px;
+  border-radius: 9px;
+  border: none;
+  background: #7a3f0a;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-guardar-receta:hover { background: #5c2d06; }
+.btn-guardar-receta:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-activar-receta {
+  padding: 9px 22px;
+  border-radius: 9px;
+  border: none;
+  background: #2e7d32;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-activar-receta:hover { background: #1b5e20; }
+.btn-activar-receta:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-cancelar-receta {
+  padding: 9px 22px;
+  border-radius: 9px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-cancelar-receta:hover { background: #f3f4f6; }
+
+/* ══ REGISTRO DE PRODUCCIÓN ════════════════════════════ */
+.registro-form {
+  background: #fffdf9;
+  border: 1px solid #f0dcc2;
+  border-radius: 12px;
+  padding: 28px 32px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.registro-form h3 { margin: 0 0 20px; font-size: 19px; color: #3f2b1a; }
+.registro-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.registro-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b6a4e;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.registro-field input,
+.registro-field select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5d2b8;
+  border-radius: 8px;
+  font-size: 17px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.registro-field input:focus,
+.registro-field select:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+/* Resumen de consumo antes de confirmar */
+.registro-preview {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.registro-preview h4 { margin: 0 0 10px; font-size: 13px; color: #6b7280; text-transform: uppercase; }
+.registro-preview-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+}
+.registro-preview-item:last-child { border-bottom: none; }
+.registro-preview-item span:last-child { font-weight: 600; color: #dc2626; }
+
+/* ══ TABLA DE COSTOS DE PRODUCCIÓN ════════════════════ */
+.preview-cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 0;
+}
+.preview-cost-table th {
+  background: #f3f4f6;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e5e7eb;
+}
+.preview-cost-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  font-size: 13px;
+}
+.preview-cost-table tbody tr:last-child td { border-bottom: none; }
+.preview-cost-table tbody tr:hover { background: #fafafa; }
+
+/* Panel de resumen debajo de la tabla */
+.preview-cost-summary {
+  margin-top: 12px;
+  border-top: 2px solid #e5e7eb;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.preview-cost-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #374151;
+  padding: 3px 0;
+}
+.preview-cost-row span:last-child { font-weight: 700; }
+.preview-cost-row.highlight {
+  background: #fffbeb;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-weight: 600;
+  color: #92400e;
+  font-size: 14px;
+  margin: 2px 0;
+}
+.preview-cost-row.margin {
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: 13px;
+  background: #f0fdf4;
+}

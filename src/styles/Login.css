@@ -1,0 +1,382 @@
+/* Estilos para el Login de Panadería */
+
+/* Reset para asegurar pantalla completa */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Sobrescribir estilos de App.css cuando hay login-container */
+.login-container ~ * {
+  max-width: none !important;
+}
+
+body:has(.login-container) #root {
+  max-width: none !important;
+  height: 100%;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: left !important;
+}
+
+.login-container {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  width: 100vw;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Lado izquierdo - Formulario */
+.login-form-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: #faf8f5;
+  overflow-y: auto;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 450px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2.5rem;
+}
+
+/* Header */
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: rgba(232, 114, 95, 0.1);
+  border-radius: 50%;
+  color: #e8725f;
+}
+
+.login-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.login-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #3a3a3a;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.2;
+}
+
+.login-description {
+  font-size: 1.125rem;
+  color: #5a5a5a;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Formulario */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3a3a3a;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #7a7a7a;
+  pointer-events: none;
+}
+
+.form-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px 0 40px;
+  font-size: 1rem;
+  color: #3a3a3a;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  border-color: #e8725f;
+  box-shadow: 0 0 0 3px rgba(232, 114, 95, 0.1);
+}
+
+.select-input {
+  padding-right: 40px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237a7a7a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #7a7a7a;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.password-toggle:hover {
+  color: #3a3a3a;
+}
+
+.login-button {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #7a3f0a;
+  background: #fffbf6;
+  border: 1px solid #f2c48d;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 0.5rem;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(122, 63, 10, 0.16);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Footer */
+.login-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-footer p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #5a5a5a;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #e8725f;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+  color: #d65f4d;
+}
+
+.help-text {
+  font-size: 0.75rem !important;
+  color: #7a7a7a !important;
+}
+
+/* Lado derecho - Branding */
+.login-branding-side {
+  display: none;
+  flex: 1;
+  position: relative;
+  background: linear-gradient(135deg, #4a4a4a 0%, #3a3a3a 100%);
+  overflow-y: auto;
+}
+
+.branding-overlay {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.08), transparent 50%);
+}
+
+.branding-content {
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 3rem;
+  color: white;
+  text-align: center;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3rem;
+  animation: fade-in 1s ease-in;
+}
+
+.logo-image {
+  width: auto;
+  height: 300px;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.brand-title {
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 2rem 0;
+}
+
+.brand-description {
+  font-size: 1.5rem;
+  line-height: 1.5;
+  margin: 0 0 4rem 0;
+  opacity: 0.95;
+}
+
+.brand-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3rem;
+  width: 100%;
+  max-width: 700px;
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
+}
+
+.feature-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.feature-text {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Responsive */
+@media (min-width: 1024px) {
+  .login-branding-side {
+    display: flex;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  .brand-title {
+    font-size: 2rem;
+  }
+
+  .brand-features {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

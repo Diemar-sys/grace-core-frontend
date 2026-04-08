@@ -1,0 +1,345 @@
+/* Estilos para el formulario de Nuevo Insumo */
+
+.nuevo-insumo-modal {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 0 32px;
+}
+
+.nuevo-insumo-container {
+  width: 100%;
+  max-width: 1500px;
+  background: #fffbf6;
+  border-radius: 18px;
+  border: 1px solid #f2c48d;
+  box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
+  padding: 28px 36px 32px;
+  box-sizing: border-box;
+
+  /* Scroll interno cuando el contenido excede la pantalla */
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+
+  /* Scrollbar discreta en tono cálido */
+  scrollbar-width: thin;
+  scrollbar-color: #f2c48d #fffbf6;
+}
+
+.nuevo-insumo-container::-webkit-scrollbar {
+  width: 6px;
+}
+.nuevo-insumo-container::-webkit-scrollbar-track {
+  background: #fffbf6;
+  border-radius: 999px;
+}
+.nuevo-insumo-container::-webkit-scrollbar-thumb {
+  background: #f2c48d;
+  border-radius: 999px;
+}
+.nuevo-insumo-container::-webkit-scrollbar-thumb:hover {
+  background: #e5a857;
+}
+
+/* Encabezado del formulario */
+.nuevo-insumo-container .form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.nuevo-insumo-container .form-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #7a3f0a;
+}
+
+.nuevo-insumo-container .btn-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #8b6a4e;
+  padding: 4px 6px;
+  border-radius: 999px;
+}
+
+.nuevo-insumo-container .btn-close:hover {
+  background: #fff1de;
+}
+
+/* Alertas */
+.nuevo-insumo-container .alert {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.nuevo-insumo-container .alert-error {
+  background: #feedeb;
+  border: 1px solid #f97373;
+  color: #b42318;
+}
+
+.nuevo-insumo-container .alert-success {
+  background: #ecfdf3;
+  border: 1px solid #22c55e;
+  color: #166534;
+}
+
+/* Formulario general */
+.insumo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nuevo-insumo-container .form-section {
+  padding: 16px 16px 18px;
+  border-radius: 14px;
+  background: #fffdf9;
+  border: 1px solid #f0dcc2;
+}
+
+.nuevo-insumo-container .form-section + .form-section {
+  margin-top: 2px;
+}
+
+.nuevo-insumo-container .form-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #7a3f0a;
+  border-bottom: 1px solid #f2e2c8;
+  padding-bottom: 8px;
+}
+
+.nuevo-insumo-container .form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.nuevo-insumo-container .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  gap: 6px;
+  flex: 1;
+  min-width: min(260px, 100%);
+}
+
+.nuevo-insumo-container label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b6a4e;
+}
+
+.nuevo-insumo-container input,
+.nuevo-insumo-container select,
+.nuevo-insumo-container textarea {
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5d2b8;
+  font-size: 16px;
+  font-family: inherit;
+  color: #3f2b1a;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.nuevo-insumo-container textarea {
+  resize: vertical;
+}
+
+.nuevo-insumo-container input:focus,
+.nuevo-insumo-container select:focus,
+.nuevo-insumo-container textarea:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.nuevo-insumo-container .input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nuevo-insumo-container .input-group input {
+  flex: 1;
+}
+
+.nuevo-insumo-container .btn-auto {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #f2c48d;
+  background: #fffbf6;
+  color: #7a3f0a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nuevo-insumo-container .btn-auto:hover {
+  background: #fff1de;
+}
+
+/* Badge Abarrotes */
+.badge-abarrotes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fffbf6;
+  border: 1px solid #f2c48d;
+  font-size: 11px;
+}
+
+.select-abarrotes {
+  border-color: #f97316;
+}
+
+/* Sección de precios especial */
+.section-precios {
+  background: linear-gradient(135deg, #fffaf3 0%, #fffbf6 100%);
+  border: 1px solid #f2c48d;
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+}
+
+.section-precios h3 {
+  color: #7a3f0a;
+  border-bottom-color: #f2e2c8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-precios .hint {
+  font-size: 0.85rem;
+  color: #8b6a4e;
+  font-weight: normal;
+}
+
+.precios-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.input-highlight {
+  border-color: #f97316;
+}
+
+.input-calculated {
+  background: #f3f4f6 !important;
+  color: #4b5563;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+/* Checkbox y descripción */
+.checkbox-group {
+  margin-bottom: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #5b4026;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* Acciones del formulario — pegadas al fondo del scroll */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #f0dcc2;
+  background: #fffbf6;
+  z-index: 10;
+}
+
+.form-actions .btn-secondary,
+.form-actions .btn-primary {
+  min-width: 130px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.form-actions .btn-secondary {
+  background: #fff;
+  color: #5b4026;
+  border-color: #e5d2b8;
+}
+
+.form-actions .btn-secondary:hover {
+  background: #fff6ea;
+}
+
+.form-actions .btn-primary {
+  background: #fffbf6;
+  color: #7a3f0a;
+  border-color: #f2c48d;
+  box-shadow: 0 10px 22px rgba(122, 63, 10, 0.16);
+}
+
+.form-actions .btn-primary:hover {
+  background: #fff6ea;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .nuevo-insumo-container {
+    padding: 20px 18px 22px;
+  }
+
+  .precios-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .nuevo-insumo-container {
+    border-radius: 0;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+    max-height: calc(100vh - 60px);
+  }
+
+  .nuevo-insumo-container .form-section {
+    padding: 14px 12px 16px;
+  }
+
+  .nuevo-insumo-container .form-row {
+    flex-direction: column;
+  }
+
+  .precios-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,90 @@
+/* src/styles/Layout.css */
+
+.layout-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f0e8;
+}
+
+/* ── Topbar ─────────────────────────────────────────── */
+.layout-topbar {
+  background: #7a3f0a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 54px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.layout-topbar-left { display:flex; align-items:center; gap:14px; }
+.layout-logo {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none; color: white;
+}
+.layout-logo-icon { color: #f2c48d; display: flex; align-items: center; }
+.layout-logo h2   { margin:0; font-size:15px; font-weight:700; color:white; white-space:nowrap; }
+.layout-logo span { font-size:10px; color:#f2c48d; text-transform:uppercase; letter-spacing:0.06em; display:block; line-height:1; }
+.layout-topbar-right { display:flex; align-items:center; gap:8px; }
+
+.layout-user-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.12); border-radius: 999px;
+  padding: 5px 14px 5px 8px; font-size: 14px; color: white; font-weight: 500;
+}
+.layout-user-chip svg { color: #f2c48d; }
+
+.layout-logout-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.3); background: transparent;
+  color: white; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s; font-family: inherit;
+}
+.layout-logout-btn:hover { background: rgba(255,255,255,0.15); }
+
+/* —— Barra de menú ——————————————————————————————————— */
+.layout-menubar {
+  background: #5c2d06;
+  display: flex;
+  align-items: center;
+  padding: 0 36px;
+  height: 56px;
+  gap: 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+}
+.layout-menu-btn {
+  display: flex; align-items: center;
+  padding: 6px 16px; border-radius: 6px;
+  border: none; background: transparent;
+  color: rgba(255,255,255,0.75);
+  font-size: 20px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  white-space: nowrap; text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.layout-menu-btn:hover  { background: rgba(255,255,255,0.1); color: white; }
+.layout-menu-btn.active { background: rgba(255,255,255,0.18); color: white; }
+.layout-menu-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+
+/* —— Contenido —————————————————————————————————————— */
+.main-content {
+  flex: 1;
+  padding: 28px 36px 28px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  /* Altura calculada para que la tabla llene el resto sin scroll doble */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .layout-logo h2 { font-size: 13px; }
+  .main-content   { padding: 16px; }
+  .layout-menubar { overflow-x: auto; }
+}

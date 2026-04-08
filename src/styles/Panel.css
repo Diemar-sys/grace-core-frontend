@@ -1,0 +1,94 @@
+/* src/styles/Panel.css */
+
+/* ── Root ───────────────────────────────────────────── */
+.panel-root {
+  min-height: 100vh;
+  background: #f5f0e8;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+}
+
+/* ── Cuerpo ─────────────────────────────────────────── */
+.panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 24px 48px;
+}
+.panel-greeting { text-align: center; margin-bottom: 36px; }
+.panel-greeting h2 { margin: 0 0 4px; font-size: 20px; color: #7a3f0a; font-weight: 700; }
+.panel-greeting p  { margin: 0; font-size: 13px; color: #8b6a4e; }
+
+/* ── Grid de módulos: Catálogo, Inventario, Compras, etc.────────────────────────────────── */
+.panel-grid {
+  display: grid;
+  /* Cambiamos de 250px a 320px para hacer las tarjetas más anchas */
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px; /* Un poco más de separación */
+  justify-content: center;
+  max-width: 1050px; /* Aumentamos el máximo para que quepan bien */
+  width: 100%;
+}
+.panel-module {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  /* Aumentamos el padding para hacerlas más altas */
+  padding: 30px 16px 24px; 
+  background: white; border-radius: 16px;
+  border: 1px solid #f0dcc2; box-shadow: 0 2px 8px rgba(122,63,10,0.08);
+  cursor: pointer; text-decoration: none; text-align: center;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.panel-module:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(122,63,10,0.18);
+  background: #fffbf6;
+}
+.panel-module-icon {
+  /* Crecemos el cuadro del icono de 64px a 84px */
+  width: 84px; height: 84px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--mod-bg, #fff7ed); color: var(--mod-color, #7a3f0a);
+  transition: background 0.15s, color 0.15s;
+}
+.panel-module-icon svg {
+  width: 42px; 
+  height: 42px;
+}
+.panel-module:hover .panel-module-icon { background: var(--mod-color, #7a3f0a); color: white; }
+
+/* Aumentamos el tamaño de la letra */
+.panel-module-name { font-size: 18px; font-weight: 700; color: #3f2b1a; line-height: 1.2; }
+.panel-module-sub  { font-size: 14px; color: #8b6a4e; line-height: 1.2; margin-top: -4px; }
+
+/* ── Próximamente ───────────────────────────────────── */
+.panel-soon {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 60px 24px; color: #8b6a4e; text-align: center;
+}
+.panel-soon svg { color: #d4b896; }
+.panel-soon h3  { margin: 0; font-size: 18px; color: #7a3f0a; }
+.panel-soon p   { margin: 0; font-size: 14px; }
+
+/* ── Mobile ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .panel-grid { 
+    /* Cambiamos de 3 columnas pequeñas a 2 columnas flexibles */
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 16px; 
+  }
+  .panel-module { padding: 20px 12px 16px; gap: 12px; }
+  .panel-module-icon { width: 64px; height: 64px; border-radius: 16px; }
+  .panel-module-icon svg { width: 32px; height: 32px; }
+  .panel-module-name { font-size: 15px; }
+  .panel-module-sub  { font-size: 12px; }
+  
+  .panel-menubar { overflow-x: auto; }
+  .panel-menu-btn { font-size: 12px; padding: 6px 10px; }
+}
+
+.logo-imagen-pq {
+  width: 100px;
+  height: 85px;
+}

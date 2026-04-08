@@ -1,0 +1,253 @@
+/* src/styles/NuevoProveedor.css */
+
+.np-modal {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 0 32px;
+}
+
+.np-container {
+  width: 100%;
+  max-width: 900px;
+  background: #fffbf6;
+  border-radius: 18px;
+  border: 1px solid #f2c48d;
+  box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
+  padding: 24px 28px 0;
+  box-sizing: border-box;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #f2c48d #fffbf6;
+}
+
+.np-container::-webkit-scrollbar { width: 6px; }
+.np-container::-webkit-scrollbar-track { background: #fffbf6; border-radius: 999px; }
+.np-container::-webkit-scrollbar-thumb { background: #f2c48d; border-radius: 999px; }
+.np-container::-webkit-scrollbar-thumb:hover { background: #e5a857; }
+
+/* HEADER */
+.np-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.np-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #7a3f0a;
+}
+
+.np-btn-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: #8b6a4e;
+  padding: 4px 6px;
+  border-radius: 999px;
+}
+
+.np-btn-close:hover { background: #fff1de; }
+
+/* ALERTAS */
+.np-alert {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.np-alert-error   { background: #feedeb; border: 1px solid #f97373; color: #b42318; }
+.np-alert-success { background: #ecfdf3; border: 1px solid #22c55e; color: #166534; }
+
+/* FORM */
+.np-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.np-section {
+  padding: 16px;
+  border-radius: 14px;
+  background: #fffdf9;
+  border: 1px solid #f0dcc2;
+}
+
+.np-section h3 {
+  margin: 0 0 14px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #7a3f0a;
+  border-bottom: 1px solid #f2e2c8;
+  padding-bottom: 8px;
+}
+
+.np-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.np-row:last-child { margin-bottom: 0; }
+
+.np-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: min(200px, 100%);
+}
+
+.np-group.np-full { flex: 100%; }
+
+.np-group label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b6a4e;
+}
+
+.np-group input,
+.np-group select {
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5d2b8;
+  font-size: 16px;
+  font-family: inherit;
+  color: #3f2b1a;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.np-group input:focus,
+.np-group select:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+/* CHECKBOX */
+.np-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #5b4026;
+  cursor: pointer;
+}
+
+.np-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* ACCIONES — sticky al fondo */
+.np-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 0;
+  border-top: 1px solid #f0dcc2;
+  position: sticky;
+  bottom: 0;
+  background: #fffbf6;
+  z-index: 10;
+}
+
+.np-btn-secondary,
+.np-btn-primary {
+  min-width: 130px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.np-btn-secondary {
+  background: #fff;
+  color: #5b4026;
+  border-color: #e5d2b8;
+}
+
+.np-btn-secondary:hover { background: #fff6ea; }
+
+.np-btn-primary {
+  background: #fffbf6;
+  color: #7a3f0a;
+  border-color: #f2c48d;
+  box-shadow: 0 10px 22px rgba(122, 63, 10, 0.16);
+}
+
+.np-btn-primary:hover { background: #fff6ea; }
+
+.np-btn-primary:disabled,
+.np-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .np-container {
+    border-radius: 0;
+    max-height: calc(100vh - 60px);
+    padding: 16px 16px 0;
+  }
+
+  .np-row { flex-direction: column; }
+  .np-group { min-width: 100%; }
+}
+
+/* ── Grid de dos contactos ─────────────────────────── */
+.np-contactos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  padding: 16px 20px 20px;
+}
+.np-contactos-grid h3 {
+  grid-column: 1 / -1;
+}
+.np-contacto-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.np-contacto-col h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7a3f0a;
+  margin: 0 0 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f2e2c8;
+}
+
+/* Número de proveedor — campo estrecho */
+.np-numero {
+  flex: 0 0 120px !important;
+  min-width: 0 !important;
+}
+.np-input-readonly {
+  background: #f3f4f6 !important;
+  color: #6b7280;
+  font-weight: 700;
+  cursor: not-allowed;
+  font-family: monospace;
+}
+
+@media (max-width: 700px) {
+  .np-contactos-grid {
+    grid-template-columns: 1fr;
+  }
+}

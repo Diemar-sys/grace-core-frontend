@@ -1,0 +1,65 @@
+/* src/styles/Compras.css
+   Solo estilos específicos de la página Compras.
+   Las tablas, filtros y headers vienen de global.css */
+
+
+/* ── Filtro proveedor ────────────────────────────────── */
+.comp-proveedor-wrap { min-width: 280px; }
+
+/* ── Stat total período ──────────────────────────────── */
+.comp-stat-total { font-size: 22px !important; font-weight: 700; }
+
+/* ── Barra acciones ──────────────────────────────────── */
+.comp-actions-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+  margin-left: auto;
+}
+.comp-btn-nueva {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #f2c48d;
+  background: #fffbf6;
+  color: #7a3f0a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(122,63,10,0.14);
+  transition: background 0.15s;
+}
+.comp-btn-nueva:hover { background: #fff6ea; }
+
+/* ── Celdas específicas ──────────────────────────────── */
+.comp-td-proveedor  { font-weight: 500; }
+.comp-td-monto      { text-align: right; font-family: monospace; }
+.comp-td-monto-total{ text-align: right; font-family: monospace; font-weight: 600; }
+
+.comp-td-acciones { width: 100px; display: flex; gap: 6px; align-items: center; }
+
+.comp-btn-editar {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #e5d2b8;
+  background: #fff;
+  color: #5b4026;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.comp-btn-editar:hover { background: #fff6ea; }
+
+.comp-btn-confirmar {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #aaf28d;
+  background: #f6fff6;
+  color: #53b910;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.comp-btn-confirmar:hover { background: #eaffea; }
