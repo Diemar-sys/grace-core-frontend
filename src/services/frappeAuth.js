@@ -5,7 +5,7 @@
  * (Login, Logout, Verificación) usando el sistema de autenticación nativo de Frappe
  * basado en Cookies (Session ID).
  */
-const FRAPPE_URL = ''; 
+const FRAPPE_URL = '';
 
 class FrappeAuthService {
   constructor() {
@@ -32,7 +32,7 @@ class FrappeAuthService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         usr: usuario,
         pwd: contrasena
       })
@@ -44,7 +44,7 @@ class FrappeAuthService {
     }
 
     const data = await response.json();
-    
+
     localStorage.setItem('frappe_user', JSON.stringify({
       email: data.message,
       fullName: data.full_name
@@ -62,7 +62,7 @@ class FrappeAuthService {
     const response = await fetch(`/api/method/frappe.auth.get_logged_user`, {
       headers: { 'Accept': 'application/json' }
     });
-    
+
     if (!response.ok) return null;
     return response.json();
   }
@@ -108,7 +108,7 @@ class FrappeAuthService {
       filters: JSON.stringify(filters),
       fields: JSON.stringify(fields)
     });
-    
+
     const response = await fetch(`/api/resource/${doctype}?${params}`);
     return response.json();
   }

@@ -173,16 +173,6 @@ function Compras() {
         {/* HEADER */}
         <div className="page-header">
           <div className="title-group" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {!soloLectura && accionActiva !== 'menu' && (
-              <button 
-                onClick={() => setAccionActiva('menu')}
-                className="btn-refresh" 
-                style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', color: '#4b5563' }}
-                title="Volver al menú de compras"
-              >
-                ← Volver
-              </button>
-            )}
             <div>
               <h1 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
                 Compras

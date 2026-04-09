@@ -107,7 +107,7 @@ function Layout({ children }) {
           />
           <div>
             <h1>Panaderías Grace</h1>
-            <span>Sistema de Gestión</span>
+            <span>Sistema ERP Web</span>
           </div>
         </div>
         <div className="panel-topbar-right">
