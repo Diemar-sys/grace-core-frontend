@@ -196,7 +196,8 @@
 
 .nc-tabla {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   margin-bottom: 10px;
   background: white;
   border-radius: 10px;
@@ -214,6 +215,11 @@
   color: #374151;
   letter-spacing: 0.4px;
   white-space: nowrap;
+  /* ── Sticky header ── */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .nc-tabla td {
@@ -899,4 +905,132 @@ tr.nc-fila-alerta:hover td {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+/* ── PDF Preview Modal ───────────────────────────────────────────── */
+.nc-pdf-preview-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nc-pdf-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.nc-pdf-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 20px;
+  background: #f3f4f6;
+}
+
+/* Recibo */
+.nc-recibo {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  padding: 28px 24px 20px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: #111;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.nc-recibo-empresa {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.nc-recibo-titulo {
+  text-align: center;
+  font-size: 11px;
+  color: #555;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.nc-recibo-div {
+  border: none;
+  border-top: 1.5px solid #111;
+  margin: 10px 0;
+}
+
+.nc-recibo-div-thin {
+  border: none;
+  border-top: 1px dashed #aaa;
+  margin: 8px 0;
+}
+
+.nc-recibo-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 12px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+.nc-recibo-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.nc-recibo-tabla th {
+  font-size: 10px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+  padding: 4px 4px;
+  font-family: inherit;
+}
+
+.nc-recibo-tabla td {
+  padding: 4px 4px;
+  font-size: 11px;
+  border-bottom: 1px dashed #ddd;
+}
+
+.nc-recibo-totales {
+  width: 240px;
+  margin-left: auto;
+  margin-top: 8px;
+}
+
+.nc-recibo-total-fila {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.nc-recibo-grand-total {
+  font-weight: bold;
+  font-size: 14px;
+  border-top: 1.5px solid #111;
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+.nc-recibo-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 10px;
+  color: #888;
 }

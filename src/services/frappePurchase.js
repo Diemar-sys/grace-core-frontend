@@ -364,6 +364,26 @@ class FrappeComprasService {
     return data.data;
   }
 
+  // ── Cancelar compra confirmada (docstatus: 1 → 2) ───────────────────────
+
+  /**
+   * Cancela un Purchase Receipt confirmado (docstatus 1).
+   * ERPNext revierte automáticamente el movimiento de inventario.
+   * El documento queda como historial con docstatus=2.
+   * @param {string} name - Identificador de la compra.
+   * @returns {Promise<Object>} Datos del documento cancelado.
+   */
+  async cancelarCompra(name) {
+    const data = await this._fetch(
+      "/api/method/frappe.client.cancel",
+      {
+        method: "POST",
+        body: JSON.stringify({ doctype: "Purchase Receipt", name }),
+      }
+    );
+    return data.message;
+  }
+
   // ── Eliminar borrador existente ──────────────────────────────────────────
   
   /**
@@ -387,7 +407,7 @@ class FrappeComprasService {
    * @returns {Promise<Array<Object>>} Lista de documentos de Purchase Receipt.
    */
   async getCompras({ desde = null, hasta = null, supplier = null } = {}, signal) {
-    const filters = [["docstatus", "in", [0, 1]]];
+    const filters = [["docstatus", "in", [0, 1, 2]]];
     if (desde) filters.push(["posting_date", ">=", desde]);
     if (hasta) filters.push(["posting_date", "<=", hasta]);
     if (supplier) filters.push(["supplier", "=", supplier]);

@@ -286,6 +286,12 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
     const precioPorKg = parseFloat(formData.custom_precio_por_kg) || 0;
     const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
 
+    // ── Filtrar categorías según tipo de item ─────────────────
+    const PADRE_PRODUCTOS_TERMINADOS = 'PRODUCTOS TERMINADOS';
+    const categoriasFiltradas = esProductoTerminado
+        ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_PRODUCTOS_TERMINADOS)
+        : catalogos.itemGroups.filter(g => g.parent_item_group !== PADRE_PRODUCTOS_TERMINADOS);
+
     return (
         <div className="nuevo-insumo-modal">
             <ModalError
@@ -355,15 +361,43 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                 <select name="item_group" value={formData.item_group}
                                     onChange={handleItemGroupChange} required
                                     className={esAbarrotes ? 'select-abarrotes' : ''}>
-                                    <option value="">Seleccionar categoría...</option>
-                                    {catalogos.itemGroups.map(g => (
+                                    <option value="">
+                                        {esProductoTerminado ? 'Tipo de pan...' : 'Seleccionar categoría...'}
+                                    </option>
+                                    {categoriasFiltradas.map(g => (
                                         <option key={g.name} value={g.name}>{g.name}</option>
                                     ))}
                                 </select>
+                                <small style={{ color: esProductoTerminado ? '#0284c7' : '#8b6a4e' }}>
+                                    {esProductoTerminado
+                                        ? '🥐 Selecciona el tipo de producto terminado'
+                                        : 'Grupo al que pertenece el insumo'}
+                                </small>
                             </div>
                             <div className="form-group">
                                 <label>Tipo de Item *</label>
-                                <select name="custom_tipo_item" value={formData.custom_tipo_item} onChange={handleChange} required>
+                                <select
+                                    name="custom_tipo_item"
+                                    value={formData.custom_tipo_item}
+                                    onChange={e => {
+                                        const nuevoTipo = e.target.value;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            custom_tipo_item: nuevoTipo,
+                                            item_group: '',
+                                            // Limpiar campos de presentación al cambiar a Producto Terminado
+                                            // para evitar que Frappe rechace el registro por campos vacíos
+                                            ...(nuevoTipo === 'PRODUCTO TERMINADO' && {
+                                                custom_presentación: '',
+                                                custom_cantidad_por_presentación: '',
+                                                custom_precio_de_compra: '',
+                                                custom_precio_por_kg: '',
+                                            })
+                                        }));
+                                        setEsAbarrotes(false);
+                                    }}
+                                    required
+                                >
                                     <option value="MATERIA PRIMA">Materia Prima / Insumo</option>
                                     <option value="PRODUCTO TERMINADO">Producto Terminado</option>
                                     <option value="INSUMO GENERAL">Insumo General</option>
@@ -421,7 +455,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                             <div className="form-group">
                                 <label>Presentación *</label>
                                 <select name="custom_presentación" value={formData.custom_presentación}
-                                    onChange={handleChange} required>
+                                    onChange={handleChange}>
                                     <option value="">Seleccione la presentación...</option>
                                     {catalogos.presentaciones.map(p => (
                                         <option key={p.name} value={p.name}>{p.name}</option>

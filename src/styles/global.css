@@ -338,9 +338,29 @@
   font-weight: 600;
   text-transform: uppercase;
 }
-.status-ok  { background:#d1fae5; color:#065f46; }
-.status-low { background:#fef3c7; color:#92400e; }
-.status-out { background:#fee2e2; color:#991b1b; }
+.status-ok        { background:#d1fae5; color:#065f46; }
+.status-low       { background:#fef3c7; color:#92400e; }
+.status-out       { background:#fee2e2; color:#991b1b; }
+.status-cancelled { background:#f3f4f6; color:#6b7280; text-decoration: line-through; }
+
+/* ══ ÍCONO DE MÓDULO (panel-module) ══════════════════════ */
+.module-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.18s, color 0.18s;
+}
+.module-icon svg {
+  width: 36px;
+  height: 36px;
+}
+.panel-module:hover .module-icon {
+  filter: brightness(0.88);
+}
 
 /* ══ MISC ════════════════════════════════════════════════ */
 .no-data {

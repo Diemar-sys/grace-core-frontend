@@ -9,6 +9,7 @@ import { produccionService } from '../services/frappeProduccion';
 import { stockService } from '../services/frappeStock';
 import '../styles/global.css';
 import '../styles/Produccion.css';
+import '../styles/Panel.css';
 
 const DEPARTAMENTOS = stockService.getAlmacenesDepartamento();
 
@@ -25,7 +26,8 @@ function Produccion() {
   const [searchParams] = useSearchParams();
   const soloLectura = searchParams.get('modo') === 'consulta';
 
-  const [tab, setTab] = useState('recetas');
+  // 'menu' | 'recetas' | 'registro'
+  const [vistaActiva, setVistaActiva] = useState(soloLectura ? 'recetas' : 'menu');
 
   // ── Recetas tab ──────────────────────────────────────
   const [recetas, setRecetas] = useState([]);
@@ -148,21 +150,39 @@ function Produccion() {
           <span><strong>{stockBajo.length} insumo(s)</strong> con stock bajo mínimo en el almacén seleccionado: {stockBajo.map(s => s.item_name).join(', ')}</span>
         </div>
       )}
+      {/*2220*/}
 
-      {/* Pestañas */}
-      <div className="prod-tabs">
-        <button className={`prod-tab-btn ${tab === 'recetas' ? 'active' : ''}`} onClick={() => setTab('recetas')}>
-          RECETAS
-        </button>
-        {!soloLectura && (
-          <button className={`prod-tab-btn ${tab === 'registro' ? 'active' : ''}`} onClick={() => setTab('registro')}>
-            REGISTRO DE PRODUCCIÓN
+      {/* ── MENÚ PRINCIPAL ───────────────────────────────── */}
+      {vistaActiva === 'menu' && (
+        <div className="panel-grid" style={{ padding: '20px 0' }}>
+          <button className="panel-module" onClick={() => { cargarRecetas(); setVistaActiva('recetas'); }}>
+            <div className="module-icon" style={{ background: '#fff7ed', color: '#7a3f0a' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 11h.01" /><path d="M11 15h.01" />
+                <path d="M16 16h.01" />
+                <path d="m2 16 20 6-6-20A20 20 0 0 0 2 16" />
+                <path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4" />
+              </svg>
+            </div>
+            <h3>Recetas</h3>
+            <p>Ver y gestionar recetas</p>
           </button>
-        )}
-      </div>
 
-      {/* ── PESTAÑA: RECETAS ────────────────────────────── */}
-      {tab === 'recetas' && (
+          <button className="panel-module" onClick={() => setVistaActiva('registro')}>
+            <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" />
+                <path d="M18 9v6" /><path d="M21 12h-6" />
+              </svg>
+            </div>
+            <h3>Registro de Producción</h3>
+            <p>Registrar producción del día</p>
+          </button>
+        </div>
+      )}
+
+      {/* ── SECCIÓN: RECETAS ────────────────────────────── */}
+      {vistaActiva === 'recetas' && (
         <>
           <div className="prod-lista-header">
             <h3>Recetas Registradas</h3>
@@ -234,8 +254,8 @@ function Produccion() {
         </>
       )}
 
-      {/* ── PESTAÑA: REGISTRO ───────────────────────────── */}
-      {tab === 'registro' && (
+      {/* ── SECCIÓN: REGISTRO ───────────────────────────── */}
+      {vistaActiva === 'registro' && (
         <div className="registro-form">
           <h3>Registrar Producción del Día</h3>
 

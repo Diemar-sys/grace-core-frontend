@@ -70,10 +70,16 @@ const IconPOS = () => (
 );
 const IconProduccion = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-    <path d="M2 17l10 5 10-5" />
-    <path d="M2 12l10 5 10-5" />
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+    class="lucide lucide-wheat-icon lucide-wheat">
+    <path d="M2 22 16 8" />
+    <path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+    <path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+    <path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+    <path d="M20 2h2v2a4 4 0 0 1-4 4h-2V6a4 4 0 0 1 4-4Z" />
+    <path d="M11.47 17.47 13 19l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L5 19l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" />
+    <path d="M15.47 13.47 17 15l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L9 15l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" />
+    <path d="M19.47 9.47 21 11l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L13 11l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" />
   </svg>
 );
 
@@ -84,7 +90,7 @@ const MODULOS = [
   { path: "/compras", icon: <IconCompras />, nombre: "Compras", sub: "Entradas", color: "#1565c0", bg: "#e3f0ff" },
   { path: "/proveedores", icon: <IconProveedores />, nombre: "Proveedores", sub: "Catálogos", color: "#6a1b9a", bg: "#f3e5f5" },
   { path: "/pos", icon: <IconPOS />, nombre: "Punto de Venta", sub: "Ventas", color: "#bf360c", bg: "#fbe9e7" },
-  { path: "/produccion", icon: <IconProduccion />, nombre: "Producción", sub: "Recetas y consumo", color: "#1b5e20", bg: "#e8f5e9" },
+  { path: "/produccion", icon: <IconProduccion />, nombre: "Producción", sub: "Recetas y consumo", color: "#3b848aff", bg: "#d1f0f3ff" },
 ];
 
 // ── Opciones del menú principal ───────────────────────

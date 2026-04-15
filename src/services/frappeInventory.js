@@ -113,13 +113,13 @@ class FrappeInventoryService {
   }
 
   /**
-   * Obtiene grupos de artículos de nivel hoja (no carpetas).
+   * Obtiene grupos de artículos de nivel hoja (no carpetas), incluyendo su padre.
    * @returns {Promise<Array<Object>>} Lista de Item Groups
    */
   async getItemGroups() {
     return this.#cachedFetch('itemGroups', async () => {
       const data = await this.#fetchResource(
-        `/api/resource/Item Group?fields=["name"]&filters=[["is_group","=",0]]&limit_page_length=100`
+        `/api/resource/Item Group?fields=["name","parent_item_group"]&filters=[["is_group","=",0]]&limit_page_length=100`
       );
       return data.data || [];
     });
@@ -367,6 +367,7 @@ class FrappeInventoryService {
    * @returns {Promise<Object>} Datos creados por el ERP.
    */
   async createItem(formData) {
+    const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
     const payload = {
       doctype: "Item",
       item_code: formData.item_code?.trim().toUpperCase(),
@@ -375,14 +376,17 @@ class FrappeInventoryService {
       stock_uom: formData.stock_uom,
       custom_código_interno: formData.custom_código_interno || "",
       custom_departamento: formData.custom_departamento || "",
-      custom_presentación:
-        formData.custom_presentacion || formData.custom_presentación || "",
-      custom_cantidad_por_presentación:
-        parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null,
-      custom_precio_de_compra: parseFloat(formData.custom_precio_de_compra) || null,
+      // Presentación solo aplica a Materia Prima / Insumo General
+      custom_presentación: esProductoTerminado
+        ? null
+        : (formData.custom_presentacion || formData.custom_presentación || null),
+      custom_cantidad_por_presentación: esProductoTerminado
+        ? null
+        : (parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null),
+      custom_precio_de_compra: esProductoTerminado ? null : (parseFloat(formData.custom_precio_de_compra) || null),
       custom_tipo_item: formData.custom_tipo_item || "MATERIA PRIMA",
       custom_impuesto: formData.custom_impuesto || "tasa0",
-      custom_precio_por_kg: parseFloat(formData.custom_precio_por_kg) || null,
+      custom_precio_por_kg: esProductoTerminado ? null : (parseFloat(formData.custom_precio_por_kg) || null),
       custom_precio_final: parseFloat(formData.custom_precio_final) || null,
       custom_precio_de_venta: parseFloat(formData.custom_precio_de_venta) || null,
       custom_porcentaje_de_ganancia: parseFloat(formData.custom_porcentaje_de_ganancia) || null,
@@ -406,20 +410,24 @@ class FrappeInventoryService {
    * @returns {Promise<Object>} Datos actualizados.
    */
   async updateItem(itemCode, formData) {
+    const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
     const payload = {
       item_name: formData.item_name?.trim(),
       item_group: formData.item_group,
       stock_uom: formData.stock_uom,
       custom_código_interno: formData.custom_código_interno || "",
       custom_departamento: formData.custom_departamento || "",
-      custom_presentación:
-        formData.custom_presentacion || formData.custom_presentación || "",
-      custom_cantidad_por_presentación:
-        parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null,
-      custom_precio_de_compra: parseFloat(formData.custom_precio_de_compra) || null,
+      // Presentación solo aplica a Materia Prima / Insumo General
+      custom_presentación: esProductoTerminado
+        ? null
+        : (formData.custom_presentacion || formData.custom_presentación || null),
+      custom_cantidad_por_presentación: esProductoTerminado
+        ? null
+        : (parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null),
+      custom_precio_de_compra: esProductoTerminado ? null : (parseFloat(formData.custom_precio_de_compra) || null),
       custom_tipo_item: formData.custom_tipo_item || "MATERIA PRIMA",
       custom_impuesto: formData.custom_impuesto || "tasa0",
-      custom_precio_por_kg: parseFloat(formData.custom_precio_por_kg) || null,
+      custom_precio_por_kg: esProductoTerminado ? null : (parseFloat(formData.custom_precio_por_kg) || null),
       custom_precio_final: parseFloat(formData.custom_precio_final) || null,
       custom_precio_de_venta: parseFloat(formData.custom_precio_de_venta) || null,
       custom_porcentaje_de_ganancia: parseFloat(formData.custom_porcentaje_de_ganancia) || null,

@@ -136,6 +136,194 @@ function ModalSugerenciaPrecios({ cambios, onAceptar, onOmitir }) {
   );
 }
 
+// ── Modal Recibo PDF ─────────────────────────────────────────────────────────
+function ModalReciboPDF({ datos, onClose }) {
+  const { noCompra, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
+
+  const fmt2 = (n) =>
+    Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
+
+  const imprimir = () => {
+    const win = window.open('', '_blank', 'width=750,height=700');
+    const rows = filas.map(f => {
+      const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+      return `
+        <tr>
+          <td>${f.item_name || f.item_code}</td>
+          <td style="text-align:center">${parseFloat(f.bultos || 0).toFixed(2)}</td>
+          <td style="text-align:right">$${fmt2(f.rate)}</td>
+          <td style="text-align:right">${f.impuesto_label || 'Tasa 0'}</td>
+          <td style="text-align:right">$${fmt2(sub)}</td>
+        </tr>`;
+    }).join('');
+
+    const impuestosRows = [
+      totales.iva > 0 ? `<tr><td>IVA 16%</td><td style="text-align:right">$${fmt2(totales.iva)}</td></tr>` : '',
+      totales.ieps > 0 ? `<tr><td>IEPS 8%</td><td style="text-align:right">$${fmt2(totales.ieps)}</td></tr>` : '',
+      ajuste !== 0 ? `<tr><td>Ajuste</td><td style="text-align:right">$${fmt2(ajuste)}</td></tr>` : '',
+    ].join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${esBorrador ? 'Precompra' : 'Compra'} #${numStr}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 1px; }
+    .header h2 { font-size: 15px; font-weight: normal; margin-top: 4px; color: #555; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 20px; }
+    .info-grid span { font-size: 12px; }
+    .info-grid strong { font-size: 12px; }
+    .divider { border: none; border-top: 1.5px solid #111; margin: 12px 0; }
+    .divider-thin { border: none; border-top: 1px dashed #aaa; margin: 8px 0; }
+    table.items { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    table.items th { font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; padding: 4px 6px; }
+    table.items td { padding: 4px 6px; font-size: 12px; border-bottom: 1px dashed #ddd; }
+    table.totales { width: 280px; margin-left: auto; border-collapse: collapse; }
+    table.totales td { padding: 3px 6px; font-size: 13px; }
+    table.totales .total-row td { font-weight: bold; font-size: 15px; border-top: 1.5px solid #111; padding-top: 6px; }
+    .footer { margin-top: 28px; text-align: center; font-size: 11px; color: #888; }
+    @media print { body { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>PANADERÍAS GRACE</h1>
+    <h2>${esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}</h2>
+  </div>
+  <hr class="divider"/>
+  <div class="info-grid">
+    <span><strong>No. Compra:</strong> #${numStr}</span>
+    <span><strong>Fecha:</strong> ${fecha}</span>
+    <span><strong>Hora:</strong> ${hora}</span>
+    <span><strong>Proveedor:</strong> ${proveedor}</span>
+  </div>
+  <hr class="divider"/>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="text-align:left">Producto</th>
+        <th style="text-align:center">Cant.</th>
+        <th style="text-align:right">Precio</th>
+        <th style="text-align:right">Impuesto</th>
+        <th style="text-align:right">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <hr class="divider-thin"/>
+  <table class="totales">
+    <tbody>
+      <tr><td>Subtotal</td><td style="text-align:right">$${fmt2(totales.subtotal)}</td></tr>
+      ${impuestosRows}
+      <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt2(totales.total)}</td></tr>
+    </tbody>
+  </table>
+  <div class="footer">Documento generado el ${fecha} a las ${hora}</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+    win.document.write(html);
+    win.document.close();
+  };
+
+  return (
+    <div className="nc-modal-overlay">
+      <div className="nc-pdf-preview-modal">
+        {/* Cabecera del modal */}
+        <div className="nc-pdf-modal-header">
+          <span>🧾 Vista previa — {esBorrador ? 'Precompra' : 'Compra'} #{numStr}</span>
+          <button className="nc-btn-close" onClick={onClose}>×</button>
+        </div>
+
+        {/* Preview del recibo */}
+        <div className="nc-pdf-scroll">
+          <div className="nc-recibo">
+            <div className="nc-recibo-head">
+              <div className="nc-recibo-empresa">PANADERÍAS GRACE</div>
+              <div className="nc-recibo-titulo">
+              {esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}
+            </div>
+            </div>
+            <hr className="nc-recibo-div" />
+            <div className="nc-recibo-info">
+              <span><strong>No. Compra:</strong> #{numStr}</span>
+              <span><strong>Fecha:</strong> {fecha}</span>
+              <span><strong>Hora:</strong> {hora}</span>
+              <span><strong>Proveedor:</strong> {proveedor}</span>
+            </div>
+            <hr className="nc-recibo-div" />
+            <table className="nc-recibo-tabla">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style={{ textAlign: 'center' }}>Cant.</th>
+                  <th style={{ textAlign: 'right' }}>Precio</th>
+                  <th style={{ textAlign: 'right' }}>Impuesto</th>
+                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((f, i) => {
+                  const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+                  return (
+                    <tr key={i}>
+                      <td>{f.item_name || f.item_code}</td>
+                      <td style={{ textAlign: 'center' }}>{parseFloat(f.bultos || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>${fmt2(f.rate)}</td>
+                      <td style={{ textAlign: 'right' }}>{f.impuesto_label || 'Tasa 0'}</td>
+                      <td style={{ textAlign: 'right' }}>${fmt2(sub)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <hr className="nc-recibo-div-thin" />
+            <div className="nc-recibo-totales">
+              <div className="nc-recibo-total-fila">
+                <span>Subtotal</span><span>${fmt2(totales.subtotal)}</span>
+              </div>
+              {totales.iva > 0 && (
+                <div className="nc-recibo-total-fila">
+                  <span>IVA 16%</span><span>${fmt2(totales.iva)}</span>
+                </div>
+              )}
+              {totales.ieps > 0 && (
+                <div className="nc-recibo-total-fila">
+                  <span>IEPS 8%</span><span>${fmt2(totales.ieps)}</span>
+                </div>
+              )}
+              {ajuste !== 0 && (
+                <div className="nc-recibo-total-fila">
+                  <span>Ajuste</span><span>${fmt2(ajuste)}</span>
+                </div>
+              )}
+              <div className="nc-recibo-total-fila nc-recibo-grand-total">
+                <span>TOTAL</span><span>${fmt2(totales.total)}</span>
+              </div>
+            </div>
+            <div className="nc-recibo-footer">
+              Documento generado el {fecha} a las {hora}
+            </div>
+          </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+          <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
+          <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal ─────────────────────────────────────────────────────
 /**
  * Modal para crear o editar un borrador de Compra (Purchase Receipt).
@@ -165,6 +353,8 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
   // Modal de sugerencia post-confirmación
   const [cambiosPendientes, setCambiosPendientes] = useState(null); // null = oculto
+  const [pdfData, setPdfData] = useState(null);
+  const [pdfDataPendiente, setPdfDataPendiente] = useState(null);
 
   const IMPUESTOS = comprasService.getImpuestos();
   const margenNum = parseFloat(margen) || 0;
@@ -297,18 +487,31 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     const ajusteNum = validarAjuste(); if (ajusteNum === null) return;
     setLoading(true);
     try {
+      let docNoCompra = null;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, {
           supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
         });
         setSuccess('BORRADOR ACTUALIZADO');
+        docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
         const doc = await comprasService.guardarBorrador({
           supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
         });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
+        docNoCompra = doc?.custom_no_de_compra ?? null;
       }
-      setTimeout(() => onSuccess?.(), 1600);
+      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      setPdfData({
+        noCompra: docNoCompra,
+        fecha,
+        hora,
+        proveedor: proveedor.label,
+        filas: items,
+        totales,
+        ajuste: ajusteNum,
+        esBorrador: true,
+      });
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -322,28 +525,40 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
     setLoading(true);
     try {
+      let docNoCompra = null;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, {
           supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
         });
         await comprasService.confirmarBorrador(initialData.name);
+        docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
-        await comprasService.registrarCompra({
+        const doc = await comprasService.registrarCompra({
           supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
         });
+        docNoCompra = doc?.custom_no_de_compra ?? null;
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
 
-      // ¿Hay precios que cambiaron? → mostrar modal de sugerencia
-      const conCambio = itemsOk.filter(f => {
-        const v = calcVariacion(f);
-        return v && v.cambio;
-      });
+      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const datosPDF = {
+        noCompra: docNoCompra,
+        fecha,
+        hora,
+        proveedor: proveedor.label,
+        filas: itemsOk,
+        totales,
+        ajuste: ajusteNum,
+      };
+
+      // ¿Hay precios que cambiaron? → mostrar modal de sugerencia primero
+      const conCambio = itemsOk.filter(f => calcVariacion(f)?.cambio);
       if (conCambio.length > 0) {
         setCambiosPendientes(conCambio);
-        // No llamamos onSuccess todavía; se llamará desde el modal
+        setPdfDataPendiente(datosPDF);
+        // No llamamos onSuccess todavía; se llamará desde el modal PDF
       } else {
-        setTimeout(() => onSuccess?.(), 1600);
+        setPdfData(datosPDF);
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -352,23 +567,25 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   // ── Actualizar precios en catálogo (desde sugerencia) ────────────────────
   const handleActualizarCatalogo = async (seleccionados) => {
     setCambiosPendientes(null);
-    if (seleccionados.length === 0) { onSuccess?.(); return; }
-    try {
-      await Promise.all(
-        seleccionados.map(f => {
-          const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
-          const nuevoPrecio = parseFloat(f.rate);
-          // Si sabemos los kg por bulto, recalculamos precio/kg directamente
-          const nuevoPrecioPorKg = kgPorBulto > 0
-            ? parseFloat((nuevoPrecio / kgPorBulto).toFixed(6))
-            : null;
-          return comprasService.actualizarPrecioCatalogo(f.item_code, nuevoPrecio, nuevoPrecioPorKg);
-        })
-      );
-    } catch (err) {
-      console.error('Error actualizando catálogo:', err);
+    if (seleccionados.length > 0) {
+      try {
+        await Promise.all(
+          seleccionados.map(f => {
+            const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
+            const nuevoPrecio = parseFloat(f.rate);
+            const nuevoPrecioPorKg = kgPorBulto > 0
+              ? parseFloat((nuevoPrecio / kgPorBulto).toFixed(6))
+              : null;
+            return comprasService.actualizarPrecioCatalogo(f.item_code, nuevoPrecio, nuevoPrecioPorKg);
+          })
+        );
+      } catch (err) {
+        console.error('Error actualizando catálogo:', err);
+      }
     }
-    onSuccess?.();
+    const pdf = pdfDataPendiente;
+    setPdfDataPendiente(null);
+    setPdfData(pdf);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -385,7 +602,20 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         <ModalSugerenciaPrecios
           cambios={cambiosPendientes}
           onAceptar={handleActualizarCatalogo}
-          onOmitir={() => { setCambiosPendientes(null); onSuccess?.(); }}
+          onOmitir={() => {
+            setCambiosPendientes(null);
+            const pdf = pdfDataPendiente;
+            setPdfDataPendiente(null);
+            setPdfData(pdf);
+          }}
+        />
+      )}
+
+      {/* Modal recibo PDF */}
+      {pdfData && (
+        <ModalReciboPDF
+          datos={pdfData}
+          onClose={() => { setPdfData(null); onSuccess?.(); }}
         />
       )}
 
