@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';
+import ConfirmModal from '../components/ConfirmModal';
 import { inventory } from '../services/frappeInventory';
+import useConfirmModal from '../hooks/useConfirmModal';
 import '../styles/global.css';
 import '../styles/Panel.css';
 
@@ -16,124 +18,29 @@ const COLUMNAS = {
   deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Departamento', 'Deshabilitado', 'Acciones'],
 };
 
-/**
- * Componente modal para deshabilitar un insumo directamente sin abrir formulario.
- */
-function ModalDeshabilitar({ item, onConfirm, onCancel, loading, error }) {
-  return (
-    <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="del-modal">
-        <div className="del-modal-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
-        </div>
-        <h3>Deshabilitar insumo</h3>
-        <p>¿Seguro que deseas deshabilitar <strong>{item?.item_name}</strong>?</p>
-        <p className="del-modal-sub">El insumo no aparecerá para nuevas operaciones pero su historial se mantendrá intacto.</p>
+const ICON_TRASH = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
 
-        {error && (
-          <div className="del-modal-error">
-            <p>{error}</p>
-          </div>
-        )}
+const ICON_DISABLE = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+  </svg>
+);
 
-        <div className="del-modal-actions">
-          <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Cancelar</button>
-          <button className="del-btn-disable" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Deshabilitando...' : 'Sí, deshabilitar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Componente modal para habilitar un insumo directamente.
- */
-function ModalHabilitar({ item, onConfirm, onCancel, loading, error }) {
-  return (
-    <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="del-modal">
-        <div className="del-modal-icon" style={{ background: '#dcfce7', color: '#16a34a', border: 'none' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        </div>
-        <h3>Restaurar insumo</h3>
-        <p>¿Seguro que deseas restaurar <strong>{item?.item_name}</strong>?</p>
-        <p className="del-modal-sub">El insumo volverá a estar disponible para todas las operaciones y recetas.</p>
-
-        {error && (
-          <div className="del-modal-error">
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div className="del-modal-actions">
-          <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Cancelar</button>
-          <button className="del-btn-confirm" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Restaurando...' : 'Sí, restaurar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Componente auxiliar para confirmar la eliminación de un insumo del catálogo.
- * Soporta modo "fallback" permitiendo deshabilitar si la eliminación falla por integridad referencial.
- * 
- * @param {Object} props - Propiedades del componente.
- * @param {Object} props.item - Datos del insumo a eliminar.
- * @param {Function} props.onConfirm - Callback cuando se confirma eliminación (DELETE).
- * @param {Function} props.onDisable - Callback cuando se confirma deshabilitación (Disabled = 1).
- * @param {Function} props.onCancel - Callback para cancelar y cerrar el modal.
- * @param {boolean} props.loading - Estado de carga actual.
- * @param {string} [props.error] - Mensaje de error (opcional).
- * @returns {JSX.Element} Modal de confirmación.
- */
-function ModalEliminar({ item, onConfirm, onDisable, onCancel, loading, error }) {
-  return (
-    <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="del-modal">
-        <div className="del-modal-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-            fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" /><path d="M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </div>
-        <h3>Eliminar insumo</h3>
-        <p>¿Seguro que deseas eliminar <strong>{item?.item_name}</strong>?</p>
-        <p className="del-modal-sub">Esta acción es permanente y no se puede deshacer.</p>
-
-        {/* Si ERPNext rechazó el DELETE por transacciones */}
-        {error && (
-          <div className="del-modal-error">
-            <p>No se puede eliminar porque este insumo tiene movimientos registrados.</p>
-            <p>¿Deseas <strong>deshabilitarlo</strong> en su lugar?</p>
-            <div className="del-modal-actions">
-              <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Cancelar</button>
-              <button className="del-btn-disable" onClick={onDisable} disabled={loading}>
-                {loading ? 'Deshabilitando...' : 'Sí, deshabilitar'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!error && (
-          <div className="del-modal-actions">
-            <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Cancelar</button>
-            <button className="del-btn-confirm" onClick={onConfirm} disabled={loading}>
-              {loading ? 'Eliminando...' : 'Sí, eliminar'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const ICON_ENABLE = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
 
 /**
  * Página principal del Catálogo de Insumos.
@@ -156,20 +63,31 @@ function Catalogo() {
   const [editLoading, setEditLoading] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState('');
 
-  // Estado del modal de eliminar
-  const [itemAEliminar, setItemAEliminar] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  // Declarada antes de useConfirmModal y useEffect para evitar TDZ
+  async function loadItems() {
+    setLoading(true); setSearchTerm('');
+    try {
+      const filtros = { itemGroup: selectedGroup || null, tipoItem: selectedTipo || null };
+      let data = [];
+      if (vistaActiva === 'registrado') data = await inventory.getProductosRegistrados(filtros);
+      if (vistaActiva === 'deshabilitado') data = await inventory.getProductosDeshabilitados(filtros);
+      setItems(data);
+    } catch (err) { console.error('Error cargando inventario:', err); }
+    finally { setLoading(false); }
+  }
 
-  // Estado del modal de deshabilitar directo
-  const [itemADeshabilitar, setItemADeshabilitar] = useState(null);
-  const [disableLoading, setDisableLoading] = useState(false);
-  const [disableError, setDisableError] = useState('');
-
-  // Estado del modal de habilitar directo
-  const [itemAHabilitar, setItemAHabilitar] = useState(null);
-  const [enableLoading, setEnableLoading] = useState(false);
-  const [enableError, setEnableError] = useState('');
+  const deleteModal  = useConfirmModal(
+    (item) => inventory.deleteItem(item.item_code),
+    { onSuccess: () => loadItems(), fallbackAction: (item) => inventory.disableItem(item.item_code) }
+  );
+  const disableModal = useConfirmModal(
+    (item) => inventory.disableItem(item.item_code),
+    { onSuccess: () => loadItems() }
+  );
+  const enableModal  = useConfirmModal(
+    (item) => inventory.enableItem(item.item_code),
+    { onSuccess: () => loadItems() }
+  );
 
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
@@ -185,19 +103,8 @@ function Catalogo() {
     })();
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadItems(); }, [vistaActiva, selectedGroup, selectedTipo]);
-
-  const loadItems = async () => {
-    setLoading(true); setSearchTerm('');
-    try {
-      const filtros = { itemGroup: selectedGroup || null, tipoItem: selectedTipo || null };
-      let data = [];
-      if (vistaActiva === 'registrado') data = await inventory.getProductosRegistrados(filtros);
-      if (vistaActiva === 'deshabilitado') data = await inventory.getProductosDeshabilitados(filtros);
-      setItems(data);
-    } catch (err) { console.error('Error cargando inventario:', err); }
-    finally { setLoading(false); }
-  };
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedGroup(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
@@ -213,79 +120,6 @@ function Catalogo() {
     finally { setEditLoading(false); }
   };
 
-  // ── Eliminar ───────────────────────────────────────────────────────────────
-  const handleDeleteClick = (item) => {
-    setItemAEliminar(item);
-    setDeleteError('');
-  };
-
-  // ── Deshabilitar Directo ───────────────────────────────────────────────────
-  const handleDisableClick = (item) => {
-    setItemADeshabilitar(item);
-    setDisableError('');
-  };
-
-  const handleDisableDirectConfirm = async () => {
-    setDisableLoading(true);
-    setDisableError('');
-    try {
-      await inventory.disableItem(itemADeshabilitar.item_code);
-      setItemADeshabilitar(null);
-      loadItems();
-    } catch (err) {
-      setDisableError(err.message || 'No se pudo deshabilitar');
-    } finally {
-      setDisableLoading(false);
-    }
-  };
-
-  // ── Habilitar Directo ──────────────────────────────────────────────────────
-  const handleEnableClick = (item) => {
-    setItemAHabilitar(item);
-    setEnableError('');
-  };
-
-  const handleEnableDirectConfirm = async () => {
-    setEnableLoading(true);
-    setEnableError('');
-    try {
-      await inventory.enableItem(itemAHabilitar.item_code);
-      setItemAHabilitar(null);
-      loadItems();
-    } catch (err) {
-      setEnableError(err.message || 'No se pudo restaurar el insumo');
-    } finally {
-      setEnableLoading(false);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    setDeleteLoading(true);
-    setDeleteError('');
-    try {
-      await inventory.deleteItem(itemAEliminar.item_code);
-      setItemAEliminar(null);
-      loadItems();
-    } catch (err) {
-      // ERPNext rechaza si tiene transacciones — ofrecer deshabilitar
-      setDeleteError(err.message || 'No se pudo eliminar');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  const handleDisableInstead = async () => {
-    setDeleteLoading(true);
-    try {
-      await inventory.disableItem(itemAEliminar.item_code);
-      setItemAEliminar(null);
-      loadItems();
-    } catch (err) {
-      setDeleteError(err.message || 'No se pudo deshabilitar');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
 
   const filtered = items.filter(item =>
     item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -411,7 +245,7 @@ function Catalogo() {
                       : filtered.map((item, i) => (
                         <FilaItem key={i} item={item} vista={vistaActiva}
                           onEdit={handleEdit} editLoading={editLoading}
-                          onDelete={handleDeleteClick} onDisable={handleDisableClick} onEnable={handleEnableClick} soloLectura={soloLectura} accionActiva={accionActiva} />
+                          onDelete={deleteModal.open} onDisable={disableModal.open} onEnable={enableModal.open} soloLectura={soloLectura} accionActiva={accionActiva} />
                       ))
                     }
                   </tbody>
@@ -432,36 +266,56 @@ function Catalogo() {
       )}
 
       {/* Modal eliminar */}
-      {itemAEliminar && (
-        <ModalEliminar
-          item={itemAEliminar}
-          onConfirm={handleDeleteConfirm}
-          onDisable={handleDisableInstead}
-          onCancel={() => { setItemAEliminar(null); setDeleteError(''); }}
-          loading={deleteLoading}
-          error={deleteError}
+      {deleteModal.item && (
+        <ConfirmModal
+          title="Eliminar insumo"
+          description={<>¿Seguro que deseas eliminar <strong>{deleteModal.item.item_name}</strong>?</>}
+          subdescription="Esta acción es permanente y no se puede deshacer."
+          icon={ICON_TRASH}
+          confirmLabel="Sí, eliminar"
+          loadingLabel="Eliminando..."
+          onConfirm={deleteModal.confirm}
+          onCancel={deleteModal.close}
+          loading={deleteModal.loading}
+          error={deleteModal.error}
+          onFallback={deleteModal.confirmFallback}
+          fallbackLabel="Sí, deshabilitar"
+          fallbackLoadingLabel="Deshabilitando..."
+          fallbackDescription={<>No se puede eliminar porque este insumo tiene movimientos registrados. ¿Deseas <strong>deshabilitarlo</strong> en su lugar?</>}
         />
       )}
 
       {/* Modal deshabilitar directo */}
-      {itemADeshabilitar && (
-        <ModalDeshabilitar
-          item={itemADeshabilitar}
-          onConfirm={handleDisableDirectConfirm}
-          onCancel={() => { setItemADeshabilitar(null); setDisableError(''); }}
-          loading={disableLoading}
-          error={disableError}
+      {disableModal.item && (
+        <ConfirmModal
+          title="Deshabilitar insumo"
+          description={<>¿Seguro que deseas deshabilitar <strong>{disableModal.item.item_name}</strong>?</>}
+          subdescription="El insumo no aparecerá para nuevas operaciones pero su historial se mantendrá intacto."
+          icon={ICON_DISABLE}
+          confirmLabel="Sí, deshabilitar"
+          loadingLabel="Deshabilitando..."
+          confirmClassName="del-btn-disable"
+          onConfirm={disableModal.confirm}
+          onCancel={disableModal.close}
+          loading={disableModal.loading}
+          error={disableModal.error}
         />
       )}
 
       {/* Modal habilitar directo */}
-      {itemAHabilitar && (
-        <ModalHabilitar
-          item={itemAHabilitar}
-          onConfirm={handleEnableDirectConfirm}
-          onCancel={() => { setItemAHabilitar(null); setEnableError(''); }}
-          loading={enableLoading}
-          error={enableError}
+      {enableModal.item && (
+        <ConfirmModal
+          title="Restaurar insumo"
+          description={<>¿Seguro que deseas restaurar <strong>{enableModal.item.item_name}</strong>?</>}
+          subdescription="El insumo volverá a estar disponible para todas las operaciones y recetas."
+          icon={ICON_ENABLE}
+          iconStyle={{ background: '#dcfce7', color: '#16a34a', border: 'none' }}
+          confirmLabel="Sí, restaurar"
+          loadingLabel="Restaurando..."
+          onConfirm={enableModal.confirm}
+          onCancel={enableModal.close}
+          loading={enableModal.loading}
+          error={enableModal.error}
         />
       )}
     </Layout>

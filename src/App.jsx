@@ -2,7 +2,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Panel from './components/Panel';
+import Panel from './pages/Panel';
 import Catalogo from './pages/Catalogo';
 import Proveedores from './pages/Proveedores';
 import Compras from './pages/Compras';

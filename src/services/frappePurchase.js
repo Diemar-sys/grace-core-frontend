@@ -3,8 +3,8 @@
  * Maneja Purchase Receipt en ERPNext para registro de compras a proveedores.
  */
 
-const BODEGA_CENTRAL = "BODEGA CENTRAL - INSUMOS - PG";
-const COMPANY = "Panaderias Grace";
+import FrappeBase from './FrappeBase';
+import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 
 const IMPUESTOS = [
   { key: "tasa0", label: "Tasa 0", rate: 0 },
@@ -12,59 +12,12 @@ const IMPUESTOS = [
   { key: "ieps", label: "IEPS 8%", rate: 0.08 },
 ];
 
-class FrappeComprasService {
-  constructor(baseUrl = "") {
-    this.baseUrl = baseUrl;
-  }
-
+class FrappeComprasService extends FrappeBase {
   /**
    * Obtiene la lista de impuestos aplicables predefinidos.
    * @returns {Array<{key: string, label: string, rate: number}>} Lista de impuestos predefinidos.
    */
   getImpuestos() { return IMPUESTOS; }
-
-  /**
-   * Genera los headers requeridos para la comunicación con la API de Frappe.
-   * Incluye el Token CSRF global si está disponible.
-   * @returns {Object} Headers HTTP estándar.
-   */
-  getHeaders() {
-    return {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      "X-Frappe-CSRF-Token": window.csrf_token || "fetch",
-    };
-  }
-
-  /**
-   * Método interno para realizar peticiones HTTP (fetch) al servidor de Frappe.
-   * Maneja automáticamente la inclusión de headers y el lanzamiento de errores decodificados.
-   * @private
-   * @param {string} path - Ruta de la API (ej. '/api/resource/Purchase Receipt').
-   * @param {Object} [options={}] - Opciones de la petición fetch (method, body, etc).
-   * @returns {Promise<Object>} Respuesta JSON decodificada.
-   * @throws {Error} Error estructurado extraído de la respuesta del servidor (`_server_messages`).
-   */
-  async _fetch(path, options = {}) {
-    const fetchOptions = {
-      credentials: "include",
-      headers: this.getHeaders(),
-      cache: "no-store",
-      ...options,
-    };
-    const res = await fetch(this.baseUrl + path, fetchOptions);
-    if (!res.ok) {
-      // Si fue cancelado por AbortController, no propagamos el error
-      if (res.status === 0) return null;
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || "Error " + res.status
-      );
-    }
-    return res.json();
-  }
 
   async getItemsCatalogo(itemCodes) {
     const res = await this._fetch(

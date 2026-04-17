@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { rateLimiter, sanitizar, validar } from '../utils/security';
+import { SUCURSALES } from '../config/constants';
 import '../styles/Login.css';
 
 /**
@@ -21,12 +22,7 @@ function Login() {
     sucursal: ''
   });
 
-  const sucursales = [
-    'Santuarios',
-    'Pirámides',
-    'Puerta Real',
-    'Paseos del Bosque'
-  ];
+  const sucursales = SUCURSALES;
 
   // ── Cuenta regresiva del bloqueo ─────────────────────────────────────────
   // Por qué: Muestra al empleado cuánto tiempo falta para volver a intentar,

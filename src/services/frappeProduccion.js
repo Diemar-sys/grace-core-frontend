@@ -5,39 +5,11 @@
  * ya disponible en frappeStock.js.
  */
 
+import FrappeBase from './FrappeBase';
 import { stockService } from './frappeStock';
+import { COMPANY } from '../config/constants';
 
-const COMPANY = 'Panaderias Grace';
-
-class FrappeProduccionService {
-  constructor(baseUrl = '') {
-    this.baseUrl = baseUrl;
-  }
-
-  getHeaders() {
-    return {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'X-Frappe-CSRF-Token': window.csrf_token || 'fetch',
-    };
-  }
-
-  async _fetch(path, options = {}) {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      credentials: 'include',
-      headers: this.getHeaders(),
-      ...options,
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
-      );
-    }
-    return response.json();
-  }
+class FrappeProduccionService extends FrappeBase {
 
   // ─────────────────────────────────────────────
   // RECETAS (BOM)

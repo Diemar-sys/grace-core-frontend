@@ -3,91 +3,31 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevaCompra, { BuscadorProveedor } from "../components/NuevaCompra";
+import ConfirmModal from "../components/ConfirmModal";
 import { comprasService } from "../services/frappePurchase";
+import useConfirmModal from "../hooks/useConfirmModal";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/**
- * Componente para confirmar o cancelar la eliminación de una compra en estado Borrador.
- *
- * @param {Object} props - Props del Modal.
- * @param {string} props.compraName - Nombre/ID interno (name) de la compra.
- * @param {Function} props.onConfirm - Función que ejecuta el DELETE definitivo.
- * @param {Function} props.onCancel - Función para abortar la eliminación.
- * @param {boolean} props.loading - Estado de procesamiento.
- * @param {string} props.error - String de error en caso de fallo, para mostrar feedback.
- * @returns {JSX.Element}
- */
-function ModalEliminar({ compraName, onConfirm, onCancel, loading, error }) {
-  return (
-    <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="del-modal">
-        <div className="del-modal-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-            fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" /><path d="M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </div>
-        <h3>Eliminar borrador</h3>
-        <p>¿Seguro que deseas eliminar la compra <strong>{compraName}</strong>?</p>
-        <p className="del-modal-sub">Esta acción es permanente y no se puede deshacer.</p>
+const ICON_TRASH = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
 
-        {error && (
-          <div className="del-modal-error">
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div className="del-modal-actions">
-          <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Cancelar</button>
-          <button className="del-btn-confirm" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Eliminando...' : 'Sí, eliminar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ModalCancelar({ compra, onConfirm, onCancel, loading, error }) {
-  const noStr = compra?.custom_no_de_compra
-    ? `#${compra.custom_no_de_compra}`
-    : compra?.name;
-  return (
-    <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="del-modal">
-        <div className="del-modal-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-            fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </div>
-        <h3>Cancelar compra {noStr}</h3>
-        <p>
-          El stock recibido en esta compra será <strong>revertido automáticamente</strong>.
-          La compra quedará en historial como cancelada.
-        </p>
-        <p className="del-modal-sub">
-          Después podrás registrar una nueva compra con las cantidades correctas.
-        </p>
-        {error && <div className="del-modal-error"><p>{error}</p></div>}
-        <div className="del-modal-actions">
-          <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>Regresar</button>
-          <button className="del-btn-confirm" onClick={onConfirm} disabled={loading}
-            style={{ background: '#d97706' }}>
-            {loading ? 'Cancelando...' : 'Sí, cancelar compra'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const ICON_WARNING = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
 
 /**
  * Vista Principal del histórico de Compras.
@@ -110,23 +50,8 @@ function Compras() {
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
 
-  const [compraAEliminar, setCompraAEliminar] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
-
-  const [compraACancelar, setCompraACancelar] = useState(null); // objeto compra completo
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelError, setCancelError] = useState('');
-
-  // Ahora sólo cargamos al cambiar las fechas, el proveedor se filtra en vivo
-  // AbortController: cancela el fetch si el componente se desmonta (evita doble request en StrictMode)
-  useEffect(() => {
-    const controller = new AbortController();
-    cargar(controller.signal);
-    return () => controller.abort();   // cleanup al desmontar o re-ejecutar
-  }, [desde, hasta]);
-
-  const cargar = async (signal) => {
+  // Declarada antes de useConfirmModal y useEffect para evitar TDZ
+  async function cargar(signal) {
     setLoading(true);
     try {
       const data = await comprasService.getCompras({
@@ -140,7 +65,25 @@ function Compras() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  const deleteModal = useConfirmModal(
+    (name) => comprasService.eliminarBorrador(name),
+    { onSuccess: () => cargar() }
+  );
+  const cancelModal = useConfirmModal(
+    (compra) => comprasService.cancelarCompra(compra.name),
+    { onSuccess: () => cargar() }
+  );
+
+  // Ahora sólo cargamos al cambiar las fechas, el proveedor se filtra en vivo
+  // AbortController: cancela el fetch si el componente se desmonta (evita doble request en StrictMode)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const controller = new AbortController();
+    cargar(controller.signal);
+    return () => controller.abort();   // cleanup al desmontar o re-ejecutar
+  }, [desde, hasta]);
 
   const handleEditar = async (name) => {
     try {
@@ -161,40 +104,6 @@ function Compras() {
     }
   };
 
-  const handleDeleteClick = (name) => {
-    setCompraAEliminar(name);
-    setDeleteError('');
-  };
-
-  const handleEliminarConfirm = async () => {
-    setDeleteLoading(true);
-    setDeleteError('');
-    try {
-      await comprasService.eliminarBorrador(compraAEliminar);
-      setCompraAEliminar(null);
-      cargar();
-    } catch (err) {
-      console.error(err);
-      setDeleteError(err.message || 'No se pudo eliminar el borrador');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  const handleCancelarConfirm = async () => {
-    setCancelLoading(true);
-    setCancelError('');
-    try {
-      await comprasService.cancelarCompra(compraACancelar.name);
-      setCompraACancelar(null);
-      cargar();
-    } catch (err) {
-      console.error(err);
-      setCancelError(err.message || 'No se pudo cancelar la compra');
-    } finally {
-      setCancelLoading(false);
-    }
-  };
 
   const handleModalSuccess = () => {
     setModal(null);
@@ -250,35 +159,35 @@ function Compras() {
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setModal('nueva')}>
               <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Registrar Compra</h3>
               <p>Capturar mercancía recibida</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('editar')}>
               <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Borrador</h3>
               <p>Modificar compras pendientes</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('confirmar')}>
               <div className="module-icon" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
               <h3>Confirmar Borrador</h3>
               <p>Procesar definitivamente</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('eliminar')}>
               <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
               </div>
               <h3>Eliminar Borrador</h3>
               <p>Descartar compras erradas</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('cancelar')}>
               <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
               <h3>Cancelar Compra</h3>
               <p>Revertir error en cantidades</p>
@@ -293,116 +202,115 @@ function Compras() {
           </div>
         ) : (
           <>
-        {/* FILTROS + BOTÓN */}
-        <div className="filtros-section">
-          <div className="filtro-group">
-            <label>Desde</label>
-            <input type="date" className="comp-date-input" value={desde}
-              onChange={e => setDesde(e.target.value)} />
-          </div>
-          <div className="filtro-group">
-            <label>Hasta</label>
-            <input type="date" className="comp-date-input" value={hasta}
-              onChange={e => setHasta(e.target.value)} />
-          </div>
-          <div className="filtro-group search">
-            <label>Buscar proveedor / #</label>
-            <input type="text" placeholder="Ej: LASTUR, #001"
-              value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          </div>
-          
-          <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-            <button className="btn-refresh" onClick={cargar}>
-              Actualizar
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ marginLeft: "8px", verticalAlign: "middle" }}>
-                <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
-              </svg>
-            </button>
-          </div>
-        </div>
+            {/* FILTROS + BOTÓN */}
+            <div className="filtros-section">
+              <div className="filtro-group">
+                <label>Desde</label>
+                <input type="date" className="comp-date-input" value={desde}
+                  onChange={e => setDesde(e.target.value)} />
+              </div>
+              <div className="filtro-group">
+                <label>Hasta</label>
+                <input type="date" className="comp-date-input" value={hasta}
+                  onChange={e => setHasta(e.target.value)} />
+              </div>
+              <div className="filtro-group search">
+                <label>Buscar proveedor / #</label>
+                <input type="text" placeholder="Ej: LASTUR, #001"
+                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
 
-        {/* TABLA */}
-        {loading ? (
-          <div className="loading">Cargando compras...</div>
-        ) : (
-          <div className="table-container">
-            <table className="sys-table">
-              <thead>
-                <tr>
-                  <th># Compra</th>
-                  <th>Fecha</th>
-                  <th>Proveedor</th>
-                  <th>Subtotal</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  {!soloLectura && <th>Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCompras.length === 0 ? (
-                  <tr><td colSpan={7} className="no-data">No hay compras registradas</td></tr>
-                ) : (
-                  filteredCompras.map(c => (
-                    <tr key={c.name}>
-                      <td className="cell-code">
-                        {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}
-                      </td>
-                      <td>{c.posting_date}</td>
-                      <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
-                      <td className="cell-right">${fmt(c.total)}</td>
-                      <td className="cell-right cell-bold">${fmt(c.grand_total)}</td>
-                      <td>
-                        <span className={`status-badge ${
-                          c.docstatus === 0 ? 'status-low' :
-                          c.docstatus === 2 ? 'status-cancelled' :
-                          'status-ok'
-                        }`}>
-                          {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
-                        </span>
-                      </td>
-                      {!soloLectura && (
-                        <td className="comp-td-acciones">
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            {c.docstatus === 0 && (
-                              <>
-                                {accionActiva === 'confirmar' && (
-                                  <button className="comp-btn-confirmar" onClick={() => handleConfirmarBorrador(c.name)}
-                                    title="Confirmar compra">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                  </button>
-                                )}
-                                {accionActiva === 'editar' && (
-                                  <button className="comp-btn-editar" onClick={() => handleEditar(c.name)} title="Editar compra">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-                                  </button>
-                                )}
-                                {accionActiva === 'eliminar' && (
-                                  <button className="comp-btn-eliminar" onClick={() => handleDeleteClick(c.name)} title="Eliminar borrador">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                            {c.docstatus === 1 && accionActiva === 'cancelar' && (
-                              <button className="comp-btn-eliminar" onClick={() => { setCompraACancelar(c); setCancelError(''); }}
-                                title="Cancelar compra" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #f59e0b' }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+              <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
+                <button className="btn-refresh" onClick={cargar}>
+                  Actualizar
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ marginLeft: "8px", verticalAlign: "middle" }}>
+                    <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                    <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* TABLA */}
+            {loading ? (
+              <div className="loading">Cargando compras...</div>
+            ) : (
+              <div className="table-container">
+                <table className="sys-table">
+                  <thead>
+                    <tr>
+                      <th># Compra</th>
+                      <th>Fecha</th>
+                      <th>Proveedor</th>
+                      <th>Subtotal</th>
+                      <th>Total</th>
+                      <th>Estado</th>
+                      {!soloLectura && <th>Acciones</th>}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </>
+                  </thead>
+                  <tbody>
+                    {filteredCompras.length === 0 ? (
+                      <tr><td colSpan={7} className="no-data">No hay compras registradas</td></tr>
+                    ) : (
+                      filteredCompras.map(c => (
+                        <tr key={c.name}>
+                          <td className="cell-code">
+                            {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}
+                          </td>
+                          <td>{c.posting_date}</td>
+                          <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
+                          <td className="cell-right">${fmt(c.total)}</td>
+                          <td className="cell-right cell-bold">${fmt(c.grand_total)}</td>
+                          <td>
+                            <span className={`status-badge ${c.docstatus === 0 ? 'status-low' :
+                                c.docstatus === 2 ? 'status-cancelled' :
+                                  'status-ok'
+                              }`}>
+                              {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
+                            </span>
+                          </td>
+                          {!soloLectura && (
+                            <td className="comp-td-acciones">
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                {c.docstatus === 0 && (
+                                  <>
+                                    {accionActiva === 'confirmar' && (
+                                      <button className="comp-btn-confirmar" onClick={() => handleConfirmarBorrador(c.name)}
+                                        title="Confirmar compra">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                      </button>
+                                    )}
+                                    {accionActiva === 'editar' && (
+                                      <button className="comp-btn-editar" onClick={() => handleEditar(c.name)} title="Editar compra">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+                                      </button>
+                                    )}
+                                    {accionActiva === 'eliminar' && (
+                                      <button className="comp-btn-eliminar" onClick={() => deleteModal.open(c.name)} title="Eliminar borrador">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                                {c.docstatus === 1 && accionActiva === 'cancelar' && (
+                                  <button className="comp-btn-eliminar" onClick={() => cancelModal.open(c)}
+                                    title="Cancelar compra" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #f59e0b' }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -429,24 +337,36 @@ function Compras() {
       )}
 
       {/* Modal eliminar borrador */}
-      {compraAEliminar && (
-        <ModalEliminar
-          compraName={compraAEliminar}
-          onConfirm={handleEliminarConfirm}
-          onCancel={() => { setCompraAEliminar(null); setDeleteError(''); }}
-          loading={deleteLoading}
-          error={deleteError}
+      {deleteModal.item && (
+        <ConfirmModal
+          title="Eliminar borrador"
+          description={<>¿Seguro que deseas eliminar la compra <strong>{deleteModal.item}</strong>?</>}
+          subdescription="Esta acción es permanente y no se puede deshacer."
+          icon={ICON_TRASH}
+          confirmLabel="Sí, eliminar"
+          loadingLabel="Eliminando..."
+          onConfirm={deleteModal.confirm}
+          onCancel={deleteModal.close}
+          loading={deleteModal.loading}
+          error={deleteModal.error}
         />
       )}
 
       {/* Modal cancelar compra confirmada */}
-      {compraACancelar && (
-        <ModalCancelar
-          compra={compraACancelar}
-          onConfirm={handleCancelarConfirm}
-          onCancel={() => { setCompraACancelar(null); setCancelError(''); }}
-          loading={cancelLoading}
-          error={cancelError}
+      {cancelModal.item && (
+        <ConfirmModal
+          title={`Cancelar compra ${cancelModal.item?.custom_no_de_compra ? `#${cancelModal.item.custom_no_de_compra}` : cancelModal.item?.name}`}
+          description={<>El stock recibido en esta compra será <strong>revertido automáticamente</strong>. La compra quedará en historial como cancelada.</>}
+          subdescription="Después podrás registrar una nueva compra con las cantidades correctas."
+          icon={ICON_WARNING}
+          confirmLabel="Sí, cancelar compra"
+          loadingLabel="Cancelando..."
+          confirmStyle={{ background: '#d97706' }}
+          cancelLabel="Regresar"
+          onConfirm={cancelModal.confirm}
+          onCancel={cancelModal.close}
+          loading={cancelModal.loading}
+          error={cancelModal.error}
         />
       )}
     </Layout>

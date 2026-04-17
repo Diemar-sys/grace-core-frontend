@@ -4,11 +4,9 @@
  * Sin dependencia de Contact ni Address doctypes.
  */
 
-class FrappeProveedoresService {
-  constructor(baseUrl = "") {
-    this.baseUrl = baseUrl;
-  }
+import FrappeBase from './FrappeBase';
 
+class FrappeProveedoresService extends FrappeBase {
   #cache = {};
 
   async #cachedFetch(key, fetcher) {
@@ -16,45 +14,6 @@ class FrappeProveedoresService {
     const data = await fetcher();
     this.#cache[key] = data;
     return data;
-  }
-
-  /**
-   * Genera los headers HTTP básicos para peticiones JSON.
-   * Incluye el token CSRF si está incrustado en la página por Frappe.
-   * @returns {Object} Headers request.
-   */
-  getHeaders() {
-    return {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      "X-Frappe-CSRF-Token": window.csrf_token || "fetch",
-    };
-  }
-
-  /**
-   * Wrapper centralizado para fetch nativo manejando el parseo de errores Frappe.
-   * @private
-   * @param {string} path - URL relativa del endpoint en Frappe.
-   * @param {Object} [options={}] - RequestInit estándar para el fetch.
-   * @returns {Promise<any>} Objeto JSON devuelto por la API.
-   */
-  async #fetch(path, options = {}) {
-    const fetchOptions = {
-      credentials: "include",
-      headers: this.getHeaders(),
-      cache: "no-store",
-      ...options,
-    };
-    const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
-      );
-    }
-    return response.json();
   }
 
   // ── Campos custom que se leen/escriben directamente en Supplier ──
@@ -94,7 +53,7 @@ class FrappeProveedoresService {
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
-    const res = await this.#fetch(
+    const res = await this._fetch(
       `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`
     );
     return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
@@ -111,7 +70,7 @@ class FrappeProveedoresService {
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
-    const res = await this.#fetch(
+    const res = await this._fetch(
       `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`
     );
     return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
@@ -128,7 +87,7 @@ class FrappeProveedoresService {
    * @throws {Error} Si el proveedor no es encontrado.
    */
   async getProveedorCompleto(supplierName) {
-    const res = await this.#fetch(
+    const res = await this._fetch(
       `/api/resource/Supplier/${encodeURIComponent(supplierName)}`
     );
     const data = res.data;
@@ -147,7 +106,7 @@ class FrappeProveedoresService {
    * @returns {Promise<number>} Número secuencial disponible.
    */
   async #getSiguienteNumero() {
-    const res = await this.#fetch(
+    const res = await this._fetch(
       `/api/resource/Supplier?fields=${encodeURIComponent(JSON.stringify(["custom_no_de_proveedor"]))}&limit_page_length=500`
     );
     const lista = res.data || [];
@@ -167,7 +126,7 @@ class FrappeProveedoresService {
   async createProveedor(formData) {
     const numero = await this.#getSiguienteNumero();
 
-    const res = await this.#fetch("/api/resource/Supplier", {
+    const res = await this._fetch("/api/resource/Supplier", {
       method: "POST",
       body: JSON.stringify({
         doctype: "Supplier",
@@ -206,7 +165,7 @@ class FrappeProveedoresService {
    * @returns {Promise<Object>} Registro actualizado.
    */
   async updateProveedor(supplierName, formData) {
-    const res = await this.#fetch(
+    const res = await this._fetch(
       `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
       {
         method: "PUT",
@@ -219,7 +178,7 @@ class FrappeProveedoresService {
           custom_razon_social: formData.custom_razon_social?.trim() || "",
           custom_direccion: formData.custom_direccion?.trim() || "",
           custom_puesto_encargado: formData.custom_puesto_encargado?.trim() || "",
-          custom_telefono: formData.custom_telefono?.trim() || "",
+          custom_teléfono: formData.custom_teléfono?.trim() || "",
           custom_correo: formData.custom_correo?.trim() || "",
           custom_tipo: formData.custom_tipo || "",
           custom_contacto_1_nombre: formData.custom_contacto_1_nombre?.trim() || "",
@@ -236,6 +195,17 @@ class FrappeProveedoresService {
   }
 
   // ─────────────────────────────────────────────
+  // ELIMINAR
+  // ─────────────────────────────────────────────
+
+  async eliminarProveedor(supplierName) {
+    await this._fetch(
+      `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
+      { method: "DELETE" }
+    );
+  }
+
+  // ─────────────────────────────────────────────
   // CATÁLOGOS
   // ─────────────────────────────────────────────
 
@@ -245,7 +215,7 @@ class FrappeProveedoresService {
    */
   async getGruposProveedor() {
     return this.#cachedFetch('grupos_proveedor', async () => {
-      const res = await this.#fetch(
+      const res = await this._fetch(
         `/api/resource/Supplier Group?fields=["name"]&limit_page_length=100`
       );
       return res.data || [];

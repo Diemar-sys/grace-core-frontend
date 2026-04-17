@@ -1,6 +1,7 @@
 // src/components/NuevoProveedor.jsx
 import React, { useState, useEffect } from 'react';
 import { proveedores } from '../services/frappeSupplier';
+import ModalError from './ModalError';
 import '../styles/NuevoProveedor.css';
 
 const FORM_INICIAL = {
@@ -41,8 +42,7 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
   const [formData, setFormData] = useState(FORM_INICIAL);
   const [grupos, setGrupos]     = useState([]);
   const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [success, setSuccess]   = useState('');
+  const [infoModal, setInfoModal] = useState({ isOpen: false, message: '', type: 'error' });
 
   useEffect(() => {
     (async () => {
@@ -67,33 +67,30 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccess('');
 
     if (!formData.supplier_name?.trim()) {
-      setError('El nombre del proveedor es obligatorio');
+      setInfoModal({ isOpen: true, message: 'El nombre del proveedor es obligatorio.', type: 'error' });
       setLoading(false);
       return;
     }
 
     try {
-      let result;
       if (isEditing) {
-        result = await proveedores.updateProveedor(editItem.name, formData);
-        setSuccess(`✅ Proveedor "${formData.supplier_name}" actualizado`);
+        await proveedores.updateProveedor(editItem.name, formData);
+        setInfoModal({ isOpen: true, message: `PROVEEDOR "${formData.supplier_name}" ACTUALIZADO CORRECTAMENTE.`, type: 'success-update' });
       } else {
-        result = await proveedores.createProveedor(formData);
-        setSuccess(`✅ Proveedor "${formData.supplier_name}" registrado`);
+        await proveedores.createProveedor(formData);
+        setInfoModal({ isOpen: true, message: `PROVEEDOR "${formData.supplier_name}" REGISTRADO EXITOSAMENTE.`, type: 'success-create' });
       }
-      setTimeout(() => onSuccess?.(result), 1200);
     } catch (err) {
-      setError(err.message || 'Error desconocido');
+      setInfoModal({ isOpen: true, message: err.message || 'Error desconocido', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
     <div className="np-modal">
       <div className="np-container">
 
@@ -102,9 +99,6 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
           <h2>{isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h2>
           <button className="np-btn-close" type="button" onClick={onCancel}>×</button>
         </div>
-
-        {error   && <div className="np-alert np-alert-error">{error}</div>}
-        {success && <div className="np-alert np-alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit} className="np-form">
 
@@ -212,8 +206,8 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
                 <label>Tipo</label>
                 <select name="custom_tipo" value={formData.custom_tipo} onChange={handleChange}>
                   <option value="">Seleccionar...</option>
-                  <option value="Gasto">GASTO</option>
-                  <option value="Costo">COSTO</option>
+                  <option value="GASTO">GASTO</option>
+                  <option value="COSTO">COSTO</option>
                 </select>
               </div>
               <div className="np-group">
@@ -332,6 +326,17 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
         </form>
       </div>
     </div>
+
+    <ModalError
+      isOpen={infoModal.isOpen}
+      message={infoModal.message}
+      type={infoModal.type}
+      onClose={() => {
+        setInfoModal({ isOpen: false, message: '', type: 'error' });
+        if (infoModal.type.startsWith('success')) onSuccess?.();
+      }}
+    />
+    </>
   );
 }
 

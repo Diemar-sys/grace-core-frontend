@@ -8,8 +8,8 @@
  * - Cancelación de ventas.
  */
 
-const COMPANY = 'Panaderias Grace';
-const DEFAULT_CUSTOMER = 'Público en General';
+import FrappeBase from './FrappeBase';
+import { COMPANY, DEFAULT_CUSTOMER } from '../config/constants';
 
 /** Ruta base de los métodos whitelisted del POS */
 const POS_METHOD = (fn) =>
@@ -22,34 +22,7 @@ const FORMAS_PAGO_MAP = {
   'Transferencia': 'Bank Transfer',
 };
 
-class FrappePOSService {
-  constructor(baseUrl = '') {
-    this.baseUrl = baseUrl;
-  }
-
-  getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'X-Frappe-CSRF-Token': window.csrf_token || 'fetch',
-    };
-  }
-
-  async _fetch(path, options = {}) {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      credentials: 'include',
-      headers: this.getHeaders(),
-      ...options,
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
-      );
-    }
-    return response.json();
-  }
+class FrappePOSService extends FrappeBase {
 
   // ─────────────────────────────────────────────────
   // CATÁLOGO DE PRODUCTOS PARA VENTA

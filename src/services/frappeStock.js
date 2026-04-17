@@ -4,8 +4,8 @@
  * endpoints específicos usados por RegistroEntrada, RegistroSalida e Inventario.
  */
 
-const BODEGA_CENTRAL = "BODEGA CENTRAL - INSUMOS - PG";
-const COMPANY        = "Panaderias Grace";
+import FrappeBase from './FrappeBase';
+import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 
 const ALMACENES_DEPARTAMENTO = [
   { name: "ALMACEN - PIZZERIA - PG",    label: "Pizzeria"    },
@@ -15,11 +15,7 @@ const ALMACENES_DEPARTAMENTO = [
   { name: "ALMACEN - REPOSTERIA - PG",  label: "Reposteria"  },
 ];
 
-class FrappeStockService {
-  constructor(baseUrl = "") {
-    this.baseUrl = baseUrl;
-  }
-
+class FrappeStockService extends FrappeBase {
   // Constantes de almacenes
   /**
    * Obtiene el nombre del almacén predeterminado para recepción (Bodega Central).
@@ -38,44 +34,6 @@ class FrappeStockService {
    * @returns {Array<{name: string, label: string}>} Lista consolidada de almacenes.
    */
   getAllWarehouses()          { return [{ name: BODEGA_CENTRAL, label: "Bodega Central" }, ...ALMACENES_DEPARTAMENTO]; }
-
-  /**
-   * Construye los encabezados estándar de la API, inyectando token CSRF.
-   * @returns {Object} Cabeceras HTTP.
-   */
-  getHeaders() {
-    return {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      "X-Frappe-CSRF-Token": window.csrf_token || "fetch",
-    };
-  }
-
-  /**
-   * Petición genérica hacia ERPNext que maneja la lógica de deserialización de errores.
-   * @private
-   * @param {string} path - URL Endpoint relativo.
-   * @param {Object} [options={}] - Configuración Fetch API.
-   * @returns {Promise<any>} Objeto decodificado en JSON.
-   */
-  async _fetch(path, options = {}) {
-    const fetchOptions = {
-      credentials: "include",
-      headers: this.getHeaders(),
-      cache: "no-store",
-      ...options,
-    };
-    const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
-      );
-    }
-    return response.json();
-  }
 
   // ─────────────────────────────────────────────
   // BÚSQUEDA DE ÍTEMS (usada por los formularios)

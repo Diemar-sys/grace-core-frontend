@@ -4,7 +4,21 @@ import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoProveedor from '../components/NuevoProveedor';
 import { proveedores } from '../services/frappeSupplier';
+import { PAGE_SIZE } from '../config/constants';
+import ConfirmModal from '../components/ConfirmModal';
+import useConfirmModal from '../hooks/useConfirmModal';
+import useDebounce from '../hooks/useDebounce';
 import '../styles/global.css';
+
+const ICON_TRASH = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
+    fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
 
 const VISTAS = [
   { key: 'activo', label: 'ACTIVOS', color: 'vista-registrado' },
@@ -37,20 +51,18 @@ function Proveedores() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
+  const deleteModal = useConfirmModal(
+    (item) => proveedores.eliminarProveedor(item.name),
+    { onSuccess: () => loadItems() }
+  );
 
-  // Búsqueda con debounce
   const [inputBusqueda, setInputBusqueda] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setSearchTerm(inputBusqueda), 350);
-    return () => clearTimeout(t);
-  }, [inputBusqueda]);
+  const searchTerm = useDebounce(inputBusqueda, 350);
 
   // Paginación
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const PAGE_SIZE = 20;
 
   useEffect(() => {
     (async () => {
@@ -59,6 +71,7 @@ function Proveedores() {
   }, []);
 
   useEffect(() => { setPage(1); }, [vistaActiva, selectedGrupo, searchTerm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadItems(); }, [vistaActiva, selectedGrupo, searchTerm, page]);
 
   const loadItems = async () => {
@@ -85,6 +98,7 @@ function Proveedores() {
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
   const handleModalClose = () => { setModalAbierto(false); setEditItem(null); };
   const handleModalSuccess = () => { handleModalClose(); loadItems(); };
+
 
   const handleEdit = async (supplierName) => {
     setEditLoading(true);
@@ -140,6 +154,18 @@ function Proveedores() {
               </div>
               <h3>Editar Proveedor</h3>
               <p>Modificar datos existentes</p>
+            </button>
+            <button className="panel-module" onClick={() => setAccionActiva('eliminar')}>
+              <div className="module-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" /><path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </div>
+              <h3>Eliminar Proveedor</h3>
+              <p>Borrar proveedor permanentemente</p>
             </button>
             {/*<button className="panel-module" onClick={() => setAccionActiva('consultar')}>
               <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
@@ -208,7 +234,9 @@ function Proveedores() {
                       <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay proveedores en esta vista</td></tr>
                     ) : (
                       items.map((item, i) => (
-                        <FilaProveedor key={i} item={item} onEdit={handleEdit} editLoading={editLoading} soloLectura={soloLectura} accionActiva={accionActiva} />
+                        <FilaProveedor key={i} item={item} onEdit={handleEdit} editLoading={editLoading}
+                          soloLectura={soloLectura} accionActiva={accionActiva}
+                          onDelete={deleteModal.open} />
                       ))
                     )}
                   </tbody>
@@ -226,6 +254,22 @@ function Proveedores() {
           </div>
         </div>
       )}
+
+      {deleteModal.item && (
+        <ConfirmModal
+          title="Eliminar proveedor"
+          description={<>¿Seguro que deseas eliminar <strong>{deleteModal.item.supplier_name}</strong>?</>}
+          subdescription="Esta acción es permanente y no puede deshacerse."
+          icon={ICON_TRASH}
+          confirmLabel="Sí, eliminar"
+          loadingLabel="Eliminando..."
+          confirmStyle={{ background: '#dc2626', color: 'white', borderColor: '#dc2626' }}
+          onConfirm={deleteModal.confirm}
+          onCancel={deleteModal.close}
+          loading={deleteModal.loading}
+          error={deleteModal.error}
+        />
+      )}
     </Layout>
   );
 }
@@ -239,7 +283,7 @@ function Proveedores() {
  * @param {boolean} props.editLoading - Indica si hay una petición de edición en proceso.
  * @returns {JSX.Element} Elemento <tr>.
  */
-function FilaProveedor({ item, onEdit, editLoading, soloLectura, accionActiva }) {
+function FilaProveedor({ item, onEdit, editLoading, soloLectura, accionActiva, onDelete }) {
   const tipoBadge = item.custom_tipo
     ? <span className={`status-badge ${item.custom_tipo === 'Costo' ? 'status-ok' : 'status-low'}`}>{item.custom_tipo}</span>
     : '—';
@@ -260,6 +304,20 @@ function FilaProveedor({ item, onEdit, editLoading, soloLectura, accionActiva })
               fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+            </svg>
+          </button>
+        </td>
+      )}
+      {!soloLectura && accionActiva === 'eliminar' && (
+        <td className="col-actions">
+          <button className="btn-edit-row" onClick={() => onDelete(item)}
+            title="Eliminar proveedor" style={{ color: '#dc2626' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
             </svg>
           </button>
         </td>

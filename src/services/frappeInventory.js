@@ -8,16 +8,14 @@
  * Requiere: apps/gestion_panaderia/gestion_panaderia/api/inventory_api.py
  */
 
+import FrappeBase from './FrappeBase';
+
 const FRAPPE_METHOD = (fn) =>
   `/api/method/gestion_panaderia.api.inventory_api.${fn}`;
 
 const GRUPOS_PARA_VENTA = ["ABARROTES"];
 
-class FrappeInventoryService {
-  constructor(baseUrl = "") {
-    this.baseUrl = baseUrl;
-  }
-
+class FrappeInventoryService extends FrappeBase {
   #cache = {};
 
   async #cachedFetch(key, fetchFn) {
@@ -27,24 +25,6 @@ class FrappeInventoryService {
     return result;
   }
 
-  /**
-   * Genera los headers para HTTP, inyectando el token CSRF si está disponible.
-   * @returns {Object} Headers estándar de Frappe.
-   */
-  getHeaders() {
-    return {
-      "Content-Type": "application/json",
-      "X-Frappe-CSRF-Token": window.csrf_token || "fetch",
-    };
-  }
-
-  /**
-   * Llama un método whitelisted en la app backend custom `gestion_panaderia`.
-   * @private
-   * @param {string} methodName - Nombre de la función en Python.
-   * @param {Object} [params={}] - Parámetros GET (query string).
-   * @returns {Promise<any>} Datos extraídos del atributo `message` retornado por Frappe.
-   */
   async #callMethod(methodName, params = {}) {
     const queryString = Object.entries(params)
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -65,34 +45,6 @@ class FrappeInventoryService {
     return json.message || [];
   }
 
-  /**
-   * Consulta recursos de la API REST nativa de Frappe.
-   * @private
-   * @param {string} path - URL base de Frappe REST API.
-   * @param {Object} [options={}] - Configuraciones de fetch.
-   * @returns {Promise<any>} Objeto JSON completo devuelto por el servidor.
-   */
-  async #fetchResource(path, options = {}) {
-    const fetchOptions = {
-      credentials: "include",
-      headers: this.getHeaders(),
-      cache: "no-store",
-      ...options,
-    };
-    const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
-      );
-    }
-
-    return response.json();
-  }
-
   // ─────────────────────────────────────────────
   // CATÁLOGOS
   // ─────────────────────────────────────────────
@@ -105,7 +57,7 @@ class FrappeInventoryService {
    */
   async getWarehouses() {
     return this.#cachedFetch('warehouse', async () => {
-      const data = await this.#fetchResource(
+      const data = await this._fetch(
         `/api/resource/Warehouse?fields=["name","warehouse_name"]&filters=[["is_group","=",0],["disabled","=",0]]&limit_page_length=100`
       );
       return data.data || [];
@@ -118,7 +70,7 @@ class FrappeInventoryService {
    */
   async getItemGroups() {
     return this.#cachedFetch('itemGroups', async () => {
-      const data = await this.#fetchResource(
+      const data = await this._fetch(
         `/api/resource/Item Group?fields=["name","parent_item_group"]&filters=[["is_group","=",0]]&limit_page_length=100`
       );
       return data.data || [];
@@ -131,7 +83,7 @@ class FrappeInventoryService {
    */
   async getUOMs() {
     return this.#cachedFetch('uoms', async () => {
-      const data = await this.#fetchResource(
+      const data = await this._fetch(
         `/api/resource/UOM?fields=["name","enabled"]&filters=[["enabled","=",1]]&limit_page_length=100`
       );
       return data.data || [];
@@ -174,7 +126,7 @@ class FrappeInventoryService {
   async getPresentaciones() {
     return this.#cachedFetch('presentaciones', async () => {
       try {
-        const data = await this.#fetchResource('/api/resource/Custom%20Field?filters=[["dt","=","Item"],["fieldname","=","custom_presentación"]]&fields=["options"]');
+        const data = await this._fetch('/api/resource/Custom%20Field?filters=[["dt","=","Item"],["fieldname","=","custom_presentación"]]&fields=["options"]');
         if (data.data?.[0]?.options) {
           return data.data[0].options.split('\n').map(opt => ({ name: opt.trim() })).filter(opt => opt.name);
         }
@@ -212,7 +164,7 @@ class FrappeInventoryService {
       "custom_precio_de_venta", "custom_porcentaje_de_ganancia", "custom_ganancia",
     ].join('","');
 
-    const data = await this.#fetchResource(
+    const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}?fields=["${fields}"]`
     );
     return data.data;
@@ -253,7 +205,7 @@ class FrappeInventoryService {
           filters: JSON.stringify([["item_code", "in", itemCodes]]),
           limit_page_length: chunkSize
         });
-        const resp = await this.#fetchResource(`/api/resource/Item?${urlParams}`);
+        const resp = await this._fetch(`/api/resource/Item?${urlParams}`);
         (resp.data || []).forEach(e => { extraMap[e.item_code] = e; });
       }
 
@@ -396,7 +348,7 @@ class FrappeInventoryService {
       is_stock_item: 1,
     };
 
-    const data = await this.#fetchResource("/api/resource/Item", {
+    const data = await this._fetch("/api/resource/Item", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -436,7 +388,7 @@ class FrappeInventoryService {
       description: formData.description || "",
     };
 
-    const data = await this.#fetchResource(
+    const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "PUT", body: JSON.stringify(payload) }
     );
@@ -485,7 +437,7 @@ class FrappeInventoryService {
    */
   async deleteItem(itemCode) {
     // ERPNext rechaza el DELETE si el item tiene transacciones vinculadas
-    await this.#fetchResource(
+    await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "DELETE" }
     );
@@ -497,7 +449,7 @@ class FrappeInventoryService {
    * @returns {Promise<Object>}
    */
   async disableItem(itemCode) {
-    const data = await this.#fetchResource(
+    const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "PUT", body: JSON.stringify({ disabled: 1 }) }
     );
@@ -510,7 +462,7 @@ class FrappeInventoryService {
    * @returns {Promise<Object>}
    */
   async enableItem(itemCode) {
-    const data = await this.#fetchResource(
+    const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "PUT", body: JSON.stringify({ disabled: 0 }) }
     );
