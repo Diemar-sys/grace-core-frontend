@@ -46,12 +46,12 @@ Grace ERP Web es el frontend de un sistema ERP (Planificación de Recursos Empre
 
 | Módulo | Descripción |
 |---|---|
-| 🗂️ **Catálogo** | Alta, edición y gestión de insumos (materias primas, productos terminados, insumos generales) |
-| 📦 **Inventario** | Consulta de existencias en almacén con filtros por categoría y tipo |
-| 🛒 **Compras** | Registro de recepciones de mercancía, borradores, confirmación y cancelación |
-| 🚚 **Proveedores** | Directorio de proveedores activos e inactivos con búsqueda y paginación |
-| 🧾 **Punto de Venta** | POS táctil con ticket de venta, historial y corte de caja |
-| 🌾 **Producción** | Registro de producción por receta con consumo automático de ingredientes |
+| **Catálogo** | Alta, edición y gestión de insumos (materias primas, productos terminados, insumos generales) |
+| **Inventario** | Consulta de existencias en almacén con filtros por categoría y tipo |
+| **Compras** | Registro de recepciones de mercancía, borradores, confirmación y cancelación |
+| **Proveedores** | Directorio de proveedores activos e inactivos con búsqueda y paginación |
+| **Punto de Venta** | POS táctil con ticket de venta, historial y corte de caja |
+| **Producción** | Registro de producción por receta con consumo automático de ingredientes |
 
 ---
 
