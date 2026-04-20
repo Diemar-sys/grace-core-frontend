@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ticket de Venta — Preview</title>
+  <style>
+    body { background: #e5e5e5; display:flex; justify-content:center; padding: 40px; }
+    .receipt { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #111;
+               max-width: 380px; width:100%; background: #fafaf8; padding: 24px 16px;
+               box-shadow: 0 4px 24px rgba(0,0,0,0.18); }
+    .center { text-align: center; }
+    .empresa { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
+    .subtitulo { font-size: 11px; color: #555; margin-top: 2px; }
+    .dir { font-size: 10px; color: #555; margin-top: 4px; line-height: 1.5; }
+    .div-eq   { border-top: 2px solid #111; margin: 10px 0; }
+    .div-dash { border-top: 1px dashed #aaa; margin: 8px 0; }
+    .section-title { text-align: center; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
+    .info-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+    th { font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #333; padding: 3px 4px; text-align: left; }
+    td { padding: 3px 4px; }
+    .total-row { font-weight: bold; font-size: 16px; border-top: 2px solid #111; padding-top: 6px;
+                 margin-top: 4px; display: flex; justify-content: space-between; }
+    .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #888; }
+  </style>
+</head>
+<body>
+<div class="receipt">
+  <div class="center">
+    <div class="empresa">GRACE</div>
+    <div class="subtitulo">Panadería &amp; Repostería</div>
+    <div class="dir">PANADERÍAS GRACE<br/>AV. SANTUARIO DEL MILAGRO<br/>TEL. 4425991147</div>
+  </div>
+  <div class="div-eq"></div>
+  <div class="info-row"><span>FECHA:</span><span>20 de abril de 2026</span></div>
+  <div class="info-row"><span>HORA:</span><span>11:30 a.m.</span></div>
+  <div class="info-row"><span>CLIENTE:</span><span>Público en General</span></div>
+  <div class="div-eq"></div>
+  <div class="section-title">** TICKET DE VENTA **</div>
+  <div class="div-dash"></div>
+  <table>
+    <thead><tr><th>Producto</th><th style="text-align:right">Importe</th></tr></thead>
+    <tbody>
+      <tr>
+        <td style="font-size:11px;border-bottom:1px dashed #e5e5e5">BOLILLO<br/><span style="color:#888;font-size:10px">3 × $4.00</span></td>
+        <td style="font-size:11px;text-align:right;border-bottom:1px dashed #e5e5e5;white-space:nowrap">$12.00</td>
+      </tr>
+      <tr>
+        <td style="font-size:11px;border-bottom:1px dashed #e5e5e5">GALLETA SUR. MINI<br/><span style="color:#888;font-size:10px">2 × $3.00</span></td>
+        <td style="font-size:11px;text-align:right;border-bottom:1px dashed #e5e5e5">$6.00</td>
+      </tr>
+      <tr>
+        <td style="font-size:11px;border-bottom:1px dashed #e5e5e5">PAN DULCE SURTIDO<br/><span style="color:#888;font-size:10px">1 × $12.00</span></td>
+        <td style="font-size:11px;text-align:right;border-bottom:1px dashed #e5e5e5">$12.00</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="div-dash"></div>
+  <div class="info-row" style="font-size:11px"><span>ARTÍCULOS:</span><span>6</span></div>
+  <div class="div-eq"></div>
+  <div class="total-row"><span>TOTAL:</span><span>$30.00</span></div>
+  <div class="div-eq"></div>
+  <div class="info-row"><span>PAGO:</span><span>EFECTIVO</span></div>
+  <div class="info-row"><span>RECIBIDO:</span><span>$50.00</span></div>
+  <div class="info-row"><span>CAMBIO:</span><span>$20.00</span></div>
+  <div class="div-dash"></div>
+  <div class="footer">GRACIAS POR SU COMPRA<br/>www.panaderiasgrace.mx</div>
+</div>
+</body>
+</html>

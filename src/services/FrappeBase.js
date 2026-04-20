@@ -24,15 +24,32 @@ class FrappeBase {
       ...options,
     };
     const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
+
+    // Sin conexión — retornar null de forma controlada
+    if (response.status === 0) return null;
+
     if (!response.ok) {
-      if (response.status === 0) return null;
       const err = await response.json().catch(() => ({}));
+
+      // Parsear mensajes de error de Frappe sin que el throw sea engullido
+      if (err._server_messages) {
+        let userMessage = 'Error interno del servidor Frappe';
+        try {
+          const messages = JSON.parse(err._server_messages);
+          const firstMessage = JSON.parse(messages[0]);
+          userMessage = firstMessage.message;
+        } catch {
+          // parsing fallido — usar mensaje genérico
+        }
+        throw new Error(userMessage);
+      }
+
+      // Error HTTP genérico (4xx / 5xx sin body Frappe)
       throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status}`
+        err.exc_type || `HTTP ${response.status}: ${response.statusText}`
       );
     }
+
     return response.json();
   }
 }

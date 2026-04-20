@@ -15,12 +15,15 @@ import { COMPANY, DEFAULT_CUSTOMER } from '../config/constants';
 const POS_METHOD = (fn) =>
   `/api/method/gestion_panaderia.api.pos_api.${fn}`;
 
-/** Mapa de forma de pago (etiqueta UI → nombre Frappe) */
+/** Mapa de forma de pago (etiqueta UI → nombre exacto en ERPNext) */
 const FORMAS_PAGO_MAP = {
   'Efectivo':      'Cash',
-  'Tarjeta':       'Credit Card',
-  'Transferencia': 'Bank Transfer',
+  'Tarjeta':       'Bank Draft',
+  'Transferencia': 'Wire Transfer',
 };
+
+/** Nombre del POS Profile configurado en ERPNext */
+const POS_PROFILE = 'Grace POS';
 
 class FrappePOSService extends FrappeBase {
 
@@ -34,13 +37,8 @@ class FrappePOSService extends FrappeBase {
    * @returns {Promise<Array>} Lista completa de productos con precio de venta.
    */
   async buscarProductos() {
-    const response = await fetch(`${this.baseUrl}${POS_METHOD('get_productos_venta')}`, {
-      credentials: 'include',
-      headers: this.getHeaders(),
-    });
-    if (!response.ok) throw new Error(`Error ${response.status} cargando productos`);
-    const json = await response.json();
-    return json.message || [];
+    const json = await this._fetch(POS_METHOD('get_productos_venta'));
+    return json?.message || [];
   }
 
   // ─────────────────────────────────────────────
@@ -50,22 +48,34 @@ class FrappePOSService extends FrappeBase {
   /**
    * Crea y envía (docstatus=1) una Sales Invoice en ERPNext.
    * @param {Object} args
-   * @param {Array}  args.items     - Artículos del ticket [{item_code, item_name, qty, precio, stock_uom}].
-   * @param {string} [args.customer] - Nombre del cliente. Default: "Público en General".
-   * @param {string} [args.formaPago] - "Efectivo" | "Tarjeta" | "Transferencia".
+   * @param {Array}  args.items  - Artículos del ticket [{item_code, item_name, qty, precio, stock_uom}].
+   * @param {string} [args.customer] - Nombre del cliente.
+   * @param {Array}  args.pagos  - [{metodo: 'Efectivo'|'Tarjeta'|'Transferencia', monto: number}]
    * @returns {Promise<Object>} Documento Sales Invoice creado.
    */
-  async crearVenta({ items, customer = DEFAULT_CUSTOMER, formaPago = 'Efectivo' }) {
+  async crearVenta({ items, customer = DEFAULT_CUSTOMER, pagos = [] }) {
     const today = new Date().toISOString().split('T')[0];
-    const total  = items.reduce((s, i) => s + i.qty * parseFloat(i.precio || 0), 0);
-    const modoPago = FORMAS_PAGO_MAP[formaPago] || 'Cash';
+
+    const payments = pagos
+      .filter(p => p.monto > 0)
+      .map(p => ({
+        mode_of_payment: FORMAS_PAGO_MAP[p.metodo] || 'Cash',
+        amount: p.monto,
+      }));
+
+    // Si no se especificó ningún pago, usar efectivo por el total
+    if (payments.length === 0) {
+      const total = items.reduce((s, i) => s + i.qty * parseFloat(i.precio || 0), 0);
+      payments.push({ mode_of_payment: 'Cash', amount: total });
+    }
 
     const payload = {
       doctype:      'Sales Invoice',
       customer,
       posting_date: today,
       company:      COMPANY,
-      is_pos:       0,
+      is_pos:       1,
+      pos_profile:  POS_PROFILE,
       items: items.map(i => ({
         item_code: i.item_code,
         item_name: i.item_name,
@@ -73,7 +83,7 @@ class FrappePOSService extends FrappeBase {
         rate:      parseFloat(i.precio) || 0,
         uom:       i.stock_uom || 'Nos',
       })),
-      payments: [{ mode_of_payment: modoPago, amount: total }],
+      payments,
     };
 
     // 1) Crear en borrador
@@ -104,13 +114,9 @@ class FrappePOSService extends FrappeBase {
    */
   async getCorteCaja(fechaInicio, fechaFin = null) {
     const fin = fechaFin || fechaInicio;
-    const response = await fetch(
-      `${this.baseUrl}${POS_METHOD('get_corte_caja')}?fecha_inicio=${fechaInicio}&fecha_fin=${fin}`,
-      { credentials: 'include', headers: this.getHeaders() }
-    );
-    if (!response.ok) throw new Error(`Error ${response.status} en corte de caja`);
-    const json = await response.json();
-    return json.message;
+    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fin });
+    const json = await this._fetch(`${POS_METHOD('get_corte_caja')}?${params}`);
+    return json?.message;
   }
 
   /**
@@ -120,13 +126,9 @@ class FrappePOSService extends FrappeBase {
    * @returns {Promise<Object>} Datos del reporte.
    */
   async getReporteVentas(fechaInicio, fechaFin) {
-    const response = await fetch(
-      `${this.baseUrl}${POS_METHOD('get_reporte_ventas')}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`,
-      { credentials: 'include', headers: this.getHeaders() }
-    );
-    if (!response.ok) throw new Error(`Error ${response.status} en reporte`);
-    const json = await response.json();
-    return json.message;
+    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+    const json = await this._fetch(`${POS_METHOD('get_reporte_ventas')}?${params}`);
+    return json?.message;
   }
 
   // ─────────────────────────────────────────────
@@ -146,7 +148,6 @@ class FrappePOSService extends FrappeBase {
       ]),
       filters: JSON.stringify([
         ['posting_date', '=', hoy],
-        ['docstatus', '!=', 2],   // excluir canceladas
         ['company',   '=', COMPANY],
       ]),
       order_by:         'creation desc',

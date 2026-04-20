@@ -6,21 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
+      // Usamos una Regex para capturar múltiples rutas en una sola regla
+      '^/(api|files|assets)': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },
-      '/files': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/assets': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      }
     }
   }
 })

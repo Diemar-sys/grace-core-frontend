@@ -1,0 +1,266 @@
+/* POSTicket.css — Panel derecho: items, controles, footer, acciones */
+
+/* ── Encabezado del ticket ─────────────────────────── */
+.pos-ticket-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.pos-ticket-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-brand);
+  margin: 0;
+}
+.pos-ticket-date {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+}
+
+/* ── Lista de artículos ────────────────────────────── */
+.pos-ticket-items {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.pos-ticket-items::-webkit-scrollbar { width: 4px; }
+.pos-ticket-items::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
+
+.pos-ticket-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 16px;
+}
+.pos-ticket-empty span { display: block; font-size: 48px; margin-bottom: 10px; }
+
+.pos-ticket-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s;
+  cursor: pointer;
+}
+.pos-ticket-item:hover { background: #fafafa; }
+.pos-ticket-item.selected {
+  background: #fef3c7;
+  border-left: 3px solid var(--color-brand);
+}
+.pos-ticket-item.selected:hover { background: #fde68a; }
+
+.pos-ticket-item-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 0;
+  word-break: break-word;
+}
+.pos-ticket-item-price {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Controles de cantidad ─────────────────────────── */
+.pos-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pos-qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-border-input);
+  background: white;
+  color: var(--color-brand);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  line-height: 1;
+  padding: 0;
+}
+.pos-qty-btn:hover { background: var(--color-brand); color: white; border-color: var(--color-brand); }
+
+.pos-qty-input {
+  width: 42px;
+  text-align: center;
+  border: 1.5px solid var(--color-border-input);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-family: inherit;
+  padding: 3px 0;
+}
+.pos-qty-input:focus { outline: none; border-color: var(--color-brand); }
+
+/* ── Subtotal + botón quitar ───────────────────────── */
+.pos-ticket-item-subtotal {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-brand);
+  min-width: 62px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.pos-remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: background 0.12s;
+  padding: 0;
+}
+.pos-remove-btn:hover { background: #fee2e2; }
+
+/* ── Barra de acciones (Cantidad / Remover) ────────── */
+.pos-action-bar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.pos-action-btn {
+  flex: 1;
+  padding: 13px 10px;
+  border-radius: var(--radius-input);
+  border: 2px solid var(--color-border-input);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.13s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.pos-action-cantidad {
+  background: white;
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+}
+.pos-action-cantidad:hover:not(:disabled) {
+  background: var(--color-brand);
+  color: white;
+}
+.pos-action-cantidad:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: var(--color-border-input);
+  color: var(--color-text-muted);
+}
+.pos-action-remover {
+  background: white;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.pos-action-remover:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+/* ── Botón Espera en header ────────────────────────── */
+.pos-espera-badge-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius-input);
+  border: 1.5px solid var(--color-border-input);
+  background: white;
+  color: var(--color-brand);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.13s;
+}
+.pos-espera-badge-btn:hover {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand);
+}
+
+/* ── Footer del ticket ─────────────────────────────── */
+.pos-ticket-footer {
+  border-top: 2px solid var(--color-border);
+  padding: 16px 20px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pos-cliente-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pos-cliente-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+.pos-cliente-input {
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: white;
+}
+.pos-cliente-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(122,63,10,0.1);
+}
+
+.pos-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-border);
+}
+.pos-total-label { font-size: 15px; font-weight: 600; color: var(--color-text-muted); }
+.pos-total-amount { font-size: 34px; font-weight: 800; color: var(--color-brand); }
+
+.pos-cobrar-btn {
+  width: 100%;
+  padding: 18px;
+  border-radius: var(--radius-input);
+  border: none;
+  background: #16a34a;
+  color: white;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(22,163,74,0.3);
+}
+.pos-cobrar-btn:hover:not(:disabled) {
+  background: #15803d;
+  box-shadow: 0 6px 20px rgba(22,163,74,0.4);
+}
+.pos-cobrar-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }

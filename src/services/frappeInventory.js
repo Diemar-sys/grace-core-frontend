@@ -31,18 +31,9 @@ class FrappeInventoryService extends FrappeBase {
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
       .join("&");
 
-    const path = `${this.baseUrl}${FRAPPE_METHOD(methodName)}${queryString ? "?" + queryString : ""}`;
-
-    const response = await fetch(path, {
-      credentials: "include",
-      headers: this.getHeaders(),
-      cache: "no-store",
-    });
-
-    if (!response.ok) throw new Error(`Error ${response.status} al llamar ${methodName}`);
-
-    const json = await response.json();
-    return json.message || [];
+    const path = `${FRAPPE_METHOD(methodName)}${queryString ? "?" + queryString : ""}`;
+    const json = await this._fetch(path);
+    return json?.message ?? [];
   }
 
   // ─────────────────────────────────────────────
