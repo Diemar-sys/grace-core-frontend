@@ -12,7 +12,6 @@ function POSHistorial({
   datosReporte,
   loadingReporte,
   onCancelarVenta,
-  onVolver,
   setHoy,
   setEstaSemana,
   setEsteMes,
@@ -22,15 +21,10 @@ function POSHistorial({
     <div className="pos-historial-view">
       <div className="pos-historial-header">
         <div>
-          <h2>📋 Historial de Ventas</h2>
+          <h2>Historial de Ventas</h2>
           <p className="pos-historial-subtitle">
             {fechaActual()}
           </p>
-        </div>
-        <div className="pos-historial-header-actions">
-          <button className="pos-historial-btn activo" onClick={onVolver}>
-            ← Volver al POS
-          </button>
         </div>
       </div>
 
@@ -68,37 +62,43 @@ function POSHistorial({
         >
           💰 Corte de Caja
         </button>
+        <div className="pos-rango-stats-right">
+          {loadingReporte ? (
+            <div className="pos-historial-stat">
+              <div className="stat-n">…</div>
+              <div className="stat-l">Cargando</div>
+            </div>
+          ) : datosReporte ? (
+            <>
+              <div className="pos-historial-stat">
+                <div className="stat-n">{datosReporte.num_transacciones}</div>
+                <div className="stat-l">Ventas</div>
+              </div>
+              <div className="pos-historial-stat">
+                <div className="stat-n">{fmt(datosReporte.total_ventas)}</div>
+                <div className="stat-l">Total</div>
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
 
-      {loadingReporte ? (
-        <div className="pos-historial-stats">
-          <div className="pos-historial-stat">
-            <div className="stat-n">…</div>
-            <div className="stat-l">Cargando reporte</div>
-          </div>
-        </div>
-      ) : datosReporte ? (
+      {!loadingReporte && datosReporte ? (
         <div className="pos-reporte-resumen">
-          <div className="pos-historial-stats pos-historial-stats--shrink">
-            <div className="pos-historial-stat">
-              <div className="stat-n">{datosReporte.num_transacciones}</div>
-              <div className="stat-l">Ventas</div>
-            </div>
-            <div className="pos-historial-stat">
-              <div className="stat-n">{fmt(datosReporte.total_ventas)}</div>
-              <div className="stat-l">Total</div>
-            </div>
-            {datosReporte.por_forma_pago.map(fp => (
-              <div key={fp.forma_pago} className="pos-historial-stat">
-                <div className="stat-n stat-n--md">{fmt(fp.total)}</div>
-                <div className="stat-l">
-                  {fp.forma_pago === 'Cash' || fp.forma_pago === 'Efectivo' ? '💵'
-                    : fp.forma_pago === 'Bank Draft' || fp.forma_pago === 'Tarjeta' ? '💳'
-                    : '🏦'} {fmtModoPago(fp.forma_pago)}
+          {datosReporte.por_forma_pago.length > 0 && (
+            <div className="pos-historial-stats pos-historial-stats--shrink">
+              {datosReporte.por_forma_pago.map(fp => (
+                <div key={fp.forma_pago} className="pos-historial-stat">
+                  <div className="stat-n stat-n--md">{fmt(fp.total)}</div>
+                  <div className="stat-l">
+                    {fp.forma_pago === 'Cash' || fp.forma_pago === 'Efectivo' ? '💵'
+                      : fp.forma_pago === 'Bank Draft' || fp.forma_pago === 'Tarjeta' ? '💳'
+                      : '🏦'} {fmtModoPago(fp.forma_pago)}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {datosReporte.por_departamento.length > 0 && (
             <div className="pos-dept-reporte">

@@ -140,14 +140,16 @@ class FrappePOSService extends FrappeBase {
    * @param {string|null} [fecha] - Fecha ISO YYYY-MM-DD.
    * @returns {Promise<Array>} Lista de Sales Invoices.
    */
-  async getVentasDelDia(fecha = null) {
-    const hoy = fecha || new Date().toISOString().split('T')[0];
+  async getVentasDelDia(fechaInicio = null, fechaFin = null) {
+    const hoy = new Date().toISOString().split('T')[0];
+    const desde = fechaInicio || hoy;
+    const hasta = fechaFin || desde;
     const params = new URLSearchParams({
       fields: JSON.stringify([
         'name', 'customer', 'grand_total', 'creation', 'docstatus', 'status',
       ]),
       filters: JSON.stringify([
-        ['posting_date', '=', hoy],
+        ['posting_date', 'between', [desde, hasta]],
         ['company',   '=', COMPANY],
       ]),
       order_by:         'creation desc',

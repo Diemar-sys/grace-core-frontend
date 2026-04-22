@@ -35,6 +35,8 @@
   display: flex;
   gap: 12px;
   flex-shrink: 0;
+  justify-content: flex-start;
+  align-self: flex-start;
 }
 .pos-historial-stats--shrink {
   flex-shrink: 0; /* alias semántico cuando viene del bloque de reporte */
@@ -101,6 +103,13 @@
 .pos-rango-shortcuts {
   display: flex;
   gap: 6px;
+}
+
+.pos-rango-stats-right {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  align-items: center;
 }
 
 /* ══ RESUMEN DE REPORTE ═════════════════════════════ */

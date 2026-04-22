@@ -12,6 +12,7 @@ import { fmt } from '../components/pos/posUtils';
 import { generarHTMLCorte } from '../utils/print/corteTemplate';
 import { generarHTMLTicket } from '../utils/print/ticketTemplate';
 import { imprimirHTML } from '../utils/print/printUtils';
+import { imprimirTicketTermico } from '../services/printService';
 import '../styles/global.css';
 import '../styles/pos/POS.css';
 import '../styles/pos/POSModals.css';
@@ -118,11 +119,11 @@ function POS() {
   useEffect(() => {
     if (vista !== 'historial') return;
     setLoadingHist(true);
-    posService.getVentasDelDia(rangoInicio)
+    posService.getVentasDelDia(rangoInicio, rangoFin)
       .then(setVentasHoy)
       .catch(console.error)
       .finally(() => setLoadingHist(false));
-  }, [vista, rangoInicio]);
+  }, [vista, rangoInicio, rangoFin]);
 
   useEffect(() => {
     if (vista !== 'historial') return;
@@ -327,10 +328,12 @@ function POS() {
       .map(([metodo, v]) => ({ metodo, monto: parseFloat(v) }));
     try {
       await posService.crearVenta({ items: ticket, customer: cliente, pagos: pagosArray });
-      // Imprimir ticket de venta
-      imprimirHTML(
-        generarHTMLTicket(ticket, cliente, pagosArray, total, cambio)
-      );
+      // Imprimir ticket térmico; fallback a PDF si el servidor no responde
+      try {
+        await imprimirTicketTermico({ items: ticket, cliente, pagos: pagosArray, total, cambio });
+      } catch {
+        imprimirHTML(generarHTMLTicket(ticket, cliente, pagosArray, total, cambio));
+      }
       const cambioFmt = cambio > 0 ? ` | Cambio: ${fmt(cambio)}` : '';
       showToast(`✅ Venta registrada — Total: ${fmt(total)}${cambioFmt}`);
       limpiarTicket();
