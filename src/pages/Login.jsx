@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { rateLimiter, sanitizar, validar } from '../utils/security';
-import { SUCURSALES } from '../config/constants';
+import { getRoleConfig } from '../config/roles';
 import '../styles/Login.css';
 
 /**
@@ -15,14 +15,11 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [bloqueadoSegundos, setBloqueadoSegundos] = useState(0);  // ← Rate Limit
+  const [bloqueadoSegundos, setBloqueadoSegundos] = useState(0);
   const [formData, setFormData] = useState({
     usuario: '',
     contrasena: '',
-    sucursal: ''
   });
-
-  const sucursales = SUCURSALES;
 
   // ── Cuenta regresiva del bloqueo ─────────────────────────────────────────
   // Por qué: Muestra al empleado cuánto tiempo falta para volver a intentar,
@@ -77,8 +74,9 @@ function Login() {
     setIsLoading(true);
     try {
       await auth.login(usuarioLimpio, contraLimpia);
-      rateLimiter.reiniciarExito();   // ← Limpia el contador si el login fue exitoso
-      navigate('/panel');
+      rateLimiter.reiniciarExito();
+      const user = auth.getUser();
+      navigate(getRoleConfig(user?.role).inicio);
     } catch (err) {
       console.error('Error en login:', err);
       // ── Registrar fallo en el rate limiter ───────────────────────────────
@@ -142,46 +140,6 @@ function Login() {
 
           {/* Formulario */}
           <form onSubmit={handleSubmit} className="login-form">
-            {/* Sucursal */}
-            <div className="form-group">
-              <label htmlFor="sucursal" className="form-label">
-                Sucursal
-              </label>
-              <div className="input-wrapper">
-                <svg
-                  className="input-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-                  <path d="M2 7h20" />
-                </svg>
-                <select
-                  id="sucursal"
-                  value={formData.sucursal}
-                  onChange={(e) => setFormData({ ...formData, sucursal: e.target.value })}
-                  className="form-input select-input"
-                  required
-                >
-                  <option value="">Selecciona tu sucursal</option>
-                  {sucursales.map((sucursal) => (
-                    <option key={sucursal} value={sucursal}>
-                      {sucursal}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {/* Usuario */}
             <div className="form-group">
               <label htmlFor="usuario" className="form-label">

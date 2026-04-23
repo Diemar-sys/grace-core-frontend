@@ -4,12 +4,9 @@ import { posService } from '../services/frappePOS';
 import POSCatalogo from '../components/pos/POSCatalogo';
 import POSTicket from '../components/pos/POSTicket';
 import POSModalCobro from '../components/pos/POSModalCobro';
-import POSHistorial from '../components/pos/POSHistorial';
-import POSModalCorte from '../components/pos/POSModalCorte';
 import POSModalEspera from '../components/pos/POSModalEspera';
 import POSModalCantidad from '../components/pos/POSModalCantidad';
 import { fmt } from '../components/pos/posUtils';
-import { generarHTMLCorte } from '../utils/print/corteTemplate';
 import { generarHTMLTicket } from '../utils/print/ticketTemplate';
 import { imprimirHTML } from '../utils/print/printUtils';
 import { imprimirTicketTermico } from '../services/printService';
@@ -48,23 +45,6 @@ function POS() {
   const [pagos,        setPagos]        = useState(PAGOS_INIT);
   const [loadingCobro, setLoadingCobro] = useState(false);
   const [errorCobro,   setErrorCobro]   = useState('');
-
-  // ── Historial ─────────────────────────────────
-  const [vista,       setVista]       = useState('venta');
-  const [ventasHoy,   setVentasHoy]   = useState([]);
-  const [loadingHist, setLoadingHist] = useState(false);
-
-  // ── Corte de caja ─────────────────────────────
-  const [modalCorte,     setModalCorte]     = useState(false);
-  const [datosCorte,     setDatosCorte]     = useState(null);
-  const [loadingCorte,   setLoadingCorte]   = useState(false);
-  const [errorCorte,     setErrorCorte]     = useState('');
-
-  // ── Rango de fechas ───────────────────────────
-  const [rangoInicio,    setRangoInicio]    = useState(hoyISO);
-  const [rangoFin,       setRangoFin]       = useState(hoyISO);
-  const [datosReporte,   setDatosReporte]   = useState(null);
-  const [loadingReporte, setLoadingReporte] = useState(false);
 
   // ── Toast ─────────────────────────────────────
   const [toast,     setToast]     = useState('');
@@ -113,73 +93,6 @@ function POS() {
     });
   }, [todosProductos, busqueda, departamento]);
 
-  // ─────────────────────────────────────────────
-  // HISTORIAL
-  // ─────────────────────────────────────────────
-  useEffect(() => {
-    if (vista !== 'historial') return;
-    setLoadingHist(true);
-    posService.getVentasDelDia(rangoInicio, rangoFin)
-      .then(setVentasHoy)
-      .catch(console.error)
-      .finally(() => setLoadingHist(false));
-  }, [vista, rangoInicio, rangoFin]);
-
-  useEffect(() => {
-    if (vista !== 'historial') return;
-    setLoadingReporte(true);
-    setDatosReporte(null);
-    const t = setTimeout(() => {
-      posService.getReporteVentas(rangoInicio, rangoFin)
-        .then(setDatosReporte)
-        .catch(console.error)
-        .finally(() => setLoadingReporte(false));
-    }, 400);
-    return () => clearTimeout(t);
-  }, [vista, rangoInicio, rangoFin]);
-
-  const setHoy = useCallback(() => {
-    const h = new Date().toISOString().split('T')[0];
-    setRangoInicio(h); setRangoFin(h);
-  }, []);
-
-  const setEstaSemana = useCallback(() => {
-    const d = new Date();
-    const lunes = new Date(d);
-    lunes.setDate(d.getDate() - d.getDay() + (d.getDay() === 0 ? -6 : 1));
-    setRangoInicio(lunes.toISOString().split('T')[0]);
-    setRangoFin(d.toISOString().split('T')[0]);
-  }, []);
-
-  const setEsteMes = useCallback(() => {
-    const d = new Date();
-    const primero = new Date(d.getFullYear(), d.getMonth(), 1);
-    setRangoInicio(primero.toISOString().split('T')[0]);
-    setRangoFin(d.toISOString().split('T')[0]);
-  }, []);
-
-  // ─────────────────────────────────────────────
-  // CORTE DE CAJA
-  // ─────────────────────────────────────────────
-  const abrirCorte = useCallback(async () => {
-    setModalCorte(true);
-    setErrorCorte('');
-    setDatosCorte(null);
-    setLoadingCorte(true);
-    try {
-      const data = await posService.getCorteCaja(rangoInicio, rangoFin);
-      setDatosCorte(data);
-    } catch (err) {
-      setErrorCorte(err.message || 'Error al generar el corte');
-    } finally {
-      setLoadingCorte(false);
-    }
-  }, [rangoInicio, rangoFin]);
-
-  const imprimirCorte = useCallback(() => {
-    if (!datosCorte) return;
-    imprimirHTML(generarHTMLCorte(datosCorte, rangoInicio, rangoFin));
-  }, [datosCorte, rangoInicio, rangoFin]);
 
   // ─────────────────────────────────────────────
   // TICKET — helpers
@@ -345,46 +258,13 @@ function POS() {
     }
   }, [ticket, importeOk, cliente, pagos, cambio, total, showToast, limpiarTicket]);
 
-  // ─────────────────────────────────────────────
-  // CANCELAR VENTA
-  // ─────────────────────────────────────────────
-  const cancelarVenta = useCallback(async (name) => {
-    if (!window.confirm(`¿Cancelar la venta ${name}?`)) return;
-    try {
-      await posService.cancelarVenta(name);
-      setVentasHoy(prev =>
-        prev.map(v => v.name === name ? { ...v, docstatus: 2 } : v)
-      );
-      showToast(`🚫 Venta ${name} cancelada`);
-    } catch (err) {
-      showToast(`❌ ${err.message}`);
-    }
-  }, [showToast]);
 
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
   return (
     <Layout>
-      {vista === 'historial' ? (
-        <POSHistorial
-          ventasHoy={ventasHoy}
-          loadingHist={loadingHist}
-          rangoInicio={rangoInicio}
-          setRangoInicio={setRangoInicio}
-          rangoFin={rangoFin}
-          setRangoFin={setRangoFin}
-          datosReporte={datosReporte}
-          loadingReporte={loadingReporte}
-          onCancelarVenta={cancelarVenta}
-          onVolver={() => setVista('venta')}
-          setHoy={setHoy}
-          setEstaSemana={setEstaSemana}
-          setEsteMes={setEsteMes}
-          onAbrirCorte={abrirCorte}
-        />
-      ) : (
-        <div className="pos-view">
+      <div className="pos-view">
           <POSCatalogo
             productosFiltrados={productosFiltrados}
             todosProductos={todosProductos}
@@ -396,7 +276,6 @@ function POS() {
             loadingProds={loadingProds}
             cargarProductos={cargarProductos}
             agregarProducto={agregarProducto}
-            onHistorial={() => setVista('historial')}
           />
           <POSTicket
             ticket={ticket}
@@ -416,7 +295,6 @@ function POS() {
             numEspera={enEspera.length}
           />
         </div>
-      )}
 
       {modalCobrar && (
         <POSModalCobro
@@ -432,18 +310,6 @@ function POS() {
           errorCobro={errorCobro}
           onConfirmar={confirmarVenta}
           onCancelar={() => setModalCobrar(false)}
-        />
-      )}
-
-      {modalCorte && (
-        <POSModalCorte
-          datosCorte={datosCorte}
-          loadingCorte={loadingCorte}
-          errorCorte={errorCorte}
-          rangoInicio={rangoInicio}
-          rangoFin={rangoFin}
-          imprimirCorte={imprimirCorte}
-          onCerrar={() => setModalCorte(false)}
         />
       )}
 

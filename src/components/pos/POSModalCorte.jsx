@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt } from './posUtils';
+import { fmt, fmtModoPago } from './posUtils';
 
 function POSModalCorte({
   datosCorte,
@@ -92,7 +92,7 @@ function POSModalCorte({
               ) : (
                 datosCorte.por_forma_pago.map(fp => (
                   <div key={fp.forma_pago} className="tkt-row">
-                    <span>{fp.forma_pago.toUpperCase()}:</span>
+                    <span>{fmtModoPago(fp.forma_pago).toUpperCase()}:</span>
                     <span>{fmt(fp.total)}</span>
                   </div>
                 ))

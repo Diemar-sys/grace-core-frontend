@@ -16,6 +16,7 @@ function POSHistorial({
   setEstaSemana,
   setEsteMes,
   onAbrirCorte,
+  puedeCancel = true,
 }) {
   return (
     <div className="pos-historial-view">
@@ -165,7 +166,7 @@ function POSHistorial({
                       </span>
                     </td>
                     <td className="col-actions">
-                      {!cancelada && (
+                      {!cancelada && puedeCancel && (
                         <button
                           className="btn-delete-row"
                           title="Cancelar venta"

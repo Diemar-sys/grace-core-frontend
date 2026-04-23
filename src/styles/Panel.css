@@ -24,17 +24,15 @@
 /* ── Grid de módulos: Catálogo, Inventario, Compras, etc.────────────────────────────────── */
 .panel-grid {
   display: grid;
-  /* Cambiamos de 250px a 320px para hacer las tarjetas más anchas */
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px; /* Un poco más de separación */
+  gap: 24px;
   justify-content: center;
-  max-width: 1050px; /* Aumentamos el máximo para que quepan bien */
+  max-width: 1050px;
   width: 100%;
 }
 .panel-module {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
-  /* Aumentamos el padding para hacerlas más altas */
-  padding: 30px 16px 24px; 
+  padding: 30px 16px 24px;
   background: white; border-radius: 16px;
   border: 1px solid #f0dcc2; box-shadow: 0 2px 8px rgba(122,63,10,0.08);
   cursor: pointer; text-decoration: none; text-align: center;
@@ -46,19 +44,17 @@
   background: #fffbf6;
 }
 .panel-module-icon {
-  /* Crecemos el cuadro del icono de 64px a 84px */
   width: 84px; height: 84px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center;
   background: var(--mod-bg, #fff7ed); color: var(--mod-color, #7a3f0a);
   transition: background 0.15s, color 0.15s;
 }
 .panel-module-icon svg {
-  width: 42px; 
+  width: 42px;
   height: 42px;
 }
 .panel-module:hover .panel-module-icon { background: var(--mod-color, #7a3f0a); color: white; }
 
-/* Aumentamos el tamaño de la letra */
 .panel-module-name { font-size: 18px; font-weight: 700; color: #3f2b1a; line-height: 1.2; }
 .panel-module-sub  { font-size: 14px; color: #8b6a4e; line-height: 1.2; margin-top: -4px; }
 

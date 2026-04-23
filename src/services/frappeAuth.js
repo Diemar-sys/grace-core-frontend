@@ -1,10 +1,5 @@
-/**
- * FrappeAuthService
- *
- * Servicio encargado de manejar el ciclo de vida de la sesión del usuario
- * (Login, Logout, Verificación) usando el sistema de autenticación nativo de Frappe
- * basado en Cookies (Session ID).
- */
+import { resolveRole } from '../config/roles';
+
 const FRAPPE_URL = '';
 
 class FrappeAuthService {
@@ -45,19 +40,50 @@ class FrappeAuthService {
 
     const data = await response.json();
 
+    const emailRes = await fetch('/api/method/frappe.auth.get_logged_user');
+    const emailData = await emailRes.json();
+    const email = emailData.message;
+
+    const [role, posProfile] = await Promise.all([
+      this._fetchRole(),
+      this._fetchPOSProfile(),
+    ]);
     localStorage.setItem('frappe_user', JSON.stringify({
-      email: data.message,
-      fullName: data.full_name
+      email,
+      fullName: data.full_name,
+      role,
+      posProfile,
     }));
 
     return data;
   }
 
-  /**
-   * Consulta al backend de Frappe si la cookie de sesión actual sigue siendo válida.
-   * Ideal para validar accesos a rutas protegidas (Route Guards) en React.
-   * @returns {Promise<Object|null>} Datos del usuario si la sesión es válida, null si expiró
-   */
+  async _fetchRole() {
+    try {
+      const res = await fetch(
+        '/api/method/gestion_panaderia.api.pos_api.get_user_app_role'
+      );
+      if (!res.ok) return 'admin';
+      const data = await res.json();
+      return data.message === 'admin' ? 'admin' : 'vendedor';
+    } catch {
+      return 'admin';
+    }
+  }
+
+  async _fetchPOSProfile() {
+    try {
+      const res = await fetch(
+        '/api/method/gestion_panaderia.api.pos_api.get_pos_profile_usuario'
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.message || null;
+    } catch {
+      return null;
+    }
+  }
+
   async getLoggedUser() {
     const response = await fetch(`/api/method/frappe.auth.get_logged_user`, {
       headers: { 'Accept': 'application/json' }

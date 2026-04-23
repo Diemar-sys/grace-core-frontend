@@ -19,8 +19,62 @@ COMPANY = "Panaderias Grace"
 
 
 # ─────────────────────────────────────────────────────────────────
+# SESIÓN / PERFIL DE USUARIO
+# ─────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_pos_profile_usuario():
+    """Retorna el POS Profile default asignado al usuario activo."""
+    result = frappe.db.get_value(
+        "POS Profile User",
+        {"user": frappe.session.user, "default": 1},
+        "parent",
+    )
+    return result or "Grace POS"
+
+
+_ROLES_ADMIN    = {"System Manager", "Administrator", "Administrador", "Account Manager", "Sales Manager"}
+_ROLES_VENDEDOR = {"Sales User", "POS User", "Vendedor", "Point of Sale User"}
+
+@frappe.whitelist()
+def get_user_app_role():
+    """Retorna 'admin' o 'vendedor' para el usuario de la sesión activa."""
+    roles = set(frappe.get_roles(frappe.session.user))
+    if roles & _ROLES_ADMIN:
+        return "admin"
+    if roles & _ROLES_VENDEDOR:
+        return "vendedor"
+    return "vendedor"
+
+
+# ─────────────────────────────────────────────────────────────────
 # CATÁLOGO DE PRODUCTOS PARA VENTA
 # ─────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_ventas_historial(fecha_inicio=None, fecha_fin=None, pos_profile=None):
+    """Lista de Sales Invoices para el historial del POS."""
+    hoy = nowdate()
+    desde = fecha_inicio or hoy
+    hasta = fecha_fin or desde
+    params = {"inicio": desde, "fin": hasta, "pos_profile": pos_profile}
+    profile_filter = "AND pos_profile = %(pos_profile)s" if pos_profile else ""
+
+    rows = frappe.db.sql(f"""
+        SELECT name, customer, grand_total, creation, docstatus, status
+        FROM `tabSales Invoice`
+        WHERE docstatus    IN (1, 2)
+          AND posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
+        ORDER BY creation DESC
+        LIMIT 500
+    """, params, as_dict=True)
+
+    for r in rows:
+        r["grand_total"] = float(r["grand_total"])
+        r["creation"]    = str(r["creation"])
+    return rows
+
 
 @frappe.whitelist()
 def get_productos_venta():
@@ -56,43 +110,28 @@ def get_productos_venta():
 # ─────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_corte_caja(fecha_inicio=None, fecha_fin=None):
-    """
-    Genera el resumen de cierre de caja para un rango de fechas.
-
-    Args:
-        fecha_inicio (str): Fecha inicio YYYY-MM-DD. Default: hoy.
-        fecha_fin    (str): Fecha fin YYYY-MM-DD.   Default: fecha_inicio.
-
-    Returns:
-        dict: {
-            fecha_inicio, fecha_fin,
-            total_ventas, num_transacciones,
-            por_forma_pago: [ {forma_pago, total} ],
-            por_departamento: [ {departamento, total, cantidad} ]
-        }
-    """
+def get_corte_caja(fecha_inicio=None, fecha_fin=None, pos_profile=None):
     fecha_inicio = fecha_inicio or nowdate()
     fecha_fin    = fecha_fin    or fecha_inicio
 
-    params = {"company": COMPANY, "inicio": fecha_inicio, "fin": fecha_fin}
+    params = {"company": COMPANY, "inicio": fecha_inicio, "fin": fecha_fin, "pos_profile": pos_profile}
+    profile_filter = "AND pos_profile = %(pos_profile)s" if pos_profile else ""
 
-    # ── 1. Totales globales ───────────────────────────────────────
-    resumen = frappe.db.sql("""
+    resumen = frappe.db.sql(f"""
         SELECT
             COUNT(name)                   AS num_transacciones,
             COALESCE(SUM(grand_total), 0) AS total_ventas
         FROM `tabSales Invoice`
-        WHERE docstatus     = 1
-          AND company       = %(company)s
+        WHERE docstatus    = 1
+          AND company      = %(company)s
           AND posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
     """, params, as_dict=True)
 
-    total_ventas      = float(resumen[0].total_ventas)     if resumen else 0.0
-    num_transacciones = int(resumen[0].num_transacciones)  if resumen else 0
+    total_ventas      = float(resumen[0].total_ventas)    if resumen else 0.0
+    num_transacciones = int(resumen[0].num_transacciones) if resumen else 0
 
-    # ── 2. Por forma de pago ─────────────────────────────────────
-    por_forma_pago = frappe.db.sql("""
+    por_forma_pago = frappe.db.sql(f"""
         SELECT
             sip.mode_of_payment  AS forma_pago,
             SUM(sip.amount)      AS total
@@ -101,6 +140,7 @@ def get_corte_caja(fecha_inicio=None, fecha_fin=None):
         WHERE si.docstatus    = 1
           AND si.company      = %(company)s
           AND si.posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
         GROUP BY sip.mode_of_payment
         ORDER BY total DESC
     """, params, as_dict=True)
@@ -114,8 +154,7 @@ def get_corte_caja(fecha_inicio=None, fecha_fin=None):
         row["forma_pago"] = ETIQUETAS.get(row["forma_pago"], row["forma_pago"])
         row["total"]      = float(row["total"])
 
-    # ── 3. Por departamento ──────────────────────────────────────
-    por_departamento = frappe.db.sql("""
+    por_departamento = frappe.db.sql(f"""
         SELECT
             COALESCE(NULLIF(TRIM(it.custom_departamento), ''), 'Sin departamento') AS departamento,
             SUM(sii.qty * sii.rate) AS total,
@@ -126,6 +165,7 @@ def get_corte_caja(fecha_inicio=None, fecha_fin=None):
         WHERE si.docstatus    = 1
           AND si.company      = %(company)s
           AND si.posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
         GROUP BY it.custom_departamento
         ORDER BY total DESC
     """, params, as_dict=True)
@@ -149,44 +189,28 @@ def get_corte_caja(fecha_inicio=None, fecha_fin=None):
 # ─────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_reporte_ventas(fecha_inicio=None, fecha_fin=None):
-    """
-    Genera un reporte de ventas para un rango de fechas libre.
-
-    Args:
-        fecha_inicio (str): Fecha inicio YYYY-MM-DD. Default: hoy.
-        fecha_fin    (str): Fecha fin YYYY-MM-DD.   Default: fecha_inicio.
-
-    Returns:
-        dict: {
-            fecha_inicio, fecha_fin,
-            total_ventas, num_transacciones,
-            por_forma_pago:    [...],
-            por_departamento:  [...],
-            serie_diaria:      [{fecha, total, num_ventas}]  ← cuando rango > 1 día
-        }
-    """
+def get_reporte_ventas(fecha_inicio=None, fecha_fin=None, pos_profile=None):
     fecha_inicio = fecha_inicio or nowdate()
     fecha_fin    = fecha_fin    or fecha_inicio
 
-    params = {"company": COMPANY, "inicio": fecha_inicio, "fin": fecha_fin}
+    params = {"company": COMPANY, "inicio": fecha_inicio, "fin": fecha_fin, "pos_profile": pos_profile}
+    profile_filter = "AND pos_profile = %(pos_profile)s" if pos_profile else ""
 
-    # ── Totales globales ─────────────────────────────────────────
-    resumen = frappe.db.sql("""
+    resumen = frappe.db.sql(f"""
         SELECT
             COUNT(name)                   AS num_transacciones,
             COALESCE(SUM(grand_total), 0) AS total_ventas
         FROM `tabSales Invoice`
-        WHERE docstatus     = 1
-          AND company       = %(company)s
+        WHERE docstatus    = 1
+          AND company      = %(company)s
           AND posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
     """, params, as_dict=True)
 
     total_ventas      = float(resumen[0].total_ventas)    if resumen else 0.0
     num_transacciones = int(resumen[0].num_transacciones) if resumen else 0
 
-    # ── Por forma de pago ─────────────────────────────────────────
-    por_forma_pago = frappe.db.sql("""
+    por_forma_pago = frappe.db.sql(f"""
         SELECT
             sip.mode_of_payment AS forma_pago,
             SUM(sip.amount)     AS total
@@ -195,6 +219,7 @@ def get_reporte_ventas(fecha_inicio=None, fecha_fin=None):
         WHERE si.docstatus    = 1
           AND si.company      = %(company)s
           AND si.posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
         GROUP BY sip.mode_of_payment
         ORDER BY total DESC
     """, params, as_dict=True)
@@ -204,8 +229,7 @@ def get_reporte_ventas(fecha_inicio=None, fecha_fin=None):
         row["forma_pago"] = ETIQUETAS.get(row["forma_pago"], row["forma_pago"])
         row["total"]      = float(row["total"])
 
-    # ── Por departamento ──────────────────────────────────────────
-    por_departamento = frappe.db.sql("""
+    por_departamento = frappe.db.sql(f"""
         SELECT
             COALESCE(NULLIF(TRIM(it.custom_departamento), ''), 'Sin departamento') AS departamento,
             SUM(sii.qty * sii.rate) AS total,
@@ -216,6 +240,7 @@ def get_reporte_ventas(fecha_inicio=None, fecha_fin=None):
         WHERE si.docstatus    = 1
           AND si.company      = %(company)s
           AND si.posting_date BETWEEN %(inicio)s AND %(fin)s
+          {profile_filter}
         GROUP BY it.custom_departamento
         ORDER BY total DESC
     """, params, as_dict=True)
@@ -224,26 +249,26 @@ def get_reporte_ventas(fecha_inicio=None, fecha_fin=None):
         row["total"]    = float(row["total"])
         row["cantidad"] = int(row["cantidad"])
 
-    # ── Serie diaria (cuando el rango abarca más de un día) ───────
     serie_diaria = []
     if fecha_inicio != fecha_fin:
-        serie = frappe.db.sql("""
+        serie = frappe.db.sql(f"""
             SELECT
                 posting_date     AS fecha,
                 SUM(grand_total) AS total,
                 COUNT(name)      AS num_ventas
             FROM `tabSales Invoice`
-            WHERE docstatus     = 1
-              AND company       = %(company)s
+            WHERE docstatus    = 1
+              AND company      = %(company)s
               AND posting_date BETWEEN %(inicio)s AND %(fin)s
+              {profile_filter}
             GROUP BY posting_date
             ORDER BY posting_date ASC
         """, params, as_dict=True)
 
         for row in serie:
             serie_diaria.append({
-                "fecha":     str(row["fecha"]),
-                "total":     float(row["total"]),
+                "fecha":      str(row["fecha"]),
+                "total":      float(row["total"]),
                 "num_ventas": int(row["num_ventas"]),
             })
 

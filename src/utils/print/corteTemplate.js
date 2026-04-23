@@ -1,5 +1,13 @@
 const fmtVal = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
 
+const FORMA_PAGO_LABEL = {
+  'Bank Draft':    'Tarjeta',
+  'Wire Transfer': 'Transferencia',
+  'Cash':          'Efectivo',
+};
+const fmtFormaPago = (fp) =>
+  (FORMA_PAGO_LABEL[fp] || fp).toUpperCase();
+
 const fmtFecha = (iso) =>
   new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -21,7 +29,7 @@ export function generarHTMLCorte(datosCorte, rangoInicio, rangoFin) {
   const filasPago = datosCorte.por_forma_pago
     .map(fp => `
       <tr>
-        <td>${fp.forma_pago.toUpperCase()}</td>
+        <td>${fmtFormaPago(fp.forma_pago)}</td>
         <td style="text-align:right">${fmtVal(fp.total)}</td>
       </tr>`)
     .join('') ||

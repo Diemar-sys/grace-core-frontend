@@ -22,10 +22,18 @@ const FORMAS_PAGO_MAP = {
   'Transferencia': 'Wire Transfer',
 };
 
-/** Nombre del POS Profile configurado en ERPNext */
-const POS_PROFILE = 'Grace POS';
+/** POS Profile de respaldo si el usuario no tiene uno asignado */
+const DEFAULT_POS_PROFILE = 'Grace POS';
 
 class FrappePOSService extends FrappeBase {
+
+  /** Obtiene el POS Profile asignado al usuario activo. Se cachea tras la primera llamada. */
+  async getPOSProfile() {
+    if (this._posProfile) return this._posProfile;
+    const json = await this._fetch(POS_METHOD('get_pos_profile_usuario'));
+    this._posProfile = json?.message || DEFAULT_POS_PROFILE;
+    return this._posProfile;
+  }
 
   // ─────────────────────────────────────────────────
   // CATÁLOGO DE PRODUCTOS PARA VENTA
@@ -55,6 +63,7 @@ class FrappePOSService extends FrappeBase {
    */
   async crearVenta({ items, customer = DEFAULT_CUSTOMER, pagos = [] }) {
     const today = new Date().toISOString().split('T')[0];
+    const posProfile = await this.getPOSProfile();
 
     const payments = pagos
       .filter(p => p.monto > 0)
@@ -75,7 +84,7 @@ class FrappePOSService extends FrappeBase {
       posting_date: today,
       company:      COMPANY,
       is_pos:       1,
-      pos_profile:  POS_PROFILE,
+      pos_profile:  posProfile,
       items: items.map(i => ({
         item_code: i.item_code,
         item_name: i.item_name,
@@ -114,7 +123,8 @@ class FrappePOSService extends FrappeBase {
    */
   async getCorteCaja(fechaInicio, fechaFin = null) {
     const fin = fechaFin || fechaInicio;
-    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fin });
+    const posProfile = await this.getPOSProfile();
+    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fin, pos_profile: posProfile });
     const json = await this._fetch(`${POS_METHOD('get_corte_caja')}?${params}`);
     return json?.message;
   }
@@ -126,7 +136,8 @@ class FrappePOSService extends FrappeBase {
    * @returns {Promise<Object>} Datos del reporte.
    */
   async getReporteVentas(fechaInicio, fechaFin) {
-    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+    const posProfile = await this.getPOSProfile();
+    const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, pos_profile: posProfile });
     const json = await this._fetch(`${POS_METHOD('get_reporte_ventas')}?${params}`);
     return json?.message;
   }
@@ -144,19 +155,10 @@ class FrappePOSService extends FrappeBase {
     const hoy = new Date().toISOString().split('T')[0];
     const desde = fechaInicio || hoy;
     const hasta = fechaFin || desde;
-    const params = new URLSearchParams({
-      fields: JSON.stringify([
-        'name', 'customer', 'grand_total', 'creation', 'docstatus', 'status',
-      ]),
-      filters: JSON.stringify([
-        ['posting_date', 'between', [desde, hasta]],
-        ['company',   '=', COMPANY],
-      ]),
-      order_by:         'creation desc',
-      limit_page_length: 500,
-    });
-    const data = await this._fetch(`/api/resource/Sales Invoice?${params}`);
-    return data.data || [];
+    const posProfile = await this.getPOSProfile();
+    const params = new URLSearchParams({ fecha_inicio: desde, fecha_fin: hasta, pos_profile: posProfile });
+    const json = await this._fetch(`${POS_METHOD('get_ventas_historial')}?${params}`);
+    return json?.message || [];
   }
 
   /**

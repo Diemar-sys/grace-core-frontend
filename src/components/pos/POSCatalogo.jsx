@@ -13,7 +13,6 @@ function POSCatalogo({
   loadingProds,
   cargarProductos,
   agregarProducto,
-  onHistorial,
 }) {
   return (
     <div className="pos-left">
@@ -44,13 +43,6 @@ function POSCatalogo({
           disabled={loadingProds}
         >
           🔄
-        </button>
-        <button
-          className="pos-historial-btn"
-          onClick={onHistorial}
-          title="Ver historial de ventas del día"
-        >
-          📋 Historial
         </button>
       </div>
 

@@ -10,6 +10,7 @@ import POS from './pages/POS';
 import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
 import ProtectedRoute from './components/ProtectedRoute';
+import ConsultasPOS from './pages/ConsultasPOS';
 
 /**
  * Componente principal de la aplicación.
@@ -80,6 +81,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Produccion />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/consultas/pos"
+          element={
+            <ProtectedRoute>
+              <ConsultasPOS />
             </ProtectedRoute>
           }
         />

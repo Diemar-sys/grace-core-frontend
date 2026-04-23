@@ -2,18 +2,19 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "../services/frappeAuth";
+import { getRoleConfig } from "../config/roles";
 import "../styles/Panel.css";
 
 // ── Iconos topbar ─────────────────────────────────────
 const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
 const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
     <polyline points="16 17 21 12 16 7" />
@@ -85,12 +86,12 @@ const IconProduccion = () => (
 
 // ── Módulos de Operaciones ────────────────────────────
 const MODULOS = [
-  { path: "/catalogo", icon: <IconCatalogo />, nombre: "Catálogo", sub: "Catálogos", color: "#d08700", bg: "#fff8e6" },
-  { path: "/inventario", icon: <IconInventario />, nombre: "Inventario", sub: "Inventarios", color: "#2e7d32", bg: "#e8f5e9" },
-  { path: "/compras", icon: <IconCompras />, nombre: "Compras", sub: "Entradas", color: "#1565c0", bg: "#e3f0ff" },
-  { path: "/proveedores", icon: <IconProveedores />, nombre: "Proveedores", sub: "Catálogos", color: "#6a1b9a", bg: "#f3e5f5" },
-  { path: "/pos", icon: <IconPOS />, nombre: "Punto de Venta", sub: "Ventas", color: "#bf360c", bg: "#fbe9e7" },
-  { path: "/produccion", icon: <IconProduccion />, nombre: "Producción", sub: "Recetas y consumo", color: "#3b848aff", bg: "#d1f0f3ff" },
+  { key: "catalogo",    path: "/catalogo",    icon: <IconCatalogo />,   nombre: "Catálogo",        sub: "Catálogos",         color: "#d08700",    bg: "#fff8e6" },
+  { key: "inventario",  path: "/inventario",  icon: <IconInventario />, nombre: "Inventario",      sub: "Inventarios",       color: "#2e7d32",    bg: "#e8f5e9" },
+  { key: "compras",     path: "/compras",     icon: <IconCompras />,    nombre: "Compras",         sub: "Entradas",          color: "#1565c0",    bg: "#e3f0ff" },
+  { key: "proveedores", path: "/proveedores", icon: <IconProveedores />,nombre: "Proveedores",     sub: "Catálogos",         color: "#6a1b9a",    bg: "#f3e5f5" },
+  { key: "pos",         path: "/pos",         icon: <IconPOS />,        nombre: "Punto de Venta",  sub: "Ventas",            color: "#bf360c",    bg: "#fbe9e7" },
+  { key: "produccion",  path: "/produccion",  icon: <IconProduccion />, nombre: "Producción",      sub: "Recetas y consumo", color: "#3b848aff",  bg: "#d1f0f3ff" },
 ];
 
 // ── Opciones del menú principal ───────────────────────
@@ -124,10 +125,11 @@ function Proximamente({ titulo }) {
  * Subcomponente de contenido que inyecta lae cuadrícula de botones (módulos operativos).
  * @returns {JSX.Element} Grid interactivo de operaciones (catálogo, inventario, compras, etc.).
  */
-function ContenidoOperaciones() {
+function ContenidoOperaciones({ modulosPermitidos }) {
   const fecha = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric"
   });
+  const modulos = MODULOS.filter(m => modulosPermitidos.includes(m.key));
   return (
     <>
       <div className="panel-greeting">
@@ -135,7 +137,7 @@ function ContenidoOperaciones() {
         <p>{fecha}</p>
       </div>
       <div className="panel-grid">
-        {MODULOS.map(mod => (
+        {modulos.map(mod => (
           <Link key={mod.path} to={mod.path} className="panel-module"
             style={{ "--mod-color": mod.color, "--mod-bg": mod.bg }}>
             <div className="panel-module-icon">{mod.icon}</div>
@@ -153,26 +155,33 @@ function ContenidoOperaciones() {
  * Muestra los mismos módulos que Operaciones pero en modo solo lectura.
  * @returns {JSX.Element} Grid de consultas.
  */
-function ContenidoConsultas() {
+const MODULOS_CONSULTAS = [
+  { key: "catalogo",    path: "/catalogo?modo=consulta",    icon: <IconCatalogo />,    nombre: "Catálogo",       sub: "Ver registros",      color: "#d08700",   bg: "#fff8e6" },
+  { key: "inventario",  path: "/inventario?modo=consulta",  icon: <IconInventario />,  nombre: "Inventario",     sub: "Ver registros",      color: "#2e7d32",   bg: "#e8f5e9" },
+  { key: "compras",     path: "/compras?modo=consulta",     icon: <IconCompras />,     nombre: "Compras",        sub: "Ver registros",      color: "#1565c0",   bg: "#e3f0ff" },
+  { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
+  { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
+  { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },
+];
+
+function ContenidoConsultas({ modulosPermitidos }) {
   const fecha = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric"
   });
+  const modulos = MODULOS_CONSULTAS.filter(m => modulosPermitidos.includes(m.key));
   return (
     <>
       <div className="panel-greeting">
         <h2>Consultas</h2>
         <p>{fecha}</p>
-        <span style={{ fontSize: 12, color: '#7a3f0a', background: '#fff1de', padding: '3px 10px', borderRadius: 20, display: 'inline-block', marginTop: 4 }}>
-          SÓLO LECTURA
-        </span>
       </div>
       <div className="panel-grid">
-        {MODULOS.map(mod => (
-          <Link key={mod.path} to={`${mod.path}?modo=consulta`} className="panel-module"
+        {modulos.map(mod => (
+          <Link key={mod.path} to={mod.path} className="panel-module"
             style={{ "--mod-color": mod.color, "--mod-bg": mod.bg }}>
             <div className="panel-module-icon">{mod.icon}</div>
             <span className="panel-module-name">{mod.nombre}</span>
-            <span className="panel-module-sub">Solo lectura</span>
+            <span className="panel-module-sub">{mod.sub}</span>
           </Link>
         ))}
       </div>
@@ -191,6 +200,7 @@ function ContenidoConsultas() {
 function Panel() {
   const navigate = useNavigate();
   const user = auth.getUser();
+  const roleConfig = getRoleConfig(user?.role);
   const [searchParams, setSearchParams] = useSearchParams();
   const [seccion, setSeccion] = useState(searchParams.get("seccion") || "operaciones");
 
@@ -230,6 +240,9 @@ function Panel() {
           <div className="panel-user-chip">
             <UserIcon />
             {user?.fullName || user?.email || "Usuario"}
+            {user?.posProfile && (
+              <span className="user-branch-badge">{user.posProfile}</span>
+            )}
           </div>
           <button className="panel-logout-btn" onClick={handleLogout}>
             <LogoutIcon /> Salir
@@ -239,21 +252,34 @@ function Panel() {
 
       {/* BARRA DE MENÚ */}
       <nav className="panel-menubar">
-        {MENU.map(item => (
-          <button
-            key={item.key}
-            className={"panel-menu-btn" + (seccion === item.key ? " active" : "")}
-            onClick={() => handleTabChange(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
+        {MENU.map(item => {
+          const esVendedor = user?.role === 'vendedor';
+          const esConsultas = item.key === 'consultas';
+          const esSoloOp   = esVendedor && item.key !== 'operaciones' && !esConsultas;
+          const isActive   = seccion === item.key;
+
+          if (esSoloOp) {
+            return (
+              <span key={item.key} className="panel-menu-btn disabled"
+                style={{ opacity: 0.35, cursor: 'default' }}>
+                {item.label}
+              </span>
+            );
+          }
+          return (
+            <button key={item.key}
+              className={"panel-menu-btn" + (isActive ? " active" : "")}
+              onClick={() => handleTabChange(item.key)}>
+              {item.label}
+            </button>
+          );
+        })}
       </nav>
 
       {/* CONTENIDO */}
       <div className="panel-body">
-        {seccion === "operaciones" && <ContenidoOperaciones />}
-        {seccion === "consultas" && <ContenidoConsultas />}
+        {seccion === "operaciones" && <ContenidoOperaciones modulosPermitidos={roleConfig.modulosPanel} />}
+        {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} />}
         {seccion === "procesos" && <Proximamente titulo="Procesos" />}
         {seccion === "reportes" && <Proximamente titulo="Reportes" />}
         {seccion === "estadisticas" && <Proximamente titulo="Estadísticas" />}

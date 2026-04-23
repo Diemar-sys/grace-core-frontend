@@ -56,17 +56,22 @@
 .panel-topbar-right { display: flex; align-items: center; gap: 8px; }
 /*--- PROPIEDADES DEL ÍCONO DEL USUARIO LOGGEADO ---*/
 .panel-user-chip {
-  display: flex; align-items: center; gap: 7px;
-  background: rgba(255,255,255,0.12); border-radius: 10px;
-  padding: 5px 14px 5px 8px; font-size: 13px; color: white; font-weight: 500;
+  display: flex; align-items: center; gap: 9px;
+  background: rgba(255,255,255,0.12); border-radius: 12px;
+  padding: 8px 18px 8px 12px; font-size: 17px; color: white; font-weight: 500;
 }
-.panel-user-chip svg { color: #f2c48d; }
+.panel-user-chip svg { color: #f2c48d; width: 20px; height: 20px; }
+.user-branch-badge {
+  background: rgba(255,255,255,0.18); border-radius: 7px;
+  padding: 3px 10px; font-size: 14px; color: #f2c48d;
+  font-weight: 600; letter-spacing: 0.03em; margin-left: 6px;
+}
 /*--- PROPIEDADES DEL BOTÓN SALIR ---*/
 .panel-logout-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 10px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 20px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.3); background: transparent;
-  color: white; font-size: 13px; font-weight: 500; cursor: pointer;
+  color: white; font-size: 17px; font-weight: 500; cursor: pointer;
   transition: background 0.15s; font-family: inherit;
 }
 .panel-logout-btn:hover { background: rgba(255,255,255,0.15); }

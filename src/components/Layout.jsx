@@ -2,18 +2,20 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "../services/frappeAuth";
+import { posService } from "../services/frappePOS";
+import { getRoleConfig } from "../config/roles";
 import "../styles/Layout.css";
 
 // ── Iconos ────────────────────────────────────────────
 const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
 const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
     <polyline points="16 17 21 12 16 7" />
@@ -83,16 +85,20 @@ function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = auth.getUser();
+  const roleConfig = getRoleConfig(user?.role);
 
   const handleLogout = () => {
+    posService._posProfile = null;
     auth.logout();
     navigate("/login");
   };
 
   const [searchParams] = useSearchParams();
   const modoConsulta = searchParams.get('modo') === 'consulta';
-  const enOperaciones = NAV_ITEMS.some(i => i.path === location.pathname) && !modoConsulta;
-  const enConsultas   = modoConsulta;
+  const navItems = NAV_ITEMS.filter(i => roleConfig.rutas.includes(i.path));
+  const enOperaciones = navItems.some(i => i.path === location.pathname) && !modoConsulta;
+  const enConsultas   = location.pathname.startsWith('/consultas');
+  const mostrarMenubar = roleConfig.rutas.includes('/panel');
 
   return (
     <div className="layout-container">
@@ -114,6 +120,9 @@ function Layout({ children }) {
           <div className="panel-user-chip">
             <UserIcon />
             {user?.fullName || user?.email || "Usuario"}
+            {user?.posProfile && (
+              <span className="user-branch-badge">{user.posProfile}</span>
+            )}
           </div>
           <button className="panel-logout-btn" onClick={handleLogout}>
             <LogoutIcon /> Salir
@@ -122,24 +131,26 @@ function Layout({ children }) {
       </header>
 
       {/* BARRA DE MENÚ */}
-      <nav className="layout-menubar">
-        <Link
-          to="/panel?seccion=operaciones"
-          className={"layout-menu-btn" + (enOperaciones ? " active" : "")}
-        >
-          Operaciones
-        </Link>
-        <Link
-          to="/panel?seccion=consultas"
-          className={"layout-menu-btn" + (enConsultas ? " active" : "")}
-        >
-          Consultas
-        </Link>
-        <span className="layout-menu-btn disabled">Procesos</span>
-        <span className="layout-menu-btn disabled">Reportes</span>
-        <span className="layout-menu-btn disabled">Estadísticas</span>
-        <span className="layout-menu-btn disabled">Configuración</span>
-      </nav>
+      {mostrarMenubar && (
+        <nav className="layout-menubar">
+          <Link
+            to="/panel?seccion=operaciones"
+            className={"layout-menu-btn" + (enOperaciones ? " active" : "")}
+          >
+            Operaciones
+          </Link>
+          <Link
+            to="/panel?seccion=consultas"
+            className={"layout-menu-btn" + (enConsultas ? " active" : "")}
+          >
+            Consultas
+          </Link>
+          <span className="layout-menu-btn disabled">Procesos</span>
+          <span className="layout-menu-btn disabled">Reportes</span>
+          <span className="layout-menu-btn disabled">Estadísticas</span>
+          <span className="layout-menu-btn disabled">Configuración</span>
+        </nav>
+      )}
 
       {/* CONTENIDO */}
       <main className="main-content">
