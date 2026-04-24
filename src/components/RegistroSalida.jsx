@@ -1,6 +1,7 @@
 // src/components/RegistroSalida.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
+import { sanitizar } from '../utils/security';
 import '../styles/RegistroMovimiento.css';
 
 const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', item_name: '', qty: '', uom: '' });
@@ -37,7 +38,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
 
     setLoading(true);
     try {
-      await stockService.registrarSalida({ almacenDestino, items: itemsValidos, notas });
+      await stockService.registrarSalida({ almacenDestino, items: itemsValidos, notas: sanitizar(notas) });
       const dest = almacenes.find(a => a.name === almacenDestino)?.label || almacenDestino;
       setSuccess(`Transferencia registrada hacia ${dest}: ${itemsValidos.length} producto(s)`);
       setTimeout(() => onSuccess?.(), 1500);

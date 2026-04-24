@@ -1,6 +1,7 @@
 // src/components/RegistroEntrada.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { stockService } from "../services/frappeStock";
+import { sanitizar } from '../utils/security';
 import "../styles/RegistroMovimiento.css";
 
 const FILA_VACIA = () => ({
@@ -56,7 +57,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
     try {
       // Mandamos total_kg como qty a ERPNext
       const items = itemsValidos.map(f => ({ ...f, qty: f.total_kg }));
-      await stockService.registrarEntrada({ items, notas });
+      await stockService.registrarEntrada({ items, notas: sanitizar(notas) });
       const totalKg = itemsValidos.reduce((s, f) => s + parseFloat(f.total_kg), 0);
       setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${totalKg.toFixed(2)} unidades en total`);
       setTimeout(() => onSuccess?.(), 1500);

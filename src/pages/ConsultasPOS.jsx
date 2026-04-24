@@ -69,15 +69,18 @@ function ConsultasPOS() {
   const [errorCorte,   setErrorCorte]   = useState('');
 
   const navigate = useNavigate();
+  // puedeCancel se mantiene como derivado de la sesión actual para el render de botones
   const puedeCancel = auth.getUser()?.role === 'admin';
 
   useEffect(() => {
     if (vista !== 'historial') return;
+    const controller = new AbortController();
     setLoadingHist(true);
     posService.getVentasDelDia(rangoInicio, rangoFin)
       .then(setVentasHoy)
-      .catch(console.error)
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); })
       .finally(() => setLoadingHist(false));
+    return () => controller.abort();
   }, [vista, rangoInicio, rangoFin]);
 
   useEffect(() => {
@@ -114,6 +117,12 @@ function ConsultasPOS() {
   }, []);
 
   const cancelarVenta = useCallback(async (name) => {
+    // Re-verificar el rol en el momento de la acción (no solo al montar)
+    // por si la sesión cambió mientras la pantalla estaba abierta.
+    if (auth.getUser()?.role !== 'admin') {
+      alert('No tienes permisos para cancelar ventas.');
+      return;
+    }
     if (!window.confirm(`¿Cancelar la venta ${name}?`)) return;
     try {
       await posService.cancelarVenta(name);

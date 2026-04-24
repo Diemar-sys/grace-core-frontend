@@ -10,7 +10,10 @@ function ProtectedRoute({ children }) {
 
   const config = getRoleConfig(user.role);
 
-  if (!config.rutas.includes(location.pathname)) {
+  // Normalizar pathname: eliminar trailing slash para evitar bypass con "/ruta/"
+  const path = location.pathname.replace(/\/$/, '') || '/';
+
+  if (!config.rutas.includes(path)) {
     return <Navigate to={config.inicio} replace />;
   }
 

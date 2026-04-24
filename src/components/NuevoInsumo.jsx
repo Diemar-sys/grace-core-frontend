@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { inventory } from '../services/frappeInventory';
 import ModalError from './ModalError';
+import { sanitizarObjeto } from '../utils/security';
 import '../styles/NuevoInsumo.css';
 
 /**
@@ -240,22 +241,24 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
 
         try {
             let result;
+            // Limpiar campos de texto libre antes de enviar al backend
+            const datosLimpios = sanitizarObjeto(formData);
             if (isEditing) {
                 const codigoOriginal = editItem.item_code;
-                const codigoNuevo = formData.item_code?.trim().toUpperCase();
+                const codigoNuevo = datosLimpios.item_code?.trim().toUpperCase();
 
                 // Si el código cambió, renombramos primero en ERPNext
                 if (codigoNuevo && codigoNuevo !== codigoOriginal) {
                     await inventory.renameItem(codigoOriginal, codigoNuevo);
                     setFormData(prev => ({ ...prev, item_code: codigoNuevo }));
-                    result = await inventory.updateItem(codigoNuevo, { ...formData, item_code: codigoNuevo });
+                    result = await inventory.updateItem(codigoNuevo, { ...datosLimpios, item_code: codigoNuevo });
                 } else {
-                    result = await inventory.updateItem(codigoOriginal, formData);
+                    result = await inventory.updateItem(codigoOriginal, datosLimpios);
                 }
-                setInfoModal({ isOpen: true, message: `PRODUCTO "${formData.item_name}" ACTUALIZADO CORRECTAMENTE.`, type: 'success-update' });
+                setInfoModal({ isOpen: true, message: `PRODUCTO "${datosLimpios.item_name}" ACTUALIZADO CORRECTAMENTE.`, type: 'success-update' });
             } else {
-                result = await inventory.createItem(formData);
-                setInfoModal({ isOpen: true, message: `PRODUCTO "${formData.item_name}" CREADO EXITOSAMENTE.`, type: 'success-create' });
+                result = await inventory.createItem(datosLimpios);
+                setInfoModal({ isOpen: true, message: `PRODUCTO "${datosLimpios.item_name}" CREADO EXITOSAMENTE.`, type: 'success-create' });
             }
             // Retrasar el cierre/onSuccess para que el usuario pueda leer el modal de éxito
             setTimeout(() => onSuccess?.(result), 2500);

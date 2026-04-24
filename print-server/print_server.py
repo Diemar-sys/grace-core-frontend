@@ -3,8 +3,13 @@ from flask import Flask, request, jsonify, make_response
 from escpos.printer import File
 from datetime import datetime
 import traceback
+import os
 
 app = Flask(__name__)
+
+# Solo permitir peticiones desde la app local.
+# Cambia este valor si el frontend corre en otro puerto en producción.
+ALLOWED_ORIGIN = os.environ.get('PRINT_ALLOWED_ORIGIN', 'http://localhost:5173')
 
 DEV_PATH = '/dev/usb/lp0'
 
@@ -19,9 +24,11 @@ def imprimir():
     if request.method == 'OPTIONS':
         return cors(make_response('', 200))
     try:
-        data    = request.json
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
         items   = data.get('items', [])
-        cliente = data.get('cliente', 'Público en General')
+        cliente = data.get('cliente', 'Publico en General')
         pagos   = data.get('pagos', [])
         total   = float(data.get('total', 0))
         cambio  = float(data.get('cambio', 0))
@@ -35,7 +42,7 @@ def imprimir():
             p.text("Panaderia & Reposteria\n")
             p.text("AV. SANTUARIO DEL MILAGRO\n")
             p.text("TEL. 4425991147\n")
-            p.text("-" * 32 + "\n")
+            p.text("-" * 24 + "\n")
 
             # Info venta
             now = datetime.now()
@@ -43,11 +50,11 @@ def imprimir():
             p.text(f"FECHA : {now.strftime('%d/%m/%Y')}\n")
             p.text(f"HORA  : {now.strftime('%H:%M')}\n")
             p.text(f"CLIENTE: {cliente}\n")
-            p.text("=" * 32 + "\n")
+            p.text("=" * 24 + "\n")
             p.set(align='center', bold=True)
             p.text("** TICKET DE VENTA **\n")
             p.set(align='left', bold=False)
-            p.text("-" * 32 + "\n")
+            p.text("-" * 24 + "\n")
 
             # Items
             total_qty = 0
@@ -60,15 +67,15 @@ def imprimir():
                 p.text(f"{nombre}\n")
                 p.text(f"  {qty} x {fmt(precio):>10}  {fmt(subtotal):>10}\n")
 
-            p.text("-" * 32 + "\n")
+            p.text("-" * 24 + "\n")
             p.text(f"ARTICULOS: {total_qty}\n")
-            p.text("=" * 32 + "\n")
+            p.text("=" * 24 + "\n")
 
             # Total
             p.set(bold=True, double_height=True)
             p.text(f"TOTAL: {fmt(total):>18}\n")
             p.set(bold=False, double_height=False)
-            p.text("=" * 32 + "\n")
+            p.text("=" * 24 + "\n")
 
             # Pagos
             for pago in pagos:
@@ -80,7 +87,7 @@ def imprimir():
                 p.text(f"{'CAMBIO':<16}{fmt(cambio):>16}\n")
 
             # Pie
-            p.text("-" * 32 + "\n")
+            p.text("-" * 24 + "\n")
             p.set(align='center')
             p.text("GRACIAS POR SU COMPRA\n")
             p.text("www.panaderiasgrace.mx\n")
@@ -105,7 +112,9 @@ def imprimir_corte():
     if request.method == 'OPTIONS':
         return cors(make_response('', 200))
     try:
-        data              = request.json
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
         rango_inicio      = data.get('rango_inicio', '')
         rango_fin         = data.get('rango_fin', '')
         num_transacciones = data.get('num_transacciones', 0)
@@ -184,7 +193,7 @@ def imprimir_corte():
 def cors(response, status=None):
     if status:
         response.status_code = status
-    response.headers['Access-Control-Allow-Origin']  = '*'
+    response.headers['Access-Control-Allow-Origin']  = ALLOWED_ORIGIN
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
     return response

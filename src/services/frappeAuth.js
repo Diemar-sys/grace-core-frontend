@@ -1,5 +1,7 @@
 import { resolveRole } from '../config/roles';
 
+// URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
+// En producción, el reverse proxy de nginx hace lo mismo, por lo que tampoco se necesita.
 const FRAPPE_URL = '';
 
 class FrappeAuthService {
@@ -63,11 +65,13 @@ class FrappeAuthService {
       const res = await fetch(
         '/api/method/gestion_panaderia.api.pos_api.get_user_app_role'
       );
-      if (!res.ok) return 'admin';
+      // Fail-closed: si el servidor no responde correctamente, usar el rol de menor privilegio
+      if (!res.ok) return 'vendedor';
       const data = await res.json();
       return data.message === 'admin' ? 'admin' : 'vendedor';
     } catch {
-      return 'admin';
+      // Sin red o error inesperado → mínimo privilegio
+      return 'vendedor';
     }
   }
 
@@ -101,6 +105,10 @@ class FrappeAuthService {
   async logout() {
     await fetch(`/api/method/logout`);
     localStorage.removeItem('frappe_user');
+    // Limpiar caché de servicios para evitar que el siguiente usuario
+    // herede datos de la sesión anterior (ej: POS Profile incorrecto).
+    const { posService } = await import('./frappePOS');
+    posService.clearCache();
   }
 
   // ─────────────────────────────────────────────
@@ -110,11 +118,29 @@ class FrappeAuthService {
   /**
    * Obtiene los datos del usuario directamente del LocalStorage sin consultar al servidor.
    * Útil para renderizados visuales inmediatos.
-   * @returns {Object|null} Objeto con email y fullName, o null si no hay datos
+   *
+   * Valida la estructura del objeto para evitar que una manipulación de localStorage
+   * (ej. desde DevTools) eleve el rol de un usuario en la interfaz.
+   *
+   * @returns {Object|null} Objeto con email, fullName y role, o null si no hay sesión válida.
    */
   getUser() {
-    const user = localStorage.getItem('frappe_user');
-    return user ? JSON.parse(user) : null;
+    try {
+      const raw = localStorage.getItem('frappe_user');
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      // Verificar campos mínimos y que el rol sea un valor conocido
+      const ROLES_VALIDOS = ['admin', 'vendedor'];
+      if (!user?.email || !ROLES_VALIDOS.includes(user?.role)) {
+        // Objeto malformado o rol inesperado — limpiar y forzar re-login
+        localStorage.removeItem('frappe_user');
+        return null;
+      }
+      return user;
+    } catch {
+      localStorage.removeItem('frappe_user');
+      return null;
+    }
   }
 
   // ─────────────────────────────────────────────

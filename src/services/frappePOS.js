@@ -35,6 +35,12 @@ class FrappePOSService extends FrappeBase {
     return this._posProfile;
   }
 
+  /** Limpia el caché de sesión. Llamar desde logout() para evitar que un usuario
+   *  herede el POS Profile de la sesión anterior. */
+  clearCache() {
+    this._posProfile = null;
+  }
+
   // ─────────────────────────────────────────────────
   // CATÁLOGO DE PRODUCTOS PARA VENTA
   // ─────────────────────────────────────────────────

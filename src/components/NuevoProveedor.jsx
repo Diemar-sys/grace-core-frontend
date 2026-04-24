@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { proveedores } from '../services/frappeSupplier';
 import ModalError from './ModalError';
+import { sanitizarObjeto } from '../utils/security';
 import '../styles/NuevoProveedor.css';
 
 const FORM_INICIAL = {
@@ -74,13 +75,16 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
       return;
     }
 
+    // Limpiar campos de texto libre antes de enviar al backend
+    const datosLimpios = sanitizarObjeto(formData);
+
     try {
       if (isEditing) {
-        await proveedores.updateProveedor(editItem.name, formData);
-        setInfoModal({ isOpen: true, message: `PROVEEDOR "${formData.supplier_name}" ACTUALIZADO CORRECTAMENTE.`, type: 'success-update' });
+        await proveedores.updateProveedor(editItem.name, datosLimpios);
+        setInfoModal({ isOpen: true, message: `PROVEEDOR "${datosLimpios.supplier_name}" ACTUALIZADO CORRECTAMENTE.`, type: 'success-update' });
       } else {
-        await proveedores.createProveedor(formData);
-        setInfoModal({ isOpen: true, message: `PROVEEDOR "${formData.supplier_name}" REGISTRADO EXITOSAMENTE.`, type: 'success-create' });
+        await proveedores.createProveedor(datosLimpios);
+        setInfoModal({ isOpen: true, message: `PROVEEDOR "${datosLimpios.supplier_name}" REGISTRADO EXITOSAMENTE.`, type: 'success-create' });
       }
     } catch (err) {
       setInfoModal({ isOpen: true, message: err.message || 'Error desconocido', type: 'error' });
