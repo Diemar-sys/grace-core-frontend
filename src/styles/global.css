@@ -7,19 +7,22 @@
 
 /* ══ VARIABLES ══════════════════════════════════════════ */
 :root {
-  --color-brand:        #7a3f0a;
-  --color-brand-light:  #f2c48d;
-  --color-brand-bg:     #fffbf6;
-  --color-brand-hover:  #fff6ea;
-  --color-border:       #f0dcc2;
-  --color-border-input: #e5d2b8;
-  --color-text:         #3f2b1a;
-  --color-text-muted:   #8b6a4e;
-  --color-surface:      #fffdf9;
-  --radius-card:        12px;
-  --radius-input:       8px;
-  --shadow-card:        0 1px 3px rgba(0,0,0,0.1);
-  --shadow-btn:         0 10px 20px rgba(122,63,10,0.14);
+  --color-brand:        #6b3209;
+  --color-brand-mid:    #7a3f0a;
+  --color-brand-light:  #e8a84c;
+  --color-brand-bg:     #fdf9f3;
+  --color-brand-hover:  #fef3e2;
+  --color-border:       #e8d5b8;
+  --color-border-input: #d9c4a0;
+  --color-text:         #2d1a0e;
+  --color-text-muted:   #7a5c3e;
+  --color-surface:      #ffffff;
+  --font-display:       'Lora', Georgia, 'Times New Roman', serif;
+  --font-body:          'DM Sans', system-ui, sans-serif;
+  --radius-card:        14px;
+  --radius-input:       9px;
+  --shadow-card:        0 2px 8px rgba(107,50,9,0.08);
+  --shadow-btn:         0 8px 20px rgba(107,50,9,0.18);
 }
 
 /* ══ CONTENEDORES DE PÁGINA ══════════════════════════ */
@@ -34,14 +37,15 @@
 /* ══ HEADER ══════════════════════════════════════════════ */
 /* ── Topbar superior (logo + usuario) ───────────────── */
 .panel-topbar {
-  background: #7a3f0a;
+  background: linear-gradient(135deg, #5a2a06 0%, #7a3f0a 60%, #6b3209 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
-  height: 120px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+  height: 110px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.28);
+  border-bottom: 1px solid rgba(232,168,76,0.35);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -49,9 +53,9 @@
 .panel-topbar-left { display: flex; align-items: center; gap: 10px; }
 .panel-logo-icon { color: #f2c48d; display: flex; align-items: center; }
 /*--- TÍTULO: ---PANADERÍAS GRACE --- */
-.panel-topbar-left h1 { margin: 0; font-size: 40px; font-weight: 700; color: white; }
+.panel-topbar-left h1 { margin: 0; font-size: 36px; font-weight: 700; color: white; font-family: 'Lora', Georgia, serif; letter-spacing: -0.01em; }
 /*--- SUBTÍTULO: ---SISTEMA DE GESTIÓN --- */
-.panel-topbar-left span { font-size: 25px; color: #f2c48d; text-transform: uppercase; letter-spacing: 0.07em; display: block; line-height: 1; }
+.panel-topbar-left span { font-size: 13px; color: #e8a84c; text-transform: uppercase; letter-spacing: 0.12em; display: block; line-height: 1; font-weight: 500; }
 /*--- ESPACIO ENTRE ADMINISTRADOR Y SALIR ---*/
 .panel-topbar-right { display: flex; align-items: center; gap: 8px; }
 /*--- PROPIEDADES DEL ÍCONO DEL USUARIO LOGGEADO ---*/
@@ -79,27 +83,28 @@
 /* ── Barra de menú principal ────────────────────────── */
 /*Operaciones, Consultas, Procesos, Reportes, Estadística y Configuración*/
 .panel-menubar {
-  background: #5c2d06;
+  background: #4a2205;
   display: flex;
   align-items: center;
   padding: 0 36px;
-  height: 56px;
-  gap: 10px;
-  border-bottom: 1px solid rgba(0,0,0,0.15);
+  height: 52px;
+  gap: 4px;
+  border-bottom: 2px solid rgba(232,168,76,0.2);
 }
 
 .panel-menu-btn {
   display: flex; align-items: center;
-  padding: 6px 16px; border-radius: 6px;
+  padding: 6px 18px; border-radius: 6px;
   border: none; background: transparent;
-  color: rgba(255,255,255,0.75);
-  font-size: 20px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
+  color: rgba(255,255,255,0.65);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer; font-family: 'DM Sans', inherit;
   white-space: nowrap; text-decoration: none;
   transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
 }
-.panel-menu-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-.panel-menu-btn.active { background: rgba(255,255,255,0.18); color: white; }
+.panel-menu-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+.panel-menu-btn.active { background: rgba(232,168,76,0.15); color: #e8a84c; font-weight: 600; }
 
 .page-header {
   display: flex;
@@ -112,9 +117,12 @@
 .page-header h1 {
   display: flex;
   align-items: center;
-  font-size: 30px;
+  font-size: 28px;
   color: var(--color-brand);
   margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .page-header h1 svg {
   width: 36px;
@@ -178,13 +186,14 @@
   flex-wrap: wrap;
 }
 .stat-card {
-  background: var(--color-brand-bg);
+  background: linear-gradient(135deg, #fdf9f3 0%, #fef3e2 100%);
   color: var(--color-brand);
   padding: 10px 40px;
   border-radius: var(--radius-card);
   text-align: center;
   min-width: 100px;
-  box-shadow: 0 10px 24px rgba(122,63,10,0.12);
+  box-shadow: 0 4px 16px rgba(107,50,9,0.12);
+  border: 1px solid #e8d5b8;
 }
 .stat-card.warning {
   color: #b45309;
@@ -194,6 +203,8 @@
   display: block;
   font-size: 32px;
   font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 .stat-label {
   font-size: 13px;
@@ -292,10 +303,10 @@
 }
 
 /* Scrollbar */
-.table-container::-webkit-scrollbar       { width: 8px; }
-.table-container::-webkit-scrollbar-track { background:#f1f1f1; border-radius:10px; }
-.table-container::-webkit-scrollbar-thumb { background:#ff9a1a; border-radius:10px; }
-.table-container::-webkit-scrollbar-thumb:hover { background:#ea580c; }
+.table-container::-webkit-scrollbar       { width: 7px; }
+.table-container::-webkit-scrollbar-track { background:#fdf9f3; border-radius:10px; }
+.table-container::-webkit-scrollbar-thumb { background:#e8a84c; border-radius:10px; }
+.table-container::-webkit-scrollbar-thumb:hover { background:#c8882c; }
 
 /* Clase compartida para TODAS las tablas de página */
 .sys-table {
@@ -306,15 +317,16 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #f3f4f6;
-  padding: 16px 20px;
+  background: linear-gradient(180deg, #fef9f0 0%, #fdf4e6 100%);
+  padding: 14px 20px;
   text-align: left;
-  font-weight: 700;
-  color: #374151;
-  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-brand);
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  box-shadow: inset 0 -2px 0 #e5e7eb;
+  letter-spacing: 0.8px;
+  box-shadow: inset 0 -2px 0 #e8d5b8;
+  font-family: var(--font-body);
 }
 .sys-table td {
   padding: 17px 20px;
@@ -323,7 +335,7 @@
   color: #1f2937;
 }
 .sys-table tr:last-child td { border-bottom: none; }
-.sys-table tbody tr:hover { background: #f9fafb; }
+.sys-table tbody tr:hover { background: #fef9f2; }
 .sys-table .cell-code     { font-family: monospace; color: #6b7280; font-size: 13px; }
 .sys-table .cell-name     { font-weight: 500; color: #555555; }
 .sys-table .cell-qty      { font-weight: 700; text-align: center; font-size: 16px; }
@@ -331,7 +343,7 @@
 .sys-table .cell-qty.available { color: #10b981; }
 .sys-table .cell-center   { text-align: center; }
 .sys-table .cell-mono     { font-family: monospace; }
-.sys-table .cell-right    { text-align: left; }
+.sys-table .cell-right    { text-align: right; }
 .sys-table .cell-bold     { font-weight: 700; }
 
 /* ══ BADGES DE ESTADO ════════════════════════════════════ */

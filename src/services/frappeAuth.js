@@ -1,12 +1,13 @@
 import { resolveRole } from '../config/roles';
+import FrappeBase from './FrappeBase';
 
 // URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
 // En producción, el reverse proxy de nginx hace lo mismo, por lo que tampoco se necesita.
 const FRAPPE_URL = '';
 
-class FrappeAuthService {
+class FrappeAuthService extends FrappeBase {
   constructor() {
-    this.baseUrl = FRAPPE_URL;
+    super(FRAPPE_URL);
   }
 
   // ─────────────────────────────────────────────
@@ -106,9 +107,13 @@ class FrappeAuthService {
     await fetch(`/api/method/logout`);
     localStorage.removeItem('frappe_user');
     // Limpiar caché de servicios para evitar que el siguiente usuario
-    // herede datos de la sesión anterior (ej: POS Profile incorrecto).
-    const { posService } = await import('./frappePOS');
+    // herede datos de la sesión anterior (ej: POS Profile, almacenes, etc.).
+    const [{ posService }, { inventory }] = await Promise.all([
+      import('./frappePOS'),
+      import('./frappeInventory'),
+    ]);
     posService.clearCache();
+    inventory.clearCache();
   }
 
   // ─────────────────────────────────────────────
@@ -158,11 +163,11 @@ class FrappeAuthService {
   async getList(doctype, filters = {}, fields = ['name']) {
     const params = new URLSearchParams({
       filters: JSON.stringify(filters),
-      fields: JSON.stringify(fields)
+      fields: JSON.stringify(fields),
     });
-
-    const response = await fetch(`/api/resource/${doctype}?${params}`);
-    return response.json();
+    // Usar _fetch() (heredado de FrappeBase) para tener manejo de errores
+    // consistente: CSRF, parsing de errores Frappe y throw en 4xx/5xx.
+    return this._fetch(`/api/resource/${doctype}?${params}`);
   }
 }
 // Exporta una instancia única (Singleton) para manejar la sesión globalmente

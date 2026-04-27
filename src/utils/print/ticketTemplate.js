@@ -1,3 +1,16 @@
+/**
+ * Datos de la empresa — modificar aquí para reflejarse en todos los tickets.
+ * @type {{ nombre: string, subtitulo: string, linea1: string, linea2: string, telefono: string, web: string }}
+ */
+const EMPRESA = {
+  nombre:    'GRACE',
+  subtitulo: 'Panadería & Repostería',
+  linea1:    'PANADERÍAS GRACE',
+  linea2:    'AV. SANTUARIO DEL MILAGRO',
+  telefono:  '4425991147',
+  web:       'www.panaderiasgrace.mx',
+};
+
 const fmtVal = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
 
 const fmtFecha = () =>
@@ -79,12 +92,12 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
 </head>
 <body>
   <div class="center">
-    <div class="empresa">GRACE</div>
-    <div class="subtitulo">Panadería &amp; Repostería</div>
+    <div class="empresa">${EMPRESA.nombre}</div>
+    <div class="subtitulo">${EMPRESA.subtitulo}</div>
     <div class="dir">
-      PANADERÍAS GRACE<br/>
-      AV. SANTUARIO DEL MILAGRO<br/>
-      TEL. 4425991147
+      ${EMPRESA.linea1}<br/>
+      ${EMPRESA.linea2}<br/>
+      TEL. ${EMPRESA.telefono}
     </div>
   </div>
   <div class="div-eq"></div>
@@ -118,7 +131,7 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
   <div class="div-dash"></div>
   <div class="footer">
     GRACIAS POR SU COMPRA<br/>
-    www.panaderiasgrace.mx
+    ${EMPRESA.web}
   </div>
 </body>
 </html>`;

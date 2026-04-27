@@ -1,5 +1,5 @@
 // src/pages/Compras.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevaCompra, { BuscadorProveedor } from "../components/NuevaCompra";
@@ -50,8 +50,9 @@ function Compras() {
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
 
-  // Declarada antes de useConfirmModal y useEffect para evitar TDZ
-  async function cargar(signal) {
+  // useCallback: el linter puede verificar dependencias. AbortSignal se recibe como
+  // argumento para que el useEffect controle su ciclo de vida de forma explícita.
+  const cargar = useCallback(async (signal) => {
     setLoading(true);
     try {
       const data = await comprasService.getCompras({
@@ -65,7 +66,7 @@ function Compras() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [desde, hasta]);
 
   const deleteModal = useConfirmModal(
     (name) => comprasService.eliminarBorrador(name),
@@ -76,14 +77,12 @@ function Compras() {
     { onSuccess: () => cargar() }
   );
 
-  // Ahora sólo cargamos al cambiar las fechas, el proveedor se filtra en vivo
-  // AbortController: cancela el fetch si el componente se desmonta (evita doble request en StrictMode)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // AbortController: cancela el fetch si el componente se desmonta o las fechas cambian.
   useEffect(() => {
     const controller = new AbortController();
     cargar(controller.signal);
-    return () => controller.abort();   // cleanup al desmontar o re-ejecutar
-  }, [desde, hasta]);
+    return () => controller.abort();
+  }, [cargar]);
 
   const handleEditar = async (name) => {
     try {

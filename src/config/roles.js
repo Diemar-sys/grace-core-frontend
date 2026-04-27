@@ -24,7 +24,9 @@ const FRAPPE_ROLES_ADMIN = new Set([
 export function resolveRole(frappeRoles = []) {
   if (frappeRoles.some(r => FRAPPE_ROLES_ADMIN.has(r))) return 'admin';
   if (frappeRoles.includes('Sales User')) return 'vendedor';
-  return 'admin';
+  // Rol desconocido → mínimo privilegio (fail-closed). Si en el futuro se agrega
+  // un rol nuevo en ERPNext sin registrarlo aquí, no obtendrá acceso de admin.
+  return 'vendedor';
 }
 
 export function getRoleConfig(role) {

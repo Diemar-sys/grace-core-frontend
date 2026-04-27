@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { proveedores } from '../services/frappeSupplier';
 import ModalError from './ModalError';
 import { sanitizarObjeto } from '../utils/security';
+import { TAXONOMY, getTipoDeGrupo } from '../config/proveedorTaxonomy';
 import '../styles/NuevoProveedor.css';
 
 const FORM_INICIAL = {
@@ -40,22 +41,19 @@ const FORM_INICIAL = {
 function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
   const isEditing = !!editItem;
 
-  const [formData, setFormData] = useState(FORM_INICIAL);
-  const [grupos, setGrupos]     = useState([]);
-  const [loading, setLoading]   = useState(false);
+  const [formData,  setFormData]  = useState(FORM_INICIAL);
+  const [selectedTipo, setSelectedTipo] = useState('');
+  const [loading,   setLoading]   = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, message: '', type: 'error' });
 
   useEffect(() => {
-    (async () => {
-      try {
-        const g = await proveedores.getGruposProveedor();
-        setGrupos(g);
-      } catch (_) {}
-    })();
-
     if (editItem) {
+      const tipoRaw = getTipoDeGrupo(editItem.supplier_group) || editItem.custom_tipo || '';
+      const tipo = Object.keys(TAXONOMY).includes(tipoRaw) ? tipoRaw : '';
+      setSelectedTipo(tipo);
       setFormData({ ...FORM_INICIAL, ...editItem });
     } else {
+      setSelectedTipo('');
       setFormData(FORM_INICIAL);
     }
   }, [editItem]);
@@ -65,12 +63,29 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
+  const handleTipoChange = (e) => {
+    const tipo = e.target.value;
+    setSelectedTipo(tipo);
+    setFormData(prev => ({ ...prev, supplier_group: '', custom_tipo: tipo }));
+  };
+
+  const handleSubtipoChange = (e) => {
+    const subtipo = e.target.value;
+    setFormData(prev => ({ ...prev, supplier_group: subtipo, custom_tipo: selectedTipo }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     if (!formData.supplier_name?.trim()) {
       setInfoModal({ isOpen: true, message: 'El nombre del proveedor es obligatorio.', type: 'error' });
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.supplier_group) {
+      setInfoModal({ isOpen: true, message: 'Debes seleccionar un Tipo y Subtipo de proveedor.', type: 'error' });
       setLoading(false);
       return;
     }
@@ -207,19 +222,26 @@ function NuevoProveedor({ onSuccess, onCancel, editItem = null }) {
                 />
               </div>
               <div className="np-group">
-                <label>Tipo</label>
-                <select name="custom_tipo" value={formData.custom_tipo} onChange={handleChange}>
-                  <option value="">Seleccionar...</option>
-                  <option value="GASTO">GASTO</option>
-                  <option value="COSTO">COSTO</option>
+                <label>Tipo *</label>
+                <select value={selectedTipo} onChange={handleTipoChange}>
+                  <option value="">Seleccionar tipo...</option>
+                  {Object.keys(TAXONOMY).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
                 </select>
               </div>
               <div className="np-group">
-                <label>Grupo</label>
-                <select name="supplier_group" value={formData.supplier_group} onChange={handleChange}>
-                  <option value="">Sin grupo</option>
-                  {grupos.map(g => (
-                    <option key={g.name} value={g.name}>{g.name}</option>
+                <label>Subtipo *</label>
+                <select
+                  value={formData.supplier_group}
+                  onChange={handleSubtipoChange}
+                  disabled={!selectedTipo}
+                >
+                  <option value="">
+                    {selectedTipo ? 'Seleccionar subtipo...' : '— elige tipo primero —'}
+                  </option>
+                  {selectedTipo && TAXONOMY[selectedTipo]?.map(s => (
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>

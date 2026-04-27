@@ -15,6 +15,9 @@ const FRAPPE_METHOD = (fn) =>
 
 const GRUPOS_PARA_VENTA = ["ABARROTES"];
 
+/** Tasas de impuesto aplicables a insumos — fuente única de verdad */
+const IMPUESTOS = { tasa0: 0, iva16: 0.16, ieps: 0.08 };
+
 class FrappeInventoryService extends FrappeBase {
   #cache = {};
 
@@ -39,8 +42,6 @@ class FrappeInventoryService extends FrappeBase {
   // ─────────────────────────────────────────────
   // CATÁLOGOS
   // ─────────────────────────────────────────────
-
-  // ── CATÁLOGOS ─────────────────────────────────────────────
 
   /**
    * Obtiene la lista de almacenes disponibles.
@@ -139,8 +140,6 @@ class FrappeInventoryService extends FrappeBase {
   // OBTENER ÍTEM COMPLETO PARA EDICIÓN
   // ─────────────────────────────────────────────
 
-  // ── OBTENER ÍTEM COMPLETO PARA EDICIÓN ─────────────────────────────────────────────
-
   /**
    * Recupera la totalidad de los campos de un ítem. Útil para rellenar formularios de edición.
    * @param {string} itemCode - `item_code` identificador en Frappe.
@@ -200,8 +199,6 @@ class FrappeInventoryService extends FrappeBase {
         (resp.data || []).forEach(e => { extraMap[e.item_code] = e; });
       }
 
-      const IMPUESTOS = { 'tasa0': 0, 'iva16': 0.16, 'ieps': 0.08 };
-
       return items.map(item => {
         const extra = extraMap[item.item_code] || {};
         const compra = parseFloat(extra.custom_precio_de_compra) || 0;
@@ -231,8 +228,6 @@ class FrappeInventoryService extends FrappeBase {
     let items = await this.#callMethod("get_inventory_view", {
       vista: "registrado", item_group: itemGroup, departamento, search, tipo_item: tipoItem,
     });
-
-    const IMPUESTOS = { 'tasa0': 0, 'iva16': 0.16, 'ieps': 0.08 };
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
@@ -270,8 +265,6 @@ class FrappeInventoryService extends FrappeBase {
     let items = await this.#callMethod("get_inventory_view", {
       vista: "deshabilitado", item_group: itemGroup, search, tipo_item: tipoItem,
     });
-
-    const IMPUESTOS = { 'tasa0': 0, 'iva16': 0.16, 'ieps': 0.08 };
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
@@ -458,6 +451,14 @@ class FrappeInventoryService extends FrappeBase {
       { method: "PUT", body: JSON.stringify({ disabled: 0 }) }
     );
     return data.data;
+  }
+
+  /**
+   * Invalida el caché interno. Llamar al hacer logout para que el siguiente
+   * usuario no herede datos de almacenes/grupos de la sesión anterior.
+   */
+  clearCache() {
+    this.#cache = {};
   }
 }
 

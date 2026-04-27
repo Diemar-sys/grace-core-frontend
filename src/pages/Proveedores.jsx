@@ -1,5 +1,5 @@
 // src/pages/Proveedores.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoProveedor from '../components/NuevoProveedor';
@@ -8,6 +8,7 @@ import { PAGE_SIZE } from '../config/constants';
 import ConfirmModal from '../components/ConfirmModal';
 import useConfirmModal from '../hooks/useConfirmModal';
 import useDebounce from '../hooks/useDebounce';
+import { TAXONOMY, getTipoDeGrupo } from '../config/proveedorTaxonomy';
 import '../styles/global.css';
 
 const ICON_TRASH = (
@@ -26,8 +27,8 @@ const VISTAS = [
 ];
 
 const COLUMNAS = {
-  activo: ['#', 'Proveedor', 'Alias', 'Teléfono', 'Correo', 'Tipo', 'Editar'],
-  deshabilitado: ['#', 'Proveedor', 'Alias', 'Teléfono', 'Correo', 'Tipo', 'Editar'],
+  activo: ['#', 'Proveedor', 'Alias', 'Teléfono', 'Correo', 'Tipo', 'Subtipo', 'Editar'],
+  deshabilitado: ['#', 'Proveedor', 'Alias', 'Teléfono', 'Correo', 'Tipo', 'Subtipo', 'Editar'],
 };
 
 /**
@@ -45,8 +46,8 @@ function Proveedores() {
 
   const [vistaActiva, setVistaActiva] = useState('activo');
   const [items, setItems] = useState([]);
-  const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTipo, setSelectedTipo] = useState('');
   const [selectedGrupo, setSelectedGrupo] = useState('');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -64,17 +65,8 @@ function Proveedores() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    (async () => {
-      try { const g = await proveedores.getGruposProveedor(); setGrupos(g); } catch (_) { }
-    })();
-  }, []);
-
-  useEffect(() => { setPage(1); }, [vistaActiva, selectedGrupo, searchTerm]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadItems(); }, [vistaActiva, selectedGrupo, searchTerm, page]);
-
-  const loadItems = async () => {
+  // useCallback para que useEffect pueda declarar loadItems como dependencia limpiamente
+  const loadItems = useCallback(async () => {
     setLoading(true);
     try {
       const filtros = {
@@ -92,9 +84,12 @@ function Proveedores() {
       setTotalPages(res.total_pages || 1);
     } catch (err) { console.error('Error cargando proveedores:', err); }
     finally { setLoading(false); }
-  };
+  }, [vistaActiva, selectedGrupo, searchTerm, page]);
 
-  const handleVistaChange = (key) => { setVistaActiva(key); setSelectedGrupo(''); setInputBusqueda(''); };
+  useEffect(() => { setPage(1); }, [vistaActiva, selectedTipo, selectedGrupo, searchTerm]);
+  useEffect(() => { loadItems(); }, [loadItems]);
+
+  const handleVistaChange = (key) => { setVistaActiva(key); setSelectedTipo(''); setSelectedGrupo(''); setInputBusqueda(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
   const handleModalClose = () => { setModalAbierto(false); setEditItem(null); };
   const handleModalSuccess = () => { handleModalClose(); loadItems(); };
@@ -189,10 +184,28 @@ function Proveedores() {
             {/* FILTROS */}
             <div className="filtros-section">
               <div className="filtro-group">
-                <label>Grupo</label>
-                <select value={selectedGrupo} onChange={e => setSelectedGrupo(e.target.value)}>
-                  <option value="">Todos los grupos</option>
-                  {grupos.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
+                <label>Tipo</label>
+                <select value={selectedTipo} onChange={e => {
+                  setSelectedTipo(e.target.value);
+                  setSelectedGrupo('');
+                }}>
+                  <option value="">Todos</option>
+                  {Object.keys(TAXONOMY).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="filtro-group">
+                <label>Subtipo</label>
+                <select
+                  value={selectedGrupo}
+                  onChange={e => setSelectedGrupo(e.target.value)}
+                  disabled={!selectedTipo}
+                >
+                  <option value="">Todos</option>
+                  {selectedTipo && TAXONOMY[selectedTipo]?.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
               <div className="filtro-group search">
@@ -284,8 +297,13 @@ function Proveedores() {
  * @returns {JSX.Element} Elemento <tr>.
  */
 function FilaProveedor({ item, onEdit, editLoading, soloLectura, accionActiva, onDelete }) {
-  const tipoBadge = item.custom_tipo
-    ? <span className={`status-badge ${item.custom_tipo === 'Costo' ? 'status-ok' : 'status-low'}`}>{item.custom_tipo}</span>
+  const tipo    = getTipoDeGrupo(item.supplier_group) || item.custom_tipo || '';
+  const subtipo = item.supplier_group && !['All Supplier Groups', 'COSTO', 'GASTO', ''].includes(item.supplier_group)
+    ? item.supplier_group
+    : '—';
+
+  const tipoBadge = tipo
+    ? <span className={`status-badge ${tipo === 'COSTO' ? 'status-ok' : 'status-low'}`}>{tipo}</span>
     : '—';
 
   return (
@@ -296,6 +314,7 @@ function FilaProveedor({ item, onEdit, editLoading, soloLectura, accionActiva, o
       <td>{item.custom_teléfono || '—'}</td>
       <td>{item.custom_correo || '—'}</td>
       <td>{tipoBadge}</td>
+      <td style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{subtipo}</td>
       {!soloLectura && accionActiva === 'editar' && (
         <td className="col-actions">
           <button className="btn-edit-row" onClick={() => onEdit(item.name)}

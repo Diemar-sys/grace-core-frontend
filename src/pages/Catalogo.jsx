@@ -1,5 +1,5 @@
 // src/pages/Catalogo.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';
@@ -63,8 +63,9 @@ function Catalogo() {
   const [editLoading, setEditLoading] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState('');
 
-  // Declarada antes de useConfirmModal y useEffect para evitar TDZ
-  async function loadItems() {
+  // Declarada con useCallback para que useEffect pueda declararla en sus dependencias
+  // sin suprimir el linter. Las dependencias reflejan exactamente qué valores usa.
+  const loadItems = useCallback(async () => {
     setLoading(true); setSearchTerm('');
     try {
       const filtros = { itemGroup: selectedGroup || null, tipoItem: selectedTipo || null };
@@ -74,7 +75,7 @@ function Catalogo() {
       setItems(data);
     } catch (err) { console.error('Error cargando inventario:', err); }
     finally { setLoading(false); }
-  }
+  }, [vistaActiva, selectedGroup, selectedTipo]);
 
   const deleteModal  = useConfirmModal(
     (item) => inventory.deleteItem(item.item_code),
@@ -103,8 +104,7 @@ function Catalogo() {
     })();
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadItems(); }, [vistaActiva, selectedGroup, selectedTipo]);
+  useEffect(() => { loadItems(); }, [loadItems]);
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedGroup(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
