@@ -1,3 +1,5 @@
+import { TENANT } from '../../config/tenant';
+
 const fmtVal = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
 
 const FORMA_PAGO_LABEL = {
@@ -78,8 +80,8 @@ export function generarHTMLCorte(datosCorte, rangoInicio, rangoFin) {
 </head>
 <body>
   <div class="center">
-    <div class="empresa">PANADERÍAS GRACE</div>
-    <div class="subtitulo">Panadería &amp; Repostería</div>
+    <div class="empresa">${TENANT.nombreFull}</div>
+    <div class="subtitulo">${TENANT.subtitulo}</div>
   </div>
   <div class="div-eq"></div>
   <div class="info-row"><span>PERÍODO:</span><span>${periodoStr}</span></div>

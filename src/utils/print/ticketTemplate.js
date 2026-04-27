@@ -1,15 +1,18 @@
+import { TENANT } from '../../config/tenant';
+
 /**
- * Datos de la empresa — modificar aquí para reflejarse en todos los tickets.
- * @type {{ nombre: string, subtitulo: string, linea1: string, linea2: string, telefono: string, web: string }}
+ * Datos de la empresa leídos desde tenant.js → variables de entorno (.env).
+ * No modificar aquí — cambiar el archivo .env para actualizar a otro negocio.
  */
 const EMPRESA = {
-  nombre:    'GRACE',
-  subtitulo: 'Panadería & Repostería',
-  linea1:    'PANADERÍAS GRACE',
-  linea2:    'AV. SANTUARIO DEL MILAGRO',
-  telefono:  '4425991147',
-  web:       'www.panaderiasgrace.mx',
+  nombre:    TENANT.nombre.split(' ')[0].toUpperCase(), // "GRACE" → primera palabra en mayúsculas
+  subtitulo: TENANT.subtitulo,
+  linea1:    TENANT.nombreFull,
+  linea2:    TENANT.direccion,
+  telefono:  TENANT.telefono,
+  web:       TENANT.web,
 };
+
 
 const fmtVal = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
 

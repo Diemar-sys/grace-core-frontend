@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { auth } from "../services/frappeAuth";
 import { posService } from "../services/frappePOS";
 import { getRoleConfig } from "../config/roles";
+import { TENANT } from "../config/tenant";
 import "../styles/Layout.css";
 
 // ── Iconos ────────────────────────────────────────────
@@ -107,12 +108,12 @@ function Layout({ children }) {
       <header className="panel-topbar">
         <div className="panel-topbar-left">
           <img
-            src="/logo_GRACE.png"
-            alt="Grace Panadería & Repostería"
+            src={TENANT.logo}
+            alt={TENANT.nombre}
             className="logo-imagen-pq"
           />
           <div>
-            <h1>Panaderías Grace</h1>
+            <h1>{TENANT.nombre}</h1>
             <span>Sistema ERP Web</span>
           </div>
         </div>

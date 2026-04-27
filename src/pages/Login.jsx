@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { rateLimiter, sanitizar, validar } from '../utils/security';
 import { getRoleConfig } from '../config/roles';
+import { TENANT } from '../config/tenant';
 import '../styles/Login.css';
 
 /**
@@ -290,7 +291,7 @@ function Login() {
 
           {/* Textos principales */}
           <div className="brand-text-header">
-            <h1 className="brand-title">Panaderías Grace</h1>
+            <h1 className="brand-title">{TENANT.nombre}</h1>
             <h2 className="brand-subtitle">
               {/*LOGO DE ERPNEXT*/}
               <svg

@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { comprasService } from '../services/frappePurchase';
 import ModalError from './ModalError';
+import { TENANT } from '../config/tenant';
 import '../styles/NuevaCompra.css';
 
 const IMPUESTOS_MAP = {
@@ -193,7 +194,7 @@ function ModalReciboPDF({ datos, onClose }) {
 </head>
 <body>
   <div class="header">
-    <h1>PANADERÍAS GRACE</h1>
+    <h1>${TENANT.nombreFull}</h1>
     <h2>${esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}</h2>
   </div>
   <hr class="divider"/>
@@ -246,7 +247,7 @@ function ModalReciboPDF({ datos, onClose }) {
         <div className="nc-pdf-scroll">
           <div className="nc-recibo">
             <div className="nc-recibo-head">
-              <div className="nc-recibo-empresa">PANADERÍAS GRACE</div>
+              <div className="nc-recibo-empresa">{TENANT.nombreFull}</div>
               <div className="nc-recibo-titulo">
               {esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}
             </div>

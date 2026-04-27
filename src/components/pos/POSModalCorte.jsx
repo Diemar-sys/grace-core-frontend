@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmt, fmtModoPago } from './posUtils';
+import { TENANT } from '../../config/tenant';
 
 function POSModalCorte({
   datosCorte,
@@ -40,14 +41,14 @@ function POSModalCorte({
 
         <div className="pos-ticket-receipt" id="ticket-corte-imprimible">
           <div className="tkt-center tkt-logo">
-            <strong>GRACE</strong><br />
-            <span>Panadería &amp; Repostería</span>
+            <strong>{TENANT.nombre.split(' ')[0].toUpperCase()}</strong><br />
+            <span>{TENANT.subtitulo}</span>
           </div>
 
           <div className="tkt-center tkt-store">
-            PANADERÍAS GRACE<br />
-            AV. SANTUARIOS DEL MILAGRO<br />
-            TEL. 4425991147
+            {TENANT.nombreFull}<br />
+            {TENANT.direccion}<br />
+            TEL. {TENANT.telefono}
           </div>
 
           <div className="tkt-divider-dash" />
@@ -124,7 +125,7 @@ function POSModalCorte({
 
               <div className="tkt-center tkt-thanks">GRACIAS POR SU COMPRA</div>
               <div className="tkt-center tkt-muted" style={{ marginTop: 4 }}>
-                www.panaderiasgrace.mx
+                {TENANT.web}
               </div>
             </>
           ) : null}

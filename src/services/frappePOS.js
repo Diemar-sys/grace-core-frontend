@@ -10,10 +10,11 @@
 
 import FrappeBase from './FrappeBase';
 import { COMPANY, DEFAULT_CUSTOMER } from '../config/constants';
+import { TENANT } from '../config/tenant';
 
 /** Ruta base de los métodos whitelisted del POS */
 const POS_METHOD = (fn) =>
-  `/api/method/gestion_panaderia.api.pos_api.${fn}`;
+  `/api/method/${TENANT.frappeApp}.api.pos_api.${fn}`;
 
 /** Mapa de forma de pago (etiqueta UI → nombre exacto en ERPNext) */
 const FORMAS_PAGO_MAP = {
@@ -23,7 +24,7 @@ const FORMAS_PAGO_MAP = {
 };
 
 /** POS Profile de respaldo si el usuario no tiene uno asignado */
-const DEFAULT_POS_PROFILE = 'Grace POS';
+const DEFAULT_POS_PROFILE = TENANT.posProfileDefault;
 
 class FrappePOSService extends FrappeBase {
 
