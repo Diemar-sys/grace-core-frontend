@@ -1,13 +1,14 @@
 /* POSHistorial.css — Vista historial, rango de fechas y reporte */
 
-/* ══ VISTA HISTORIAL ════════════════════════════════ */
+/* ══ VISTA HISTORIAL ════════════════════════════════════════ */
 .pos-historial-view {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  gap: 16px;
+  gap: 14px;
 }
+
 .pos-historial-header {
   display: flex;
   align-items: center;
@@ -15,15 +16,18 @@
   flex-shrink: 0;
 }
 .pos-historial-header h2 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-brand);
   margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 .pos-historial-subtitle {
-  margin: 0;
-  font-size: 13px;
+  margin: 2px 0 0;
+  font-size: 12px;
   color: var(--color-text-muted);
+  letter-spacing: 0.02em;
 }
 .pos-historial-header-actions {
   display: flex;
@@ -31,99 +35,183 @@
   align-items: center;
 }
 
-.pos-historial-stats {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-  justify-content: flex-start;
-  align-self: flex-start;
-}
-.pos-historial-stats--shrink {
-  flex-shrink: 0; /* alias semántico cuando viene del bloque de reporte */
-}
-.pos-historial-stat {
-  background: var(--color-brand-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 10px 20px;
-  text-align: center;
-}
-.pos-historial-stat .stat-n     { font-size: 26px; font-weight: 800; color: var(--color-brand); }
-.pos-historial-stat .stat-n--md { font-size: 20px; font-weight: 800; color: var(--color-brand); }
-.pos-historial-stat .stat-l { font-size: 12px; color: var(--color-text-muted); }
-
-/* ══ SELECTOR DE RANGO DE FECHAS ════════════════════ */
+/* ══ FILA DE RANGO ═══════════════════════════════════════════ */
 .pos-rango-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   flex-shrink: 0;
   padding: 2px 0;
 }
 
+/* ── Bloque de fechas ──────────────────────────────── */
 .pos-rango-inputs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .pos-rango-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .pos-rango-date {
-  padding: 7px 11px;
+  padding: 5px 9px;
   border: 1.5px solid var(--color-border-input);
-  border-radius: var(--radius-input);
-  font-size: 14px;
-  font-family: inherit;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font-body), inherit;
+  font-weight: 500;
   color: var(--color-text);
   background: white;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .pos-rango-date:focus {
   outline: none;
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px rgba(122,63,10,0.1);
+  border-color: var(--color-brand-light);
+  box-shadow: 0 0 0 3px rgba(232,168,76,0.18);
+}
+.pos-rango-date::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+  filter: sepia(0.4);
 }
 
 .pos-rango-sep {
-  color: var(--color-text-muted);
+  color: var(--color-brand-light);
   font-size: 16px;
   font-weight: 700;
+  padding: 0 2px;
 }
 
+/* ── Separador visual entre bloques ─────────────────── */
+.pos-rango-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+/* ── Botones de período (Hoy / Esta semana / Este mes) ── */
 .pos-rango-shortcuts {
   display: flex;
-  gap: 6px;
+  gap: 5px;
+  align-items: center;
 }
 
+.pos-periodo-tab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body), inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  letter-spacing: 0.01em;
+}
+.pos-periodo-tab:hover {
+  background: var(--color-brand-bg);
+  border-color: var(--color-brand-light);
+  color: var(--color-brand);
+}
+.pos-periodo-tab:active {
+  background: linear-gradient(135deg, #7a3f0a, #6b3209);
+  border-color: #6b3209;
+  color: white;
+  transform: scale(0.97);
+}
+.pos-periodo-tab.activo {
+  background: linear-gradient(135deg, #7a3f0a, #6b3209);
+  border-color: #6b3209;
+  color: white;
+  box-shadow: 0 3px 10px rgba(107,50,9,0.22);
+}
+
+/* ── Stats a la derecha ─────────────────────────────── */
 .pos-rango-stats-right {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
   align-items: center;
 }
 
-/* ══ RESUMEN DE REPORTE ═════════════════════════════ */
-.pos-reporte-resumen {
+/* ══ STAT CARDS ══════════════════════════════════════════════ */
+.pos-historial-stats {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  align-self: flex-start;
+}
+.pos-historial-stats--shrink {
   flex-shrink: 0;
 }
+.pos-historial-stat {
+  background: linear-gradient(135deg, #fdf9f3 0%, #fef3e2 100%);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px 18px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(107,50,9,0.07);
+}
+.pos-historial-stat .stat-n {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-brand);
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.pos-historial-stat .stat-n--md {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-brand);
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.pos-historial-stat .stat-l {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
 
+/* ══ RESUMEN DE REPORTE ══════════════════════════════════════ */
+.pos-reporte-resumen {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 2px 0;
+}
+
+/* ── Formas de pago ─────────────────────────────────── */
+.pos-historial-stats.pos-historial-stats--shrink {
+  align-self: center;
+}
+
+/* ── Barras de departamento ─────────────────────────── */
 .pos-dept-reporte {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
 }
 .pos-dept-reporte-row {
   display: flex;
@@ -133,30 +221,63 @@
 .pos-dept-reporte-label {
   display: flex;
   justify-content: space-between;
-  min-width: 180px;
-  font-size: 13px;
+  min-width: 190px;
+  font-size: 12px;
+  align-items: center;
 }
 .pos-dept-pct {
   color: var(--color-text-muted);
   font-weight: 600;
+  font-size: 11px;
 }
 .pos-dept-bar-wrap {
   flex: 1;
-  height: 10px;
-  background: #f3f4f6;
+  height: 8px;
+  background: var(--color-border);
   border-radius: 99px;
   overflow: hidden;
 }
 .pos-dept-bar-fill {
   height: 100%;
   border-radius: 99px;
-  transition: width 0.4s ease;
+  transition: width 0.5s cubic-bezier(.4,0,.2,1);
   min-width: 4px;
 }
 .pos-dept-total {
   min-width: 80px;
   text-align: right;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--color-text);
+}
+
+/* ══ BOTÓN CORTE DE CAJA ════════════════════════════════════ */
+.pos-historial-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #e8d5b8;
+  background: linear-gradient(135deg, #fff8ec, #fef3e2);
+  color: var(--color-brand);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+  font-family: var(--font-body), inherit;
+  box-shadow: 0 2px 8px rgba(107,50,9,0.1);
+}
+.pos-historial-btn:hover {
+  background: linear-gradient(135deg, #7a3f0a, #6b3209);
+  color: white;
+  border-color: #6b3209;
+  box-shadow: 0 4px 14px rgba(107,50,9,0.25);
+  transform: translateY(-1px);
+}
+.pos-historial-btn.activo {
+  background: var(--color-brand);
+  color: white;
+  border-color: var(--color-brand);
 }

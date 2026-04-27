@@ -50,6 +50,7 @@ function POSHistorial({
             onChange={e => setRangoFin(e.target.value)}
           />
         </div>
+        <div className="pos-rango-divider" />
         <div className="pos-rango-shortcuts">
           <button className="pos-periodo-tab" onClick={setHoy}>Hoy</button>
           <button className="pos-periodo-tab" onClick={setEstaSemana}>Esta semana</button>

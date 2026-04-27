@@ -1,10 +1,10 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'DM Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color: #5b4026;
-  background-color: #fffaf3;
+  color: #2d1a0e;
+  background-color: #fdf9f3;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -14,18 +14,18 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #7a3f0a;
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #6b3209;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #fffaf3;
+  background: #fdf9f3;
 }
 
 button {

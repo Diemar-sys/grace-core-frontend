@@ -61,7 +61,7 @@ body:has(.login-container) #root {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background-color: #faf8f5;
+  background-color: #fdf9f3;
   overflow-y: auto;
 }
 
@@ -69,9 +69,10 @@ body:has(.login-container) #root {
   width: 100%;
   max-width: 450px;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(107,50,9,0.14), 0 2px 8px rgba(0,0,0,0.06);
   padding: 2.5rem;
+  border-top: 3px solid #e8a84c;
 }
 
 /* Header */
@@ -87,9 +88,11 @@ body:has(.login-container) #root {
   width: 80px;
   height: 80px;
   margin: 0 auto 1.5rem;
-  background: rgba(232, 114, 95, 0.1);
+  background: linear-gradient(135deg, #fff8ec, #fef0d4);
+  border: 1.5px solid #e8a84c;
   border-radius: 50%;
-  color: #e8725f;
+  color: #6b3209;
+  box-shadow: 0 4px 16px rgba(232,168,76,0.25);
 }
 
 .login-icon svg {
@@ -98,11 +101,13 @@ body:has(.login-container) #root {
 }
 
 .login-title {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  color: #3a3a3a;
+  color: #2d1a0e;
   margin: 0 0 0.75rem 0;
   line-height: 1.2;
+  font-family: 'Lora', Georgia, serif;
+  letter-spacing: -0.02em;
 }
 
 .login-description {
@@ -158,8 +163,8 @@ body:has(.login-container) #root {
 }
 
 .form-input:focus {
-  border-color: #e8725f;
-  box-shadow: 0 0 0 3px rgba(232, 114, 95, 0.1);
+  border-color: #e8a84c;
+  box-shadow: 0 0 0 3px rgba(232, 168, 76, 0.15);
 }
 
 .select-input {
@@ -190,21 +195,25 @@ body:has(.login-container) #root {
 
 .login-button {
   width: 100%;
-  height: 48px;
+  height: 50px;
   font-size: 1rem;
-  font-weight: 500;
-  color: #7a3f0a;
-  background: #fffbf6;
-  border: 1px solid #f2c48d;
-  border-radius: 8px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #7a3f0a 0%, #6b3209 100%);
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.25s;
   margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+  font-family: 'DM Sans', inherit;
+  box-shadow: 0 4px 14px rgba(107,50,9,0.22);
 }
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(122, 63, 10, 0.16);
+  box-shadow: 0 10px 24px rgba(107,50,9,0.32);
+  background: linear-gradient(135deg, #8a4f1a 0%, #7a3f0a 100%);
 }
 
 .login-button:disabled {
@@ -230,7 +239,7 @@ body:has(.login-container) #root {
 .link-button {
   background: none;
   border: none;
-  color: #e8725f;
+  color: #7a3f0a;
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
@@ -239,7 +248,7 @@ body:has(.login-container) #root {
 
 .link-button:hover {
   text-decoration: underline;
-  color: #d65f4d;
+  color: #6b3209;
 }
 
 .help-text {
@@ -252,16 +261,17 @@ body:has(.login-container) #root {
   display: none;
   flex: 1;
   position: relative;
-  background: linear-gradient(135deg, #4a4a4a 0%, #3a3a3a 100%);
+  background: linear-gradient(155deg, #5a2a06 0%, #3d1a04 40%, #210e02 75%, #140801 100%);
   overflow-y: auto;
 }
 
 .branding-overlay {
   position: absolute;
   inset: 0;
-  background: 
-    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1), transparent 50%),
-    radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.08), transparent 50%);
+  background:
+    radial-gradient(ellipse 60% 50% at 25% 35%, rgba(232,168,76,0.22), transparent 55%),
+    radial-gradient(ellipse 45% 55% at 80% 75%, rgba(122,63,10,0.35), transparent 50%),
+    radial-gradient(ellipse 80% 30% at 50% 0%, rgba(232,168,76,0.08), transparent 40%);
 }
 
 .branding-content {
@@ -305,10 +315,12 @@ body:has(.login-container) #root {
 }
 
 .brand-title {
-  font-size: 4rem;
+  font-size: 3.8rem;
   font-weight: 700;
   line-height: 1.1;
   margin: 0 0 2rem 0;
+  font-family: 'Lora', Georgia, serif;
+  letter-spacing: -0.02em;
 }
 
 .brand-description {
@@ -337,9 +349,10 @@ body:has(.login-container) #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.15);
+  width: 72px;
+  height: 72px;
+  background: rgba(232,168,76,0.15);
+  border: 1px solid rgba(232,168,76,0.3);
   backdrop-filter: blur(10px);
   border-radius: 50%;
 }
