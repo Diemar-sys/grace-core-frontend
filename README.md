@@ -92,20 +92,29 @@ src/
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tu-usuario/bake-data-frontend.git
+git clone https://github.com/tu-usuario/grace-core-frontend.git
 cd bake-data-frontend
 
 # 2. Instalar dependencias
 npm install
 
 # 3. Configurar variables de entorno
-cp .env.backup .env
+cp .env.example .env
 # Editar .env con la URL de tu instancia Frappe
 
 # 4. Iniciar servidor de desarrollo
 npm run dev
-```
 
+
+```
+## Infraestructura y despliegue
+
+- Frontend servido por **Nginx** en servidor self-hosted
+- Backend ERPNext contenerizado con **Docker**
+- Acceso remoto seguro vía **WireGuard VPN**
+- Respaldos automáticos con `bench backup`
+- Servicio gestionado con **systemctl**
+```
 ---
 
 ## Variables de entorno
