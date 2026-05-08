@@ -14,9 +14,31 @@ const VISTAS = [
   { key: 'deshabilitado', label: 'DESHABILITADOS', color: 'vista-deshabilitado' },
 ];
 const COLUMNAS = {
-  registrado: ['Código Interno', 'Producto', 'Total', 'Precio por Unidad', 'Departamento', 'Unidad de Medida', 'Acciones'],
-  deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Departamento', 'Deshabilitado', 'Acciones'],
+  registrado:    ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida', 'Acciones'],
+  deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida', 'Acciones'],
 };
+
+/**
+ * Formatea el stock de un ítem mostrando la cantidad en unidades naturales
+ * y opcionalmente el equivalente en empaques (bultos, costales, etc.).
+ * @param {Object} item - Datos del ítem con actual_qty, stock_uom, custom_cantidad_por_presentación.
+ * @returns {{ total: string, paquetes: string|null }} Textos formateados.
+ */
+function fmtStock(item) {
+  const actual     = parseFloat(item.actual_qty) || 0;
+  const cantPres   = parseFloat(item.custom_cantidad_por_presentación) || 0;
+  const presentacion = item.custom_presentación || '';
+  const uom        = item.stock_uom || '';
+
+  // Si hay factor de conversión: actual = empaques, total natural = empaques × cantPres
+  // Ej: 16 bultos × 25 Kg/bulto = 400 Kg
+  const totalNatural = cantPres > 0 ? actual * cantPres : actual;
+  const totalStr   = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  const paqStr     = cantPres > 0 && presentacion
+    ? `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
+    : null;
+  return { actual, totalStr, paqStr };
+}
 
 const ICON_TRASH = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -372,29 +394,29 @@ function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEna
     </td>
   );
 
-  if (vista === 'registrado') return (
-    <tr>
-      <td className="cell-code">{item.custom_código_interno || '—'}</td>
-      <td className="cell-name">{item.item_name}</td>
-      <td>{item.custom_total_presentacion ? `$${parseFloat(item.custom_total_presentacion).toFixed(2)}` : '—'}</td>
-      <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
-      <td>{item.custom_departamento || '—'}</td>
-      <td>{item.stock_uom || '—'}</td>
-      <BtnAcciones />
-    </tr>
-  );
-
-  if (vista === 'deshabilitado') return (
-    <tr>
-      <td className="cell-code">{item.item_code}</td>
-      <td className="cell-name">{item.item_name}</td>
-      <td>{item.custom_total_presentacion ? `$${parseFloat(item.custom_total_presentacion).toFixed(2)}` : '—'}</td>
-      <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
-      <td>{item.custom_departamento || '—'}</td>
-      <td className="cell-code">{item.modified?.split(' ')[0] || '—'}</td>
-      <BtnAcciones />
-    </tr>
-  );
+  if (vista === 'registrado' || vista === 'deshabilitado') {
+    const { actual, totalStr, paqStr } = fmtStock(item);
+    return (
+      <tr>
+        <td className="cell-code">{item.item_code || '—'}</td>
+        <td className="cell-name">{item.item_name}</td>
+        <td>{item.custom_total_presentacion ? `$${parseFloat(item.custom_total_presentacion).toFixed(2)}` : '—'}</td>
+        <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
+        <td className="cell-qty">
+          {actual > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontWeight: 600 }}>{totalStr}</span>
+              {paqStr && <span style={{ fontSize: '14px', color: '#6b7280' }}>{paqStr}</span>}
+            </div>
+          ) : (
+            <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>Sin stock</span>
+          )}
+        </td>
+        <td>{item.stock_uom || '—'}</td>
+        <BtnAcciones />
+      </tr>
+    );
+  }
   return null;
 }
 

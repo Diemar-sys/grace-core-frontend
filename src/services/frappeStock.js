@@ -7,33 +7,101 @@
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 
-const ALMACENES_DEPARTAMENTO = [
-  { name: "ALMACEN - PIZZERIA - PG",    label: "Pizzeria"    },
-  { name: "ALMACEN - PANQUELERIA - PG", label: "Panqueleria" },
-  { name: "ALMACEN - PAN DULCE - PG",   label: "Pan Dulce"   },
-  { name: "ALMACEN - PAN BLANCO - PG",  label: "Pan Blanco"  },
-  { name: "ALMACEN - REPOSTERIA - PG",  label: "Reposteria"  },
-];
+// Tipos de Warehouse esperados en ERPNext (Doctype "Warehouse Type").
+// Si el tipo no coincide se cataloga como "Otros" y aparece al final del select.
+const TIPO_BODEGA         = 'BODEGA';
+const TIPO_DEPARTAMENTO   = 'DEPARTAMENTO';
+const TIPO_SUCURSAL       = 'SUCURSAL';
+const TIPO_CAMIONETA      = 'CAMIONETA';
+const TIPO_PUNTO_VENTA    = 'PUNTO DE VENTA';
+
+const ORDEN_TIPOS = [TIPO_BODEGA, TIPO_DEPARTAMENTO, TIPO_SUCURSAL, TIPO_CAMIONETA, TIPO_PUNTO_VENTA];
 
 class FrappeStockService extends FrappeBase {
-  // Constantes de almacenes
+  #almacenesCache = null;
+
+  getBodegaCentral() { return BODEGA_CENTRAL; }
+
   /**
-   * Obtiene el nombre del almacén predeterminado para recepción (Bodega Central).
-   * @returns {string} ID del almacén.
+   * Lee los warehouses activos de ERPNext (no grupos, sin disabled, de la company).
+   * Cachea la respuesta para evitar requests repetidos. Llamar a clearCache() en logout.
+   * @returns {Promise<Array<{name, label, warehouse_type, parent_warehouse}>>}
    */
-  getBodegaCentral()         { return BODEGA_CENTRAL; }
-  
+  async fetchAlmacenes() {
+    if (this.#almacenesCache) return this.#almacenesCache;
+    const params = new URLSearchParams({
+      fields: JSON.stringify(['name', 'warehouse_name', 'warehouse_type', 'parent_warehouse']),
+      filters: JSON.stringify([
+        ['company',  '=', COMPANY],
+        ['is_group', '=', 0],
+        ['disabled', '=', 0],
+      ]),
+      limit_page_length: 0,
+      order_by: 'warehouse_name asc',
+    });
+    const data = await this._fetch(`/api/resource/Warehouse?${params}`);
+    const lista = (data?.data || []).map(w => ({
+      name: w.name,
+      label: w.warehouse_name || w.name,
+      warehouse_type: w.warehouse_type || 'OTROS',
+      parent_warehouse: w.parent_warehouse || null,
+    }));
+    this.#almacenesCache = lista;
+    return lista;
+  }
+
   /**
-   * Obtiene la configuración de los almacenes departamentales internos.
-   * @returns {Array<{name: string, label: string}>} Lista de sub-almacenes.
+   * Devuelve únicamente warehouses tipo "Departamento" (Pan Dulce, Pan Blanco, etc).
+   * Reemplaza al antiguo getAlmacenesDepartamento() sync hardcoded.
+   * @returns {Promise<Array<{name, label}>>}
    */
-  getAlmacenesDepartamento() { return ALMACENES_DEPARTAMENTO; }
-  
+  async fetchAlmacenesDepartamento() {
+    const todos = await this.fetchAlmacenes();
+    return todos.filter(w => w.warehouse_type === TIPO_DEPARTAMENTO);
+  }
+
   /**
-   * Retorna una lista unificada de todos los almacenes gestionados por frontend.
-   * @returns {Array<{name: string, label: string}>} Lista consolidada de almacenes.
+   * Devuelve warehouses agrupados por warehouse_type, con orden estable
+   * (Departamento → Sucursal → Camioneta → Punto de Venta → otros).
+   * @returns {Promise<Array<{tipo: string, almacenes: Array}>>}
    */
-  getAllWarehouses()          { return [{ name: BODEGA_CENTRAL, label: "Bodega Central" }, ...ALMACENES_DEPARTAMENTO]; }
+  async fetchAlmacenesAgrupados() {
+    const todos = await this.fetchAlmacenes();
+    const grupos = {};
+    todos.forEach(w => {
+      if (!grupos[w.warehouse_type]) grupos[w.warehouse_type] = [];
+      grupos[w.warehouse_type].push(w);
+    });
+    const tiposOrdenados = [
+      ...ORDEN_TIPOS.filter(t => grupos[t]),
+      ...Object.keys(grupos).filter(t => !ORDEN_TIPOS.includes(t)),
+    ];
+    return tiposOrdenados.map(tipo => ({ tipo, almacenes: grupos[tipo] }));
+  }
+
+  /**
+   * Bodega Central + Departamentos. Usado en RegistroEntrada (compras llegan a estos).
+   * @returns {Promise<Array<{name, label}>>}
+   */
+  async fetchAllWarehouses() {
+    const dept = await this.fetchAlmacenesDepartamento();
+    return [{ name: BODEGA_CENTRAL, label: 'Bodega Central' }, ...dept];
+  }
+
+  /**
+   * Bodega Central + TODOS los warehouses no-grupo (Departamentos, Sucursales,
+   * Camionetas, Puntos de Venta). Usado en Inventario para vista "Por Almacén".
+   * @returns {Promise<Array<{name, label, warehouse_type}>>}
+   */
+  async fetchAllWarehousesInclusive() {
+    const todos = await this.fetchAlmacenes();
+    return [
+      { name: BODEGA_CENTRAL, label: 'Bodega Central', warehouse_type: 'BODEGA' },
+      ...todos,
+    ];
+  }
+
+  clearCache() { this.#almacenesCache = null; }
 
   // ─────────────────────────────────────────────
   // BÚSQUEDA DE ÍTEMS (usada por los formularios)
@@ -48,7 +116,7 @@ class FrappeStockService extends FrappeBase {
     const filters = [["disabled", "=", 0]];
     if (search) filters.push(["item_name", "like", `%${search}%`]);
     const params = new URLSearchParams({
-      fields: JSON.stringify(["item_code", "item_name", "stock_uom", "item_group", "custom_cantidad_por_presentación", "custom_presentación"]),
+      fields: JSON.stringify(["item_code", "item_name", "stock_uom", "item_group", "custom_cantidad_por_presentación", "custom_presentación", "custom_precio_por_kg", "custom_precio_final", "custom_precio_de_compra", "valuation_rate"]),
       filters: JSON.stringify(filters),
       limit_page_length: 20,
     });
@@ -153,23 +221,29 @@ class FrappeStockService extends FrappeBase {
    * @param {string} [payloadData.notas=""] - Notas opcionales.
    * @returns {Promise<Object>} Resultado de la transacción.
    */
-  async registrarEntrada({ items, notas = "" }) {
+  async registrarEntrada({ items, notas = "", warehouse = BODEGA_CENTRAL }) {
     if (!items?.length) throw new Error("Agrega al menos un producto");
+    const destino = warehouse || BODEGA_CENTRAL;
     return this.crearYSubmitirStockEntry({
       doctype:          "Stock Entry",
       stock_entry_type: "Material Receipt",
       company:          COMPANY,
-      to_warehouse:     BODEGA_CENTRAL,
+      to_warehouse:     destino,
       remarks:          notas || "Entrada de insumos",
-      items: items.map(item => ({
-        item_code:         item.item_code,
-        t_warehouse:       BODEGA_CENTRAL,
-        qty:               parseFloat(item.qty),
-        uom:               item.uom,
-        stock_uom:         item.uom,
-        conversion_factor: 1,
-        transfer_qty:      parseFloat(item.qty),
-      })),
+      items: items.map(item => {
+        const row = {
+          item_code:         item.item_code,
+          t_warehouse:       item.almacen || destino,
+          qty:               parseFloat(item.qty),
+          uom:               item.uom,
+          stock_uom:         item.uom,
+          conversion_factor: 1,
+          transfer_qty:      parseFloat(item.qty),
+        };
+        const rate = parseFloat(item.basic_rate);
+        if (rate > 0) row.basic_rate = rate;
+        return row;
+      }),
     });
   }
 
@@ -279,6 +353,49 @@ class FrappeStockService extends FrappeBase {
         uom:         item.uom,
         stock_uom:   item.uom,
       })),
+    });
+  }
+
+  /** 
+   * Transacción de Manufactura ("Manufacture")
+   * Descuenta ingredientes y suma el producto final al inventario.
+   */
+  async entradaPorManufactura(datos) {
+    const items = [];
+    
+    // 1. Ingredientes (Salen)
+    if (datos.ingredientes) {
+      datos.ingredientes.forEach(item => {
+        items.push({
+          item_code: item.item_code,
+          s_warehouse: datos.almacen_produccion,
+          qty: parseFloat(item.cantidad),
+          uom: item.uom,
+          stock_uom: item.uom,
+        });
+      });
+    }
+
+    // 2. Producto Final (Entra)
+    if (datos.producto_final) {
+      items.push({
+        item_code: datos.producto_final.item_code,
+        t_warehouse: datos.almacen_produccion,
+        qty: parseFloat(datos.producto_final.cantidad),
+        uom: datos.producto_final.uom,
+        stock_uom: datos.producto_final.uom,
+        is_finished_item: 1,
+      });
+    }
+
+    return this.crearYSubmitirStockEntry({
+      doctype:          "Stock Entry",
+      stock_entry_type: "Manufacture",
+      company:          datos.company || COMPANY,
+      posting_date:     datos.fecha,
+      bom_no:           datos.bom_no,
+      remarks:          `Produccion: ${datos.orden_produccion}`,
+      items:            items,
     });
   }
 

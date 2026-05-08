@@ -6,7 +6,7 @@ export const ROLES = {
     modulosPanel: ['catalogo', 'inventario', 'compras', 'proveedores', 'pos', 'produccion'],
   },
   vendedor: {
-    rutas: ['/panel', '/pos', '/catalogo', '/inventario', '/compras', '/proveedores', '/produccion', '/consultas/pos'],
+    rutas: ['/panel', '/pos', '/consultas/pos'],
     inicio: '/panel',
     modulosPanel: ['pos'],
   },
@@ -30,5 +30,5 @@ export function resolveRole(frappeRoles = []) {
 }
 
 export function getRoleConfig(role) {
-  return ROLES[role] || ROLES.admin;
+  return ROLES[role] || ROLES.vendedor;
 }

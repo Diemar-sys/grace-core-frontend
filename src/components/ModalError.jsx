@@ -59,7 +59,7 @@ function ModalError({ isOpen, title, message, type = "error", onClose }) {
         <h3 style={{ color: titleColor }}>{title || defaultTitle}</h3>
         <p className="modal-aviso-mensaje">{message}</p>
         <div className="del-modal-actions" style={{ marginTop: '24px' }}>
-          <button className="del-btn-disable" onClick={onClose}>
+          <button className="del-btn-disable" onClick={onClose} autoFocus>
             Entendido
           </button>
         </div>

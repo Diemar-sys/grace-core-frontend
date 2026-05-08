@@ -74,7 +74,31 @@ class FrappeProduccionService extends FrappeBase {
     });
     return data.data;
   }
-
+  /**
+   * Actualiza una receta (BOM) existente (solo posible si es borrador / docstatus=0).
+   * @param {string} bomName - ID del BOM.
+   * @param {Object} payload - Datos de la receta a actualizar.
+   * @returns {Promise<Object>} Datos del BOM actualizado.
+   */
+  async actualizarBOM(bomName, { item, quantity, uom, items, custom_departamento = '' }) {
+    const data = await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        item,
+        quantity: parseFloat(quantity) || 1,
+        uom,
+        custom_departamento,
+        items: items.map(i => ({
+          item_code: i.item_code,
+          qty: parseFloat(i.qty),
+          uom: i.uom,
+          stock_uom: i.uom,
+          description: i.item_name || '',
+        })),
+      }),
+    });
+    return data.data;
+  }
   /**
    * Activa una receta (la pone en docstatus=1 y la marca como activa y predeterminada).
    * @param {string} bomName - ID del BOM.
@@ -162,20 +186,26 @@ class FrappeProduccionService extends FrappeBase {
     const bom = await this.getBOMDetalle(bomName);
     const factorProduccion = parseFloat(cantidadProducida) / (parseFloat(bom.quantity) || 1);
 
-    const items = (bom.items || []).map(i => ({
+    const ingredientes = (bom.items || []).map(i => ({
       item_code: i.item_code,
       item_name: i.item_name,
       cantidad: (parseFloat(i.qty) * factorProduccion),
       uom: i.stock_uom || i.uom,
-      almacen_origen: almacenOrigen,
       precio_promedio: parseFloat(i.rate) || 0,
     }));
 
-    return stockService.salidaPorProduccion({
+    return stockService.entradaPorManufactura({
       company: COMPANY,
       fecha: new Date().toISOString().split('T')[0],
       orden_produccion: `BOM: ${bom.item_name} × ${cantidadProducida}`,
-      items,
+      bom_no: bomName,
+      almacen_produccion: almacenOrigen,
+      producto_final: {
+        item_code: bom.item,
+        cantidad: cantidadProducida,
+        uom: bom.uom
+      },
+      ingredientes
     });
   }
 

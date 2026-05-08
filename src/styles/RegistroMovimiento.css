@@ -62,6 +62,36 @@
 .rm-info-chip.destino { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
 /* Selector destino */
+.rm-destino-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+.rm-destino-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.rm-destino-select {
+  border: none;
+  background: transparent;
+  color: #1e40af;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  padding: 0 4px;
+}
+.rm-destino-select:disabled { opacity: 0.6; cursor: default; }
+
 .rm-section { margin-bottom: 18px; }
 .rm-section label {
   display: block;

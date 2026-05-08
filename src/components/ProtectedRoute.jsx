@@ -1,8 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { getRoleConfig } from '../config/roles';
+import { useAutoUppercase } from '../hooks/useAutoUppercase';
 
 function ProtectedRoute({ children }) {
+  useAutoUppercase();
   const user = auth.getUser();
   const location = useLocation();
 

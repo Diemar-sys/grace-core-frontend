@@ -6,10 +6,12 @@ import NuevaCompra, { BuscadorProveedor } from "../components/NuevaCompra";
 import ConfirmModal from "../components/ConfirmModal";
 import { comprasService } from "../services/frappePurchase";
 import useConfirmModal from "../hooks/useConfirmModal";
+import { docToDatosImpresion, imprimirCompraPDF, imprimirCompraTicket } from "../utils/print/comprasPrint";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ESTADO_DOCSTATUS = { recibida: 1, en_espera: 0, cancelada: 2 };
 
 const ICON_TRASH = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -47,8 +49,30 @@ function Compras() {
   const [hasta, setHasta] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [estadoFiltro, setEstadoFiltro] = useState('todas');
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
+
+  const [vistaReporte, setVistaReporte] = useState(false);
+  const [reporteData, setReporteData] = useState([]);
+  const [reporteAño, setReporteAño] = useState(String(new Date().getFullYear()));
+  const [reporteLoading, setReporteLoading] = useState(false);
+
+  const cargarReporte = useCallback(async (año) => {
+    setReporteLoading(true);
+    try {
+      const data = await comprasService.getReporteFiscalMensual(año || reporteAño);
+      setReporteData(data);
+    } catch (err) {
+      console.error('Error reporte fiscal:', err);
+    } finally {
+      setReporteLoading(false);
+    }
+  }, [reporteAño]);
+
+  useEffect(() => {
+    if (vistaReporte) cargarReporte(reporteAño);
+  }, [vistaReporte, reporteAño, cargarReporte]);
 
   // useCallback: el linter puede verificar dependencias. AbortSignal se recibe como
   // argumento para que el useEffect controle su ciclo de vida de forma explícita.
@@ -94,6 +118,32 @@ function Compras() {
     }
   };
 
+  const handleImprimir = async (name, modo) => {
+    try {
+      const doc = await comprasService.getCompraBorrador(name);
+      const datos = docToDatosImpresion(doc);
+
+      // Enriquecer con custom_cantidad_por_presentación del catálogo
+      // (el PR de ERPNext no guarda ese campo en sus items)
+      if (datos.filas?.length) {
+        const codes = [...new Set(datos.filas.map(f => f.item_code).filter(Boolean))];
+        const catItems = await comprasService.getItemsCatalogo(codes);
+        const catMap = {};
+        catItems.forEach(it => { catMap[it.item_code] = it; });
+        datos.filas = datos.filas.map(f => ({
+          ...f,
+          kg_por_bulto: String(catMap[f.item_code]?.custom_cantidad_por_presentación || ''),
+          uom: f.uom || catMap[f.item_code]?.stock_uom || '',
+        }));
+      }
+
+      if (modo === 'ticket') imprimirCompraTicket(datos);
+      else imprimirCompraPDF(datos);
+    } catch (err) {
+      console.error('Error imprimiendo compra:', err);
+    }
+  };
+
   const handleConfirmarBorrador = async (name) => {
     try {
       await comprasService.confirmarBorrador(name);
@@ -117,6 +167,7 @@ function Compras() {
 
   // Filtrado local en vivo (igual que Catálogo / Proveedores)
   const filteredCompras = compras.filter(c => {
+    if (estadoFiltro !== 'todas' && c.docstatus !== ESTADO_DOCSTATUS[estadoFiltro]) return false;
     const term = searchTerm.toLowerCase();
     const supName = (c.supplier_name || '').toLowerCase();
     const supId = (c.supplier || '').toLowerCase();
@@ -201,6 +252,27 @@ function Compras() {
           </div>
         ) : (
           <>
+            {/* TABS DE ESTADO */}
+            <div className="vistas-tabs">
+              {[
+                { key: 'todas',     label: 'Todas',     color: 'vista-registrado' },
+                { key: 'recibida',  label: 'Recibida',  color: 'vista-stock' },
+                { key: 'en_espera', label: 'En espera', color: 'vista-agotado' },
+                { key: 'cancelada', label: 'Cancelada', color: 'vista-deshabilitado' },
+              ].map(t => (
+                <button key={t.key}
+                  className={`vista-tab ${t.color} ${estadoFiltro === t.key ? 'activa' : ''}`}
+                  onClick={() => setEstadoFiltro(t.key)}>
+                  {t.label}
+                  <span className="comp-tab-count">
+                    {t.key === 'todas'
+                      ? compras.length
+                      : compras.filter(c => c.docstatus === ESTADO_DOCSTATUS[t.key]).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             {/* FILTROS + BOTÓN */}
             <div className="filtros-section">
               <div className="filtro-group">
@@ -220,6 +292,11 @@ function Compras() {
               </div>
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
+                <button className="btn-refresh"
+                  style={vistaReporte ? { background: '#1e3a5f', color: '#fff' } : {}}
+                  onClick={() => setVistaReporte(v => !v)}>
+                  {vistaReporte ? '← Compras' : '📊 Reporte Fiscal'}
+                </button>
                 <button className="btn-refresh" onClick={cargar}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -232,10 +309,89 @@ function Compras() {
               </div>
             </div>
 
+            {/* REPORTE FISCAL */}
+            {vistaReporte && (
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '14px' }}>Año:</label>
+                  <select value={reporteAño} onChange={e => setReporteAño(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px' }}>
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <button className="btn-refresh" onClick={() => cargarReporte(reporteAño)}>Actualizar</button>
+                </div>
+                {reporteLoading ? (
+                  <div className="loading">Cargando reporte...</div>
+                ) : (
+                  <div className="table-container">
+                    <table className="sys-table">
+                      <thead>
+                        <tr>
+                          <th>Mes</th>
+                          <th className="cell-right"># Compras</th>
+                          <th className="cell-right">Subtotal IVA 16%</th>
+                          <th className="cell-right">Subtotal IEPS 8%</th>
+                          <th className="cell-right">Subtotal IVA 0%</th>
+                          <th className="cell-right">Subtotal</th>
+                          <th className="cell-right">IVA 16%</th>
+                          <th className="cell-right">IEPS 8%</th>
+                          <th className="cell-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reporteData.length === 0 ? (
+                          <tr><td colSpan={9} className="no-data">Sin compras confirmadas en {reporteAño}</td></tr>
+                        ) : reporteData.map(r => (
+                          <tr key={r.mes}>
+                            <td className="cell-name">{new Date(r.mes + '-02').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</td>
+                            <td className="cell-right">{r.compras}</td>
+                            <td className="cell-right">${fmt(r.subtotalIva16)}</td>
+                            <td className="cell-right">${fmt(r.subtotalIeps)}</td>
+                            <td className="cell-right">${fmt(r.subtotalTasa0)}</td>
+                            <td className="cell-right cell-bold">${fmt(r.subtotal)}</td>
+                            <td className="cell-right">${fmt(r.iva)}</td>
+                            <td className="cell-right">${fmt(r.ieps)}</td>
+                            <td className="cell-right cell-bold">${fmt(r.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {reporteData.length > 1 && (() => {
+                        const tot = reporteData.reduce((a, r) => ({
+                          compras: a.compras + r.compras,
+                          subtotalIva16: a.subtotalIva16 + r.subtotalIva16,
+                          subtotalIeps:  a.subtotalIeps  + r.subtotalIeps,
+                          subtotalTasa0: a.subtotalTasa0 + r.subtotalTasa0,
+                          subtotal: a.subtotal + r.subtotal,
+                          iva:  a.iva  + r.iva,
+                          ieps: a.ieps + r.ieps,
+                          total: a.total + r.total,
+                        }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0 });
+                        return (
+                          <tfoot>
+                            <tr style={{ fontWeight: 700, borderTop: '2px solid #374151', background: '#f9fafb' }}>
+                              <td>TOTAL {reporteAño}</td>
+                              <td className="cell-right">{tot.compras}</td>
+                              <td className="cell-right">${fmt(tot.subtotalIva16)}</td>
+                              <td className="cell-right">${fmt(tot.subtotalIeps)}</td>
+                              <td className="cell-right">${fmt(tot.subtotalTasa0)}</td>
+                              <td className="cell-right">${fmt(tot.subtotal)}</td>
+                              <td className="cell-right">${fmt(tot.iva)}</td>
+                              <td className="cell-right">${fmt(tot.ieps)}</td>
+                              <td className="cell-right">${fmt(tot.total)}</td>
+                            </tr>
+                          </tfoot>
+                        );
+                      })()}
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* TABLA */}
-            {loading ? (
+            {!vistaReporte && loading ? (
               <div className="loading">Cargando compras...</div>
-            ) : (
+            ) : !vistaReporte && (
               <div className="table-container">
                 <table className="sys-table">
                   <thead>
@@ -246,7 +402,7 @@ function Compras() {
                       <th>Subtotal</th>
                       <th>Total</th>
                       <th>Estado</th>
-                      {!soloLectura && <th>Acciones</th>}
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -270,9 +426,21 @@ function Compras() {
                               {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
                             </span>
                           </td>
-                          {!soloLectura && (
-                            <td className="comp-td-acciones">
-                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <td className="comp-td-acciones">
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              {/* Imprimir PDF + Ticket — disponibles siempre */}
+                              <button className="comp-btn-editar" onClick={() => handleImprimir(c.name, 'pdf')}
+                                title="Imprimir PDF detallado"
+                                style={{ background: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                              </button>
+                              <button className="comp-btn-editar" onClick={() => handleImprimir(c.name, 'ticket')}
+                                title="Imprimir Ticket"
+                                style={{ background: '#f3e8ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                              </button>
+                              {!soloLectura && (
+                                <>
                                 {c.docstatus === 0 && (
                                   <>
                                     {accionActiva === 'confirmar' && (
@@ -299,9 +467,10 @@ function Compras() {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                                   </button>
                                 )}
-                              </div>
-                            </td>
-                          )}
+                                </>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}

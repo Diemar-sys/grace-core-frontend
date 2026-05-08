@@ -1,0 +1,4 @@
+Flask>=2.2.0
+python-escpos>=3.0a9
+pywin32>=306 ; sys_platform == 'win32'
+pyusb>=1.2.1 ; sys_platform != 'win32'

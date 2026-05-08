@@ -3,21 +3,37 @@ from flask import Flask, request, jsonify, make_response
 from escpos.printer import File
 from datetime import datetime
 import traceback
+import glob
 import os
+import sys
 
 app = Flask(__name__)
 
-# Solo permitir peticiones desde la app local.
-# Cambia este valor si el frontend corre en otro puerto en producción.
-ALLOWED_ORIGIN = os.environ.get('PRINT_ALLOWED_ORIGIN', 'http://localhost:5173')
+# Permitir peticiones desde cualquier IP de la red local por defecto (*)
+# En producción muy estricta, puedes poner el dominio exacto.
+ALLOWED_ORIGIN = os.environ.get('PRINT_ALLOWED_ORIGIN', '*')
 
-DEV_PATH = '/dev/usb/lp0'
+
+def resolve_dev_path():
+    explicit = os.environ.get('PRINTER_DEV')
+    if explicit:
+        return explicit
+    candidates = sorted(glob.glob('/dev/usb/lp*'))
+    return candidates[0] if candidates else '/dev/usb/lp0'
+
 
 def get_printer():
-    return File(DEV_PATH, profile="default")
+    if sys.platform == 'win32':
+        from escpos.printer import Win32Raw
+        # Nombre de la impresora instalada en el Panel de Control de Windows
+        printer_name = os.environ.get('PRINTER_NAME', 'SICAR')
+        return Win32Raw(printer_name)
+    else:
+        from escpos.printer import File
+        return File(resolve_dev_path(), profile="default")
 
 def fmt(n):
-    return f"${float(n or 0):.2f}"
+    return f"${float(n or 0):,.2f}"
 
 @app.route('/imprimir', methods=['POST', 'OPTIONS'])
 def imprimir():
@@ -36,7 +52,7 @@ def imprimir():
         p = get_printer()
         try:
             # Encabezado
-            p.set(align='center', bold=True, double_height=True, double_width=True)
+            p.set(font ='b', align='center', bold=True, double_height=True, double_width=True)
             p.text("GRACE\n")
             p.set(align='center', bold=False, double_height=False, double_width=False)
             p.text("Panaderia & Reposteria\n")
@@ -190,6 +206,88 @@ def imprimir_corte():
         traceback.print_exc()
         return cors(jsonify({'ok': False, 'error': str(e)}), 500)
 
+@app.route('/imprimir-compra', methods=['POST', 'OPTIONS'])
+def imprimir_compra():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+
+        no_compra  = data.get('no_compra')
+        no_factura = data.get('no_factura', '') or '-'
+        proveedor  = data.get('proveedor', '') or '-'
+        fecha      = data.get('fecha', '')
+        hora       = data.get('hora', '')
+        subtotal_iva16 = float(data.get('subtotal_iva16', 0))
+        subtotal_ieps  = float(data.get('subtotal_ieps', 0))
+        subtotal_tasa0 = float(data.get('subtotal_tasa0', 0))
+        subtotal   = float(data.get('subtotal', 0))
+        iva        = float(data.get('iva', 0))
+        ieps       = float(data.get('ieps', 0))
+        ajuste     = float(data.get('ajuste', 0))
+        total      = float(data.get('total', 0))
+        es_borrador = bool(data.get('es_borrador', False))
+
+        num_str = str(no_compra).zfill(4) if no_compra is not None else '----'
+        titulo = "** PRECOMPRA **" if es_borrador else "** TICKET DE COMPRA **"
+
+        p = get_printer()
+        try:
+            # Header — font A grande
+            p.set(font ='b', align='center', bold=True, double_height=True, double_width=True)
+            p.text("GRACE\n")
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text("Panaderia & Reposteria\n")
+            p.text("-" * 32 + "\n")
+            p.set(align='center', bold=True)
+            p.text(f"{titulo}\n")
+            p.set(align='left', bold=False)
+            p.text("-" * 32 + "\n")
+
+            # Body — font B (más pequeño, 42 cols). LPAD da margen izquierdo.
+            LPAD = ""
+            p.set(font='b', align='left')
+            p.text(f"{LPAD}NO. COMPRA  : #{num_str}\n")
+            p.text(f"{LPAD}NO. FACTURA : {no_factura[:25]}\n")
+            p.text(f"{LPAD}PROVEEDOR   : {proveedor[:25]}\n")
+            p.text(f"{LPAD}FECHA       : {fecha}\n")
+            p.text(f"{LPAD}HORA        : {hora}\n")
+            p.text("-" * 32 + "\n")
+            p.text(f"{'SUBTOTAL IVA 16%:':<18}{fmt(subtotal_iva16):>14}\n")
+            p.text(f"{'SUBTOTAL IEPS 8%:':<18}{fmt(subtotal_ieps):>14}\n")
+            p.text(f"{'SUBTOTAL IVA  0%:':<18}{fmt(subtotal_tasa0):>14}\n")
+            ajuste_desglose = round(subtotal - (subtotal_iva16 + subtotal_ieps + subtotal_tasa0), 6)
+            if ajuste_desglose != 0:
+                p.text(f"{'AJUSTE:':<18}{fmt(ajuste_desglose):>14}\n")
+            p.text(f"{'SUBTOTAL:':<18}{fmt(subtotal):>14}\n")
+            if iva > 0:
+                p.text(f"{'IVA 16%:':<18}{fmt(iva):>14}\n")
+            if ieps > 0:
+                p.text(f"{'IEPS 8%:':<18}{fmt(ieps):>14}\n")
+            if ajuste != 0:
+                p.text(f"{'AJUSTE:':<18}{fmt(ajuste):>14}\n")
+            p.text("-" * 32 + "\n")
+
+            # Total — font A bold
+            p.set(font='a', bold=True)
+            p.text(f"{LPAD}TOTAL: {fmt(total):>16}\n")
+            p.set(font='b', align='left')
+            p.text("-" * 32 + "\n")
+            p.set(font='b', bold= False, align='center')
+            p.text(f"Generado {fecha} {hora}\n")
+            p.text("www.panaderiasgrace.mx\n")
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
+
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
+
 def cors(response, status=None):
     if status:
         response.status_code = status
@@ -200,4 +298,6 @@ def cors(response, status=None):
 
 if __name__ == '__main__':
     print("Servidor de impresion corriendo en http://localhost:6789")
-    app.run(host='127.0.0.1', port=6789)
+    # debug=True activa auto-reload: cualquier cambio en este archivo reinicia el server
+    # sin necesidad de "sudo systemctl restart print-server".
+    app.run(host='127.0.0.1', port=6789, debug=True, use_reloader=True)

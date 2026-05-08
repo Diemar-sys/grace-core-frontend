@@ -5,12 +5,13 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 8px 0 32px;
+  padding: 8px 16px 32px;
+  box-sizing: border-box;
 }
 
 .nc-container {
   width: 100%;
-  max-width: 1600px;
+  max-width: none;
   background: #fffbf6;
   border-radius: 18px;
   border: 1px solid #f2c48d;
@@ -170,8 +171,13 @@
   border-bottom: none;
 }
 
-.nc-dropdown-item:hover {
+.nc-dropdown-item:hover,
+.nc-dropdown-item--active {
   background: #fff6ea;
+}
+.nc-dropdown-item--active {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
 }
 
 .nc-dropdown-item .d-name {
@@ -234,11 +240,11 @@
 }
 
 .nc-tabla col.col-producto {
-  width: 38%;
+  width: 22%;
 }
 
 .nc-tabla col.col-cantidad {
-  width: 6%;
+  width: 8%;
 }
 
 .nc-tabla col.col-precio-fijo {
@@ -246,15 +252,15 @@
 }
 
 .nc-tabla col.col-precio-compra {
-  width: 9%;
+  width: 11%;
 }
 
 .nc-tabla col.col-diferencia {
-  width: 13%;
+  width: 9%;
 }
 
 .nc-tabla col.col-impuesto {
-  width: 8%;
+  width: 13%;
 }
 
 .nc-tabla col.col-subtotal {
@@ -263,6 +269,10 @@
 
 .nc-tabla col.col-acciones {
   width: 4%;
+}
+
+.nc-tabla col.col-mover {
+  width: 5%;
 }
 
 .nc-input {
@@ -325,12 +335,16 @@
 
 .nc-input.precio {
   text-align: right;
-  width: 110px;
+  width: 100%;
+  min-width: 130px;
+  font-size: 14px;
 }
 
 .nc-input.cantidad {
   text-align: center;
-  width: 75px;
+  width: 100%;
+  min-width: 90px;
+  font-size: 14px;
 }
 
 .nc-select {
@@ -394,6 +408,33 @@
   cursor: not-allowed;
 }
 
+.nc-fila-mover {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: center;
+}
+
+.nc-btn-mover {
+  padding: 3px 6px;
+  border: none;
+  background: #f3e9d8;
+  color: #6b4f2b;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.nc-btn-mover:hover:not(:disabled) {
+  background: #e7d3a9;
+}
+
+.nc-btn-mover:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
 .nc-btn-agregar {
   display: inline-flex;
   align-items: center;
@@ -443,8 +484,19 @@
   white-space: nowrap;
 }
 
+.nc-resumen-fila.nc-resumen-base {
+  font-size: 12px;
+  color: #9b7c5a;
+}
+
+.nc-resumen-fila.nc-resumen-base .monto {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9b7c5a;
+}
+
 .nc-input-ajuste {
-  width: 100px;
+  width: 140px;
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px dashed #d1bfae;
@@ -468,6 +520,37 @@
   border: 1px solid #f59e0b;
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
   background: #ffffff;
+}
+
+.nc-ajuste-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.nc-ajuste-auto {
+  background: #d1fae5;
+  color: #065f46;
+}
+.nc-ajuste-manual {
+  background: #fef3c7;
+  color: #92400e;
+}
+.nc-btn-reset-ajuste {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid #d1bfae;
+  background: #fff8f0;
+  color: #995c1f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nc-btn-reset-ajuste:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
 }
 
 .nc-resumen-fila.total {
@@ -691,9 +774,10 @@
   display: inline-block;
   padding: 3px 10px;
   border-radius: 20px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .nc-imp-tasa0 { background: #f3f4f6; color: #6b7280; }
 .nc-imp-iva16 { background: #dbeafe; color: #1e40af; }
@@ -1018,6 +1102,11 @@ tr.nc-fila-alerta:hover td {
   justify-content: space-between;
   padding: 2px 0;
   font-size: 12px;
+}
+
+.nc-recibo-total-fila.nc-recibo-base {
+  font-size: 10px;
+  color: #888;
 }
 
 .nc-recibo-grand-total {

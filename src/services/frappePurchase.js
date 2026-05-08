@@ -5,19 +5,14 @@
 
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
-
-const IMPUESTOS = [
-  { key: "tasa0", label: "Tasa 0", rate: 0 },
-  { key: "iva16", label: "IVA 16%", rate: 0.16 },
-  { key: "ieps", label: "IEPS 8%", rate: 0.08 },
-];
+import { IMPUESTOS_LIST } from '../config/impuestos';
 
 class FrappeComprasService extends FrappeBase {
   /**
    * Obtiene la lista de impuestos aplicables predefinidos.
    * @returns {Array<{key: string, label: string, rate: number}>} Lista de impuestos predefinidos.
    */
-  getImpuestos() { return IMPUESTOS; }
+  getImpuestos() { return IMPUESTOS_LIST; }
 
   async getItemsCatalogo(itemCodes) {
     const res = await this._fetch(
@@ -123,26 +118,33 @@ class FrappeComprasService extends FrappeBase {
    * @param {Array<Object>} items - Lista de ítems de la compra.
    * @returns {Array<Object>} Arreglo de impuestos agrupados por tipo (IVA, IEPS, etc.)
    */
-  _calcularImpuestos(items) {
+  _calcularImpuestos(items, taxOverrides = {}) {
+    const round2 = (n) => Math.round(n * 100) / 100;
     const grupos = {};
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
       const key = item.impuesto_key || "tasa0";
       const label = item.impuesto_label || "Tasa 0";
+      // Sin redondeo por línea — suma con precisión completa, redondea solo al final.
+      // ERPNext con Currency Precision = 6 hace lo mismo server-side.
       const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
       const monto = base * rate;
       if (!grupos[key]) grupos[key] = { label, rate, monto: 0 };
       grupos[key].monto += monto;
+    });
+    // Aplica overrides manuales (para cuadrar con CFDI del proveedor)
+    Object.entries(taxOverrides).forEach(([key, amount]) => {
+      if (grupos[key]) grupos[key].monto = amount;
     });
     return Object.values(grupos)
       .filter(g => g.monto > 0)
       .map(g => ({
         charge_type: "Actual",
         description: g.label,
-        tax_amount: parseFloat(g.monto.toFixed(2)),
+        tax_amount: round2(g.monto),
         account_head: g.label.startsWith("IVA")
-          ? "IVA por Acreditar - PG"
-          : "IEPS por Acreditar - PG",
+          ? "IVA ACREDITABLE o PAGADO A PROVEEDORES - PG"
+          : "IEPS - PG - PG",
       }));
   }
 
@@ -162,8 +164,8 @@ class FrappeComprasService extends FrappeBase {
    * @param {number|null} [data.noCompra=null] - Número de compra interno para el documento.
    * @returns {Object} Payload final para enviar a Frappe.
    */
-  _buildPayload({ supplier, fecha, billNo = "", items, notas = "", ajuste = 0, noCompra = null }) {
-    const resumenImpuestos = this._calcularImpuestos(items);
+  _buildPayload({ supplier, fecha, billNo = "", items, notas = "", ajuste = 0, noCompra = null, taxOverrides = {}, subtotalOverrides = {} }) {
+    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides);
     const ajusteNum = parseFloat(ajuste || 0);
 
     if (ajusteNum !== 0) {
@@ -171,7 +173,7 @@ class FrappeComprasService extends FrappeBase {
         charge_type: "Actual",
         description: "Ajuste por Redondeo",
         tax_amount: ajusteNum,
-        account_head: "AJUSTE POR REDONDEO - PG", // Coincide con la cuenta creada por el usuario
+        account_head: "AJUSTE POR REDONDEO - PG",
       });
     }
 
@@ -184,6 +186,9 @@ class FrappeComprasService extends FrappeBase {
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || "",
       custom_no_de_compra: noCompra || null,
+      custom_subtotal_iva_16:  subtotalOverrides.iva16  ?? null,
+      custom_subtotal_ieps_8:  subtotalOverrides.ieps   ?? null,
+      custom_subtotal_iva_0:   subtotalOverrides.tasa0  ?? null,
       items: items.map(item => ({
         item_code: item.item_code,
         item_name: item.item_name,
@@ -196,8 +201,8 @@ class FrappeComprasService extends FrappeBase {
         description: "Impuesto: " + (item.impuesto_label || "Tasa 0"),
       })),
       taxes: resumenImpuestos,
-      // Se removió disable_rounded_total y rounding_adjustment explícito del root
-      // ya que ERPNext los gestiona ahora sumando la tabla taxes.
+      disable_rounded_total: 1,
+      rounding_adjustment: 0,
     };
   }
 
@@ -208,11 +213,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento creado en ERPNext.
    */
-  async guardarBorrador({ supplier, fecha, billNo, items, notas, ajuste }) {
+  async guardarBorrador({ supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -228,11 +233,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento final.
    */
-  async registrarCompra({ supplier, fecha, billNo, items, notas, ajuste }) {
+  async registrarCompra({ supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -265,13 +270,12 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Nuevos datos.
    * @returns {Promise<Object>} Datos actualizados.
    */
-  async actualizarBorrador(name, { supplier, fecha, billNo, items, notas, ajuste }) {
+  async actualizarBorrador(name, { supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
-    // Obtener el no_de_compra existente para no reasignar uno nuevo
     const doc = await this.getCompraBorrador(name);
     const noCompra = doc.custom_no_de_compra || null;
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
     const updated = await this._fetch(
       "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
       { method: "PUT", body: JSON.stringify(payload) }
@@ -350,6 +354,77 @@ class FrappeComprasService extends FrappeBase {
       { method: "DELETE" }
     );
     return result;
+  }
+
+  // ── Reporte fiscal mensual ───────────────────────────────────────────────
+
+  async getReporteFiscalMensual(año) {
+    const desde = `${año}-01-01`;
+    const hasta  = `${año}-12-31`;
+
+    // Lista de receipts confirmados del año
+    const lista = await this._fetch(`/api/resource/Purchase Receipt?${new URLSearchParams({
+      fields: JSON.stringify(["name","posting_date","grand_total"]),
+      filters: JSON.stringify([["docstatus","=",1],["posting_date",">=",desde],["posting_date","<=",hasta]]),
+      limit_page_length: 500,
+    })}`);
+
+    const entries = lista?.data || [];
+    if (!entries.length) return [];
+
+    // Documentos completos en paralelo — incluyen items[] y taxes[] embebidos
+    // sin necesitar permisos directos en los child doctypes
+    const docs = await Promise.all(
+      entries.map(e =>
+        this._fetch(`/api/resource/Purchase Receipt/${encodeURIComponent(e.name)}`)
+          .then(r => ({ ...r.data, posting_date: e.posting_date }))
+          .catch(() => null)
+      )
+    );
+
+    const meses = {};
+    for (const doc of docs) {
+      if (!doc) continue;
+      const mes = doc.posting_date.slice(0, 7);
+      if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0 };
+      const m = meses[mes];
+      m.compras++;
+      m.total += parseFloat(doc.grand_total || 0);
+
+      // IVA e IEPS desde tax entries — son los valores ajustados manualmente para cuadrar con CFDI
+      let docIva = 0, docIeps = 0;
+      for (const t of (doc.taxes || [])) {
+        const head = t.account_head || '';
+        const desc = t.description  || '';
+        if (head.includes('IVA') || desc.includes('IVA')) docIva += parseFloat(t.tax_amount || 0);
+        else if (head.includes('IEPS') || desc.includes('IEPS')) docIeps += parseFloat(t.tax_amount || 0);
+      }
+      m.iva  += docIva;
+      m.ieps += docIeps;
+
+      // Leer custom fields guardados al momento de registrar la compra
+      // Fallback a reverse-calc para compras anteriores sin custom fields
+      const docSubIva16 = doc.custom_subtotal_iva_16  != null
+        ? parseFloat(doc.custom_subtotal_iva_16)
+        : (docIva  > 0 ? docIva  / 0.16 : 0);
+      const docSubIeps  = doc.custom_subtotal_ieps_8  != null
+        ? parseFloat(doc.custom_subtotal_ieps_8)
+        : (docIeps > 0 ? docIeps / 0.08 : 0);
+      const docSubTasa0 = doc.custom_subtotal_iva_0   != null
+        ? parseFloat(doc.custom_subtotal_iva_0)
+        : Math.max(0, (doc.total || 0) - docSubIva16 - docSubIeps);
+      m.subtotalIva16 += docSubIva16;
+      m.subtotalIeps  += docSubIeps;
+      m.subtotalTasa0 += docSubTasa0;
+    }
+
+    return Object.entries(meses)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mes, d]) => ({
+        mes,
+        ...d,
+        subtotal: d.subtotalIva16 + d.subtotalIeps + d.subtotalTasa0,
+      }));
   }
 
   // ── Lista de compras ─────────────────────────────────────────────────────

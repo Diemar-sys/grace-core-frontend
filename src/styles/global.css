@@ -86,6 +86,7 @@
   background: #4a2205;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0 36px;
   height: 52px;
   gap: 4px;
@@ -243,6 +244,21 @@
 .vista-tab.vista-deshabilitado.activa { background:#ef4444; color:white; border-color:#dc2626; box-shadow:0 4px 12px rgba(239,68,68,0.3); }
 .vista-tab.vista-por-almacen.activa   { background:#7c3aed; color:white; border-color:#6d28d9; box-shadow:0 4px 12px rgba(124,58,237,0.3); }
 
+.comp-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  margin-left: 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0,0,0,0.10);
+  color: inherit;
+}
+
 /* ══ FILTROS ══════════════════════════════════════════════ */
 .filtros-section {
   display: flex;
@@ -322,7 +338,7 @@
   text-align: left;
   font-weight: 600;
   color: var(--color-brand);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   box-shadow: inset 0 -2px 0 #e8d5b8;
@@ -331,14 +347,14 @@
 .sys-table td {
   padding: 17px 20px;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 15px;
+  font-size: 17px;
   color: #1f2937;
 }
 .sys-table tr:last-child td { border-bottom: none; }
 .sys-table tbody tr:hover { background: #fef9f2; }
-.sys-table .cell-code     { font-family: monospace; color: #6b7280; font-size: 13px; }
-.sys-table .cell-name     { font-weight: 500; color: #555555; }
-.sys-table .cell-qty      { font-weight: 700; text-align: center; font-size: 16px; }
+.sys-table .cell-code     { font-family: monospace; color: #6b7280; font-size: 15px; }
+.sys-table .cell-name     { font-weight: 500; color: #374151; font-size: 18px; }
+.sys-table .cell-qty      { font-weight: 700; text-align: center; font-size: 19px; }
 .sys-table .cell-qty.reserved  { color: #f59e0b; }
 .sys-table .cell-qty.available { color: #10b981; }
 .sys-table .cell-center   { text-align: center; }
@@ -362,21 +378,49 @@
 
 /* ══ ÍCONO DE MÓDULO (panel-module) ══════════════════════ */
 .module-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.8);
 }
 .module-icon svg {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  transition: transform 0.2s;
 }
 .panel-module:hover .module-icon {
   filter: brightness(0.88);
+  transform: scale(1.05);
+}
+.panel-module:hover .module-icon svg {
+  transform: scale(1.08);
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .module-icon { width: 64px; height: 64px; border-radius: 16px; }
+  .module-icon svg { width: 32px; height: 32px; }
+}
+
+/* h3/p dentro de panel-module igualan tipografía Panel principal */
+.panel-module h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2d1a0e;
+  line-height: 1.2;
+  font-family: 'DM Sans', inherit;
+}
+.panel-module p {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #8b6a4e;
+  line-height: 1.2;
 }
 
 /* ══ MISC ════════════════════════════════════════════════ */
@@ -463,6 +507,9 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   width: 100%;
   max-width: 1600px;
   animation: slideDown 0.2s ease;
+}
+.edit-modal-wrapper:has(.nc-modal) {
+  max-width: none;
 }
 @keyframes slideDown {
   from { opacity:0; transform:translateY(-14px); }

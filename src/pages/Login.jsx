@@ -22,6 +22,12 @@ function Login() {
     contrasena: '',
   });
 
+  // Si ya hay sesión activa, redirigir a inicio (evita ver Login con back).
+  useEffect(() => {
+    const user = auth.getUser();
+    if (user) navigate(getRoleConfig(user.role).inicio, { replace: true });
+  }, [navigate]);
+
   // ── Cuenta regresiva del bloqueo ─────────────────────────────────────────
   // Por qué: Muestra al empleado cuánto tiempo falta para volver a intentar,
   // en lugar de un mensaje estático poco claro.
@@ -77,7 +83,7 @@ function Login() {
       await auth.login(usuarioLimpio, contraLimpia);
       rateLimiter.reiniciarExito();
       const user = auth.getUser();
-      navigate(getRoleConfig(user?.role).inicio);
+      navigate(getRoleConfig(user?.role).inicio, { replace: true });
     } catch (err) {
       console.error('Error en login:', err);
       // ── Registrar fallo en el rate limiter ───────────────────────────────

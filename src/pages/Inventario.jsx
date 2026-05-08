@@ -15,15 +15,11 @@ const VISTAS = [
 ];
 
 const COLUMNAS = {
-  con_stock:   ['Codigo', 'Producto', 'Almacen', 'Stock Actual', 'Reservado', 'Disponible', 'Estado'],
-  agotado:     ['Codigo Interno', 'Producto', 'Categoria', 'Departamento', 'UOM'],
-  por_almacen: ['Codigo Interno', 'Producto', 'Categoria', 'Stock Actual', 'Reservado', 'Estado'],
+  con_stock:   ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
+  agotado:     ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
+  por_almacen: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
 };
 
-const ALMACENES_ALL = [
-  { name: "BODEGA CENTRAL - INSUMOS - PG", label: "BODEGA CENTRAL - INSUMOS" },
-  ...stockService.getAlmacenesDepartamento(),
-];
 
 /**
  * Página de Inventario Principal.
@@ -43,7 +39,8 @@ function Inventario() {
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
   const [selectedGroup, setSelectedGroup]   = useState("");
   const [searchTerm, setSearchTerm]         = useState("");
-  const [almacenVista, setAlmacenVista]     = useState(ALMACENES_ALL[0].name);
+  const [almacenesAll, setAlmacenesAll]     = useState([]);
+  const [almacenVista, setAlmacenVista]     = useState(stockService.getBodegaCentral());
   const [modalEntrada, setModalEntrada]     = useState(false);
   const [modalSalida, setModalSalida]       = useState(false);
 
@@ -53,10 +50,14 @@ function Inventario() {
   useEffect(() => {
     (async () => {
       try {
-        const [whData, groupsData] = await Promise.all([
-          inventory.getWarehouses(), inventory.getItemGroups(),
+        const [whData, groupsData, allWh] = await Promise.all([
+          inventory.getWarehouses(),
+          inventory.getItemGroups(),
+          stockService.fetchAllWarehousesInclusive(),
         ]);
-        setWarehouses(whData); setItemGroups(groupsData);
+        setWarehouses(whData);
+        setItemGroups(groupsData);
+        setAlmacenesAll(allWh);
       } catch (err) { console.error(err); }
     })();
   }, []);
@@ -171,7 +172,7 @@ function Inventario() {
             <div className="filtro-group">
               <label>Almacen</label>
               <select value={almacenVista} onChange={e => setAlmacenVista(e.target.value)}>
-                {ALMACENES_ALL.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
+                {almacenesAll.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
               </select>
             </div>
           ) : (
@@ -223,7 +224,7 @@ function Inventario() {
                 {filtered.length === 0 ? (
                   <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay productos en esta vista</td></tr>
                 ) : (
-                  filtered.map((item, i) => <FilaItem key={i} item={item} vista={vistaActiva} />)
+                  filtered.map((item, i) => <FilaItem key={i} item={item} />)
                 )}
               </tbody>
             </table>
@@ -260,50 +261,35 @@ function Inventario() {
  * @param {string} props.vista - Vista actual seleccionada en la UI.
  * @returns {JSX.Element|null} Celda <tr> con datos formateados.
  */
-function FilaItem({ item, vista }) {
-  if (vista === "con_stock" || vista === "por_almacen") {
-    const actual = item.actual_qty || 0;
-    const reserved = item.reserved_qty || 0;
-    const available = actual - reserved;
-    let statusClass = "status-ok", statusText = "OK";
-    if (actual <= 0)  { statusClass = "status-out"; statusText = "AGOTADO"; }
-    else if (actual < 10) { statusClass = "status-low"; statusText = "BAJO"; }
+function FilaItem({ item }) {
+  const actual    = parseFloat(item.actual_qty) || 0;
+  const cantPres  = parseFloat(item.custom_cantidad_por_presentación) || 0;
+  const presentacion = item.custom_presentación || '';
+  const uom       = item.stock_uom || '';
+  const totalNatural = cantPres > 0 ? actual * cantPres : actual;
+  const totalStr  = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  const paqStr    = cantPres > 0 && presentacion
+    ? `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
+    : `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} emp.`;
 
-    if (vista === "por_almacen") return (
-      <tr>
-        <td className="cell-code">{item.custom_código_interno || item.custom_c_digo_interno || "—"}</td>
-        <td className="cell-name">{item.item_name}</td>
-        <td>{item.item_group || "—"}</td>
-        <td className="cell-qty">{actual}</td>
-        <td className="cell-qty reserved">{reserved}</td>
-        <td><span className={`status-badge ${statusClass}`}>{statusText}</span></td>
-      </tr>
-    );
-
-    return (
-      <tr>
-        <td className="cell-code">{item.item_code}</td>
-        <td className="cell-name">{item.item_name}</td>
-        <td>{item.warehouse || "—"}</td>
-        <td className="cell-qty">{actual}</td>
-        <td className="cell-qty reserved">{reserved}</td>
-        <td className="cell-qty available">{available}</td>
-        <td><span className={`status-badge ${statusClass}`}>{statusText}</span></td>
-      </tr>
-    );
-  }
-
-  if (vista === "agotado") return (
+  return (
     <tr>
-      <td className="cell-code">{item.custom_código_interno || "—"}</td>
+      <td className="cell-code">{item.item_code || '—'}</td>
       <td className="cell-name">{item.item_name}</td>
-      <td>{item.item_group || "—"}</td>
-      <td>{item.custom_departamento || "—"}</td>
-      <td>{item.stock_uom || "—"}</td>
+      <td className="cell-qty">
+        <span style={{ fontWeight: 600 }}>{totalStr}</span>
+      </td>
+      <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
+      <td className="cell-qty">
+        {actual > 0 ? (
+          <span style={{ fontSize: '14px', color: '#6b7280' }}>{paqStr}</span>
+        ) : (
+          <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>Agotado</span>
+        )}
+      </td>
+      <td>{uom || '—'}</td>
     </tr>
   );
-
-  return null;
 }
 
 export default Inventario;

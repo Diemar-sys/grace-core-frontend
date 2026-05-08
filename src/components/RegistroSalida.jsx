@@ -23,7 +23,23 @@ function RegistroSalida({ onSuccess, onCancel }) {
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
 
-  const almacenes = stockService.getAlmacenesDepartamento();
+  const [grupos, setGrupos] = useState([]); // [{tipo, almacenes:[]}]
+  const [almacenes, setAlmacenes] = useState([]); // flat para lookup
+
+  useEffect(() => {
+    let cancel = false;
+    Promise.all([
+      stockService.fetchAlmacenesAgrupados(),
+      stockService.fetchAlmacenes(),
+    ])
+      .then(([agrup, flat]) => {
+        if (cancel) return;
+        setGrupos(agrup);
+        setAlmacenes(flat);
+      })
+      .catch(err => console.error('No pude cargar almacenes:', err));
+    return () => { cancel = true; };
+  }, []);
 
   const agregarFila  = () => setFilas(f => [...f, FILA_VACIA()]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
@@ -76,9 +92,13 @@ function RegistroSalida({ onSuccess, onCancel }) {
         <div className="rm-section">
           <label>Almacen destino *</label>
           <select value={almacenDestino} onChange={e => setAlmacenDestino(e.target.value)}>
-            <option value="">Selecciona el departamento...</option>
-            {almacenes.map(a => (
-              <option key={a.name} value={a.name}>{a.label}</option>
+            <option value="">Selecciona destino...</option>
+            {grupos.map(g => (
+              <optgroup key={g.tipo} label={g.tipo}>
+                {g.almacenes.map(a => (
+                  <option key={a.name} value={a.name}>{a.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

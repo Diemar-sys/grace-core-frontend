@@ -3,16 +3,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { comprasService } from '../services/frappePurchase';
 import ModalError from './ModalError';
 import { TENANT } from '../config/tenant';
+import { IMPUESTOS_MAP } from '../config/impuestos';
+import { generarHTMLTicketCompra } from '../utils/print/ticketTemplate';
 import '../styles/NuevaCompra.css';
-
-const IMPUESTOS_MAP = {
-  tasa0: { key: 'tasa0', label: 'Tasa 0', rate: 0 },
-  iva16: { key: 'iva16', label: 'IVA 16%', rate: 0.16 },
-  ieps: { key: 'ieps', label: 'IEPS 8%', rate: 0.08 },
-};
 
 // Margen por default (en pesos). El usuario puede ajustarlo en la UI.
 const MARGEN_DEFAULT = 100;
+
+/** Escapa caracteres HTML para evitar XSS al inyectar en `document.write`. */
+const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -31,8 +32,14 @@ const parseImpuesto = (description = '') => {
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const round2 = (n) => Math.round(n * 100) / 100;
 const totalPorFila = (f) => parseFloat(f.bultos || 0) * parseFloat(f.kg_por_bulto || 0);
+// Sin redondeo intermedio por línea — espejo del cálculo server-side de ERPNext
+// con Currency Precision = 6. UI suma con precisión completa y redondea solo al
+// mostrar via fmt(). Así total UI coincide con grand_total de ERPNext.
 const subtotalFila = (f) => parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+const impuestoFila = (f) => subtotalFila(f) * parseFloat(f.impuesto_rate || 0);
+const totalFila = (f) => subtotalFila(f) + impuestoFila(f);
 
 // ── Calcula variación de precio de una fila ──────────────────────────────────
 const calcVariacion = (fila) => {
@@ -139,7 +146,7 @@ function ModalSugerenciaPrecios({ cambios, onAceptar, onOmitir }) {
 
 // ── Modal Recibo PDF ─────────────────────────────────────────────────────────
 function ModalReciboPDF({ datos, onClose }) {
-  const { noCompra, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
+  const { noCompra, noFactura, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
 
   const fmt2 = (n) =>
     Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -150,13 +157,23 @@ function ModalReciboPDF({ datos, onClose }) {
     const win = window.open('', '_blank', 'width=750,height=700');
     const rows = filas.map(f => {
       const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+      const impMonto = sub * parseFloat(f.impuesto_rate || 0);
+      const totalLinea = sub + impMonto;
+      const impLabel = (f.impuesto_label || 'Tasa 0') + (impMonto > 0 ? ` — $${fmt2(impMonto)}` : '');
+      const bultos = parseFloat(f.bultos || 0);
+      const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
+      const uom = f.uom || '';
+      const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
+      const cantCell = kgPorBulto > 0
+        ? `${totalNatural.toFixed(2)} ${uom}<br/><small style="color:#666;font-size:10px">${bultos.toFixed(2)} emp.</small>`
+        : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`;
       return `
         <tr>
-          <td>${f.item_name || f.item_code}</td>
-          <td style="text-align:center">${parseFloat(f.bultos || 0).toFixed(2)}</td>
+          <td>${escHTML(f.item_name || f.item_code)}</td>
+          <td style="text-align:center">${cantCell}</td>
           <td style="text-align:right">$${fmt2(f.rate)}</td>
-          <td style="text-align:right">${f.impuesto_label || 'Tasa 0'}</td>
-          <td style="text-align:right">$${fmt2(sub)}</td>
+          <td style="text-align:right">${escHTML(impLabel)}</td>
+          <td style="text-align:right">$${fmt2(totalLinea)}</td>
         </tr>`;
     }).join('');
 
@@ -170,7 +187,7 @@ function ModalReciboPDF({ datos, onClose }) {
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>${esBorrador ? 'Precompra' : 'Compra'} #${numStr}</title>
+  <title>${esBorrador ? 'Precompra' : 'Compra'} #${escHTML(numStr)}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
@@ -187,6 +204,7 @@ function ModalReciboPDF({ datos, onClose }) {
     table.items td { padding: 4px 6px; font-size: 12px; border-bottom: 1px dashed #ddd; }
     table.totales { width: 280px; margin-left: auto; border-collapse: collapse; }
     table.totales td { padding: 3px 6px; font-size: 13px; }
+    table.totales .base-row td { font-size: 11px; color: #666; }
     table.totales .total-row td { font-weight: bold; font-size: 15px; border-top: 1.5px solid #111; padding-top: 6px; }
     .footer { margin-top: 28px; text-align: center; font-size: 11px; color: #888; }
     @media print { body { padding: 16px; } }
@@ -194,15 +212,16 @@ function ModalReciboPDF({ datos, onClose }) {
 </head>
 <body>
   <div class="header">
-    <h1>${TENANT.nombreFull}</h1>
+    <h1>${escHTML(TENANT.nombreFull)}</h1>
     <h2>${esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}</h2>
   </div>
   <hr class="divider"/>
   <div class="info-grid">
-    <span><strong>No. Compra:</strong> #${numStr}</span>
-    <span><strong>Fecha:</strong> ${fecha}</span>
-    <span><strong>Hora:</strong> ${hora}</span>
-    <span><strong>Proveedor:</strong> ${proveedor}</span>
+    <span><strong>No. Compra:</strong> #${escHTML(numStr)}</span>
+    <span><strong>No. Factura:</strong> ${escHTML(noFactura || '—')}</span>
+    <span><strong>Fecha:</strong> ${escHTML(fecha)}</span>
+    <span><strong>Hora:</strong> ${escHTML(hora)}</span>
+    <span><strong>Proveedor:</strong> ${escHTML(proveedor)}</span>
   </div>
   <hr class="divider"/>
   <table class="items">
@@ -212,7 +231,7 @@ function ModalReciboPDF({ datos, onClose }) {
         <th style="text-align:center">Cant.</th>
         <th style="text-align:right">Precio</th>
         <th style="text-align:right">Impuesto</th>
-        <th style="text-align:right">Subtotal</th>
+        <th style="text-align:right">Total</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -220,17 +239,30 @@ function ModalReciboPDF({ datos, onClose }) {
   <hr class="divider-thin"/>
   <table class="totales">
     <tbody>
+      <tr class="base-row"><td>Subtotal IVA 16%</td><td style="text-align:right">$${fmt2(totales.subtotalIva16 || 0)}</td></tr>
+      <tr class="base-row"><td>Subtotal IEPS 8%</td><td style="text-align:right">$${fmt2(totales.subtotalIeps || 0)}</td></tr>
+      <tr class="base-row"><td>Subtotal IVA 0%</td><td style="text-align:right">$${fmt2(totales.subtotalTasa0 || 0)}</td></tr>
+      ${(() => { const d = (totales.subtotal||0) - ((totales.subtotalIva16||0)+(totales.subtotalIeps||0)+(totales.subtotalTasa0||0)); return d !== 0 ? `<tr class="base-row"><td>Ajuste</td><td style="text-align:right">$${fmt2(d)}</td></tr>` : ''; })()}
       <tr><td>Subtotal</td><td style="text-align:right">$${fmt2(totales.subtotal)}</td></tr>
       ${impuestosRows}
       <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt2(totales.total)}</td></tr>
     </tbody>
   </table>
-  <div class="footer">Documento generado el ${fecha} a las ${hora}</div>
+  <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
   <script>window.onload = function(){ window.print(); }<\/script>
 </body>
 </html>`;
 
     win.document.write(html);
+    win.document.close();
+  };
+
+  const imprimirTicket = () => {
+    const win = window.open('', '_blank', 'width=420,height=700');
+    const html = generarHTMLTicketCompra({
+      noCompra, noFactura, proveedor, fecha, hora, totales, ajuste, esBorrador,
+    });
+    win.document.write(html + '<script>window.onload=function(){window.print();}<\/script>');
     win.document.close();
   };
 
@@ -255,6 +287,7 @@ function ModalReciboPDF({ datos, onClose }) {
             <hr className="nc-recibo-div" />
             <div className="nc-recibo-info">
               <span><strong>No. Compra:</strong> #{numStr}</span>
+              <span><strong>No. Factura:</strong> {noFactura || '—'}</span>
               <span><strong>Fecha:</strong> {fecha}</span>
               <span><strong>Hora:</strong> {hora}</span>
               <span><strong>Proveedor:</strong> {proveedor}</span>
@@ -267,19 +300,37 @@ function ModalReciboPDF({ datos, onClose }) {
                   <th style={{ textAlign: 'center' }}>Cant.</th>
                   <th style={{ textAlign: 'right' }}>Precio</th>
                   <th style={{ textAlign: 'right' }}>Impuesto</th>
-                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {filas.map((f, i) => {
                   const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+                  const impMonto = sub * parseFloat(f.impuesto_rate || 0);
+                  const totalLinea = sub + impMonto;
+                  const bultos = parseFloat(f.bultos || 0);
+                  const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
+                  const uom = f.uom || '';
+                  const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
                   return (
                     <tr key={i}>
                       <td>{f.item_name || f.item_code}</td>
-                      <td style={{ textAlign: 'center' }}>{parseFloat(f.bultos || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {kgPorBulto > 0
+                            ? `${totalNatural.toFixed(2)} ${uom}`
+                            : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`}
+                        </div>
+                        {kgPorBulto > 0 && (
+                          <div style={{ fontSize: '11px', color: '#666' }}>{bultos.toFixed(2)} emp.</div>
+                        )}
+                      </td>
                       <td style={{ textAlign: 'right' }}>${fmt2(f.rate)}</td>
-                      <td style={{ textAlign: 'right' }}>{f.impuesto_label || 'Tasa 0'}</td>
-                      <td style={{ textAlign: 'right' }}>${fmt2(sub)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {f.impuesto_label || 'Tasa 0'}
+                        {impMonto > 0 && ` — $${fmt2(impMonto)}`}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>${fmt2(totalLinea)}</td>
                     </tr>
                   );
                 })}
@@ -287,6 +338,16 @@ function ModalReciboPDF({ datos, onClose }) {
             </table>
             <hr className="nc-recibo-div-thin" />
             <div className="nc-recibo-totales">
+              <div className="nc-recibo-total-fila nc-recibo-base">
+                <span>Subtotal IVA 16%</span><span>${fmt2(totales.subtotalIva16 || 0)}</span>
+              </div>
+              <div className="nc-recibo-total-fila nc-recibo-base">
+                <span>Subtotal IEPS 8%</span><span>${fmt2(totales.subtotalIeps || 0)}</span>
+              </div>
+              <div className="nc-recibo-total-fila nc-recibo-base">
+                <span>Subtotal IVA 0%</span><span>${fmt2(totales.subtotalTasa0 || 0)}</span>
+              </div>
+              {(() => { const d = (totales.subtotal||0) - ((totales.subtotalIva16||0)+(totales.subtotalIeps||0)+(totales.subtotalTasa0||0)); return d !== 0 ? (<div className="nc-recibo-total-fila nc-recibo-base"><span>Ajuste</span><span>${fmt2(d)}</span></div>) : null; })()}
               <div className="nc-recibo-total-fila">
                 <span>Subtotal</span><span>${fmt2(totales.subtotal)}</span>
               </div>
@@ -318,6 +379,7 @@ function ModalReciboPDF({ datos, onClose }) {
         {/* Acciones */}
         <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
           <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
+          <button className="nc-btn-secondary" onClick={imprimirTicket}>🧾 Imprimir Ticket</button>
           <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
         </div>
       </div>
@@ -346,6 +408,17 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [notas, setNotas] = useState(initialData?.remarks || '');
   const [ajuste, setAjuste] = useState(String(initialData?.rounding_adjustment || ''));
+  const [ajusteManual, setAjusteManual] = useState(false);
+  const [ivaOverride, setIvaOverride] = useState('');
+  const [ivaManual, setIvaManual] = useState(false);
+  const [iepsOverride, setIepsOverride] = useState('');
+  const [iepsManual, setIepsManual] = useState(false);
+  const [subtotalIva16Override, setSubtotalIva16Override] = useState('');
+  const [subtotalIva16Manual, setSubtotalIva16Manual] = useState(false);
+  const [subtotalIepsOverride, setSubtotalIepsOverride] = useState('');
+  const [subtotalIepsManual, setSubtotalIepsManual] = useState(false);
+  const [subtotalTasa0Override, setSubtotalTasa0Override] = useState('');
+  const [subtotalTasa0Manual, setSubtotalTasa0Manual] = useState(false);
   const [margen, setMargen] = useState(String(MARGEN_DEFAULT));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -355,7 +428,6 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   // Modal de sugerencia post-confirmación
   const [cambiosPendientes, setCambiosPendientes] = useState(null); // null = oculto
   const [pdfData, setPdfData] = useState(null);
-  const [pdfDataPendiente, setPdfDataPendiente] = useState(null);
 
   const IMPUESTOS = comprasService.getImpuestos();
   const margenNum = parseFloat(margen) || 0;
@@ -376,9 +448,21 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             t.account_head === 'AJUSTE POR REDONDEO - PG' ||
             t.description?.toLowerCase().includes('redondeo')
           );
-          setAjuste(redondeo ? String(redondeo.tax_amount) : '');
+          const savedAjuste = redondeo ? redondeo.tax_amount : 0;
+          setAjuste(String(savedAjuste));
+          setAjusteManual(Math.abs(savedAjuste) > 0.005);
+
+          const ivaEntry = doc.taxes.find(t =>
+            t.description?.includes('IVA') || t.account_head?.includes('IVA ACREDITABLE')
+          );
+          const iepsEntry = doc.taxes.find(t =>
+            t.description?.includes('IEPS') || t.account_head?.includes('IEPS')
+          );
+          if (ivaEntry) { setIvaOverride(String(ivaEntry.tax_amount)); setIvaManual(true); }
+          if (iepsEntry) { setIepsOverride(String(iepsEntry.tax_amount)); setIepsManual(true); }
         } else if (doc.rounding_adjustment) {
           setAjuste(String(doc.rounding_adjustment));
+          setAjusteManual(Math.abs(doc.rounding_adjustment) > 0.005);
         }
 
         if (doc.items?.length) {
@@ -420,6 +504,14 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   // ── CRUD de filas ─────────────────────────────────────────────────────────
   const agregarFila = () => setFilas(f => [...f, FILA_VACIA()]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
+  const moverFila = (id, dir) => setFilas(f => {
+    const i = f.findIndex(r => r._id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= f.length) return f;
+    const copia = [...f];
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+    return copia;
+  });
   const updateFila = (id, campo, valor) =>
     setFilas(f => f.map(r => r._id === id ? { ...r, [campo]: valor } : r));
   const handleImpuesto = (id, key) => {
@@ -435,11 +527,38 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     const base = subtotalFila(fila);
     const imp = base * parseFloat(fila.impuesto_rate || 0);
     acc.subtotal += base;
-    if (fila.impuesto_key === 'iva16') acc.iva += imp;
-    if (fila.impuesto_key === 'ieps') acc.ieps += imp;
+    if (fila.impuesto_key === 'iva16') { acc.iva += imp; acc.subtotalIva16 += base; }
+    else if (fila.impuesto_key === 'ieps') { acc.ieps += imp; acc.subtotalIeps += base; }
+    else { acc.subtotalTasa0 += base; }
     return acc;
-  }, { subtotal: 0, iva: 0, ieps: 0 });
-  totales.total = totales.subtotal + totales.iva + totales.ieps + parseFloat(ajuste || 0);
+  }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalTasa0: 0, subtotalIeps: 0 });
+
+  // Overrides manuales de IVA/IEPS
+  const ivaEfectivo = (ivaManual && totales.iva > 0) ? parseFloat(ivaOverride || 0) : totales.iva;
+  const iepsEfectivo = (iepsManual && totales.ieps > 0) ? parseFloat(iepsOverride || 0) : totales.ieps;
+  totales.iva = ivaEfectivo;
+  totales.ieps = iepsEfectivo;
+
+  // Overrides de subtotales por tipo — fuente de verdad para el Subtotal
+  const subtotalIva16Calc = totales.subtotalIva16;
+  const subtotalIepsCalc  = totales.subtotalIeps;
+  const subtotalTasa0Calc = totales.subtotalTasa0;
+  totales.subtotalIva16 = subtotalIva16Manual ? parseFloat(subtotalIva16Override || 0) : subtotalIva16Calc;
+  totales.subtotalIeps  = subtotalIepsManual  ? parseFloat(subtotalIepsOverride  || 0) : subtotalIepsCalc;
+  totales.subtotalTasa0 = subtotalTasa0Manual ? parseFloat(subtotalTasa0Override || 0) : subtotalTasa0Calc;
+
+  // Subtotal SIEMPRE = suma de los tres componentes — no tiene override propio
+  const subtotalCalc    = totales.subtotal; // sum original de items (lo que ERPNext guarda)
+  const subtotalEfectivo = totales.subtotalIva16 + totales.subtotalIeps + totales.subtotalTasa0;
+  const subtotalDiff    = subtotalEfectivo - subtotalCalc; // diferencia → va al ajuste ERPNext
+  totales.subtotal      = subtotalEfectivo;
+
+  // Total = Subtotal + IVA + IEPS [+ ajuste SAT]
+  const rawTotal = subtotalEfectivo + ivaEfectivo + iepsEfectivo;
+  const ajusteSAT = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
+  const ajusteEfectivo = ajusteManual ? parseFloat(ajuste || 0) : ajusteSAT;
+  const ajusteParaErp  = ajusteEfectivo + subtotalDiff;
+  totales.total = rawTotal + ajusteEfectivo;
 
   // ── Validaciones ─────────────────────────────────────────────────────────
   const validar = () => {
@@ -450,12 +569,11 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   };
 
   const validarAjuste = () => {
-    const n = parseFloat(ajuste || 0);
-    if (Math.abs(n) > 100) {
+    if (Math.abs(ajusteEfectivo) > 100) {
       setErrorModal({ isOpen: true, message: 'EL AJUSTE DE BALANCE NO PUEDE SER MAYOR A $100.00. Verifica que los precios de los productos estén correctos.' });
       return null;
     }
-    return n;
+    return ajusteParaErp;
   };
 
   /**
@@ -486,18 +604,27 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setError('');
     const items = validar(); if (!items) return;
     const ajusteNum = validarAjuste(); if (ajusteNum === null) return;
+    const taxOverrides = {
+      ...(ivaManual && totales.iva > 0 ? { iva16: parseFloat(ivaOverride || 0) } : {}),
+      ...(iepsManual && totales.ieps > 0 ? { ieps: parseFloat(iepsOverride || 0) } : {}),
+    };
+    const subtotalOverrides = {
+      iva16: totales.subtotalIva16,
+      ieps:  totales.subtotalIeps,
+      tasa0: totales.subtotalTasa0,
+    };
     setLoading(true);
     try {
       let docNoCompra = null;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, {
-          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
+          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides,
         });
         setSuccess('BORRADOR ACTUALIZADO');
         docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
         const doc = await comprasService.guardarBorrador({
-          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
+          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides,
         });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
         docNoCompra = doc?.custom_no_de_compra ?? null;
@@ -505,12 +632,13 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       setPdfData({
         noCompra: docNoCompra,
+        noFactura: billNo,
         fecha,
         hora,
         proveedor: proveedor.label,
         filas: items,
         totales,
-        ajuste: ajusteNum,
+        ajuste: ajusteEfectivo,
         esBorrador: true,
       });
     } catch (err) { setError(err.message); }
@@ -523,43 +651,36 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     const items = validar(); if (!items) return;
     const ajusteNum = validarAjuste(); if (ajusteNum === null) return;
     const itemsOk = validarMargen(items); if (!itemsOk) return;
+    const taxOverrides = {
+      ...(ivaManual && totales.iva > 0 ? { iva16: parseFloat(ivaOverride || 0) } : {}),
+      ...(iepsManual && totales.ieps > 0 ? { ieps: parseFloat(iepsOverride || 0) } : {}),
+    };
+    const subtotalOverrides = {
+      iva16: totales.subtotalIva16,
+      ieps:  totales.subtotalIeps,
+      tasa0: totales.subtotalTasa0,
+    };
 
     setLoading(true);
     try {
-      let docNoCompra = null;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, {
-          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
+          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides,
         });
         await comprasService.confirmarBorrador(initialData.name);
-        docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
-        const doc = await comprasService.registrarCompra({
-          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum,
+        await comprasService.registrarCompra({
+          supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides,
         });
-        docNoCompra = doc?.custom_no_de_compra ?? null;
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
-
-      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-      const datosPDF = {
-        noCompra: docNoCompra,
-        fecha,
-        hora,
-        proveedor: proveedor.label,
-        filas: itemsOk,
-        totales,
-        ajuste: ajusteNum,
-      };
 
       // ¿Hay precios que cambiaron? → mostrar modal de sugerencia primero
       const conCambio = itemsOk.filter(f => calcVariacion(f)?.cambio);
       if (conCambio.length > 0) {
         setCambiosPendientes(conCambio);
-        setPdfDataPendiente(datosPDF);
-        // No llamamos onSuccess todavía; se llamará desde el modal PDF
       } else {
-        setPdfData(datosPDF);
+        onSuccess?.();
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -584,9 +705,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         console.error('Error actualizando catálogo:', err);
       }
     }
-    const pdf = pdfDataPendiente;
-    setPdfDataPendiente(null);
-    setPdfData(pdf);
+    onSuccess?.();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -605,9 +724,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
           onAceptar={handleActualizarCatalogo}
           onOmitir={() => {
             setCambiosPendientes(null);
-            const pdf = pdfDataPendiente;
-            setPdfDataPendiente(null);
-            setPdfData(pdf);
+            onSuccess?.();
           }}
         />
       )}
@@ -655,6 +772,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
             <colgroup>
+              <col className="col-mover" />
               <col className="col-producto" />
               <col className="col-cantidad" />
               <col className="col-cantidad" />
@@ -668,6 +786,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             </colgroup>
             <thead>
               <tr>
+                <th></th>
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Por empaque</th>
@@ -676,18 +795,23 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
                 <th>Precio de compra</th>
                 <th>Diferencia</th>
                 <th>Impuesto</th>
-                <th>Subtotal</th>
+                <th>Total</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {filas.map(fila => (
+              {filas.map((fila, idx) => (
                 <FilaProducto
                   key={fila._id} fila={fila} impuestos={IMPUESTOS}
                   margen={margenNum}
+                  rowIdx={idx}
                   onChange={(campo, valor) => updateFila(fila._id, campo, valor)}
                   onImpuesto={(key) => handleImpuesto(fila._id, key)}
                   onEliminar={() => eliminarFila(fila._id)}
+                  onMover={(dir) => moverFila(fila._id, dir)}
+                  onAddRow={agregarFila}
+                  esPrimera={idx === 0}
+                  esUltima={idx === filas.length - 1}
                   soloUna={filas.length === 1}
                 />
               ))}
@@ -699,51 +823,117 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
         {/* Resumen */}
         <div className="nc-resumen-box">
+          {(subtotalIva16Calc > 0 || subtotalIva16Manual) && <div className="nc-resumen-fila nc-resumen-base">
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Subtotal IVA 16%
+              {subtotalIva16Manual
+                ? <span className="nc-ajuste-badge nc-ajuste-manual">Manual</span>
+                : <span className="nc-ajuste-badge nc-ajuste-auto">Auto</span>}
+            </span>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {subtotalIva16Manual && (
+                <button className="nc-btn-reset-ajuste"
+                  onClick={() => { setSubtotalIva16Override(''); setSubtotalIva16Manual(false); }}
+                  title="Restaurar calculado">↺</button>
+              )}
+              <input type="number" className="nc-input-ajuste"
+                value={subtotalIva16Manual ? subtotalIva16Override : subtotalIva16Calc.toFixed(2)}
+                onChange={e => { setSubtotalIva16Override(e.target.value); setSubtotalIva16Manual(true); }}
+                step="0.01" />
+            </div>
+          </div>}
+          {(subtotalIepsCalc > 0 || subtotalIepsManual) && <div className="nc-resumen-fila nc-resumen-base">
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Subtotal IEPS 8%
+              {subtotalIepsManual
+                ? <span className="nc-ajuste-badge nc-ajuste-manual">Manual</span>
+                : <span className="nc-ajuste-badge nc-ajuste-auto">Auto</span>}
+            </span>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {subtotalIepsManual && (
+                <button className="nc-btn-reset-ajuste"
+                  onClick={() => { setSubtotalIepsOverride(''); setSubtotalIepsManual(false); }}
+                  title="Restaurar calculado">↺</button>
+              )}
+              <input type="number" className="nc-input-ajuste"
+                value={subtotalIepsManual ? subtotalIepsOverride : subtotalIepsCalc.toFixed(2)}
+                onChange={e => { setSubtotalIepsOverride(e.target.value); setSubtotalIepsManual(true); }}
+                step="0.01" />
+            </div>
+          </div>}
+          {(subtotalTasa0Calc > 0 || subtotalTasa0Manual) && <div className="nc-resumen-fila nc-resumen-base">
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Subtotal IVA 0%
+              {subtotalTasa0Manual
+                ? <span className="nc-ajuste-badge nc-ajuste-manual">Manual</span>
+                : <span className="nc-ajuste-badge nc-ajuste-auto">Auto</span>}
+            </span>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {subtotalTasa0Manual && (
+                <button className="nc-btn-reset-ajuste"
+                  onClick={() => { setSubtotalTasa0Override(''); setSubtotalTasa0Manual(false); }}
+                  title="Restaurar calculado">↺</button>
+              )}
+              <input type="number" className="nc-input-ajuste"
+                value={subtotalTasa0Manual ? subtotalTasa0Override : subtotalTasa0Calc.toFixed(2)}
+                onChange={e => { setSubtotalTasa0Override(e.target.value); setSubtotalTasa0Manual(true); }}
+                step="0.01" />
+            </div>
+          </div>}
           <div className="nc-resumen-fila">
             <span>Subtotal</span>
             <span className="monto">${fmt(totales.subtotal)}</span>
           </div>
           {totales.iva > 0 && (
             <div className="nc-resumen-fila">
-              <span>IVA 16%</span><span className="monto">${fmt(totales.iva)}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                IVA 16%
+                {ivaManual
+                  ? <span className="nc-ajuste-badge nc-ajuste-manual">Manual</span>
+                  : <span className="nc-ajuste-badge nc-ajuste-auto">Auto</span>
+                }
+              </span>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {ivaManual && (
+                  <button className="nc-btn-reset-ajuste"
+                    onClick={() => { setIvaOverride(''); setIvaManual(false); }}
+                    title="Restaurar IVA calculado">↺</button>
+                )}
+                <input
+                  type="number"
+                  className="nc-input-ajuste"
+                  value={ivaManual ? ivaOverride : totales.iva.toFixed(2)}
+                  onChange={e => { setIvaOverride(e.target.value); setIvaManual(true); }}
+                  step="0.01"
+                />
+              </div>
             </div>
           )}
           {totales.ieps > 0 && (
             <div className="nc-resumen-fila">
-              <span>IEPS 8%</span><span className="monto">${fmt(totales.ieps)}</span>
-            </div>
-          )}
-          <div className="nc-resumen-fila">
-            <span>Ajuste (+/-)</span>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <input type="number" className="nc-input-ajuste" value={ajuste}
-                onChange={e => setAjuste(e.target.value)} placeholder="0.00" step="0.01" />
-              <small style={{ color: '#9ca3af', fontSize: '11px' }}>Máx. ±$100.00 de redondeo</small>
-            </div>
-          </div>
-
-          {/* Margen configurable */}
-          <div className="nc-resumen-fila nc-margen-fila">
-            <span title="Si una fila supera este monto de variación, se bloquea la compra">
-              Margen de precio ⚙️
-            </span>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ color: '#8b6a4e', fontSize: 13 }}>$</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                IEPS 8%
+                {iepsManual
+                  ? <span className="nc-ajuste-badge nc-ajuste-manual">Manual</span>
+                  : <span className="nc-ajuste-badge nc-ajuste-auto">Auto</span>
+                }
+              </span>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {iepsManual && (
+                  <button className="nc-btn-reset-ajuste"
+                    onClick={() => { setIepsOverride(''); setIepsManual(false); }}
+                    title="Restaurar IEPS calculado">↺</button>
+                )}
                 <input
                   type="number"
                   className="nc-input-ajuste"
-                  value={margen}
-                  onChange={e => setMargen(e.target.value)}
-                  placeholder="100"
-                  min="0"
-                  step="10"
+                  value={iepsManual ? iepsOverride : totales.ieps.toFixed(2)}
+                  onChange={e => { setIepsOverride(e.target.value); setIepsManual(true); }}
+                  step="0.01"
                 />
               </div>
-              <small style={{ color: '#9ca3af', fontSize: '11px' }}>Variación máx. por producto</small>
             </div>
-          </div>
-
+          )}
           <div className="nc-resumen-fila total">
             <span>Total</span><span className="monto">${fmt(totales.total)}</span>
           </div>
@@ -772,8 +962,10 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
   const [busqueda, setBusqueda] = useState(value.label || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
+  const [cursor, setCursor] = useState(-1);
   const timerRef = useRef(null);
   const wrapRef = useRef(null);
+  const listRef = useRef(null);
 
   useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
@@ -783,6 +975,7 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
 
   const handleInput = (texto) => {
     setBusqueda(texto);
+    setCursor(-1);
     if (!texto) { onChange({ name: '', label: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
@@ -795,17 +988,38 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
     setBusqueda(prov.supplier_name);
     onChange({ name: prov.name, label: prov.supplier_name });
     setAbierto(false);
+    setCursor(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!abierto || !sugerencias.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCursor(c => { const next = Math.min(c + 1, sugerencias.length - 1); listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' }); return next; });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCursor(c => { const prev = Math.max(c - 1, 0); listRef.current?.children[prev]?.scrollIntoView({ block: 'nearest' }); return prev; });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx = cursor >= 0 ? cursor : 0;
+      if (sugerencias[idx]) seleccionar(sugerencias[idx]);
+    } else if (e.key === 'Escape') {
+      setAbierto(false);
+    }
   };
 
   return (
     <div className="nc-buscador-wrap" ref={wrapRef}>
       <input type="text" className={grande ? 'nc-buscar-input grande' : 'nc-buscar-input'}
         value={busqueda} onChange={e => handleInput(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Buscar proveedor..." onFocus={() => sugerencias.length && setAbierto(true)} />
       {abierto && sugerencias.length > 0 && (
-        <div className="nc-dropdown">
-          {sugerencias.map(p => (
-            <div key={p.name} className="nc-dropdown-item" onMouseDown={() => seleccionar(p)}>
+        <div className="nc-dropdown" ref={listRef}>
+          {sugerencias.map((p, i) => (
+            <div key={p.name}
+              className={`nc-dropdown-item${i === cursor ? ' nc-dropdown-item--active' : ''}`}
+              onMouseDown={() => seleccionar(p)}>
               <div className="d-name">{p.supplier_name}</div>
               <div className="d-sub">{p.supplier_group}</div>
             </div>
@@ -824,12 +1038,16 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
  *  - Badge de variación de precio en tiempo real.
  *  - Bloqueo visual si la variación supera el margen.
  */
-function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onEliminar, soloUna }) {
+function FilaProducto({ fila, impuestos, margen, rowIdx, onChange, onImpuesto, onEliminar, onMover, onAddRow, esPrimera, esUltima, soloUna }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
+  const [cursor, setCursor] = useState(-1);
   const timerRef = useRef(null);
   const wrapRef = useRef(null);
+  const listRef = useRef(null);
+  const bultosRef = useRef(null);
+  const rateRef = useRef(null);
 
   useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
@@ -839,12 +1057,30 @@ function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onElimina
 
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
+    setCursor(-1);
     if (!texto) { onChange('item_code', ''); onChange('item_name', ''); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await comprasService.buscarItems(texto);
       setSugerencias(res); setAbierto(true);
     }, 500);
+  };
+
+  const handleItemKeyDown = (e) => {
+    if (!abierto || !sugerencias.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCursor(c => { const next = Math.min(c + 1, sugerencias.length - 1); listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' }); return next; });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCursor(c => { const prev = Math.max(c - 1, 0); listRef.current?.children[prev]?.scrollIntoView({ block: 'nearest' }); return prev; });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx = cursor >= 0 ? cursor : 0;
+      if (sugerencias[idx]) seleccionar(sugerencias[idx]);
+    } else if (e.key === 'Escape') {
+      setAbierto(false);
+    }
   };
 
   const seleccionar = (item) => {
@@ -854,35 +1090,66 @@ function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onElimina
     onChange('uom', item.stock_uom);
     onChange('kg_por_bulto', item.custom_cantidad_por_presentación || '');
     onChange('precio_por_kg', item.custom_precio_por_kg || '');
-    // Guardamos el precio del catálogo como referencia
     const precioCatalogo = item.custom_precio_de_compra || '';
     onChange('precio_catalogo', precioCatalogo);
-    // Solo colocamos el precio de catálogo como default
     if (precioCatalogo) onChange('rate', String(precioCatalogo));
     onImpuesto(item.custom_impuesto || 'tasa0');
     setAbierto(false);
+    setCursor(-1);
+    setTimeout(() => { bultosRef.current?.focus(); bultosRef.current?.select(); }, 0);
+  };
+
+  const focusNextRow = () => {
+    const nextTr = document.querySelector(`tr[data-row-idx="${rowIdx + 1}"]`);
+    const nextInput = nextTr?.querySelector('.nc-buscar-input');
+    if (nextInput) {
+      nextInput.focus();
+    } else {
+      onAddRow?.();
+      setTimeout(() => {
+        const trs = document.querySelectorAll('tr[data-row-idx]');
+        const last = trs[trs.length - 1];
+        last?.querySelector('.nc-buscar-input')?.focus();
+      }, 50);
+    }
   };
 
   const total = totalPorFila(fila);
   const subtotal = subtotalFila(fila);
+  const impMonto = impuestoFila(fila);
+  const totalConImp = totalFila(fila);
   const uomLabel = fila.uom || 'unid';
 
   const variacion = calcVariacion(fila);
   const superaMargen = variacion && margen > 0 && Math.abs(variacion.diff) > margen;
 
   return (
-    <tr className={superaMargen ? 'nc-fila-alerta' : ''}>
+    <tr className={superaMargen ? 'nc-fila-alerta' : ''} data-row-idx={rowIdx}>
+
+      {/* Mover arriba/abajo */}
+      <td>
+        <div className="nc-fila-mover">
+          <button className="nc-btn-mover" onClick={() => onMover(-1)}
+            disabled={esPrimera} title="Mover arriba">▲</button>
+          <button className="nc-btn-mover" onClick={() => onMover(1)}
+            disabled={esUltima} title="Mover abajo">▼</button>
+        </div>
+      </td>
 
       {/* Producto */}
       <td>
         <div className="nc-buscador-wrap" ref={wrapRef}>
           <input className="nc-buscar-input" type="text" value={busqueda}
-            onChange={e => handleBusqueda(e.target.value)} placeholder="Buscar producto..."
+            onChange={e => handleBusqueda(e.target.value)}
+            onKeyDown={handleItemKeyDown}
+            placeholder="Buscar producto..."
             onFocus={() => sugerencias.length && setAbierto(true)} />
           {abierto && sugerencias.length > 0 && (
-            <div className="nc-dropdown">
-              {sugerencias.map(item => (
-                <div key={item.item_code} className="nc-dropdown-item" onMouseDown={() => seleccionar(item)}>
+            <div className="nc-dropdown" ref={listRef}>
+              {sugerencias.map((item, i) => (
+                <div key={item.item_code}
+                  className={`nc-dropdown-item${i === cursor ? ' nc-dropdown-item--active' : ''}`}
+                  onMouseDown={() => seleccionar(item)}>
                   <div className="d-name">{item.item_name}</div>
                   <div className="d-sub">{item.item_group} — {item.item_code}</div>
                 </div>
@@ -894,8 +1161,10 @@ function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onElimina
 
       {/* Cantidad (bultos) */}
       <td>
-        <input className="nc-input cantidad" type="number" min="0" step="1"
-          value={fila.bultos} onChange={e => onChange('bultos', e.target.value)} placeholder="0" />
+        <input className="nc-input cantidad" type="number" min="0" step="0.01"
+          ref={bultosRef}
+          value={fila.bultos} onChange={e => onChange('bultos', e.target.value)} placeholder="0"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); rateRef.current?.focus(); rateRef.current?.select(); } }} />
       </td>
 
       {/* Por empaque (kg/unidades del catálogo, readonly) */}
@@ -925,10 +1194,12 @@ function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onElimina
           className={`nc-input precio ${superaMargen ? 'nc-input-alerta' : variacion?.cambio ? 'nc-input-cambiado' : ''}`}
           type="number"
           min="0"
-          step="0.01"
+          step="0.000001"
+          ref={rateRef}
           value={fila.rate}
           onChange={e => onChange('rate', e.target.value)}
           placeholder="0.00"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextRow(); } }}
         />
       </td>
 
@@ -953,15 +1224,17 @@ function FilaProducto({ fila, impuestos, margen, onChange, onImpuesto, onElimina
       <td>
         <span className={`nc-imp-badge nc-imp-${fila.impuesto_key}`}>
           {fila.impuesto_label || 'Tasa 0'}
+          {impMonto > 0 && <> — ${fmt(impMonto)}</>}
         </span>
       </td>
 
-      {/* Subtotal */}
-      <td><span className="nc-subtotal">${fmt(subtotal)}</span></td>
+      {/* Total con impuesto */}
+      <td><span className="nc-subtotal">${fmt(totalConImp)}</span></td>
 
       {/* Eliminar */}
       <td>
-        <button className="nc-btn-eliminar" onClick={onEliminar} disabled={soloUna}>×</button>
+        <button className="nc-btn-eliminar" onClick={onEliminar}
+          disabled={soloUna} title="Eliminar">×</button>
       </td>
     </tr>
   );

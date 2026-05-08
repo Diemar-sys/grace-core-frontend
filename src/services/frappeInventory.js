@@ -9,14 +9,12 @@
  */
 
 import FrappeBase from './FrappeBase';
+import { getTasa, buildTaxes } from '../config/impuestos';
 
 const FRAPPE_METHOD = (fn) =>
   `/api/method/gestion_panaderia.api.inventory_api.${fn}`;
 
 const GRUPOS_PARA_VENTA = ["ABARROTES"];
-
-/** Tasas de impuesto aplicables a insumos — fuente única de verdad */
-const IMPUESTOS = { tasa0: 0, iva16: 0.16, ieps: 0.08 };
 
 class FrappeInventoryService extends FrappeBase {
   #cache = {};
@@ -97,7 +95,10 @@ class FrappeInventoryService extends FrappeBase {
           return { name: parts.length >= 2 ? parts[1].trim() : w.name };
         });
 
-      if (depts.length > 0) return depts;
+      if (depts.length > 0) {
+        depts.push({ name: "ABARROTES" });
+        return depts;
+      }
     } catch (e) {
       console.warn("Error cargando departamentos desde ERPNext", e);
     }
@@ -107,7 +108,8 @@ class FrappeInventoryService extends FrappeBase {
       { name: "PAN DULCE" },
       { name: "PANQUELERIA" },
       { name: "REPOSTERIA" },
-      { name: "PIZZERIA" }
+      { name: "PIZZERIA" },
+      { name: "ABARROTES" }
     ];
   }
 
@@ -202,7 +204,7 @@ class FrappeInventoryService extends FrappeBase {
       return items.map(item => {
         const extra = extraMap[item.item_code] || {};
         const compra = parseFloat(extra.custom_precio_de_compra) || 0;
-        const tasa = IMPUESTOS[extra.custom_impuesto] || 0;
+        const tasa = getTasa(extra.custom_impuesto);
         const totalConImpuesto = compra > 0 ? compra * (1 + tasa) : null;
 
         return {
@@ -231,13 +233,15 @@ class FrappeInventoryService extends FrappeBase {
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
-      const tasa = IMPUESTOS[item.custom_impuesto] || 0;
+      const tasa = getTasa(item.custom_impuesto);
+      const actual = parseFloat(item.actual_qty) || 0;
       return {
         ...item,
         custom_total_presentacion: compra > 0 ? compra * (1 + tasa) : null,
         tipo_vista: "registrado",
-        stock_total: 0,
-        tiene_stock: false,
+        actual_qty: actual,
+        stock_total: actual,
+        tiene_stock: actual > 0,
       };
     });
   }
@@ -268,7 +272,7 @@ class FrappeInventoryService extends FrappeBase {
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
-      const tasa = IMPUESTOS[item.custom_impuesto] || 0;
+      const tasa = getTasa(item.custom_impuesto);
       return {
         ...item,
         custom_total_presentacion: compra > 0 ? compra * (1 + tasa) : null,
@@ -330,6 +334,8 @@ class FrappeInventoryService extends FrappeBase {
       disabled: formData.disabled ? 1 : 0,
       description: formData.description || "",
       is_stock_item: 1,
+      // Asignar automáticamente el Item Tax Template según el impuesto seleccionado
+      taxes: buildTaxes(formData.custom_impuesto || 'tasa0'),
     };
 
     const data = await this._fetch("/api/resource/Item", {
@@ -370,6 +376,8 @@ class FrappeInventoryService extends FrappeBase {
       custom_ganancia: parseFloat(formData.custom_ganancia) || null,
       disabled: formData.disabled ? 1 : 0,
       description: formData.description || "",
+      // Reasignar el template fiscal si se cambia el impuesto en edición
+      taxes: buildTaxes(formData.custom_impuesto || 'tasa0'),
     };
 
     const data = await this._fetch(

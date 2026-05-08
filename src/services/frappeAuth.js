@@ -1,4 +1,3 @@
-import { resolveRole } from '../config/roles';
 import FrappeBase from './FrappeBase';
 
 // URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
@@ -108,12 +107,14 @@ class FrappeAuthService extends FrappeBase {
     localStorage.removeItem('frappe_user');
     // Limpiar caché de servicios para evitar que el siguiente usuario
     // herede datos de la sesión anterior (ej: POS Profile, almacenes, etc.).
-    const [{ posService }, { inventory }] = await Promise.all([
+    const [{ posService }, { inventory }, { stockService }] = await Promise.all([
       import('./frappePOS'),
       import('./frappeInventory'),
+      import('./frappeStock'),
     ]);
     posService.clearCache();
     inventory.clearCache();
+    stockService.clearCache();
   }
 
   // ─────────────────────────────────────────────

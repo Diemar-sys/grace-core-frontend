@@ -6,8 +6,6 @@ import { stockService } from '../services/frappeStock';
 import ModalError from './ModalError';
 import '../styles/Produccion.css';
 
-const DEPARTAMENTOS = stockService.getAlmacenesDepartamento();
-
 const FILA_VACIA = () => ({
   _id: Math.random().toString(36).slice(2),
   item_code: '',
@@ -35,7 +33,16 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
   const [productoBuscando, setProductoBuscando] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [departamentos, setDepartamentos] = useState([]);
   const timerRef = useRef(null);
+
+  useEffect(() => {
+    let cancel = false;
+    stockService.fetchAlmacenesDepartamento()
+      .then(list => { if (!cancel) setDepartamentos(list); })
+      .catch(err => console.error('No pude cargar departamentos:', err));
+    return () => { cancel = true; };
+  }, []);
 
   // Buscar producto final (meta.item)
   const buscarProductoFinal = useCallback(async (texto) => {
@@ -123,13 +130,20 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
 
     setLoading(true);
     try {
-      const bom = await produccionService.crearBOM({
+      const payload = {
         item: meta.item,
         quantity: meta.quantity,
         uom: meta.uom,
         custom_departamento: meta.custom_departamento,
         items: validos.map(r => ({ item_code: r.item_code, item_name: r.item_name, qty: r.qty, uom: r.uom })),
-      });
+      };
+
+      let bom;
+      if (editBOM) {
+        bom = await produccionService.actualizarBOM(editBOM.name, payload);
+      } else {
+        bom = await produccionService.crearBOM(payload);
+      }
 
       if (activar) {
         await produccionService.activarBOM(bom.name);
@@ -210,7 +224,7 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
               <label>Departamento</label>
               <select name="custom_departamento" value={meta.custom_departamento} onChange={handleMetaChange}>
                 <option value="">— Todos —</option>
-                {DEPARTAMENTOS.map(d => (
+                {departamentos.map(d => (
                   <option key={d.name} value={d.name}>{d.label}</option>
                 ))}
               </select>

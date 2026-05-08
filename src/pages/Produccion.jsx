@@ -11,8 +11,6 @@ import '../styles/global.css';
 import '../styles/Produccion.css';
 import '../styles/Panel.css';
 
-const DEPARTAMENTOS = stockService.getAlmacenesDepartamento();
-
 // ─── Icono alerta ──────────────────────────────────────
 const AlertIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
@@ -47,6 +45,15 @@ function Produccion() {
   // ── Global ────────────────────────────────────────────
   const [stockBajo, setStockBajo] = useState([]);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [departamentos, setDepartamentos] = useState([]);
+
+  useEffect(() => {
+    let cancel = false;
+    stockService.fetchAlmacenesDepartamento()
+      .then(list => { if (!cancel) setDepartamentos(list); })
+      .catch(err => console.error('No pude cargar departamentos:', err));
+    return () => { cancel = true; };
+  }, []);
 
   // Cargar recetas
   const cargarRecetas = useCallback(async () => {
@@ -62,8 +69,11 @@ function Produccion() {
   }, [searchReceta]);
 
   useEffect(() => {
-    cargarRecetas();
-  }, []);
+    const timer = setTimeout(() => {
+      cargarRecetas();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [cargarRecetas]);
 
   // Preview de consumo + costo estimado
   useEffect(() => {
@@ -283,7 +293,7 @@ function Produccion() {
                 }
               }}>
                 <option value="">— Selecciona departamento —</option>
-                {DEPARTAMENTOS.map(d => (
+                {departamentos.map(d => (
                   <option key={d.name} value={d.name}>{d.label}</option>
                 ))}
               </select>

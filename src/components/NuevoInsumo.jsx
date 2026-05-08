@@ -131,14 +131,17 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
         }));
     }, [formData.custom_precio_de_compra, formData.custom_cantidad_por_presentación, formData.custom_impuesto, formData.custom_tipo_item]);
 
-    // ── Precio con impuesto — solo Producto Terminado ─────────
+    // ── Desglose de impuesto — solo Producto Terminado ──────────
+    // El precio ingresado es el PRECIO PÚBLICO (ya incluye el impuesto).
+    // custom_precio_final guarda la BASE sin impuesto para desglose fiscal.
     useEffect(() => {
         if (formData.custom_tipo_item !== 'PRODUCTO TERMINADO') return;
-        const venta = parseFloat(formData.custom_precio_de_venta) || 0;
+        const precioPublico = parseFloat(formData.custom_precio_de_venta) || 0;
         const impuestoConf = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
         const rate = impuestoConf ? impuestoConf.rate : 0;
-        const precioFinal = venta > 0 ? (venta * (1 + rate)).toFixed(4) : '';
-        setFormData(prev => ({ ...prev, custom_precio_final: precioFinal }));
+        // Retrocálculo: base = precio_público / (1 + tasa)
+        const base = precioPublico > 0 ? (precioPublico / (1 + rate)).toFixed(4) : '';
+        setFormData(prev => ({ ...prev, custom_precio_final: base }));
     }, [formData.custom_precio_de_venta, formData.custom_impuesto, formData.custom_tipo_item]);
 
     // ── Cálculo bidireccional precios abarrotes ───────────
@@ -147,7 +150,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
         if (ultimoCampoModificado.current === 'venta') return;
         const compra = parseFloat(formData.custom_precio_de_compra) || 0;
         const porcentaje = parseFloat(formData.custom_porcentaje_de_ganancia) || 0;
-        if (compra > 0 && porcentaje >= 0) {
+        if (compra > 0 && porcentaje > 0) {
             const venta = compra * (1 + porcentaje / 100);
             const ganancia = venta - compra;
             setFormData(prev => ({
@@ -180,10 +183,12 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
         setFormData(prev => ({
             ...prev,
             item_group: newGroup,
+            ...(abarrotes && { custom_departamento: 'ABARROTES' }),
             ...(!abarrotes && {
                 custom_precio_de_venta: '',
                 custom_porcentaje_de_ganancia: '',
-                custom_ganancia: ''
+                custom_ganancia: '',
+                ...(prev.custom_departamento === 'ABARROTES' && { custom_departamento: '' })
             })
         }));
         setEsAbarrotes(abarrotes);
@@ -371,9 +376,9 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                         <option key={g.name} value={g.name}>{g.name}</option>
                                     ))}
                                 </select>
-                                <small style={{ color: esProductoTerminado ? '#0284c7' : '#8b6a4e' }}>
+                                <small style={{ color: esProductoTerminado ? '#2b2825ff' : '#514a44ff' }}>
                                     {esProductoTerminado
-                                        ? '🥐 Selecciona el tipo de producto terminado'
+                                        ? 'SELECCIONE LA CATEGORÍA DEL PAN'
                                         : 'Grupo al que pertenece el insumo'}
                                 </small>
                             </div>
@@ -387,7 +392,6 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                         setFormData(prev => ({
                                             ...prev,
                                             custom_tipo_item: nuevoTipo,
-                                            item_group: '',
                                             // Limpiar campos de presentación al cambiar a Producto Terminado
                                             // para evitar que Frappe rechace el registro por campos vacíos
                                             ...(nuevoTipo === 'PRODUCTO TERMINADO' && {
@@ -397,13 +401,12 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                                 custom_precio_por_kg: '',
                                             })
                                         }));
-                                        setEsAbarrotes(false);
                                     }}
                                     required
                                 >
-                                    <option value="MATERIA PRIMA">Materia Prima / Insumo</option>
-                                    <option value="PRODUCTO TERMINADO">Producto Terminado</option>
-                                    <option value="INSUMO GENERAL">Insumo General</option>
+                                    <option value="MATERIA PRIMA">MATERIA PRIMA / INSUMO</option>
+                                    <option value="PRODUCTO TERMINADO">PRODUCTO TERMINADO</option>
+                                    <option value="INSUMO GENERAL">INSUMO GENERAL</option>
                                 </select>
                                 <small>
                                     {formData.custom_tipo_item === 'PRODUCTO TERMINADO'
@@ -469,7 +472,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                 <label>Cantidad por Presentación</label>
                                 <input type="number" name="custom_cantidad_por_presentación"
                                     value={formData.custom_cantidad_por_presentación}
-                                    onChange={handleChange} placeholder="Ej: 25" min="0" step="0.01" />
+                                    onChange={handleChange} placeholder="Ej: 25" min="0" step="0.0001" />
                             </div>
                             <div className="form-group">
                                 <label>Unidad de Medida *</label>
@@ -571,40 +574,49 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                         <h3>Precio de Venta</h3>
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Precio de Venta por {formData.stock_uom || 'unidad'} ($) *</label>
+                                <label>Precio al Público por {formData.stock_uom || 'unidad'} ($) *</label>
                                 <input type="number" name="custom_precio_de_venta"
                                     value={formData.custom_precio_de_venta}
-                                    onChange={handleChange} placeholder="0.00" min="0" step="0.01"
+                                    onChange={handleChange} placeholder="Ej: 14.00" min="0" step="0.01"
                                     className="input-highlight" />
-                                <small>Precio al que se vende al cliente</small>
+                                <small style={{ color: '#b45309', fontWeight: 600 }}>
+                                    ⚠️ CAPTURA EL PRECIO EXACTO AL QUE SE VENDES
+                                </small>
                             </div>
                             <div className="form-group">
-                                <label>Impuesto</label>
+                                <label>Impuesto incluido en el precio</label>
                                 <select name="custom_impuesto" value={formData.custom_impuesto} onChange={handleChange}>
                                     {IMPUESTOS.map(imp => (
                                         <option key={imp.key} value={imp.key}>{imp.label}</option>
                                     ))}
                                 </select>
                                 <small>
-                                    {(() => {
-                                        const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
-                                        const tasa = imp ? imp.rate : 0;
-                                        const precio = parseFloat(formData.custom_precio_de_venta) || 0;
-                                        if (tasa > 0 && precio > 0) {
-                                            return `${imp.label} = $${(precio * tasa).toFixed(4)}`;
-                                        }
-                                        return tasa === 0 ? 'Sin impuesto (pan de sal, etc.)' : 'Ingresa el precio de venta primero';
-                                    })()}
+                                    {formData.custom_impuesto === 'tasa0'
+                                        ? 'SIN IMPUESTO'
+                                        : formData.custom_impuesto === 'ieps'
+                                        ? 'IMPUESTO ESPECIAL SOBRE PRODUCCIÓN Y SERVICIOS'
+                                        : 'IMPUESTO SOBRE EL VALOR AGREGADO'}
                                 </small>
                             </div>
                             <div className="form-group">
-                                <label>Precio Final con Impuesto ($)</label>
+                                <label>Base sin impuesto ($) — desglose fiscal</label>
                                 <input type="number" value={formData.custom_precio_final}
                                     readOnly className="input-calculated" placeholder="Auto" />
                                 <small>
-                                    {formData.custom_precio_final && formData.custom_precio_de_venta
-                                        ? `$${parseFloat(formData.custom_precio_de_venta).toFixed(2)} + impuesto = $${parseFloat(formData.custom_precio_final).toFixed(2)}`
-                                        : 'Calculado automáticamente'}
+                                    {(() => {
+                                        const precioPublico = parseFloat(formData.custom_precio_de_venta) || 0;
+                                        const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
+                                        const tasa = imp ? imp.rate : 0;
+                                        if (precioPublico > 0 && tasa > 0) {
+                                            const base = precioPublico / (1 + tasa);
+                                            const montoImp = precioPublico - base;
+                                            return `$${base.toFixed(2)} base + $${montoImp.toFixed(2)} ${imp.label} = $${precioPublico.toFixed(2)}`;
+                                        }
+                                        if (precioPublico > 0 && tasa === 0) {
+                                            return `$${precioPublico.toFixed(2)} (sin impuesto, base = precio público)`;
+                                        }
+                                        return 'Ingresa el precio al público primero';
+                                    })()}
                                 </small>
                             </div>
                         </div>
@@ -623,7 +635,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                                     <label>% Margen de Ganancia</label>
                                     <input type="number" name="custom_porcentaje_de_ganancia"
                                         value={formData.custom_porcentaje_de_ganancia}
-                                        onChange={handleChange} placeholder="Ej: 30" min="0" step="0.01" />
+                                        onChange={handleChange} placeholder="Ej: 30" min="0" step="0.0001" />
                                 </div>
                                 <div className="form-group">
                                     <label>Precio de Venta *</label>

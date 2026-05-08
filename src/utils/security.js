@@ -94,15 +94,16 @@ export const rateLimiter = {
 
 // ─── 2. SANITIZADOR DE INPUTS ────────────────────────────────────────────────
 /**
- * Elimina caracteres y patrones que se usan en ataques de:
- *   - XSS  (inyección de etiquetas HTML / JavaScript)
- *   - SQLi (inyección de comandos SQL directos)
+ * Elimina caracteres peligrosos para XSS antes de mandar el dato a ERPNext.
  *
- * Por qué aquí:
- *   - React escapa automáticamente el JSX normal, pero los datos
- *     también se mandan a ERPNext por la API. Limpiarlos antes del
- *     fetch evita que lleguen al backend con contenido malicioso,
- *     independientemente de lo que haga el servidor.
+ * Filosofía:
+ *   - React escapa JSX automáticamente; el riesgo real es que un texto
+ *     entre como HTML al backend o se renderice fuera de React (PDF, ticket
+ *     térmico, exports). Aquí solo se neutraliza HTML.
+ *   - SQLi NO se trata aquí: Frappe parametriza todas las queries en el ORM,
+ *     y el cliente no puede saber qué token es legítimo en un texto libre
+ *     ("DROP cookies", "Compra del 1' del mes"). Filtrar palabras clave SQL
+ *     rompe inputs válidos sin aportar seguridad real.
  *
  * @param {string} valor - El texto ingresado por el usuario.
  * @returns {string}     - El texto limpio.
@@ -113,8 +114,6 @@ export function sanitizar(valor) {
   return valor
     // Elimina etiquetas HTML / scripts (<script>, <img onerror=...>, etc.)
     .replace(/<[^>]*>?/gm, '')
-    // Elimina comillas simples encadenadas a palabras SQL peligrosas
-    .replace(/('|--|;|\/\*|\*\/|xp_|UNION\s|SELECT\s|DROP\s|INSERT\s|DELETE\s|UPDATE\s)/gi, '')
     // Elimina null bytes (usados para bypassear filtros)
     .replace(/\0/g, '')
     .trim();

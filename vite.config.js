@@ -5,12 +5,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    hmr: {
+      host: '192.168.2.144',
+    },
     proxy: {
       // Usamos una Regex para capturar múltiples rutas en una sola regla
       '^/(api|files|assets)': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
+        cookieDomainRewrite: '',
       },
     }
   }
