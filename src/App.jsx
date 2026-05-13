@@ -6,6 +6,7 @@ import Panel from './pages/Panel';
 import Catalogo from './pages/Catalogo';
 import Proveedores from './pages/Proveedores';
 import Compras from './pages/Compras';
+import VentaB2B from './pages/VentaB2B';
 import POS from './pages/POS';
 import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
@@ -65,6 +66,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Compras />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/venta-b2b"
+          element={
+            <ProtectedRoute>
+              <VentaB2B />
             </ProtectedRoute>
           }
         />

@@ -21,25 +21,23 @@ export const IMPUESTOS_MAP = Object.fromEntries(
   IMPUESTOS_LIST.map(i => [i.key, i])
 );
 
-/**
- * Mapeo a Item Tax Template de ERPNext.
- * Los nombres deben coincidir exactamente con los templates creados en
- * ERPNext → Contabilidad → Item Tax Template.
- * Si el item no tiene impuesto (tasa0) se envía array vacío para limpiar.
- */
-const ITEM_TAX_TEMPLATE_MAP = {
-  tasa0: [],
-  ieps:  [{ item_tax_template: 'IEPS 8% - PG' }],
-  iva16: [{ item_tax_template: 'Mexico Tax - PG' }],
-};
+import { getAppConfigSync } from '../services/appConfig';
 
 /**
- * Construye el array `taxes` para el payload de ERPNext.
+ * Construye el array `taxes` para el payload de ERPNext usando los nombres
+ * de Item Tax Template resueltos via AppConfig (no hardcoded).
+ *
+ * Llamar `loadAppConfig()` al inicio de la sesión para asegurar valores frescos.
+ * Si AppConfig no cargado, usa FALLBACK hardcoded del appConfig.
+ *
  * @param {string} claveImpuesto - 'tasa0' | 'ieps' | 'iva16'
  * @returns {Array} Child table de Item Tax
  */
 export function buildTaxes(claveImpuesto) {
-  return ITEM_TAX_TEMPLATE_MAP[claveImpuesto] ?? [];
+  const cfg = getAppConfigSync();
+  const tmpl = cfg.item_tax_templates?.[claveImpuesto];
+  if (!tmpl) return [];
+  return [{ item_tax_template: tmpl }];
 }
 
 /** Tasa numérica por clave. Default 0 si no existe. */

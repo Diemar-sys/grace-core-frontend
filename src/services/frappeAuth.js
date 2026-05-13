@@ -1,4 +1,5 @@
 import FrappeBase from './FrappeBase';
+import { loadAppConfig, clearAppConfigCache } from './appConfig';
 
 // URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
 // En producción, el reverse proxy de nginx hace lo mismo, por lo que tampoco se necesita.
@@ -56,6 +57,11 @@ class FrappeAuthService extends FrappeBase {
       role,
       posProfile,
     }));
+
+    // Pre-cargar AppConfig (cuentas COA + Item Tax Templates) para que reads
+    // síncronos (ej. buildTaxes) tengan cache poblada. Fallback transparente
+    // si endpoint backend no existe todavía.
+    await loadAppConfig();
 
     return data;
   }
@@ -115,6 +121,7 @@ class FrappeAuthService extends FrappeBase {
     posService.clearCache();
     inventory.clearCache();
     stockService.clearCache();
+    clearAppConfigCache();
   }
 
   // ─────────────────────────────────────────────

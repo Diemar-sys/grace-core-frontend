@@ -1,20 +1,42 @@
 /**
  * FrappeSalesService
- * Maneja Sales Invoice (con update_stock=1) en ERPNext para venta B2B.
- * Para clientes con sucursal extendida (Puerta Real) mueve stock a su warehouse.
- * Para clientes puros (DELI, ZAKIA) baja stock de Bodega Central directo.
+ * Maneja Sales Invoice (con update_stock=1) en ERPNext para venta B2B externa.
+ * Stock baja de Bodega Central. Clientes B2B = entidades externas (DULCE CARAMEL, DELI, ZAKIA).
+ * Sucursales internas (PUERTA REAL) usan Stock Entry Material Transfer aparte — no este servicio.
  */
 
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 import { IMPUESTOS_LIST } from '../config/impuestos';
-import { getTargetWarehouse } from '../config/clientesB2B';
+import { loadAppConfig, getAppConfigSync } from './appConfig';
+import { getSucursalesInternas } from '../config/clientesB2B';
 
-const CUENTA_IVA_TRASLADADO = 'IVA POR TRASLADAR o COBRADO - PG';
-const CUENTA_AJUSTE = 'AJUSTE POR REDONDEO - PG';
+// Fallback emergencia (también vive en appConfig.js como source of truth).
+// Aquí solo si appConfig falla completo.
+const FALLBACK_CUENTAS = getAppConfigSync().cuentas;
+
+const cuentaPorImpuesto = (cfg) => ({
+  iva16: cfg.iva_trasladado,
+  ieps:  cfg.ieps,
+});
 
 class FrappeSalesService extends FrappeBase {
+  #cuentasCache = null;
+
   getImpuestos() { return IMPUESTOS_LIST; }
+
+  /**
+   * Resuelve cuentas desde AppConfig (endpoint backend si disponible, sino fallback).
+   * Cache propio del service: lectura síncrona después de primer await.
+   */
+  async getCuentas() {
+    if (this.#cuentasCache) return this.#cuentasCache;
+    const cfg = await loadAppConfig();
+    this.#cuentasCache = cfg.cuentas;
+    return cfg.cuentas;
+  }
+
+  clearCuentasCache() { this.#cuentasCache = null; }
 
   /**
    * Siguiente número de venta consecutivo (custom_no_de_venta).
@@ -33,16 +55,17 @@ class FrappeSalesService extends FrappeBase {
   }
 
   /**
-   * Busca clientes B2B (excluye Público en General que es POS).
+   * Busca clientes B2B externos (excluye Público en General POS + sucursales internas).
    */
   async buscarClientes(search = '') {
     if (search.length > 0 && search.length < 2) return [];
     if (this._abortCliente) this._abortCliente.abort();
     this._abortCliente = new AbortController();
 
+    const excluidos = ['Público en General', ...getSucursalesInternas()];
     const filters = [
       ['disabled', '=', 0],
-      ['name', '!=', 'Público en General'],
+      ['name', 'not in', excluidos],
     ];
     if (search) filters.push(['customer_name', 'like', '%' + search + '%']);
     const params = new URLSearchParams({
@@ -74,7 +97,8 @@ class FrappeSalesService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify([
         'item_code', 'item_name', 'stock_uom', 'item_group',
-        'custom_impuesto', 'custom_cantidad_por_presentación',
+        'custom_impuesto',
+        'custom_cantidad_por_presentación', 'custom_presentación',
         'custom_precio_de_venta', 'custom_precio_por_kg', 'standard_rate',
         'valuation_rate',
       ]),
@@ -96,8 +120,9 @@ class FrappeSalesService extends FrappeBase {
    * Calcula y agrupa impuestos para venta.
    * Solo IVA + Tasa 0 (B2B panadería no causa IEPS típicamente).
    */
-  _calcularImpuestos(items, taxOverrides = {}) {
+  _calcularImpuestos(items, taxOverrides = {}, cuentas = FALLBACK_CUENTAS) {
     const round2 = (n) => Math.round(n * 100) / 100;
+    const map = cuentaPorImpuesto(cuentas);
     const grupos = {};
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
@@ -105,7 +130,7 @@ class FrappeSalesService extends FrappeBase {
       const label = item.impuesto_label || 'Tasa 0';
       const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
       const monto = base * rate;
-      if (!grupos[key]) grupos[key] = { label, rate, monto: 0 };
+      if (!grupos[key]) grupos[key] = { key, label, rate, monto: 0 };
       grupos[key].monto += monto;
     });
     Object.entries(taxOverrides).forEach(([key, amount]) => {
@@ -117,12 +142,12 @@ class FrappeSalesService extends FrappeBase {
         charge_type: 'Actual',
         description: g.label,
         tax_amount: round2(g.monto),
-        account_head: CUENTA_IVA_TRASLADADO,
+        account_head: map[g.key] || cuentas.iva_trasladado,
       }));
   }
 
-  _buildPayload({ customer, fecha, items, notas = '', ajuste = 0, noVenta = null, taxOverrides = {}, subtotalOverrides = {} }) {
-    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides);
+  _buildPayload({ customer, fecha, items, notas = '', ajuste = 0, noVenta = null, taxOverrides = {}, subtotalOverrides = {}, cuentas = FALLBACK_CUENTAS }) {
+    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, cuentas);
     const ajusteNum = parseFloat(ajuste || 0);
 
     if (ajusteNum !== 0) {
@@ -130,11 +155,9 @@ class FrappeSalesService extends FrappeBase {
         charge_type: 'Actual',
         description: 'Ajuste por Redondeo',
         tax_amount: ajusteNum,
-        account_head: CUENTA_AJUSTE,
+        account_head: cuentas.ajuste,
       });
     }
-
-    const targetWarehouse = getTargetWarehouse(customer);
 
     return {
       doctype: 'Sales Invoice',
@@ -146,7 +169,6 @@ class FrappeSalesService extends FrappeBase {
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || '',
       custom_no_de_venta: noVenta || null,
-      custom_target_warehouse: targetWarehouse || null,
       custom_subtotal_iva_16: subtotalOverrides.iva16 ?? null,
       custom_subtotal_iva_0:  subtotalOverrides.tasa0 ?? null,
       items: items.map(item => ({
@@ -157,7 +179,6 @@ class FrappeSalesService extends FrappeBase {
         uom: item.uom,
         stock_uom: item.uom,
         warehouse: BODEGA_CENTRAL,
-        target_warehouse: targetWarehouse || undefined,
         conversion_factor: 1,
         description: 'Impuesto: ' + (item.impuesto_label || 'Tasa 0'),
       })),
@@ -169,12 +190,16 @@ class FrappeSalesService extends FrappeBase {
 
   /**
    * Guarda venta como borrador (docstatus 0). Stock NO se mueve aún.
+   * Stock siempre baja de BODEGA_CENTRAL (clientes B2B externos).
    */
   async guardarBorrador({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
-    const noVenta = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides });
+    const [noVenta, cuentas] = await Promise.all([
+      this.getSiguienteNumero(),
+      this.getCuentas(),
+    ]);
+    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const created = await this._fetch('/api/resource/Sales Invoice', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -188,8 +213,11 @@ class FrappeSalesService extends FrappeBase {
   async registrarVenta({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
-    const noVenta = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides });
+    const [noVenta, cuentas] = await Promise.all([
+      this.getSiguienteNumero(),
+      this.getCuentas(),
+    ]);
+    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const created = await this._fetch('/api/resource/Sales Invoice', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -209,9 +237,12 @@ class FrappeSalesService extends FrappeBase {
   async actualizarBorrador(name, { customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
-    const doc = await this.getVentaBorrador(name);
+    const [doc, cuentas] = await Promise.all([
+      this.getVentaBorrador(name),
+      this.getCuentas(),
+    ]);
     const noVenta = doc.custom_no_de_venta || null;
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const updated = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
       { method: 'PUT', body: JSON.stringify(payload) }
@@ -244,6 +275,76 @@ class FrappeSalesService extends FrappeBase {
   }
 
   /**
+   * Líneas detalladas (Sales Invoice Item) agrupadas por cliente.
+   * Solo incluye ventas confirmadas (docstatus=1), excluye POS y canceladas.
+   * Retorna array: [{ customer, customer_name, totalVentas, totalMonto, ventas: [{ name, posting_date, custom_no_de_venta, grand_total, items: [...] }] }]
+   */
+  async getLineasVentas({ desde = null, hasta = null, customer = null } = {}, signal) {
+    const filtersInvoice = [
+      ['docstatus', '=', 1],
+      ['is_pos', '=', 0],
+    ];
+    if (desde) filtersInvoice.push(['posting_date', '>=', desde]);
+    if (hasta) filtersInvoice.push(['posting_date', '<=', hasta]);
+    if (customer) filtersInvoice.push(['customer', '=', customer]);
+    const paramsInv = new URLSearchParams({
+      fields: JSON.stringify([
+        'name', 'customer', 'customer_name', 'posting_date',
+        'custom_no_de_venta', 'grand_total', 'total',
+      ]),
+      filters: JSON.stringify(filtersInvoice),
+      order_by: 'posting_date desc, custom_no_de_venta desc',
+      limit_page_length: 500,
+    });
+    const inv = await this._fetch('/api/resource/Sales Invoice?' + paramsInv, { signal });
+    const ventas = inv?.data || [];
+    if (!ventas.length) return [];
+
+    const names = ventas.map(v => v.name);
+    const paramsItems = new URLSearchParams({
+      fields: JSON.stringify([
+        'parent', 'item_code', 'item_name', 'qty', 'rate', 'amount', 'uom',
+      ]),
+      filters: JSON.stringify([
+        ['parenttype', '=', 'Sales Invoice'],
+        ['parent', 'in', names],
+      ]),
+      limit_page_length: 0,
+    });
+    const itemsRes = await this._fetch('/api/resource/Sales Invoice Item?' + paramsItems, { signal });
+    const itemsByParent = {};
+    (itemsRes?.data || []).forEach(it => {
+      if (!itemsByParent[it.parent]) itemsByParent[it.parent] = [];
+      itemsByParent[it.parent].push(it);
+    });
+
+    const grupos = {};
+    ventas.forEach(v => {
+      const key = v.customer;
+      if (!grupos[key]) {
+        grupos[key] = {
+          customer: v.customer,
+          customer_name: v.customer_name || v.customer,
+          totalVentas: 0,
+          totalMonto: 0,
+          ventas: [],
+        };
+      }
+      grupos[key].totalVentas += 1;
+      grupos[key].totalMonto += parseFloat(v.grand_total || 0);
+      grupos[key].ventas.push({
+        name: v.name,
+        posting_date: v.posting_date,
+        custom_no_de_venta: v.custom_no_de_venta,
+        grand_total: v.grand_total,
+        total: v.total,
+        items: itemsByParent[v.name] || [],
+      });
+    });
+    return Object.values(grupos).sort((a, b) => b.totalMonto - a.totalMonto);
+  }
+
+  /**
    * Lista ventas B2B con filtros.
    * Excluye Sales Invoice de POS (is_pos=1).
    */
@@ -259,7 +360,7 @@ class FrappeSalesService extends FrappeBase {
       fields: JSON.stringify([
         'name', 'customer', 'customer_name', 'docstatus',
         'posting_date', 'total', 'grand_total', 'status', 'outstanding_amount',
-        'custom_no_de_venta', 'custom_target_warehouse',
+        'custom_no_de_venta',
       ]),
       filters: JSON.stringify(filters),
       order_by: 'custom_no_de_venta desc',
@@ -267,6 +368,103 @@ class FrappeSalesService extends FrappeBase {
     });
     const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
     return data?.data || [];
+  }
+
+  /**
+   * Lista facturas pendientes de cobro (outstanding > 0) opcionalmente por cliente.
+   * Excluye POS. Solo submitted.
+   */
+  async getFacturasPendientes({ customer = null } = {}, signal) {
+    const filters = [
+      ['docstatus', '=', 1],
+      ['is_pos', '=', 0],
+      ['outstanding_amount', '>', 0],
+    ];
+    if (customer) filters.push(['customer', '=', customer]);
+    const params = new URLSearchParams({
+      fields: JSON.stringify([
+        'name', 'customer', 'customer_name', 'posting_date',
+        'custom_no_de_venta', 'grand_total', 'outstanding_amount',
+      ]),
+      filters: JSON.stringify(filters),
+      order_by: 'posting_date asc, custom_no_de_venta asc',
+      limit_page_length: 500,
+    });
+    const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
+    return data?.data || [];
+  }
+
+  /**
+   * Agrupa deuda pendiente por cliente.
+   * Retorna [{ customer, customer_name, totalDeuda, facturas: [{name, fecha, #, total, outstanding}] }]
+   */
+  async getDeudaPorCliente(signal) {
+    const facturas = await this.getFacturasPendientes({}, signal);
+    const grupos = {};
+    facturas.forEach(f => {
+      const k = f.customer;
+      if (!grupos[k]) {
+        grupos[k] = {
+          customer: f.customer,
+          customer_name: f.customer_name || f.customer,
+          totalDeuda: 0,
+          facturas: [],
+        };
+      }
+      grupos[k].totalDeuda += parseFloat(f.outstanding_amount || 0);
+      grupos[k].facturas.push(f);
+    });
+    return Object.values(grupos).sort((a, b) => b.totalDeuda - a.totalDeuda);
+  }
+
+  /**
+   * Registra pago consolidado.
+   * @param {Object} params
+   * @param {string} params.customer
+   * @param {Array<{name, allocated}>} params.facturas - SI a saldar y monto a aplicar a cada una
+   * @param {number} params.monto - Total pagado (debe ser ≤ suma allocated; ERPNext valida)
+   * @param {string} [params.fecha] - Fecha del pago (default hoy)
+   * @param {string} [params.cuentaCaja] - paid_to (default CUENTA_CAJA)
+   */
+  async registrarPago({ customer, facturas, monto, fecha = null, cuentaCaja = null }) {
+    if (!customer) throw new Error('Cliente requerido');
+    if (!facturas?.length) throw new Error('Selecciona al menos una factura');
+    if (!monto || monto <= 0) throw new Error('Monto inválido');
+
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const references = facturas
+      .filter(f => parseFloat(f.allocated) > 0)
+      .map(f => ({
+        reference_doctype: 'Sales Invoice',
+        reference_name: f.name,
+        allocated_amount: round2(parseFloat(f.allocated)),
+      }));
+    if (!references.length) throw new Error('Asigna monto a alguna factura');
+
+    const cuentas = await this.getCuentas();
+    const payload = {
+      doctype: 'Payment Entry',
+      payment_type: 'Receive',
+      company: COMPANY,
+      posting_date: fecha || new Date().toISOString().split('T')[0],
+      party_type: 'Customer',
+      party: customer,
+      paid_from: cuentas.receivable,
+      paid_to: cuentaCaja || cuentas.caja,
+      paid_amount: round2(parseFloat(monto)),
+      received_amount: round2(parseFloat(monto)),
+      references,
+      mode_of_payment: 'Cash',
+    };
+    const created = await this._fetch('/api/resource/Payment Entry', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    await this._fetch(
+      '/api/resource/Payment Entry/' + encodeURIComponent(created.data.name),
+      { method: 'PUT', body: JSON.stringify({ docstatus: 1 }) }
+    );
+    return created.data;
   }
 }
 

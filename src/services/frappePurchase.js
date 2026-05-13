@@ -6,6 +6,7 @@
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 import { IMPUESTOS_LIST } from '../config/impuestos';
+import { getAppConfigSync } from './appConfig';
 
 class FrappeComprasService extends FrappeBase {
   /**
@@ -118,8 +119,9 @@ class FrappeComprasService extends FrappeBase {
    * @param {Array<Object>} items - Lista de ítems de la compra.
    * @returns {Array<Object>} Arreglo de impuestos agrupados por tipo (IVA, IEPS, etc.)
    */
-  _calcularImpuestos(items, taxOverrides = {}) {
+  _calcularImpuestos(items, taxOverrides = {}, cuentas = null) {
     const round2 = (n) => Math.round(n * 100) / 100;
+    const cfg = cuentas || getAppConfigSync().cuentas;
     const grupos = {};
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
@@ -142,9 +144,7 @@ class FrappeComprasService extends FrappeBase {
         charge_type: "Actual",
         description: g.label,
         tax_amount: round2(g.monto),
-        account_head: g.label.startsWith("IVA")
-          ? "IVA ACREDITABLE o PAGADO A PROVEEDORES - PG"
-          : "IEPS - PG - PG",
+        account_head: g.label.startsWith("IVA") ? cfg.iva_acreditable : cfg.ieps,
       }));
   }
 
@@ -169,11 +169,12 @@ class FrappeComprasService extends FrappeBase {
     const ajusteNum = parseFloat(ajuste || 0);
 
     if (ajusteNum !== 0) {
+      const cfg = getAppConfigSync().cuentas;
       resumenImpuestos.push({
         charge_type: "Actual",
         description: "Ajuste por Redondeo",
         tax_amount: ajusteNum,
-        account_head: "AJUSTE POR REDONDEO - PG",
+        account_head: cfg.ajuste,
       });
     }
 

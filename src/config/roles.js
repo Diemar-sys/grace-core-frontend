@@ -1,9 +1,9 @@
 // Roles de la app y sus permisos
 export const ROLES = {
   admin: {
-    rutas: ['/panel', '/catalogo', '/inventario', '/compras', '/proveedores', '/pos', '/produccion', '/consultas/pos'],
+    rutas: ['/panel', '/catalogo', '/inventario', '/compras', '/venta-b2b', '/proveedores', '/pos', '/produccion', '/consultas/pos'],
     inicio: '/panel',
-    modulosPanel: ['catalogo', 'inventario', 'compras', 'proveedores', 'pos', 'produccion'],
+    modulosPanel: ['catalogo', 'inventario', 'compras', 'venta_b2b', 'proveedores', 'pos', 'produccion'],
   },
   vendedor: {
     rutas: ['/panel', '/pos', '/consultas/pos'],

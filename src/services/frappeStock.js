@@ -399,7 +399,164 @@ class FrappeStockService extends FrappeBase {
     });
   }
 
-  /** 
+  // ─────────────────────────────────────────────
+  // TRANSFERENCIA A SUCURSAL INTERNA (Puerta Real, etc.)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Resuelve precio venta congelado desde catálogo. Prioridad espejo NuevaVentaB2B.
+   * Retorna precio por stock_uom (peso real, ej. por Kg). Devuelve 0 si no hay datos.
+   * @private
+   */
+  _resolverPrecioVenta(item) {
+    const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
+    if (item.custom_precio_por_kg) return parseFloat(item.custom_precio_por_kg);
+    if (item.custom_precio_de_venta) return parseFloat(item.custom_precio_de_venta) / cantPres;
+    if (item.standard_rate) return parseFloat(item.standard_rate) / cantPres;
+    return 0;
+  }
+
+  /**
+   * Crea Stock Entry Material Transfer BODEGA → sucursal interna.
+   * Guarda custom_precio_venta congelado del catálogo al momento del envío.
+   *
+   * @param {Object} args
+   * @param {string} args.warehouseDestino - Warehouse sucursal (TIENDA-PUERTA-PG, etc.).
+   * @param {Array<{item_code, item_name, uom, qty, precio_venta_congelado?}>} args.items - qty en stock_uom (Kg/Lt/Pza).
+   * @param {string} [args.fecha] - Posting date (default hoy).
+   * @param {string} [args.notas]
+   * @param {boolean} [args.asBorrador=false] - Si true, no submitea (docstatus=0).
+   * @returns {Promise<Object>} Stock Entry creado.
+   */
+  async crearTransferenciaSucursal({ warehouseDestino, items, fecha = null, notas = '', asBorrador = false }) {
+    if (!warehouseDestino) throw new Error('Selecciona warehouse destino');
+    if (!items?.length) throw new Error('Agrega al menos un producto');
+
+    // Si no traen precio congelado, jalarlo del catálogo ahora.
+    const sinPrecio = items.filter(it => !(parseFloat(it.precio_venta_congelado) >= 0)).map(it => it.item_code);
+    let dictPrecios = {};
+    if (sinPrecio.length) {
+      const params = new URLSearchParams({
+        fields: JSON.stringify([
+          'item_code', 'custom_cantidad_por_presentación',
+          'custom_precio_por_kg', 'custom_precio_de_venta', 'standard_rate',
+        ]),
+        filters: JSON.stringify([['name', 'in', sinPrecio]]),
+        limit_page_length: 200,
+      });
+      const cat = await this._fetch('/api/resource/Item?' + params);
+      (cat?.data || []).forEach(it => { dictPrecios[it.item_code] = it; });
+    }
+
+    const payload = {
+      doctype: 'Stock Entry',
+      stock_entry_type: 'Material Transfer',
+      company: COMPANY,
+      posting_date: fecha || new Date().toISOString().split('T')[0],
+      from_warehouse: BODEGA_CENTRAL,
+      to_warehouse: warehouseDestino,
+      remarks: notas || `Envio a sucursal ${warehouseDestino}`,
+      items: items.map(it => {
+        let precio = parseFloat(it.precio_venta_congelado);
+        if (!(precio >= 0)) precio = this._resolverPrecioVenta(dictPrecios[it.item_code] || {});
+        return {
+          item_code: it.item_code,
+          item_name: it.item_name,
+          s_warehouse: BODEGA_CENTRAL,
+          t_warehouse: warehouseDestino,
+          qty: parseFloat(it.qty),
+          uom: it.uom,
+          stock_uom: it.uom,
+          conversion_factor: 1,
+          transfer_qty: parseFloat(it.qty),
+          custom_precio_venta: precio,
+        };
+      }),
+    };
+
+    if (asBorrador) {
+      const created = await this._fetch('/api/resource/Stock Entry', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return created.data;
+    }
+    return this.crearYSubmitirStockEntry(payload);
+  }
+
+  /**
+   * Lista transferencias enviadas a una sucursal interna en rango de fechas.
+   * Cada transferencia trae items con qty + custom_precio_venta congelado.
+   *
+   * @param {Object} args
+   * @param {string} args.warehouseDestino - Filtra por to_warehouse.
+   * @param {string} [args.desde]
+   * @param {string} [args.hasta]
+   * @returns {Promise<Array<{name, posting_date, remarks, items: [{item_code, item_name, qty, uom, custom_precio_venta, monto}]}>>}
+   */
+  async getTransferenciasSucursal({ warehouseDestino, desde = null, hasta = null } = {}, signal) {
+    if (!warehouseDestino) throw new Error('warehouseDestino requerido');
+
+    const filtersSE = [
+      ['docstatus', '=', 1],
+      ['stock_entry_type', '=', 'Material Transfer'],
+      ['to_warehouse', '=', warehouseDestino],
+    ];
+    if (desde) filtersSE.push(['posting_date', '>=', desde]);
+    if (hasta) filtersSE.push(['posting_date', '<=', hasta]);
+    const paramsSE = new URLSearchParams({
+      fields: JSON.stringify(['name', 'posting_date', 'remarks', 'from_warehouse', 'to_warehouse']),
+      filters: JSON.stringify(filtersSE),
+      order_by: 'posting_date desc, name desc',
+      limit_page_length: 500,
+    });
+    const seRes = await this._fetch('/api/resource/Stock Entry?' + paramsSE, { signal });
+    const entries = seRes?.data || [];
+    if (!entries.length) return [];
+
+    const names = entries.map(e => e.name);
+    const paramsDetail = new URLSearchParams({
+      fields: JSON.stringify([
+        'parent', 'item_code', 'item_name', 'qty', 'uom', 'custom_precio_venta',
+      ]),
+      filters: JSON.stringify([
+        ['parenttype', '=', 'Stock Entry'],
+        ['parent', 'in', names],
+      ]),
+      limit_page_length: 0,
+    });
+    const detRes = await this._fetch('/api/resource/Stock Entry Detail?' + paramsDetail, { signal });
+    const itemsByParent = {};
+    (detRes?.data || []).forEach(d => {
+      if (!itemsByParent[d.parent]) itemsByParent[d.parent] = [];
+      const precio = parseFloat(d.custom_precio_venta || 0);
+      const qty = parseFloat(d.qty || 0);
+      itemsByParent[d.parent].push({
+        item_code: d.item_code,
+        item_name: d.item_name,
+        qty,
+        uom: d.uom,
+        custom_precio_venta: precio,
+        monto: qty * precio,
+      });
+    });
+
+    return entries.map(e => {
+      const items = itemsByParent[e.name] || [];
+      const totalMonto = items.reduce((acc, it) => acc + it.monto, 0);
+      return {
+        name: e.name,
+        posting_date: e.posting_date,
+        remarks: e.remarks,
+        from_warehouse: e.from_warehouse,
+        to_warehouse: e.to_warehouse,
+        items,
+        totalMonto,
+      };
+    });
+  }
+
+  /**
    * Salida del inventario por merma o caducidad.
    * @param {Object} datos - Motivo especifico y tipo de merma registrada.
    * @returns {Promise<Object>} Formulario generado en Frappe.

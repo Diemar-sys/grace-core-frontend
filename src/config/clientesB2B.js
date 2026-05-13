@@ -1,21 +1,30 @@
 /**
- * Mapping cliente B2B → warehouse destino (sucursal extendida).
+ * Sucursales internas — NO son clientes B2B reales.
  *
- * Si el cliente NO está en el map, la venta es "cliente puro": Sales Invoice
- * baja stock de Bodega Central y el destino sale del sistema.
+ * Decisión arquitectónica 2026-05-12:
+ * - PUERTA REAL es sucursal interna administrada por hermano del dueño.
+ *   Dueño legal sigue siendo matriz (Panaderias Grace).
+ * - Envío matriz → sucursal = Stock Entry Material Transfer (BODEGA → warehouse sucursal).
+ *   NO Sales Invoice (no genera ingreso, es movimiento interno).
+ * - Ventas reales en sucursal (workers libreta) ocurren EN la sucursal, no desde matriz.
  *
- * Si SÍ está, Sales Invoice + Delivery Note implícito mueve stock a su tienda.
+ * Este módulo expone el set de customers que NO deben aparecer en el flujo B2B.
+ * Si alguno está registrado como Customer en ERPNext (legacy), se filtra del buscador.
+ *
+ * Clientes B2B reales (externos): DULCE CARAMEL, DELI, ZAKIA, etc. NO se incluyen aquí.
  */
-export const TARGET_WAREHOUSE_POR_CLIENTE = {
-  'PUERTA REAL': 'TIENDA - PUERTA - PG',
-};
 
-/** Devuelve el warehouse destino para un cliente, o null si es cliente puro. */
-export function getTargetWarehouse(customerName) {
-  return TARGET_WAREHOUSE_POR_CLIENTE[customerName] || null;
+const SUCURSALES_INTERNAS = new Set([
+  'PUERTA REAL',
+]);
+
+/** ¿El customer es sucursal interna (no debe usarse en B2B sales)? */
+export function esSucursalInterna(customerName) {
+  if (!customerName) return false;
+  return SUCURSALES_INTERNAS.has(customerName);
 }
 
-/** ¿El cliente tiene sucursal extendida con warehouse propio? */
-export function esSucursalExtendida(customerName) {
-  return !!TARGET_WAREHOUSE_POR_CLIENTE[customerName];
+/** Set de nombres de sucursales internas (para filtros). */
+export function getSucursalesInternas() {
+  return [...SUCURSALES_INTERNAS];
 }

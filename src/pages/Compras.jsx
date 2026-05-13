@@ -49,7 +49,7 @@ function Compras() {
   const [hasta, setHasta] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [estadoFiltro, setEstadoFiltro] = useState('todas');
+  const [estadoFiltro, setEstadoFiltro] = useState('recibida');
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
 
@@ -255,10 +255,10 @@ function Compras() {
             {/* TABS DE ESTADO */}
             <div className="vistas-tabs">
               {[
-                { key: 'todas',     label: 'Todas',     color: 'vista-registrado' },
                 { key: 'recibida',  label: 'Recibida',  color: 'vista-stock' },
                 { key: 'en_espera', label: 'En espera', color: 'vista-agotado' },
                 { key: 'cancelada', label: 'Cancelada', color: 'vista-deshabilitado' },
+                { key: 'todas',     label: 'Todas',     color: 'vista-registrado' },
               ].map(t => (
                 <button key={t.key}
                   className={`vista-tab ${t.color} ${estadoFiltro === t.key ? 'activa' : ''}`}
