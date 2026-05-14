@@ -52,6 +52,18 @@
 }
 .comp-btn-editar:hover { background: #fff6ea; }
 
+.comp-btn-eliminar {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.comp-btn-eliminar:hover { background: #fef2f2; }
+
 .comp-btn-confirmar {
   padding: 4px 10px;
   border-radius: 6px;

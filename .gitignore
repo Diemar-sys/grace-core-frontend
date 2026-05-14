@@ -25,3 +25,4 @@ dist-ssr
 .env*
 !.env.example
 cookies.txt
+commit_msg.txt

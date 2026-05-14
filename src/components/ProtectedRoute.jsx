@@ -1,12 +1,21 @@
+import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { getRoleConfig } from '../config/roles';
 import { useAutoUppercase } from '../hooks/useAutoUppercase';
+import { loadAppConfig } from '../services/appConfig';
+import { loadSucursalesConfig } from '../services/sucursalesConfig';
 
 function ProtectedRoute({ children }) {
   useAutoUppercase();
   const user = auth.getUser();
   const location = useLocation();
+
+  // Pre-cargar configs si session activa (cubre refresh página sin pasar por login).
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([loadAppConfig(), loadSucursalesConfig()]).catch(() => {});
+  }, [user]);
 
   if (!user) return <Navigate to="/login" replace />;
 

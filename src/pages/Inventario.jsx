@@ -36,7 +36,7 @@ function Inventario() {
 
   const [itemGroups, setItemGroups]         = useState([]);
   const [loading, setLoading]               = useState(true);
-  const [selectedWarehouse, setSelectedWarehouse] = useState("");
+  const [selectedWarehouse, setSelectedWarehouse] = useState(stockService.getBodegaCentral());
   const [selectedGroup, setSelectedGroup]   = useState("");
   const [searchTerm, setSearchTerm]         = useState("");
   const [almacenesAll, setAlmacenesAll]     = useState([]);

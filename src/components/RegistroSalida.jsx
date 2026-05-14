@@ -2,6 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
 import { sanitizar } from '../utils/security';
+import { getSucursalesDestino } from '../config/clientesB2B';
+import { BODEGA_CENTRAL } from '../config/constants';
+import { TENANT } from '../config/tenant';
 import '../styles/RegistroMovimiento.css';
 
 const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', item_name: '', qty: '', uom: '' });
@@ -34,8 +37,20 @@ function RegistroSalida({ onSuccess, onCancel }) {
     ])
       .then(([agrup, flat]) => {
         if (cancel) return;
-        setGrupos(agrup);
-        setAlmacenes(flat);
+        // Excluir:
+        // - BODEGA CENTRAL (siempre origen, no destino válido)
+        // - TIENDA matriz (mismo lugar físico que BODEGA, no requiere envío)
+        // - Warehouses con flujo dedicado en EnvioSucursal (sucursales extendidas)
+        const exclWh = new Set([
+          BODEGA_CENTRAL,
+          TENANT.tiendaMatriz,
+          ...getSucursalesDestino().map(s => s.warehouse),
+        ]);
+        const agrupFiltrado = agrup
+          .map(g => ({ ...g, almacenes: g.almacenes.filter(a => !exclWh.has(a.name)) }))
+          .filter(g => g.almacenes.length > 0);
+        setGrupos(agrupFiltrado);
+        setAlmacenes(flat.filter(a => !exclWh.has(a.name)));
       })
       .catch(err => console.error('No pude cargar almacenes:', err));
     return () => { cancel = true; };

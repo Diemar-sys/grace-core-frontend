@@ -7,6 +7,7 @@ import Catalogo from './pages/Catalogo';
 import Proveedores from './pages/Proveedores';
 import Compras from './pages/Compras';
 import VentaB2B from './pages/VentaB2B';
+import EnvioSucursal from './pages/EnvioSucursal';
 import POS from './pages/POS';
 import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
@@ -74,6 +75,14 @@ function App() {
           element={
             <ProtectedRoute>
               <VentaB2B />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/envio-sucursal"
+          element={
+            <ProtectedRoute>
+              <EnvioSucursal />
             </ProtectedRoute>
           }
         />

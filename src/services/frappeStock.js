@@ -494,18 +494,22 @@ class FrappeStockService extends FrappeBase {
    * @param {string} [args.hasta]
    * @returns {Promise<Array<{name, posting_date, remarks, items: [{item_code, item_name, qty, uom, custom_precio_venta, monto}]}>>}
    */
-  async getTransferenciasSucursal({ warehouseDestino, desde = null, hasta = null } = {}, signal) {
+  async getTransferenciasSucursal({ warehouseDestino, desde = null, hasta = null, docstatus = null } = {}, signal) {
     if (!warehouseDestino) throw new Error('warehouseDestino requerido');
 
     const filtersSE = [
-      ['docstatus', '=', 1],
       ['stock_entry_type', '=', 'Material Transfer'],
       ['to_warehouse', '=', warehouseDestino],
     ];
+    if (docstatus != null) {
+      filtersSE.push(['docstatus', '=', docstatus]);
+    } else {
+      filtersSE.push(['docstatus', 'in', [0, 1, 2]]);
+    }
     if (desde) filtersSE.push(['posting_date', '>=', desde]);
     if (hasta) filtersSE.push(['posting_date', '<=', hasta]);
     const paramsSE = new URLSearchParams({
-      fields: JSON.stringify(['name', 'posting_date', 'remarks', 'from_warehouse', 'to_warehouse']),
+      fields: JSON.stringify(['name', 'posting_date', 'remarks', 'from_warehouse', 'to_warehouse', 'docstatus']),
       filters: JSON.stringify(filtersSE),
       order_by: 'posting_date desc, name desc',
       limit_page_length: 500,
@@ -514,35 +518,64 @@ class FrappeStockService extends FrappeBase {
     const entries = seRes?.data || [];
     if (!entries.length) return [];
 
-    const names = entries.map(e => e.name);
-    const paramsDetail = new URLSearchParams({
-      fields: JSON.stringify([
-        'parent', 'item_code', 'item_name', 'qty', 'uom', 'custom_precio_venta',
-      ]),
-      filters: JSON.stringify([
-        ['parenttype', '=', 'Stock Entry'],
-        ['parent', 'in', names],
-      ]),
-      limit_page_length: 0,
-    });
-    const detRes = await this._fetch('/api/resource/Stock Entry Detail?' + paramsDetail, { signal });
+    // Cargar items de cada Stock Entry individualmente vía endpoint detail
+    // (Stock Entry Detail child table API es inconsistente con filtros multi-parent).
     const itemsByParent = {};
-    (detRes?.data || []).forEach(d => {
-      if (!itemsByParent[d.parent]) itemsByParent[d.parent] = [];
-      const precio = parseFloat(d.custom_precio_venta || 0);
-      const qty = parseFloat(d.qty || 0);
-      itemsByParent[d.parent].push({
+    await Promise.all(entries.map(async (e) => {
+      try {
+        const doc = await this._fetch('/api/resource/Stock Entry/' + encodeURIComponent(e.name), { signal });
+        const items = doc?.data?.items || [];
+        itemsByParent[e.name] = items;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('No se pudieron cargar items de', e.name, err);
+        itemsByParent[e.name] = [];
+      }
+    }));
+
+    const allDetails = Object.entries(itemsByParent).flatMap(([parent, its]) =>
+      its.map(d => ({ ...d, parent }))
+    );
+
+    // Rehidratar cantidad_por_presentación desde catálogo: doc guarda qty en
+    // unidad natural (ej. Bulto), display debe ser stock_uom (Kg).
+    const codes = [...new Set(allDetails.map(d => d.item_code).filter(Boolean))];
+    const cantPresByCode = {};
+    if (codes.length) {
+      try {
+        const catParams = new URLSearchParams({
+          fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación']),
+          filters: JSON.stringify([['name', 'in', codes]]),
+          limit_page_length: 500,
+        });
+        const cat = await this._fetch('/api/resource/Item?' + catParams, { signal });
+        (cat?.data || []).forEach(it => {
+          cantPresByCode[it.item_code] = parseFloat(it.custom_cantidad_por_presentación) || 1;
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') console.warn('Catálogo presentación no disponible:', err?.message);
+      }
+    }
+
+    const itemsByParentFinal = {};
+    allDetails.forEach(d => {
+      if (!itemsByParentFinal[d.parent]) itemsByParentFinal[d.parent] = [];
+      const cantPres = cantPresByCode[d.item_code] || 1;
+      const precio = parseFloat(d.custom_precio_venta || 0); // precio por Kg
+      const qtyNatural = parseFloat(d.qty || 0);
+      const qtyDisplay = qtyNatural * cantPres; // qty en stock_uom (Kg)
+      itemsByParentFinal[d.parent].push({
         item_code: d.item_code,
         item_name: d.item_name,
-        qty,
-        uom: d.uom,
+        qty: qtyDisplay,
+        uom: d.stock_uom || d.uom,
         custom_precio_venta: precio,
-        monto: qty * precio,
+        monto: qtyDisplay * precio,
       });
     });
 
     return entries.map(e => {
-      const items = itemsByParent[e.name] || [];
+      const items = itemsByParentFinal[e.name] || [];
       const totalMonto = items.reduce((acc, it) => acc + it.monto, 0);
       return {
         name: e.name,
@@ -550,10 +583,38 @@ class FrappeStockService extends FrappeBase {
         remarks: e.remarks,
         from_warehouse: e.from_warehouse,
         to_warehouse: e.to_warehouse,
+        docstatus: e.docstatus,
         items,
         totalMonto,
       };
     });
+  }
+
+  /**
+   * Cancela un Stock Entry submitted. ERPNext crea SLE reverso automáticamente
+   * regresando el stock a la BODEGA origen.
+   * @param {string} name - Nombre del Stock Entry.
+   * @returns {Promise<Object>}
+   */
+  async cancelarTransferencia(name) {
+    const data = await this._fetch(
+      '/api/method/frappe.client.cancel',
+      { method: 'POST', body: JSON.stringify({ doctype: 'Stock Entry', name }) }
+    );
+    return data.message;
+  }
+
+  /**
+   * Obtiene un Stock Entry completo con items para reimprimir hoja de entrega
+   * o cargar en form de edición (borrador).
+   * @param {string} name
+   * @returns {Promise<Object>}
+   */
+  async getTransferenciaDoc(name) {
+    const data = await this._fetch(
+      '/api/resource/Stock Entry/' + encodeURIComponent(name)
+    );
+    return data?.data;
   }
 
   /**

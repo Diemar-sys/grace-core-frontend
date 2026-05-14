@@ -2,12 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { ventasService } from '../services/frappeSales';
 import { esSucursalInterna } from '../config/clientesB2B';
 
+/**
+ * Selector/buscador de clientes B2B. Pre-carga TODOS los clientes al montar
+ * (lista típica: DELI, ZAKIA, DULCE CARAMEL — pocos, sin paginación).
+ * - Click sin texto → muestra lista completa para seleccionar
+ * - Typing → filtra in-memory contra lista pre-cargada
+ * - Sucursales internas se excluyen (no son clientes reales)
+ */
 export default function BuscadorCliente({ value, onChange, grande = false, disabled = false }) {
   const [busqueda, setBusqueda] = useState(value?.label || '');
-  const [sugerencias, setSugerencias] = useState([]);
+  const [todos, setTodos] = useState([]);
   const [abierto, setAbierto] = useState(false);
   const [cursor, setCursor] = useState(-1);
-  const timerRef = useRef(null);
   const wrapRef = useRef(null);
   const listRef = useRef(null);
 
@@ -16,22 +22,37 @@ export default function BuscadorCliente({ value, onChange, grande = false, disab
   }, [value?.label]);
 
   useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const res = await ventasService.buscarClientes('');
+        if (cancel) return;
+        setTodos(res.filter(c => !esSucursalInterna(c.name)));
+      } catch (err) {
+        console.error('Error cargando clientes:', err);
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
+
+  useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  const sugerencias = busqueda
+    ? todos.filter(c =>
+        (c.customer_name || '').toLowerCase().includes(busqueda.toLowerCase()) ||
+        (c.name || '').toLowerCase().includes(busqueda.toLowerCase())
+      )
+    : todos;
+
   const handleInput = (texto) => {
     setBusqueda(texto);
     setCursor(-1);
-    if (!texto) { onChange({ name: '', label: '' }); setSugerencias([]); return; }
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      const res = await ventasService.buscarClientes(texto);
-      // Filtra sucursales internas — destino Stock Entry, NO clientes B2B reales.
-      setSugerencias(res.filter(c => !esSucursalInterna(c.name)));
-      setAbierto(true);
-    }, 500);
+    if (!texto) onChange({ name: '', label: '' });
+    setAbierto(true);
   };
 
   const seleccionar = (cli) => {
@@ -74,8 +95,9 @@ export default function BuscadorCliente({ value, onChange, grande = false, disab
         value={busqueda}
         onChange={e => handleInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        onFocus={() => sugerencias.length && setAbierto(true)}
-        placeholder="Buscar cliente..."
+        onFocus={() => setAbierto(true)}
+        onClick={() => setAbierto(true)}
+        placeholder="Selecciona o busca cliente..."
         disabled={disabled}
       />
       {abierto && sugerencias.length > 0 && (
@@ -87,7 +109,7 @@ export default function BuscadorCliente({ value, onChange, grande = false, disab
               onMouseDown={() => seleccionar(c)}
             >
               <div className="d-name">{c.customer_name}</div>
-              <div className="d-sub">{c.customer_group || '—'}</div>
+              {c.customer_group && <div className="d-sub">{c.customer_group}</div>}
             </div>
           ))}
         </div>

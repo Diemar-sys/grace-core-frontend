@@ -32,6 +32,8 @@ export const TENANT = {
   erpCompany:         env.VITE_ERP_COMPANY            || 'Panaderias Grace',
   /** Nombre del almacén central de insumos */
   bodegaCentral:      env.VITE_BODEGA_CENTRAL          || 'BODEGA CENTRAL - INSUMOS - PG',
+  /** Warehouse de la tienda matriz (mostrador en mismo lugar físico que BODEGA) */
+  tiendaMatriz:       env.VITE_TIENDA_MATRIZ           || 'TIENDA - PASEOS - PG',
   /** Cliente genérico para ventas al público */
   defaultCustomer:    env.VITE_DEFAULT_CUSTOMER        || 'Público en General',
   /** POS Profile de respaldo si el usuario no tiene uno asignado */

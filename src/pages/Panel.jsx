@@ -79,6 +79,15 @@ const IconVentaB2B = () => (
     <path d="M5.12 7h14.76l-1.65 7.43a2 2 0 0 1-1.95 1.57" />
   </svg>
 );
+const IconEnvioSucursal = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+    <path d="M15 18H9" />
+    <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+    <circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" />
+  </svg>
+);
 const IconProduccion = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -100,6 +109,7 @@ const MODULOS = [
   { key: "inventario",  path: "/inventario",  icon: <IconInventario />, nombre: "Inventario",      sub: "Inventarios",       color: "#2e7d32",    bg: "#e8f5e9" },
   { key: "compras",     path: "/compras",     icon: <IconCompras />,    nombre: "Compras",         sub: "Entradas",          color: "#1565c0",    bg: "#e3f0ff" },
   { key: "venta_b2b",   path: "/venta-b2b",   icon: <IconVentaB2B />,   nombre: "Venta B2B",       sub: "Mayoreo",           color: "#388e3c",    bg: "#e8f5e9" },
+  { key: "envio_sucursal", path: "/envio-sucursal", icon: <IconEnvioSucursal />, nombre: "Envío a Sucursal", sub: "Transferencia interna", color: "#0891b2",  bg: "#cffafe" },
   { key: "proveedores", path: "/proveedores", icon: <IconProveedores />,nombre: "Proveedores",     sub: "Catálogos",         color: "#6a1b9a",    bg: "#f3e5f5" },
   { key: "pos",         path: "/pos",         icon: <IconPOS />,        nombre: "Punto de Venta",  sub: "Ventas",            color: "#bf360c",    bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion",  icon: <IconProduccion />, nombre: "Producción",      sub: "Recetas y consumo", color: "#3b848aff",  bg: "#d1f0f3ff" },
@@ -171,6 +181,7 @@ const MODULOS_CONSULTAS = [
   { key: "inventario",  path: "/inventario?modo=consulta",  icon: <IconInventario />,  nombre: "Inventario",     sub: "Ver registros",      color: "#2e7d32",   bg: "#e8f5e9" },
   { key: "compras",     path: "/compras?modo=consulta",     icon: <IconCompras />,     nombre: "Compras",        sub: "Ver registros",      color: "#1565c0",   bg: "#e3f0ff" },
   { key: "venta_b2b",   path: "/venta-b2b?modo=consulta",   icon: <IconVentaB2B />,    nombre: "Venta B2B",      sub: "Ver registros",      color: "#388e3c",   bg: "#e8f5e9" },
+  { key: "envio_sucursal", path: "/envio-sucursal?modo=consulta", icon: <IconEnvioSucursal />, nombre: "Envío a Sucursal", sub: "Ver registros", color: "#0891b2", bg: "#cffafe" },
   { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
   { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },

@@ -189,10 +189,11 @@
 .stat-card {
   background: linear-gradient(135deg, #fdf9f3 0%, #fef3e2 100%);
   color: var(--color-brand);
-  padding: 10px 40px;
+  padding: 10px 18px;
   border-radius: var(--radius-card);
-  text-align: center;
-  min-width: 100px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   box-shadow: 0 4px 16px rgba(107,50,9,0.12);
   border: 1px solid #e8d5b8;
 }
@@ -201,15 +202,16 @@
   border: 1px solid #fbbf24;
 }
 .stat-number {
-  display: block;
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 700;
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+  line-height: 1;
 }
 .stat-label {
   font-size: 13px;
   opacity: 0.85;
+  line-height: 1.1;
 }
 
 /* ══ PESTAÑAS DE VISTA ═══════════════════════════════════ */

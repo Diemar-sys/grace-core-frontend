@@ -1,5 +1,6 @@
 import FrappeBase from './FrappeBase';
 import { loadAppConfig, clearAppConfigCache } from './appConfig';
+import { loadSucursalesConfig, clearSucursalesConfigCache } from './sucursalesConfig';
 
 // URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
 // En producción, el reverse proxy de nginx hace lo mismo, por lo que tampoco se necesita.
@@ -58,10 +59,13 @@ class FrappeAuthService extends FrappeBase {
       posProfile,
     }));
 
-    // Pre-cargar AppConfig (cuentas COA + Item Tax Templates) para que reads
-    // síncronos (ej. buildTaxes) tengan cache poblada. Fallback transparente
-    // si endpoint backend no existe todavía.
-    await loadAppConfig();
+    // Pre-cargar configs dinámicos para que reads síncronos (buildTaxes,
+    // clientesB2B helpers) tengan cache poblada. Fallback transparente si
+    // endpoint backend no existe.
+    await Promise.all([
+      loadAppConfig(),
+      loadSucursalesConfig(),
+    ]);
 
     return data;
   }
@@ -122,6 +126,7 @@ class FrappeAuthService extends FrappeBase {
     inventory.clearCache();
     stockService.clearCache();
     clearAppConfigCache();
+    clearSucursalesConfigCache();
   }
 
   // ─────────────────────────────────────────────

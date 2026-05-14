@@ -1,10 +1,11 @@
 // src/pages/VentaB2B.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevaVentaB2B from "../components/NuevaVentaB2B";
 import ModalRegistrarPago from "../components/ModalRegistrarPago";
 import ConfirmModal from "../components/ConfirmModal";
+import Libreta from "../components/Libreta";
 import { ventasService } from "../services/frappeSales";
 import useConfirmModal from "../hooks/useConfirmModal";
 import "../styles/global.css";
@@ -80,39 +81,13 @@ function VentaB2B() {
     setClienteExpandido(prev => ({ ...prev, [customer]: !prev[customer] }));
   };
 
-  // Libreta de cobros — clientes con deuda pendiente
-  const [deudas, setDeudas] = useState([]);
-  const [deudasLoading, setDeudasLoading] = useState(false);
-  const [deudaExpandida, setDeudaExpandida] = useState({});
-  const [pagoModal, setPagoModal] = useState(null); // grupo seleccionado para cobro
-
-  const cargarDeudas = useCallback(async (signal) => {
-    setDeudasLoading(true);
-    try {
-      const data = await ventasService.getDeudaPorCliente(signal);
-      setDeudas(data);
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Error deudas:', err);
-    } finally {
-      setDeudasLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (accionActiva !== 'libreta') return;
-    const controller = new AbortController();
-    cargarDeudas(controller.signal);
-    return () => controller.abort();
-  }, [accionActiva, cargarDeudas]);
-
-  const toggleDeuda = (customer) => {
-    setDeudaExpandida(prev => ({ ...prev, [customer]: !prev[customer] }));
-  };
+  // Modal cobro — Payment Entry contra facturas seleccionadas
+  const [pagoModal, setPagoModal] = useState(null); // grupo cliente con deuda
+  const libretaRef = useRef(null);
 
   const handlePagoSuccess = () => {
     setPagoModal(null);
-    cargarDeudas();
+    libretaRef.current?.recargar();
   };
 
   const cargar = useCallback(async (signal) => {
@@ -257,7 +232,7 @@ function VentaB2B() {
               <div className="module-icon" style={{ background: '#fef3c7', color: '#ca8a04' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
               </div>
-              <h3>Libreta / Cobros</h3>
+              <h3>Registrar Cobro</h3>
               <p>Saldos por cliente y pagos</p>
             </button>
           </div>
@@ -265,8 +240,11 @@ function VentaB2B() {
           <>
             <div className="filtros-section">
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                <button className="btn-refresh" onClick={() => setAccionActiva('menu')}>← Volver</button>
-                <button className="btn-refresh" onClick={cargarDeudas}>
+                <button className="btn-refresh"
+                  onClick={() => setAccionActiva(soloLectura ? 'consultar' : 'menu')}>
+                  ← Volver
+                </button>
+                <button className="btn-refresh" onClick={() => libretaRef.current?.recargar()}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -278,81 +256,7 @@ function VentaB2B() {
               </div>
             </div>
 
-            {deudasLoading ? (
-              <div className="loading">Cargando libreta...</div>
-            ) : deudas.length === 0 ? (
-              <div className="no-data" style={{ padding: '40px', textAlign: 'center' }}>
-                Sin saldos pendientes — todos los clientes están al corriente
-              </div>
-            ) : (
-              <div style={{ marginTop: '16px' }}>
-                {deudas.map(g => {
-                  const open = !!deudaExpandida[g.customer];
-                  return (
-                    <div key={g.customer} className="grupo-cliente"
-                      style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '14px 18px', background: open ? '#fef3c7' : '#fffbeb',
-                        borderBottom: open ? '1px solid #fde68a' : 'none',
-                      }}>
-                        <button onClick={() => toggleDeuda(g.customer)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: '15px', flex: 1, textAlign: 'left', padding: 0,
-                          }}>
-                          <span style={{ fontSize: '14px', color: '#92400e' }}>{open ? '▼' : '▶'}</span>
-                          <strong style={{ fontSize: '16px' }}>{g.customer_name}</strong>
-                          <span style={{ fontSize: '13px', color: '#92400e' }}>
-                            ({g.facturas.length} {g.facturas.length === 1 ? 'factura' : 'facturas'})
-                          </span>
-                        </button>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, fontSize: '17px', color: '#92400e' }}>
-                            ${fmt(g.totalDeuda)}
-                          </span>
-                          <button
-                            className="comp-btn-confirmar"
-                            onClick={() => setPagoModal(g)}
-                            style={{ background: '#16a34a', color: '#fff', padding: '6px 14px', borderRadius: 6, fontWeight: 600 }}>
-                            💰 Cobrar
-                          </button>
-                        </div>
-                      </div>
-                      {open && (
-                        <div style={{ padding: '8px 18px', background: '#fafafa' }}>
-                          <table className="sys-table">
-                            <thead>
-                              <tr>
-                                <th>Fecha</th>
-                                <th># Venta</th>
-                                <th className="cell-right">Total</th>
-                                <th className="cell-right">Saldo</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {g.facturas.map(f => (
-                                <tr key={f.name}>
-                                  <td>{f.posting_date}</td>
-                                  <td className="cell-code">
-                                    {f.custom_no_de_venta ? `#${f.custom_no_de_venta}` : f.name}
-                                  </td>
-                                  <td className="cell-right">${fmt(f.grand_total)}</td>
-                                  <td className="cell-right cell-bold" style={{ color: '#92400e' }}>
-                                    ${fmt(f.outstanding_amount)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <Libreta ref={libretaRef} readOnly={soloLectura} onCobrar={setPagoModal} />
           </>
         ) : (
           <>
@@ -395,11 +299,17 @@ function VentaB2B() {
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
                 {soloLectura && (
-                  <button className="btn-refresh"
-                    style={vistaLineas ? { background: '#1e3a5f', color: '#fff' } : {}}
-                    onClick={() => setVistaLineas(v => !v)}>
-                    {vistaLineas ? '← Por venta' : '📋 Por cliente'}
-                  </button>
+                  <>
+                    <button className="btn-refresh"
+                      style={vistaLineas ? { background: '#1e3a5f', color: '#fff' } : {}}
+                      onClick={() => setVistaLineas(v => !v)}>
+                      {vistaLineas ? '← Por venta' : '📋 Por cliente'}
+                    </button>
+                    <button className="btn-refresh"
+                      onClick={() => { setVistaLineas(false); setAccionActiva('libreta'); }}>
+                      📕 Libreta
+                    </button>
+                  </>
                 )}
                 <button className="btn-refresh" onClick={vistaLineas ? cargarGrupos : cargar}>
                   Actualizar

@@ -418,6 +418,62 @@ class FrappeSalesService extends FrappeBase {
   }
 
   /**
+   * Items detallados de una factura específica (qty, rate, amount, uom).
+   * Para vista expand en libreta de cobros.
+   * @param {string} name - Sales Invoice name
+   * @returns {Promise<Array<{item_code, item_name, qty, uom, rate, amount}>>}
+   */
+  async getFacturaItems(name, signal) {
+    if (!name) return [];
+    const data = await this._fetch(
+      '/api/resource/Sales Invoice/' + encodeURIComponent(name),
+      { signal },
+    );
+    const itemsRaw = data?.data?.items || [];
+    if (!itemsRaw.length) return [];
+
+    // ERPNext guarda qty en presentación natural (ej. 1 bulto).
+    // Frontend muestra en stock_uom real (ej. 25 Kg).
+    // Convertir: qtyDisplay = qtyNatural × cantPres, rateDisplay = rateNatural / cantPres.
+    // Total preservado: qtyNatural × rateNatural ≡ qtyDisplay × rateDisplay.
+    const codes = [...new Set(itemsRaw.map(i => i.item_code).filter(Boolean))];
+    let dict = {};
+    if (codes.length) {
+      try {
+        const params = new URLSearchParams({
+          fields: JSON.stringify([
+            'item_code', 'stock_uom', 'custom_cantidad_por_presentación', 'custom_presentación',
+          ]),
+          filters: JSON.stringify([['name', 'in', codes]]),
+          limit_page_length: 200,
+        });
+        const cat = await this._fetch('/api/resource/Item?' + params, { signal });
+        (cat?.data || []).forEach(it => { dict[it.item_code] = it; });
+      } catch (e) {
+        if (e.name !== 'AbortError') console.warn('Catálogo no disponible:', e);
+      }
+    }
+
+    return itemsRaw.map(it => {
+      const m = dict[it.item_code] || {};
+      const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
+      const qtyNat = parseFloat(it.qty || 0);
+      const rateNat = parseFloat(it.rate || 0);
+      return {
+        item_code: it.item_code,
+        item_name: it.item_name,
+        qty: qtyNat * cantPres,       // display en stock_uom (Kg/Lt/Pza)
+        uom: m.stock_uom || it.stock_uom || it.uom || '',
+        rate: cantPres > 0 ? rateNat / cantPres : rateNat,
+        amount: parseFloat(it.amount || 0), // total preservado
+        cantidad_por_presentacion: cantPres,
+        presentacion: m.custom_presentación || '',
+        qty_presentacion: qtyNat,     // útil mostrar "1 Bulto"
+      };
+    });
+  }
+
+  /**
    * Registra pago consolidado.
    * @param {Object} params
    * @param {string} params.customer
