@@ -9,10 +9,12 @@
  * agrega una sucursal nueva en ERPNext desk, basta con relogin para que
  * el frontend la vea (o llamar loadSucursalesConfig() manualmente).
  *
- * Decisión arquitectónica 2026-05-12:
- * - PUERTA REAL es sucursal interna administrada por hermano del dueño.
- * - Envío matriz → sucursal = Stock Entry Material Transfer (no Sales Invoice).
- * - Backend hook bloquea SI con customer en sucursales internas.
+ * Modelo 2026-05-18:
+ * - PUERTA REAL es Customer B2B normal: se le vende pan + abarrotes vía
+ *   Sales Invoice (genera deuda, se cobra en Libreta).
+ * - Solo la materia prima va por Stock Entry Material Transfer.
+ * - `sucursales_internas` queda normalmente vacío; se conserva el
+ *   mecanismo por si en el futuro hay una sucursal de transferencia pura.
  */
 
 import { getSucursalesConfigSync } from '../services/sucursalesConfig';
@@ -32,4 +34,23 @@ export function getSucursalesInternas() {
 /** Lista de sucursales destino para Envío Sucursal (con warehouse asociado). */
 export function getSucursalesDestino() {
   return [...getSucursalesConfigSync().sucursales_destino];
+}
+
+/**
+ * Clientes que reciben su materia prima por transferencia, no por venta B2B.
+ * Para ellos la materia prima se oculta del buscador de productos en Venta B2B
+ * (pan y abarrotes sí se les venden; la MP va por el módulo Envío a Sucursal).
+ *
+ * Hoy solo PUERTA REAL (sucursal del hermano del dueño). Si en el futuro
+ * hay otro cliente con el mismo trato, agregar su nombre aquí.
+ *
+ * Nota: esto es una guía de UX, no una barrera de seguridad. El bloqueo
+ * real (que la MP no entre a un Sales Invoice de PUERTA) debe vivir en un
+ * hook de backend, igual que las validaciones P0.
+ */
+const CLIENTES_MP_POR_TRANSFERENCIA = ['PUERTA REAL'];
+
+/** ¿A este cliente se le oculta la materia prima en el buscador de Venta B2B? */
+export function ocultaMateriaPrima(customerName) {
+  return !!customerName && CLIENTES_MP_POR_TRANSFERENCIA.includes(customerName);
 }

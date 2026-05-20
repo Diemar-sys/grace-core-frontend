@@ -5,6 +5,7 @@ import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
 import ModalError from './ModalError';
 import BuscadorCliente from './BuscadorCliente';
+import { ocultaMateriaPrima } from '../config/clientesB2B';
 import { TENANT } from '../config/tenant';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
@@ -561,6 +562,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
                   onEliminar={() => eliminarFila(fila._id)}
                   onAddRow={agregarFila}
                   soloUna={filas.length === 1}
+                  bloqueaMP={ocultaMateriaPrima(cliente.name)}
                 />
               ))}
             </tbody>
@@ -628,7 +630,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onEliminar, onAddRow, soloUna }) {
+function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -651,7 +653,12 @@ function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onElimina
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await ventasService.buscarItems(texto);
-      setSugerencias(res); setAbierto(true);
+      // PUERTA REAL recibe su materia prima por transferencia, no por venta:
+      // se oculta del buscador. Otros clientes (DELI, ZAKIA) sí compran MP.
+      const filtrado = bloqueaMP
+        ? res.filter(it => it.custom_tipo_item !== 'MATERIA PRIMA')
+        : res;
+      setSugerencias(filtrado); setAbierto(true);
     }, 500);
   };
 
@@ -683,11 +690,11 @@ function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onElimina
     onChange('cantidad_por_presentacion', cantPres);
     onChange('presentacion', item.custom_presentación || '');
 
-    // Precio: priorizar precio por kg. Si no, derivar de precio_de_venta (por presentación) / cantPres.
+    // Precio de VENTA del catálogo. custom_precio_de_venta es por presentación
+    // → dividir entre cantPres para el precio por unidad real (Kg/Lt/Pza).
+    // OJO: NO usar custom_precio_por_kg — ese es el COSTO de compra, no la venta.
     let ratePorUnidad;
-    if (item.custom_precio_por_kg) {
-      ratePorUnidad = parseFloat(item.custom_precio_por_kg);
-    } else if (item.custom_precio_de_venta) {
+    if (item.custom_precio_de_venta) {
       ratePorUnidad = parseFloat(item.custom_precio_de_venta) / cantPres;
     } else if (item.standard_rate) {
       ratePorUnidad = parseFloat(item.standard_rate) / cantPres;
@@ -817,7 +824,7 @@ function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onElimina
         )}
       </td>
 
-      {/* Precio venta — readonly, fuente: catálogo (custom_precio_de_venta/custom_precio_por_kg/standard_rate) */}
+      {/* Precio venta — readonly, fuente: catálogo (custom_precio_de_venta, sino standard_rate) */}
       <td>
         {fila.rate
           ? <span className="nc-precio-fijo">${parseFloat(fila.rate).toFixed(2)}</span>

@@ -1,8 +1,9 @@
 /**
  * FrappeSalesService
  * Maneja Sales Invoice (con update_stock=1) en ERPNext para venta B2B externa.
- * Stock baja de Bodega Central. Clientes B2B = entidades externas (DULCE CARAMEL, DELI, ZAKIA).
- * Sucursales internas (PUERTA REAL) usan Stock Entry Material Transfer aparte — no este servicio.
+ * Stock baja de Bodega Central. Clientes B2B = PUERTA REAL, DULCE CARAMEL, DELI, ZAKIA.
+ * A PUERTA REAL se le vende pan + abarrotes por aquí; solo su materia prima
+ * va aparte por Stock Entry Material Transfer (módulo Envío a Sucursal).
  */
 
 import FrappeBase from './FrappeBase';
@@ -97,7 +98,7 @@ class FrappeSalesService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify([
         'item_code', 'item_name', 'stock_uom', 'item_group',
-        'custom_impuesto',
+        'custom_impuesto', 'custom_tipo_item', 'custom_departamento',
         'custom_cantidad_por_presentación', 'custom_presentación',
         'custom_precio_de_venta', 'custom_precio_por_kg', 'standard_rate',
         'valuation_rate',
@@ -109,6 +110,9 @@ class FrappeSalesService extends FrappeBase {
       const data = await this._fetch('/api/resource/Item?' + params, {
         signal: this._abortItems.signal,
       });
+      // Devuelve todo lo vendible (is_sales_item=1). La materia prima SÍ se
+      // vende a clientes externos (DELI, ZAKIA). El filtro de MP es por
+      // cliente (solo PUERTA REAL) y se aplica en NuevaVentaB2B, no aquí.
       return data?.data || [];
     } catch (err) {
       if (err.name === 'AbortError') return [];

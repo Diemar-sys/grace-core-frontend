@@ -9,10 +9,13 @@
  * getters sync para consumidores no-async (config files, helpers).
  */
 
+// Modelo 2026-05-18: PUERTA REAL es Customer B2B normal (se le vende
+// pan + abarrotes vía Sales Invoice). Solo materia prima va por
+// transferencia. Por eso ya NO es sucursal interna.
 const FALLBACK = Object.freeze({
-  sucursales_internas: ['PUERTA REAL'],
+  sucursales_internas: [],
   sucursales_destino: [
-    { label: 'PUERTA REAL', warehouse: 'TIENDA - PUERTA - PG' },
+    { label: 'PUERTA REAL', warehouse: 'MP PUERTA - PG' },
   ],
 });
 
