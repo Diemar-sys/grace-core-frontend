@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';
 import ConfirmModal from '../components/ConfirmModal';
 import { inventory } from '../services/frappeInventory';
+import { produccionService } from '../services/frappeProduccion';
 import useConfirmModal from '../hooks/useConfirmModal';
 import '../styles/global.css';
 import '../styles/Panel.css';
@@ -14,8 +15,8 @@ const VISTAS = [
   { key: 'deshabilitado', label: 'DESHABILITADOS', color: 'vista-deshabilitado' },
 ];
 const COLUMNAS = {
-  registrado:    ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida', 'Acciones'],
-  deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida', 'Acciones'],
+  registrado:    ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Unidad de Medida', 'Acciones'],
+  deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Unidad de Medida', 'Acciones'],
 };
 
 /**
@@ -84,6 +85,7 @@ function Catalogo() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState('');
+  const [costosBOM, setCostosBOM] = useState({});
 
   // Declarada con useCallback para que useEffect pueda declararla en sus dependencias
   // sin suprimir el linter. Las dependencias reflejan exactamente qué valores usa.
@@ -127,6 +129,18 @@ function Catalogo() {
   }, []);
 
   useEffect(() => { loadItems(); }, [loadItems]);
+
+  useEffect(() => {
+    const ptCodes = items
+      .filter(it => it.custom_tipo_item === 'PRODUCTO TERMINADO')
+      .map(it => it.item_code);
+    if (!ptCodes.length) { setCostosBOM({}); return; }
+    let cancel = false;
+    produccionService.calcularCostosBOMBatch(ptCodes)
+      .then(mapa => { if (!cancel) setCostosBOM(mapa); })
+      .catch(err => console.error('Error calculando costos BOM:', err));
+    return () => { cancel = true; };
+  }, [items]);
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedGroup(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
@@ -267,7 +281,8 @@ function Catalogo() {
                       : filtered.map((item, i) => (
                         <FilaItem key={i} item={item} vista={vistaActiva}
                           onEdit={handleEdit} editLoading={editLoading}
-                          onDelete={deleteModal.open} onDisable={disableModal.open} onEnable={enableModal.open} soloLectura={soloLectura} accionActiva={accionActiva} />
+                          onDelete={deleteModal.open} onDisable={disableModal.open} onEnable={enableModal.open} soloLectura={soloLectura} accionActiva={accionActiva}
+                          costoBOM={costosBOM[item.item_code]} />
                       ))
                     }
                   </tbody>
@@ -356,7 +371,7 @@ function Catalogo() {
  * @param {Function} props.onDelete - Callback para abrir modal de eliminar.
  * @returns {JSX.Element|null} Fila condicional de la tabla.
  */
-function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEnable, soloLectura, accionActiva }) {
+function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEnable, soloLectura, accionActiva, costoBOM }) {
   const BtnAcciones = () => soloLectura ? null : (
     <td className="col-actions">
       {accionActiva === 'editar' && (
@@ -396,12 +411,26 @@ function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEna
 
   if (vista === 'registrado' || vista === 'deshabilitado') {
     const { actual, totalStr, paqStr } = fmtStock(item);
+    const esPT = item.custom_tipo_item === 'PRODUCTO TERMINADO';
+    const costoCell = esPT
+      ? (costoBOM
+          ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontWeight: 600 }}>${costoBOM.costoPorUnidad.toFixed(2)}</span>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                  {`${costoBOM.cantidadProducida} ${costoBOM.uom} → $${costoBOM.costoTotal.toFixed(2)}`}
+                </span>
+              </div>
+            )
+          : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>sin receta</span>)
+      : '—';
     return (
       <tr>
         <td className="cell-code">{item.item_code || '—'}</td>
         <td className="cell-name">{item.item_name}</td>
         <td>{item.custom_total_presentacion ? `$${parseFloat(item.custom_total_presentacion).toFixed(2)}` : '—'}</td>
         <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
+        <td>{costoCell}</td>
         <td className="cell-qty">
           {actual > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

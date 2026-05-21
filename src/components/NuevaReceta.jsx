@@ -34,7 +34,9 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [departamentos, setDepartamentos] = useState([]);
+  const [costeo, setCosteo] = useState({ costoTotal: 0, costoPorUnidad: 0, detalle: [] });
   const timerRef = useRef(null);
+  const costeoTimerRef = useRef(null);
 
   useEffect(() => {
     let cancel = false;
@@ -43,6 +45,19 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
       .catch(err => console.error('No pude cargar departamentos:', err));
     return () => { cancel = true; };
   }, []);
+
+  useEffect(() => {
+    clearTimeout(costeoTimerRef.current);
+    costeoTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await produccionService.calcularCostoEnVivo(ingredientes, meta.quantity);
+        setCosteo(res);
+      } catch (err) {
+        console.error('Error calculando costo BOM en vivo:', err);
+      }
+    }, 400);
+    return () => clearTimeout(costeoTimerRef.current);
+  }, [ingredientes, meta.quantity]);
 
   // Buscar producto final (meta.item)
   const buscarProductoFinal = useCallback(async (texto) => {
@@ -294,6 +309,32 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
             <button className="btn-add-ingrediente" type="button" onClick={addIngrediente}>
               + Agregar ingrediente
             </button>
+
+            <div className="costeo-bom" style={{
+              marginTop: 16, padding: '12px 16px', background: '#f0f9ff',
+              border: '1px solid #bae6fd', borderRadius: 6,
+              display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap'
+            }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#0369a1', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Costo MP total
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#0c4a6e' }}>
+                  ${costeo.costoTotal.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#0369a1', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Costo por {meta.uom || 'unidad'}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#0c4a6e' }}>
+                  ${costeo.costoPorUnidad.toFixed(2)}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: '#475569', alignSelf: 'flex-end' }}>
+                Suma precio_final × qty de cada MP. Incluye IEPS/IVA cuando aplica.
+              </div>
+            </div>
           </div>
         </div>
 

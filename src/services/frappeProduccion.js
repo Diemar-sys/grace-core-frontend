@@ -170,6 +170,134 @@ class FrappeProduccionService extends FrappeBase {
   }
 
   // ─────────────────────────────────────────────
+  // COSTEO BOM
+  // ─────────────────────────────────────────────
+
+  /**
+   * Obtiene costo MP por ingrediente. Incluye custom_precio_final (con
+   * impuestos cuando aplica; igual a precio_por_kg si MP es tasa 0) y
+   * custom_precio_por_kg (base sin impuesto).
+   * @param {Array<string>} itemCodes
+   * @returns {Promise<Object>} Mapa { item_code: { precio_final, precio_por_kg } }
+   */
+  async getPreciosCosteo(itemCodes) {
+    if (!itemCodes.length) return {};
+    const params = new URLSearchParams({
+      fields: JSON.stringify(['item_code', 'custom_precio_final', 'custom_precio_por_kg']),
+      filters: JSON.stringify([['item_code', 'in', itemCodes]]),
+      limit_page_length: 500,
+    });
+    const data = await this._fetch(`/api/resource/Item?${params}`);
+    const mapa = {};
+    (data.data || []).forEach(item => {
+      mapa[item.item_code] = {
+        precio_final: parseFloat(item.custom_precio_final) || 0,
+        precio_por_kg: parseFloat(item.custom_precio_por_kg) || 0,
+      };
+    });
+    return mapa;
+  }
+
+  /**
+   * Calcula costo de producción de UN item PRODUCTO TERMINADO sumando
+   * MP × precio_final desde su BOM activa default.
+   * @param {string} itemCode - item_code del PT.
+   * @returns {Promise<Object|null>} { bomName, costoTotal, costoPorUnidad,
+   *   cantidadProducida, uom, ingredientes:[{item_code, item_name, qty,
+   *   precio_final, costo}] } o null si no hay BOM activa.
+   */
+  async calcularCostoBOM(itemCode) {
+    const params = new URLSearchParams({
+      fields: JSON.stringify(['name', 'item', 'quantity', 'uom']),
+      filters: JSON.stringify([
+        ['item', '=', itemCode],
+        ['is_active', '=', 1],
+        ['is_default', '=', 1],
+        ['docstatus', '=', 1],
+      ]),
+      limit_page_length: 1,
+    });
+    const bomList = await this._fetch(`/api/resource/BOM?${params}`);
+    const bomMeta = (bomList.data || [])[0];
+    if (!bomMeta) return null;
+
+    const bom = await this.getBOMDetalle(bomMeta.name);
+    const items = bom.items || [];
+    if (!items.length) return null;
+
+    const codes = [...new Set(items.map(i => i.item_code))];
+    const precios = await this.getPreciosCosteo(codes);
+
+    let costoTotal = 0;
+    const ingredientes = items.map(i => {
+      const precioFinal = precios[i.item_code]?.precio_final || 0;
+      const qty = parseFloat(i.qty) || 0;
+      const costo = precioFinal * qty;
+      costoTotal += costo;
+      return {
+        item_code: i.item_code,
+        item_name: i.item_name || i.description || i.item_code,
+        qty,
+        uom: i.stock_uom || i.uom,
+        precio_final: precioFinal,
+        costo,
+      };
+    });
+
+    const cantidadProducida = parseFloat(bom.quantity) || 1;
+    return {
+      bomName: bom.name,
+      costoTotal,
+      costoPorUnidad: costoTotal / cantidadProducida,
+      cantidadProducida,
+      uom: bom.uom,
+      ingredientes,
+    };
+  }
+
+  /**
+   * Calcula costo BOM en lote para muchos PT. Paraleliza con Promise.all.
+   * @param {Array<string>} itemCodes
+   * @returns {Promise<Object>} Mapa { item_code: resultado_calcularCostoBOM | null }
+   */
+  async calcularCostosBOMBatch(itemCodes) {
+    if (!itemCodes.length) return {};
+    const resultados = await Promise.all(
+      itemCodes.map(code => this.calcularCostoBOM(code).catch(() => null))
+    );
+    const mapa = {};
+    itemCodes.forEach((code, i) => { mapa[code] = resultados[i]; });
+    return mapa;
+  }
+
+  /**
+   * Costeo en vivo desde un arreglo de ingredientes (sin BOM persistido).
+   * Para uso en NuevaReceta mientras el usuario arma la receta.
+   * @param {Array} ingredientes - [{item_code, qty, ...}]
+   * @param {number} cantidadProducida - Cuántas unidades produce la receta.
+   * @returns {Promise<Object>} { costoTotal, costoPorUnidad, detalle:[{item_code, qty, precio_final, costo}] }
+   */
+  async calcularCostoEnVivo(ingredientes, cantidadProducida) {
+    const validos = ingredientes.filter(i => i.item_code && parseFloat(i.qty) > 0);
+    if (!validos.length) return { costoTotal: 0, costoPorUnidad: 0, detalle: [] };
+
+    const codes = [...new Set(validos.map(i => i.item_code))];
+    const precios = await this.getPreciosCosteo(codes);
+
+    let costoTotal = 0;
+    const detalle = validos.map(i => {
+      const precioFinal = precios[i.item_code]?.precio_final || 0;
+      const qty = parseFloat(i.qty);
+      const costo = precioFinal * qty;
+      costoTotal += costo;
+      return { item_code: i.item_code, qty, precio_final: precioFinal, costo };
+    });
+
+    const cant = parseFloat(cantidadProducida) || 1;
+    return { costoTotal, costoPorUnidad: costoTotal / cant, detalle };
+  }
+
+  // ─────────────────────────────────────────────
   // REGISTRO DE PRODUCCIÓN
   // ─────────────────────────────────────────────
 

@@ -454,9 +454,13 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
       const res = await ventasService.buscarItems(texto);
       // PUERTA REAL recibe su materia prima por transferencia, no por venta:
       // se oculta del buscador. Otros clientes (DELI, ZAKIA) sí compran MP.
-      const filtrado = bloqueaMP
-        ? res.filter(it => it.custom_tipo_item !== 'MATERIA PRIMA')
-        : res;
+      // Pan terminado (PRODUCTO TERMINADO) se bloquea en B2B hasta tener
+      // Price List por canal (precio capturado manual, no calculado).
+      const filtrado = res.filter(it => {
+        if (it.custom_tipo_item === 'PRODUCTO TERMINADO') return false;
+        if (bloqueaMP && it.custom_tipo_item === 'MATERIA PRIMA') return false;
+        return true;
+      });
       setSugerencias(filtrado); setAbierto(true);
     }, 500);
   };
