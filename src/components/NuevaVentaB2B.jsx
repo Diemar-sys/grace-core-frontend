@@ -5,14 +5,10 @@ import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
 import ModalError from './ModalError';
 import BuscadorCliente from './BuscadorCliente';
+import ModalReciboPDF from './ModalReciboPDF';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
-import { TENANT } from '../config/tenant';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
-
-const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[c]));
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -41,229 +37,6 @@ const subtotalFila = (f) => parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
 const impuestoFila = (f) => subtotalFila(f) * parseFloat(f.impuesto_rate || 0);
 const totalFila = (f) => subtotalFila(f) + impuestoFila(f);
 
-// ── Modal Recibo PDF ────────────────────────────────────────────────────────
-function ModalReciboPDF({ datos, onClose }) {
-  const { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador } = datos;
-  const fmt2 = (n) =>
-    Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const numStr = noVenta != null ? String(noVenta).padStart(4, '0') : '----';
-
-  const imprimir = () => {
-    const win = window.open('', '_blank', 'width=750,height=700');
-    const rows = filas.map(f => {
-      const sub = parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
-      const impMonto = sub * parseFloat(f.impuesto_rate || 0);
-      const totalLinea = sub + impMonto;
-      const impLabel = (f.impuesto_label || 'Tasa 0') + (impMonto > 0 ? ` — $${fmt2(impMonto)}` : '');
-      const qty = parseFloat(f.qty || 0);
-      const uom = f.uom || '';
-      const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-      const presentacion = f.presentacion || '';
-      const qtyPres = cantPres > 1 ? qty / cantPres : null;
-      const cantCell = qtyPres != null && presentacion
-        ? `${qty.toFixed(2)} ${escHTML(uom)}<br/><small style="color:#666;font-size:10px">${qtyPres.toFixed(2)} ${escHTML(presentacion)}</small>`
-        : `${qty.toFixed(2)}${uom ? ' ' + escHTML(uom) : ''}`;
-      return `
-        <tr>
-          <td>${escHTML(f.item_name || f.item_code)}</td>
-          <td style="text-align:center">${cantCell}</td>
-          <td style="text-align:right">$${fmt2(f.rate)}</td>
-          <td style="text-align:right">${escHTML(impLabel)}</td>
-          <td style="text-align:right">$${fmt2(totalLinea)}</td>
-        </tr>`;
-    }).join('');
-
-    const impuestosRows = [
-      totales.iva > 0 ? `<tr><td>IVA 16%</td><td style="text-align:right">$${fmt2(totales.iva)}</td></tr>` : '',
-      totales.ieps > 0 ? `<tr><td>IEPS 8%</td><td style="text-align:right">$${fmt2(totales.ieps)}</td></tr>` : '',
-      ajuste !== 0 ? `<tr><td>Ajuste</td><td style="text-align:right">$${fmt2(ajuste)}</td></tr>` : '',
-    ].join('');
-
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${esBorrador ? 'Preventa' : 'Venta'} #${escHTML(numStr)}</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
-    .header { text-align: center; margin-bottom: 20px; }
-    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 1px; }
-    .header h2 { font-size: 15px; font-weight: normal; margin-top: 4px; color: #555; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 20px; }
-    .info-grid span { font-size: 12px; }
-    .divider { border: none; border-top: 1.5px solid #111; margin: 12px 0; }
-    .divider-thin { border: none; border-top: 1px dashed #aaa; margin: 8px 0; }
-    table.items { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    table.items th { font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; padding: 4px 6px; }
-    table.items td { padding: 4px 6px; font-size: 12px; border-bottom: 1px dashed #ddd; }
-    table.totales { width: 280px; margin-left: auto; border-collapse: collapse; }
-    table.totales td { padding: 3px 6px; font-size: 13px; }
-    table.totales .base-row td { font-size: 11px; color: #666; }
-    table.totales .total-row td { font-weight: bold; font-size: 15px; border-top: 1.5px solid #111; padding-top: 6px; }
-    .footer { margin-top: 28px; text-align: center; font-size: 11px; color: #888; }
-    @media print { body { padding: 16px; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>${escHTML(TENANT.nombreFull)}</h1>
-    <h2>${esBorrador ? 'PREVENTA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE VENTA'}</h2>
-  </div>
-  <hr class="divider"/>
-  <div class="info-grid">
-    <span><strong>No. Venta:</strong> #${escHTML(numStr)}</span>
-    <span><strong>Fecha:</strong> ${escHTML(fecha)}</span>
-    <span><strong>Hora:</strong> ${escHTML(hora)}</span>
-    <span><strong>Cliente:</strong> ${escHTML(cliente)}</span>
-  </div>
-  <hr class="divider"/>
-  <table class="items">
-    <thead>
-      <tr>
-        <th style="text-align:left">Producto</th>
-        <th style="text-align:center">Cant.</th>
-        <th style="text-align:right">Precio</th>
-        <th style="text-align:right">Impuesto</th>
-        <th style="text-align:right">Total</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <hr class="divider-thin"/>
-  <table class="totales">
-    <tbody>
-      <tr class="base-row"><td>Subtotal IVA 16%</td><td style="text-align:right">$${fmt2(totales.subtotalIva16 || 0)}</td></tr>
-      <tr class="base-row"><td>Subtotal IEPS 8%</td><td style="text-align:right">$${fmt2(totales.subtotalIeps || 0)}</td></tr>
-      <tr class="base-row"><td>Subtotal IVA 0%</td><td style="text-align:right">$${fmt2(totales.subtotalTasa0 || 0)}</td></tr>
-      <tr><td>Subtotal</td><td style="text-align:right">$${fmt2(totales.subtotal)}</td></tr>
-      ${impuestosRows}
-      <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt2(totales.total)}</td></tr>
-    </tbody>
-  </table>
-  <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
-  <script>window.onload = function(){ window.print(); }<\/script>
-</body>
-</html>`;
-    win.document.write(html);
-    win.document.close();
-  };
-
-  return (
-    <div className="nc-modal-overlay">
-      <div className="nc-pdf-preview-modal">
-        <div className="nc-pdf-modal-header">
-          <span>🧾 Vista previa — {esBorrador ? 'Preventa' : 'Venta'} #{numStr}</span>
-          <button className="nc-btn-close" onClick={onClose}>×</button>
-        </div>
-
-        <div className="nc-pdf-scroll">
-          <div className="nc-recibo">
-            <div className="nc-recibo-head">
-              <div className="nc-recibo-empresa">{TENANT.nombreFull}</div>
-              <div className="nc-recibo-titulo">
-                {esBorrador ? 'PREVENTA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE VENTA'}
-              </div>
-            </div>
-            <hr className="nc-recibo-div" />
-            <div className="nc-recibo-info">
-              <span><strong>No. Venta:</strong> #{numStr}</span>
-              <span><strong>Fecha:</strong> {fecha}</span>
-              <span><strong>Hora:</strong> {hora}</span>
-              <span><strong>Cliente:</strong> {cliente}</span>
-            </div>
-            <hr className="nc-recibo-div" />
-            <table className="nc-recibo-tabla">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th style={{ textAlign: 'center' }}>Cant.</th>
-                  <th style={{ textAlign: 'right' }}>Precio</th>
-                  <th style={{ textAlign: 'right' }}>Impuesto</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((f, i) => {
-                  const sub = parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
-                  const impMonto = sub * parseFloat(f.impuesto_rate || 0);
-                  const totalLinea = sub + impMonto;
-                  const qty = parseFloat(f.qty || 0);
-                  const uom = f.uom || '';
-                  const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-                  const presentacion = f.presentacion || '';
-                  const qtyPres = cantPres > 1 ? qty / cantPres : null;
-                  return (
-                    <tr key={i}>
-                      <td>{f.item_name || f.item_code}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ fontWeight: 600 }}>
-                          {qty.toFixed(2)}{uom ? ' ' + uom : ''}
-                        </div>
-                        {qtyPres != null && presentacion && (
-                          <div style={{ fontSize: '11px', color: '#666' }}>
-                            {qtyPres.toFixed(2)} {presentacion}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>${fmt2(f.rate)}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {f.impuesto_label || 'Tasa 0'}
-                        {impMonto > 0 && ` — $${fmt2(impMonto)}`}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>${fmt2(totalLinea)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <hr className="nc-recibo-div-thin" />
-            <div className="nc-recibo-totales">
-              <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IVA 16%</span><span>${fmt2(totales.subtotalIva16 || 0)}</span>
-              </div>
-              <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IEPS 8%</span><span>${fmt2(totales.subtotalIeps || 0)}</span>
-              </div>
-              <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IVA 0%</span><span>${fmt2(totales.subtotalTasa0 || 0)}</span>
-              </div>
-              <div className="nc-recibo-total-fila">
-                <span>Subtotal</span><span>${fmt2(totales.subtotal)}</span>
-              </div>
-              {totales.iva > 0 && (
-                <div className="nc-recibo-total-fila">
-                  <span>IVA 16%</span><span>${fmt2(totales.iva)}</span>
-                </div>
-              )}
-              {totales.ieps > 0 && (
-                <div className="nc-recibo-total-fila">
-                  <span>IEPS 8%</span><span>${fmt2(totales.ieps)}</span>
-                </div>
-              )}
-              {ajuste !== 0 && (
-                <div className="nc-recibo-total-fila">
-                  <span>Ajuste</span><span>${fmt2(ajuste)}</span>
-                </div>
-              )}
-              <div className="nc-recibo-total-fila nc-recibo-grand-total">
-                <span>TOTAL</span><span>${fmt2(totales.total)}</span>
-              </div>
-            </div>
-            <div className="nc-recibo-footer">
-              Documento generado el {fecha} a las {hora}
-            </div>
-          </div>
-        </div>
-
-        <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
-          <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
-          <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Componente principal ────────────────────────────────────────────────────
 function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
@@ -315,7 +88,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
             console.warn('No se pudo rehidratar catálogo:', e);
           }
 
-          setFilas(doc.items.map(i => {
+          const filasRehidratadas = doc.items.map(i => {
             const imp = parseImpuesto(i.description || '');
             const m = dict[i.item_code] || {};
             const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
@@ -332,12 +105,27 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
               cantidad_por_presentacion: cantPres,
               presentacion: m.custom_presentación || '',
               stock: null,
-              stockLoading: false,
+              stockLoading: true,
               impuesto_key: imp.key,
               impuesto_label: imp.label,
               impuesto_rate: imp.rate,
             };
-          }));
+          });
+          setFilas(filasRehidratadas);
+
+          // Fetch stock Bodega Central para cada item rehidratado.
+          filasRehidratadas.forEach(async (f) => {
+            try {
+              const bin = await stockService.getStockActual(f.item_code, BODEGA_CENTRAL);
+              const qtyBin = parseFloat(bin?.actual_qty || 0);
+              const stockEnUnidad = qtyBin * (f.cantidad_por_presentacion || 1);
+              setFilas(prev => prev.map(r => r._id === f._id
+                ? { ...r, stock: stockEnUnidad, stockLoading: false } : r));
+            } catch (err) {
+              setFilas(prev => prev.map(r => r._id === f._id
+                ? { ...r, stock: 0, stockLoading: false } : r));
+            }
+          });
         } else {
           setFilas([FILA_VACIA()]);
         }
@@ -394,11 +182,16 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     if (!cliente.name) { setError('Selecciona un cliente'); return null; }
     const validos = filas.filter(f => f.item_code && parseFloat(f.qty) > 0 && parseFloat(f.rate) >= 0);
     if (!validos.length) { setError('Agrega al menos un producto con cantidad y precio'); return null; }
-    // Stock disponible Bodega Central
-    const sinStock = validos.filter(f => f.stock != null && parseFloat(f.qty) > parseFloat(f.stock));
+    // Stock disponible Bodega Central — agrupa por item para sumar filas duplicadas.
+    const agregado = {};
+    validos.forEach(f => {
+      if (!agregado[f.item_code]) agregado[f.item_code] = { item_name: f.item_name, uom: f.uom, stock: f.stock, qty: 0 };
+      agregado[f.item_code].qty += parseFloat(f.qty || 0);
+    });
+    const sinStock = Object.values(agregado).filter(a => a.stock != null && a.qty > parseFloat(a.stock));
     if (sinStock.length) {
-      const lista = sinStock.map(f =>
-        `• ${f.item_name}: pides ${f.qty} ${f.uom || ''}, hay ${f.stock} ${f.uom || ''}`
+      const lista = sinStock.map(a =>
+        `• ${a.item_name}: pides ${a.qty.toFixed(2)} ${a.uom || ''}, hay ${a.stock} ${a.uom || ''}`
       ).join('\n');
       setErrorModal({
         isOpen: true,
@@ -551,20 +344,26 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
               </tr>
             </thead>
             <tbody>
-              {filas.map((fila, idx) => (
-                <FilaProducto
-                  key={fila._id}
-                  fila={fila}
-                  impuestos={IMPUESTOS}
-                  rowIdx={idx}
-                  onChange={(campo, valor) => updateFila(fila._id, campo, valor)}
-                  onImpuesto={(key) => handleImpuesto(fila._id, key)}
-                  onEliminar={() => eliminarFila(fila._id)}
-                  onAddRow={agregarFila}
-                  soloUna={filas.length === 1}
-                  bloqueaMP={ocultaMateriaPrima(cliente.name)}
-                />
-              ))}
+              {filas.map((fila, idx) => {
+                const reservadoOtras = filas.reduce((acc, r) =>
+                  r._id !== fila._id && r.item_code === fila.item_code
+                    ? acc + (parseFloat(r.qty) || 0) : acc, 0);
+                return (
+                  <FilaProducto
+                    key={fila._id}
+                    fila={fila}
+                    impuestos={IMPUESTOS}
+                    rowIdx={idx}
+                    reservadoOtras={reservadoOtras}
+                    onChange={(campo, valor) => updateFila(fila._id, campo, valor)}
+                    onImpuesto={(key) => handleImpuesto(fila._id, key)}
+                    onEliminar={() => eliminarFila(fila._id)}
+                    onAddRow={agregarFila}
+                    soloUna={filas.length === 1}
+                    bloqueaMP={ocultaMateriaPrima(cliente.name)}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -630,7 +429,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP }) {
+function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -690,11 +489,13 @@ function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onElimina
     onChange('cantidad_por_presentacion', cantPres);
     onChange('presentacion', item.custom_presentación || '');
 
-    // Precio de VENTA del catálogo. custom_precio_de_venta es por presentación
-    // → dividir entre cantPres para el precio por unidad real (Kg/Lt/Pza).
-    // OJO: NO usar custom_precio_por_kg — ese es el COSTO de compra, no la venta.
+    // Precio venta B2B = precio de compra (custom_precio_por_kg = precio/Kg).
+    // Modelo confirmado 2026-05-20: B2B paga al costo, sin margen. Última compra
+    // actualiza precio_por_kg → ventas siguientes al nuevo precio.
     let ratePorUnidad;
-    if (item.custom_precio_de_venta) {
+    if (item.custom_precio_por_kg) {
+      ratePorUnidad = parseFloat(item.custom_precio_por_kg);
+    } else if (item.custom_precio_de_venta) {
       ratePorUnidad = parseFloat(item.custom_precio_de_venta) / cantPres;
     } else if (item.standard_rate) {
       ratePorUnidad = parseFloat(item.standard_rate) / cantPres;
@@ -744,7 +545,8 @@ function FilaProducto({ fila, impuestos, rowIdx, onChange, onImpuesto, onElimina
   const uomLabel = fila.uom || 'unid';
 
   const qtyNum = parseFloat(fila.qty || 0);
-  const stock = fila.stock;
+  // Stock efectivo descuenta lo reservado por otras filas con mismo item.
+  const stock = fila.stock != null ? fila.stock - reservadoOtras : null;
   const stockRestante = stock != null ? stock - qtyNum : null;
   const sinStock = stock != null && stock <= 0 && fila.item_code;
   const excedeStock = stockRestante != null && stockRestante < 0;

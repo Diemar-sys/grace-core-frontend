@@ -6,7 +6,9 @@ import NuevaVentaB2B from "../components/NuevaVentaB2B";
 import ModalRegistrarPago from "../components/ModalRegistrarPago";
 import ConfirmModal from "../components/ConfirmModal";
 import Libreta from "../components/Libreta";
+import ModalReciboPDF from "../components/ModalReciboPDF";
 import { ventasService } from "../services/frappeSales";
+import { IMPUESTOS_MAP } from "../config/impuestos";
 import useConfirmModal from "../hooks/useConfirmModal";
 import "../styles/global.css";
 import "../styles/Compras.css";
@@ -83,6 +85,7 @@ function VentaB2B() {
 
   // Modal cobro — Payment Entry contra facturas seleccionadas
   const [pagoModal, setPagoModal] = useState(null); // grupo cliente con deuda
+  const [pdfData, setPdfData] = useState(null);
   const libretaRef = useRef(null);
 
   const handlePagoSuccess = () => {
@@ -128,6 +131,62 @@ function VentaB2B() {
       setModal('editar');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleVerPDF = async (v) => {
+    try {
+      const [doc, items] = await Promise.all([
+        ventasService.getVentaBorrador(v.name),
+        ventasService.getFacturaItems(v.name),
+      ]);
+      const parseImpuesto = (description = '') => {
+        if (description.includes('IEPS')) return IMPUESTOS_MAP['ieps'];
+        if (description.includes('IVA')) return IMPUESTOS_MAP['iva16'];
+        return IMPUESTOS_MAP['tasa0'];
+      };
+      const filas = items.map(it => {
+        const imp = parseImpuesto(it.description || '');
+        return {
+          item_code: it.item_code,
+          item_name: it.item_name,
+          qty: it.qty,
+          rate: it.rate,
+          uom: it.uom,
+          cantidad_por_presentacion: it.cantidad_por_presentacion,
+          presentacion: it.presentacion,
+          impuesto_key: imp.key,
+          impuesto_label: imp.label,
+          impuesto_rate: imp.rate,
+        };
+      });
+      let iva = 0, ieps = 0, ajuste = 0;
+      (doc.taxes || []).forEach(t => {
+        const d = (t.description || '').toUpperCase();
+        if (d.includes('AJUSTE')) ajuste += parseFloat(t.tax_amount || 0);
+        else if (d.includes('IEPS')) ieps += parseFloat(t.tax_amount || 0);
+        else if (d.includes('IVA')) iva += parseFloat(t.tax_amount || 0);
+      });
+      const subtotalIva16 = parseFloat(doc.custom_subtotal_iva_16 || 0);
+      const subtotalIeps = parseFloat(doc.custom_subtotal_ieps || 0);
+      const subtotalTasa0 = parseFloat(doc.custom_subtotal_iva_0 || 0);
+      const subtotal = parseFloat(doc.total || 0);
+      const total = parseFloat(doc.grand_total || 0);
+      const fecha = doc.posting_date;
+      const horaRaw = doc.posting_time || '';
+      const hora = horaRaw ? new Date('1970-01-01T' + horaRaw)
+        .toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '';
+      setPdfData({
+        noVenta: doc.custom_no_de_venta,
+        fecha, hora,
+        cliente: doc.customer_name || doc.customer,
+        filas,
+        totales: { subtotal, iva, ieps, subtotalIva16, subtotalIeps, subtotalTasa0, total },
+        ajuste,
+        esBorrador: doc.docstatus === 0,
+      });
+    } catch (err) {
+      console.error('PDF fetch error:', err);
     }
   };
 
@@ -452,6 +511,13 @@ function VentaB2B() {
                           </td>
                           <td className="comp-td-acciones">
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              {(v.docstatus === 0 || v.docstatus === 1) && (
+                                <button className="comp-btn-editar" onClick={() => handleVerPDF(v)}
+                                  title="Ver / Imprimir PDF"
+                                  style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #d4af37' }}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                                </button>
+                              )}
                               {!soloLectura && (
                                 <>
                                   {v.docstatus === 0 && (
@@ -521,6 +587,10 @@ function VentaB2B() {
           onSuccess={handlePagoSuccess}
           onCancel={() => setPagoModal(null)}
         />
+      )}
+
+      {pdfData && (
+        <ModalReciboPDF datos={pdfData} onClose={() => setPdfData(null)} />
       )}
 
       {deleteModal.item && (

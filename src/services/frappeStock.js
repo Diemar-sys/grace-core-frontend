@@ -410,6 +410,7 @@ class FrappeStockService extends FrappeBase {
    */
   _resolverPrecioVenta(item) {
     const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
+    if (item.custom_precio_por_kg) return parseFloat(item.custom_precio_por_kg);
     if (item.custom_precio_de_venta) return parseFloat(item.custom_precio_de_venta) / cantPres;
     if (item.standard_rate) return parseFloat(item.standard_rate) / cantPres;
     return 0;
@@ -438,7 +439,7 @@ class FrappeStockService extends FrappeBase {
       const params = new URLSearchParams({
         fields: JSON.stringify([
           'item_code', 'custom_cantidad_por_presentación',
-          'custom_precio_de_venta', 'standard_rate',
+          'custom_precio_por_kg', 'custom_precio_de_venta', 'standard_rate',
         ]),
         filters: JSON.stringify([['name', 'in', sinPrecio]]),
         limit_page_length: 200,

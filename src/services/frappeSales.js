@@ -470,6 +470,7 @@ class FrappeSalesService extends FrappeBase {
         uom: m.stock_uom || it.stock_uom || it.uom || '',
         rate: cantPres > 0 ? rateNat / cantPres : rateNat,
         amount: parseFloat(it.amount || 0), // total preservado
+        description: it.description || '',
         cantidad_por_presentacion: cantPres,
         presentacion: m.custom_presentación || '',
         qty_presentacion: qtyNat,     // útil mostrar "1 Bulto"
