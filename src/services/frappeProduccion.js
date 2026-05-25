@@ -119,6 +119,43 @@ class FrappeProduccionService extends FrappeBase {
   }
 
   /**
+   * Elimina una receta (BOM).
+   * Borrador (docstatus=0) → DELETE directo.
+   * Activa (docstatus=1)  → se desmarca default/active, se cancela y luego se elimina.
+   * Falla si la receta tiene producción registrada vinculada (Stock Entry); en ese
+   * caso usar desactivarBOM como alternativa.
+   * @param {string} bomName - ID del BOM.
+   */
+  async eliminarBOM(bomName) {
+    const detalle = await this.getBOMDetalle(bomName);
+    if (detalle.docstatus === 1) {
+      await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_active: 0, is_default: 0 }),
+      });
+      await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ docstatus: 2 }),
+      });
+    }
+    return this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Desactiva una receta sin eliminarla (la oculta del selector de producción
+   * conservando el historial). Alternativa segura cuando no se puede borrar.
+   * @param {string} bomName - ID del BOM.
+   * @returns {Promise<Object>} BOM actualizado.
+   */
+  async desactivarBOM(bomName) {
+    const data = await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_active: 0, is_default: 0 }),
+    });
+    return data.data;
+  }
+
+  /**
    * Busca ingredientes (materias primas) para la tabla de ingredientes del BOM.
    * @param {string} search - Texto de búsqueda.
    * @returns {Promise<Array>} Lista de ítems activos.

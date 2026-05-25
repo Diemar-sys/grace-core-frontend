@@ -157,8 +157,9 @@ const Libreta = forwardRef(function Libreta({ readOnly = false, onCobrar }, ref)
                                         Sin líneas
                                       </div>
                                     ) : (
+                                      <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                                       <table className="sys-table" style={{ margin: 0 }}>
-                                        <thead>
+                                        <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                           <tr>
                                             <th>Producto</th>
                                             <th className="cell-right">Cantidad</th>
@@ -189,6 +190,7 @@ const Libreta = forwardRef(function Libreta({ readOnly = false, onCobrar }, ref)
                                           ))}
                                         </tbody>
                                       </table>
+                                      </div>
                                     )}
                                   </td>
                                 </tr>

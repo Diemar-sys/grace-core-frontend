@@ -50,37 +50,24 @@ function VentaB2B() {
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
 
-  // Vista líneas detalladas (solo modo consulta)
-  const [vistaLineas, setVistaLineas] = useState(false);
-  const [grupos, setGrupos] = useState([]);
-  const [gruposLoading, setGruposLoading] = useState(false);
-  const [clienteExpandido, setClienteExpandido] = useState({});
+  // Detalle de venta expandible inline (lazy load de items)
+  const [ventaExpandida, setVentaExpandida] = useState({});
+  const [ventaItems, setVentaItems] = useState({});
+  const [ventaItemsLoading, setVentaItemsLoading] = useState({});
 
-  const cargarGrupos = useCallback(async (signal) => {
-    setGruposLoading(true);
+  const toggleVenta = async (name) => {
+    const abrir = !ventaExpandida[name];
+    setVentaExpandida(prev => ({ ...prev, [name]: abrir }));
+    if (!abrir || ventaItems[name]) return;
+    setVentaItemsLoading(prev => ({ ...prev, [name]: true }));
     try {
-      const data = await ventasService.getLineasVentas({
-        desde: desde || null,
-        hasta: hasta || null,
-      }, signal);
-      setGrupos(data);
+      const items = await ventasService.getFacturaItems(name);
+      setVentaItems(prev => ({ ...prev, [name]: items }));
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Error líneas ventas:', err);
+      console.error('Error items venta:', err);
     } finally {
-      setGruposLoading(false);
+      setVentaItemsLoading(prev => ({ ...prev, [name]: false }));
     }
-  }, [desde, hasta]);
-
-  useEffect(() => {
-    if (!vistaLineas) return;
-    const controller = new AbortController();
-    cargarGrupos(controller.signal);
-    return () => controller.abort();
-  }, [vistaLineas, cargarGrupos]);
-
-  const toggleCliente = (customer) => {
-    setClienteExpandido(prev => ({ ...prev, [customer]: !prev[customer] }));
   };
 
   // Modal cobro — Payment Entry contra facturas seleccionadas
@@ -357,20 +344,7 @@ function VentaB2B() {
               </div>
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                {soloLectura && (
-                  <>
-                    <button className="btn-refresh"
-                      style={vistaLineas ? { background: '#1e3a5f', color: '#fff' } : {}}
-                      onClick={() => setVistaLineas(v => !v)}>
-                      {vistaLineas ? '← Por venta' : '📋 Por cliente'}
-                    </button>
-                    <button className="btn-refresh"
-                      onClick={() => { setVistaLineas(false); setAccionActiva('libreta'); }}>
-                      📕 Libreta
-                    </button>
-                  </>
-                )}
-                <button className="btn-refresh" onClick={vistaLineas ? cargarGrupos : cargar}>
+                <button className="btn-refresh" onClick={() => cargar()}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -382,125 +356,41 @@ function VentaB2B() {
               </div>
             </div>
 
-            {vistaLineas ? (
-              gruposLoading ? (
-                <div className="loading">Cargando líneas por cliente...</div>
-              ) : grupos.length === 0 ? (
-                <div className="no-data" style={{ padding: '40px', textAlign: 'center' }}>
-                  Sin ventas confirmadas en el periodo
-                </div>
-              ) : (
-                <div style={{ marginTop: '16px' }}>
-                  {grupos.map(g => {
-                    const open = !!clienteExpandido[g.customer];
-                    return (
-                      <div key={g.customer} className="grupo-cliente"
-                        style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                        <button
-                          onClick={() => toggleCliente(g.customer)}
-                          style={{
-                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '14px 18px', background: open ? '#f3f4f6' : '#fff',
-                            border: 'none', borderBottom: open ? '1px solid #e5e7eb' : 'none',
-                            cursor: 'pointer', fontSize: '15px', textAlign: 'left',
-                          }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '14px', color: '#6b7280' }}>{open ? '▼' : '▶'}</span>
-                            <strong style={{ fontSize: '16px' }}>{g.customer_name}</strong>
-                            <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                              ({g.totalVentas} {g.totalVentas === 1 ? 'venta' : 'ventas'})
-                            </span>
-                          </span>
-                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#111' }}>
-                            ${fmt(g.totalMonto)}
-                          </span>
-                        </button>
-                        {open && (
-                          <div style={{ padding: '12px 18px', background: '#fafafa' }}>
-                            {g.ventas.map(v => (
-                              <div key={v.name} style={{ marginBottom: '14px' }}>
-                                <div style={{
-                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                  padding: '6px 0', borderBottom: '1px dashed #d1d5db', marginBottom: '6px',
-                                }}>
-                                  <span style={{ fontWeight: 600, fontSize: '13px' }}>
-                                    {v.posting_date}
-                                    {' · '}
-                                    <span className="cell-code">
-                                      {v.custom_no_de_venta ? `#${v.custom_no_de_venta}` : v.name}
-                                    </span>
-                                  </span>
-                                  <span style={{ fontWeight: 700, color: '#111' }}>
-                                    ${fmt(v.grand_total)}
-                                  </span>
-                                </div>
-                                <table className="sys-table" style={{ marginTop: '4px' }}>
-                                  <thead>
-                                    <tr>
-                                      <th>Producto</th>
-                                      <th className="cell-right">Cant.</th>
-                                      <th className="cell-right">Precio unit.</th>
-                                      <th className="cell-right">Subtotal</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {v.items.length === 0 ? (
-                                      <tr><td colSpan={4} className="no-data">Sin líneas</td></tr>
-                                    ) : v.items.map((it, idx) => (
-                                      <tr key={idx}>
-                                        <td>
-                                          <div className="cell-name">{it.item_name || it.item_code}</div>
-                                          <div className="cell-code" style={{ fontSize: '12px', color: '#6b7280' }}>
-                                            {it.item_code}
-                                          </div>
-                                        </td>
-                                        <td className="cell-right">
-                                          {Number(it.qty || 0).toFixed(2)} {it.uom || ''}
-                                        </td>
-                                        <td className="cell-right">${fmt(it.rate)}</td>
-                                        <td className="cell-right cell-bold">${fmt(it.amount)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ) : loading ? (
+            {loading ? (
               <div className="loading">Cargando ventas...</div>
             ) : (
               <div className="table-container">
                 <table className="sys-table">
                   <thead>
                     <tr>
+                      <th style={{ width: 36 }}></th>
                       <th># Venta</th>
                       <th>Fecha</th>
                       <th>Cliente</th>
-                      <th>Subtotal</th>
-                      <th>Total</th>
                       <th>Estado</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredVentas.length === 0 ? (
-                      <tr><td colSpan={7} className="no-data">No hay ventas registradas</td></tr>
+                      <tr><td colSpan={6} className="no-data">No hay ventas registradas</td></tr>
                     ) : (
-                      filteredVentas.map(v => (
-                        <tr key={v.name}>
+                      filteredVentas.map(v => {
+                        const open = !!ventaExpandida[v.name];
+                        const items = ventaItems[v.name] || [];
+                        const itLoading = !!ventaItemsLoading[v.name];
+                        return (
+                        <React.Fragment key={v.name}>
+                        <tr className={`row-clickable${open ? ' row-open' : ''}`}
+                          onClick={() => toggleVenta(v.name)}>
+                          <td style={{ color: '#9a6a3a', textAlign: 'center' }}>
+                            {open ? '▼' : '▶'}
+                          </td>
                           <td className="cell-code">
                             {v.custom_no_de_venta ? `#${v.custom_no_de_venta}` : '—'}
                           </td>
                           <td>{v.posting_date}</td>
                           <td className="comp-td-proveedor">{v.customer_name || v.customer}</td>
-                          <td className="cell-right">${fmt(v.total)}</td>
-                          <td className="cell-right cell-bold">${fmt(v.grand_total)}</td>
                           <td>
                             <span className={`status-badge ${v.docstatus === 0 ? 'status-low' :
                                 v.docstatus === 2 ? 'status-cancelled' :
@@ -509,7 +399,7 @@ function VentaB2B() {
                               {v.docstatus === 0 ? 'Preventa' : v.docstatus === 2 ? 'Cancelada' : 'Registrada'}
                             </span>
                           </td>
-                          <td className="comp-td-acciones">
+                          <td className="comp-td-acciones" onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                               {(v.docstatus === 0 || v.docstatus === 1) && (
                                 <button className="comp-btn-editar" onClick={() => handleVerPDF(v)}
@@ -551,7 +441,77 @@ function VentaB2B() {
                             </div>
                           </td>
                         </tr>
-                      ))
+                        {open && (
+                          <tr className="row-detail">
+                            <td colSpan={6} style={{ padding: 0, background: '#fbf6ee' }}>
+                              {itLoading ? (
+                                <div style={{ padding: '16px 24px', color: '#9a6a3a', fontSize: 13 }}>
+                                  Cargando productos...
+                                </div>
+                              ) : items.length === 0 ? (
+                                <div style={{ padding: '16px 24px', color: '#9a6a3a', fontSize: 13 }}>
+                                  Sin productos
+                                </div>
+                              ) : (
+                                <div className="venta-detalle">
+                                  <div className="venta-detalle-scroll">
+                                    <table className="sys-table sys-table--nested">
+                                      <thead>
+                                        <tr>
+                                          <th>Producto</th>
+                                          <th className="cell-right">Cantidad</th>
+                                          <th className="cell-right">Medida</th>
+                                          <th className="cell-right">Precio unit.</th>
+                                          <th className="cell-right">Subtotal</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {items.map((it, idx) => {
+                                          const hasPres = it.cantidad_por_presentacion > 1 && it.presentacion;
+                                          const base = `${Number(it.qty || 0).toFixed(2)} ${it.uom || ''}`;
+                                          return (
+                                          <tr key={idx}>
+                                            <td>
+                                              <div className="cell-name">{it.item_name || it.item_code}</div>
+                                              <div className="cell-code" style={{ fontSize: 12, color: '#9a8a78' }}>
+                                                {it.item_code}
+                                              </div>
+                                            </td>
+                                            <td className="cell-right cell-bold">
+                                              {hasPres
+                                                ? `${Number(it.qty_presentacion).toFixed(2)} ${it.presentacion}`
+                                                : base}
+                                            </td>
+                                            <td className="cell-right" style={{ color: '#9a8a78' }}>
+                                              {hasPres ? base : '—'}
+                                            </td>
+                                            <td className="cell-right">${fmt(it.rate)}</td>
+                                            <td className="cell-right cell-bold">${fmt(it.amount)}</td>
+                                          </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <div className="venta-detalle-totales">
+                                    <span className="vdt-items">{items.length} {items.length === 1 ? 'producto' : 'productos'}</span>
+                                    <span className="vdt-grp">
+                                      <span className="vdt-lbl">Subtotal</span>
+                                      <span className="vdt-val">${fmt(v.total)}</span>
+                                    </span>
+                                    <span className="vdt-grp vdt-total">
+                                      <span className="vdt-lbl">Total</span>
+                                      <span className="vdt-val">${fmt(v.grand_total)}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

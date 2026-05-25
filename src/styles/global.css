@@ -364,6 +364,43 @@
 .sys-table .cell-right    { text-align: right; }
 .sys-table .cell-bold     { font-weight: 700; }
 
+/* ── Fila expandible (detalle de venta inline) ── */
+.sys-table tr.row-clickable { cursor: pointer; transition: background 0.12s; }
+.sys-table tr.row-open { background: #fdf6ec; }
+.sys-table tr.row-open:hover { background: #fdf6ec; }
+.sys-table tr.row-open td { border-bottom-color: transparent; }
+.sys-table tr.row-detail:hover { background: transparent; }
+.sys-table tr.row-detail td { padding: 0; border-bottom: 1px solid #e5e7eb; }
+
+/* Detalle de venta: un solo scroll (el de .table-container) */
+.venta-detalle { padding: 8px 16px 0; }
+.venta-detalle-scroll { border-radius: 10px 10px 0 0; }
+
+/* Tabla anidada dentro del detalle */
+.sys-table--nested { box-shadow: none; border-radius: 10px 10px 0 0; overflow: hidden; }
+.sys-table--nested thead th { padding: 10px 16px; font-size: 12px; }
+.sys-table--nested td { padding: 11px 16px; font-size: 14px; }
+.sys-table--nested .cell-name { font-size: 15px; }
+
+/* Barra de totales — pegada al fondo del scroll, siempre visible */
+.venta-detalle-totales {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; align-items: center; gap: 28px;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #fdf4e6 0%, #fbeccf 100%);
+  border: 1px solid #e8d5b8; border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 -4px 12px rgba(107,50,9,0.08);
+  font-family: var(--font-body);
+}
+.venta-detalle-totales .vdt-items { font-size: 13px; color: #9a6a3a; margin-right: auto; }
+.venta-detalle-totales .vdt-grp { display: flex; align-items: baseline; gap: 8px; }
+.venta-detalle-totales .vdt-lbl {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #9a6a3a; font-weight: 600;
+}
+.venta-detalle-totales .vdt-val { font-size: 16px; font-weight: 700; color: #5a3410; }
+.venta-detalle-totales .vdt-total .vdt-val { font-size: 20px; color: var(--color-brand, #6b3209); }
+
 /* ══ BADGES DE ESTADO ════════════════════════════════════ */
 .status-badge {
   display: inline-block;
