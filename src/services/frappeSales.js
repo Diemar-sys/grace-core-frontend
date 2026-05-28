@@ -417,6 +417,121 @@ class FrappeSalesService extends FrappeBase {
    * @param {string} [params.fecha] - Fecha del pago (default hoy)
    * @param {string} [params.cuentaCaja] - paid_to (default CUENTA_CAJA)
    */
+  /**
+   * Reporte de ventas B2B agrupadas por item_group (categoría).
+   * Solo Sales Invoice submitted (docstatus=1) y B2B (is_pos=0) en rango.
+   * Estructura: [{ item_group, qtyTotal, montoTotal, items: [{ item_code, item_name, qty, monto, uom, ventas }] }]
+   * @param {{desde:string, hasta:string}} rango - Fechas ISO YYYY-MM-DD inclusivas.
+   */
+  async getVentasB2BPorCategoria({ desde, hasta } = {}, signal) {
+    if (!desde || !hasta) throw new Error('Rango de fechas requerido');
+
+    // 1) Sales Invoice submitted B2B en rango.
+    const invParams = new URLSearchParams({
+      fields: JSON.stringify(['name']),
+      filters: JSON.stringify([
+        ['docstatus', '=', 1],
+        ['is_pos', '=', 0],
+        ['posting_date', '>=', desde],
+        ['posting_date', '<=', hasta],
+      ]),
+      limit_page_length: 5000,
+    });
+    const invData = await this._fetch('/api/resource/Sales Invoice?' + invParams, { signal });
+    const invoiceNames = (invData?.data || []).map(d => d.name);
+    if (!invoiceNames.length) return [];
+
+    // 2) Fetch cada Sales Invoice completo (items embebidos).
+    // Evita query directa a Sales Invoice Item que da 403 según permisos del rol.
+    // Batch paralelo de 8 para no saturar el servidor.
+    const BATCH = 8;
+    const itemsRaw = [];
+    for (let i = 0; i < invoiceNames.length; i += BATCH) {
+      const batch = invoiceNames.slice(i, i + BATCH);
+      const docs = await Promise.all(
+        batch.map(name =>
+          this._fetch('/api/resource/Sales Invoice/' + encodeURIComponent(name), { signal })
+            .catch(() => null)
+        )
+      );
+      for (const doc of docs) {
+        const inv = doc?.data;
+        if (!inv) continue;
+        for (const item of (inv.items || [])) {
+          itemsRaw.push({
+            item_code:  item.item_code,
+            item_name:  item.item_name,
+            item_group: item.item_group || '',
+            qty:        item.qty,
+            amount:     item.amount,
+            stock_uom:  item.stock_uom,
+            parent:     inv.name,
+          });
+        }
+      }
+    }
+    if (!itemsRaw.length) return [];
+
+    // 3) Convertir qty natural → display (qty × cantidad_por_presentación).
+    const codes = [...new Set(itemsRaw.map(i => i.item_code).filter(Boolean))];
+    let dict = {};
+    if (codes.length) {
+      // Chunk codes también.
+      const codeChunks = [];
+      for (let i = 0; i < codes.length; i += 200) codeChunks.push(codes.slice(i, i + 200));
+      for (const cc of codeChunks) {
+        const params = new URLSearchParams({
+          fields: JSON.stringify(['item_code', 'stock_uom', 'custom_cantidad_por_presentación']),
+          filters: JSON.stringify([['name', 'in', cc]]),
+          limit_page_length: 500,
+        });
+        const cat = await this._fetch('/api/resource/Item?' + params, { signal });
+        (cat?.data || []).forEach(it => { dict[it.item_code] = it; });
+      }
+    }
+
+    // 4) Agrupar por item_group → por item_code.
+    const grupos = {};
+    for (const it of itemsRaw) {
+      const grp = it.item_group || '(sin categoría)';
+      if (!grupos[grp]) grupos[grp] = { item_group: grp, qtyTotal: 0, montoTotal: 0, _items: {} };
+      const meta = dict[it.item_code] || {};
+      const cantPres = parseFloat(meta.custom_cantidad_por_presentación) || 1;
+      const qtyNat = parseFloat(it.qty || 0);
+      const qtyDisp = qtyNat * cantPres;
+      const monto = parseFloat(it.amount || 0);
+
+      const code = it.item_code || '(sin código)';
+      if (!grupos[grp]._items[code]) {
+        grupos[grp]._items[code] = {
+          item_code: code,
+          item_name: it.item_name || code,
+          qty: 0,
+          monto: 0,
+          uom: meta.stock_uom || it.stock_uom || '',
+          ventas: new Set(),
+        };
+      }
+      grupos[grp]._items[code].qty += qtyDisp;
+      grupos[grp]._items[code].monto += monto;
+      grupos[grp]._items[code].ventas.add(it.parent);
+      grupos[grp].qtyTotal += qtyDisp;
+      grupos[grp].montoTotal += monto;
+    }
+
+    // 5) Aplanar items + sort.
+    return Object.values(grupos)
+      .map(g => ({
+        item_group: g.item_group,
+        qtyTotal: g.qtyTotal,
+        montoTotal: g.montoTotal,
+        items: Object.values(g._items)
+          .map(i => ({ ...i, ventas: i.ventas.size }))
+          .sort((a, b) => b.monto - a.monto),
+      }))
+      .sort((a, b) => b.montoTotal - a.montoTotal);
+  }
+
   async registrarPago({ customer, facturas, monto, fecha = null, cuentaCaja = null }) {
     if (!customer) throw new Error('Cliente requerido');
     if (!facturas?.length) throw new Error('Selecciona al menos una factura');

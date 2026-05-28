@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { produccionService } from '../services/frappeProduccion';
 import { stockService } from '../services/frappeStock';
-import ModalError from './ModalError';
+import ModalError from './modals/ModalError';
 import '../styles/Produccion.css';
 
 const FILA_VACIA = () => ({

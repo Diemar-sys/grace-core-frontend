@@ -1,6 +1,6 @@
 // src/components/ModalHojaEntrega.jsx
 import React from 'react';
-import { TENANT } from '../config/tenant';
+import { TENANT } from '../../config/tenant';
 
 const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -101,7 +101,7 @@ function ModalHojaEntrega({ datos, onClose }) {
     </div>
   </div>
   <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
-  <script>window.onload = function(){ window.print(); }<\/script>
+  <script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>`;
     win.document.write(html);
@@ -144,7 +144,7 @@ function ModalHojaEntrega({ datos, onClose }) {
                   const presentacion = f.presentacion || '';
                   const qtyPres = cantPres > 1 ? qty / cantPres : null;
                   return (
-                    <tr key={i}>
+                    <tr key={`${f.item_code ?? ''}-${i}`}>
                       <td>{f.item_name || f.item_code}</td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600 }}>

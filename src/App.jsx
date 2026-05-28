@@ -13,6 +13,9 @@ import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
+import ConsultasInventario from './pages/ConsultasInventario';
+import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
+import ErrorBoundary from './components/ErrorBoundary';
 
 /**
  * Componente principal de la aplicación.
@@ -24,6 +27,7 @@ import ConsultasPOS from './pages/ConsultasPOS';
 function App() {
   return (
     <BrowserRouter>
+      <ErrorBoundary>
       <Routes>
         {/* Ruta pública */}
         <Route path="/" element={<Navigate to="/login" />} />
@@ -110,7 +114,24 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/consultas/inventario"
+          element={
+            <ProtectedRoute>
+              <ConsultasInventario />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/ventas-categoria"
+          element={
+            <ProtectedRoute>
+              <ReportesVentasCategoria />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import POSHistorial from '../components/pos/POSHistorial';
 import POSModalCorte from '../components/pos/POSModalCorte';
+import ConfirmModal from '../components/modals/ConfirmModal';
+import ModalError from '../components/modals/ModalError';
 import { posService } from '../services/frappePOS';
 import { auth } from '../services/frappeAuth';
 import { generarHTMLCorte } from '../utils/print/corteTemplate';
@@ -67,6 +69,9 @@ function ConsultasPOS() {
   const [datosCorte,   setDatosCorte]   = useState(null);
   const [loadingCorte, setLoadingCorte] = useState(false);
   const [errorCorte,   setErrorCorte]   = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [errorModal,   setErrorModal]   = useState(null);
 
   const navigate = useNavigate();
   // puedeCancel se mantiene como derivado de la sesión actual para el render de botones
@@ -116,23 +121,30 @@ function ConsultasPOS() {
     setRangoFin(d.toISOString().split('T')[0]);
   }, []);
 
-  const cancelarVenta = useCallback(async (name) => {
-    // Re-verificar el rol en el momento de la acción (no solo al montar)
-    // por si la sesión cambió mientras la pantalla estaba abierta.
+  const cancelarVenta = useCallback((name) => {
     if (auth.getUser()?.role !== 'admin') {
-      alert('No tienes permisos para cancelar ventas.');
+      setErrorModal({ title: 'Sin permisos', message: 'Tu usuario no tiene permisos para cancelar ventas.' });
       return;
     }
-    if (!window.confirm(`¿Cancelar la venta ${name}?`)) return;
-    try {
-      await posService.cancelarVenta(name);
-      setVentasHoy(prev => prev.map(v =>
-        v.name === name ? { ...v, docstatus: 2, status: 'Cancelled' } : v
-      ));
-    } catch (err) {
-      alert(`Error al cancelar: ${err.message}`);
-    }
+    setCancelTarget(name);
   }, []);
+
+  const confirmarCancelacion = useCallback(async () => {
+    if (!cancelTarget) return;
+    setCancelLoading(true);
+    try {
+      await posService.cancelarVenta(cancelTarget);
+      setVentasHoy(prev => prev.map(v =>
+        v.name === cancelTarget ? { ...v, docstatus: 2, status: 'Cancelled' } : v
+      ));
+      setCancelTarget(null);
+    } catch (err) {
+      setCancelTarget(null);
+      setErrorModal({ title: 'Error al cancelar', message: err.message || 'No se pudo cancelar la venta.' });
+    } finally {
+      setCancelLoading(false);
+    }
+  }, [cancelTarget]);
 
   const abrirCorte = useCallback(async () => {
     setModalCorte(true);
@@ -202,6 +214,28 @@ function ConsultasPOS() {
           onCerrar={() => setModalCorte(false)}
         />
       )}
+
+      {cancelTarget && (
+        <ConfirmModal
+          title={`Cancelar venta ${cancelTarget}`}
+          description={<>La venta quedará registrada como cancelada en el historial.</>}
+          subdescription="Esta acción no se puede deshacer."
+          confirmLabel="Sí, cancelar"
+          loadingLabel="Cancelando..."
+          confirmStyle={{ background: '#d97706' }}
+          cancelLabel="Regresar"
+          onConfirm={confirmarCancelacion}
+          onCancel={() => setCancelTarget(null)}
+          loading={cancelLoading}
+        />
+      )}
+
+      <ModalError
+        isOpen={!!errorModal}
+        title={errorModal?.title}
+        message={errorModal?.message}
+        onClose={() => setErrorModal(null)}
+      />
     </Layout>
   );
 }

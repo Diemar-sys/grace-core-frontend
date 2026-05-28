@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { stockService } from "../services/frappeStock";
 import { sanitizar } from '../utils/security';
+import { parseErrorFrappe } from '../utils/errorFrappe';
+import ModalError from './modals/ModalError';
 import "../styles/RegistroMovimiento.css";
 
 const DEFAULT_WAREHOUSE = stockService.getBodegaCentral();
@@ -33,8 +35,8 @@ function RegistroEntrada({ onSuccess, onCancel }) {
   const [warehouse, setWarehouse] = useState(DEFAULT_WAREHOUSE);
   const [warehouses, setWarehouses] = useState([{ name: DEFAULT_WAREHOUSE, label: 'Bodega Central' }]);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
   const [success, setSuccess] = useState("");
+  const [errorModal, setErrorModal] = useState(null);
 
   useEffect(() => {
     let cancel = false;
@@ -52,12 +54,12 @@ function RegistroEntrada({ onSuccess, onCancel }) {
   const agregarFila  = () => setFilas(f => [...f, FILA_VACIA()]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
 
-  const actualizarFila = (id, campo, valor) => {
+  const actualizarFila = (id, campos) => {
     setFilas(f => f.map(r => {
       if (r._id !== id) return r;
-      const updated = { ...r, [campo]: valor };
-      const bultos     = parseFloat(campo === "bultos"       ? valor : updated.bultos)      || 0;
-      const kgPorBulto = parseFloat(campo === "kg_por_bulto" ? valor : updated.kg_por_bulto) || 0;
+      const updated = { ...r, ...campos };
+      const bultos     = parseFloat(updated.bultos)      || 0;
+      const kgPorBulto = parseFloat(updated.kg_por_bulto) || 0;
       // Sin presentación → qty directa en stock_uom (ej: Pzas individuales)
       updated.total_kg = bultos > 0
         ? (kgPorBulto > 0 ? (bultos * kgPorBulto).toFixed(3) : String(bultos))
@@ -67,11 +69,13 @@ function RegistroEntrada({ onSuccess, onCancel }) {
   };
 
   const handleSubmit = async () => {
-    setError("");
     // Validar: necesita item_code y al menos 1 bulto/empaque
     const itemsValidos = filas.filter(f => f.item_code && parseFloat(f.bultos) > 0);
     if (!itemsValidos.length) {
-      setError("Agrega al menos un producto con cantidad mayor a cero");
+      setErrorModal({
+        title: 'Sin productos',
+        message: 'Agrega al menos un producto con cantidad mayor a cero para registrar la entrada.',
+      });
       return;
     }
     setLoading(true);
@@ -88,7 +92,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
       setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${totalBultos.toFixed(2)} unidades en total`);
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
-      setError(err.message);
+      setErrorModal(parseErrorFrappe(err));
     } finally {
       setLoading(false);
     }
@@ -98,6 +102,12 @@ function RegistroEntrada({ onSuccess, onCancel }) {
 
   return (
     <div className="rm-modal">
+      <ModalError
+        isOpen={!!errorModal}
+        title={errorModal?.title}
+        message={errorModal?.message}
+        onClose={() => setErrorModal(null)}
+      />
       <div className="rm-container entrada">
         <div className="rm-header">
           <h2>Ajuste de Entrada</h2>
@@ -114,7 +124,6 @@ function RegistroEntrada({ onSuccess, onCancel }) {
           </div>
         </div>
 
-        {error   && <div className="rm-alert rm-alert-error">{error}</div>}
         {success && <div className="rm-alert rm-alert-success">{success}</div>}
 
         <div className="rm-tabla-header">
@@ -145,7 +154,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
               <FilaProducto
                 key={fila._id}
                 fila={fila}
-                onChange={(campo, valor) => actualizarFila(fila._id, campo, valor)}
+                onChange={(campos) => actualizarFila(fila._id, campos)}
                 onEliminar={() => eliminarFila(fila._id)}
                 soloUna={filas.length === 1}
               />
@@ -202,7 +211,7 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
 
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
-    if (!texto) { onChange("item_code", ""); onChange("item_name", ""); setSugerencias([]); return; }
+    if (!texto) { onChange({ item_code: "", item_name: "" }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await stockService.buscarItemsTexto(texto);
@@ -213,13 +222,6 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
 
   const seleccionar = (item) => {
     setBusqueda(item.item_name);
-    onChange("item_code",    item.item_code);
-    onChange("item_name",    item.item_name);
-    onChange("uom",          item.stock_uom || "kg");
-    onChange("presentacion", item.custom_presentación || "");
-    // Auto-llenar kg_por_bulto desde el catalogo
-    const kgPorBulto = item["custom_cantidad_por_presentación"] || "";
-    onChange("kg_por_bulto", kgPorBulto);
     // Auto-llenar costo unitario desde el catalogo.
     // Prioridad: precio_final (con impuesto incluido) — refleja costo real de caja
     // del bulto comprado; útil para márgenes y valuation realista.
@@ -228,7 +230,14 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
               || parseFloat(item.valuation_rate)
               || parseFloat(item.custom_precio_de_compra)
               || "";
-    onChange("basic_rate", costo ? String(costo) : "");
+    onChange({
+      item_code:    item.item_code,
+      item_name:    item.item_name,
+      uom:          item.stock_uom || "kg",
+      presentacion: item.custom_presentación || "",
+      kg_por_bulto: item["custom_cantidad_por_presentación"] || "",
+      basic_rate:   costo ? String(costo) : "",
+    });
     setAbierto(false);
   };
 
@@ -255,7 +264,7 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
       <td>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <input className="rm-qty-input" type="number" min="0" step="0.01"
-            value={fila.bultos} onChange={e => onChange("bultos", e.target.value)}
+            value={fila.bultos} onChange={e => onChange({ bultos: e.target.value })}
             placeholder="0" />
           <span style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>
             {fila.presentacion || "Empaque(s)"}
@@ -265,7 +274,7 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
       <td>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <input className="rm-qty-input" type="number" min="0" step="0.001"
-            value={fila.kg_por_bulto} onChange={e => onChange("kg_por_bulto", e.target.value)}
+            value={fila.kg_por_bulto} onChange={e => onChange({ kg_por_bulto: e.target.value })}
             placeholder={fila.uom || "Uni"} />
           <span style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>
             {fila.uom ? `${fila.uom} por emp.` : "x Empaque"}
@@ -285,7 +294,7 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
       <td>
         <input className="rm-qty-input" type="number" min="0" step="0.0001"
           value={fila.basic_rate}
-          onChange={e => onChange("basic_rate", e.target.value)}
+          onChange={e => onChange({ basic_rate: e.target.value })}
           placeholder="$0.00" />
       </td>
       <td>

@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
-import NuevaCompra, { BuscadorProveedor } from "../components/NuevaCompra";
-import ConfirmModal from "../components/ConfirmModal";
+import NuevaCompra from "../components/NuevaCompra";
+import BuscadorProveedor from "../components/compras/BuscadorProveedor";
+import ConfirmModal from "../components/modals/ConfirmModal";
 import { comprasService } from "../services/frappePurchase";
 import useConfirmModal from "../hooks/useConfirmModal";
 import { docToDatosImpresion, imprimirCompraPDF, imprimirCompraTicket } from "../utils/print/comprasPrint";

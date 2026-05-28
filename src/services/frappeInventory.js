@@ -26,14 +26,14 @@ class FrappeInventoryService extends FrappeBase {
     return result;
   }
 
-  async #callMethod(methodName, params = {}) {
+  async #callMethod(methodName, params = {}, signal) {
     const queryString = Object.entries(params)
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
       .join("&");
 
     const path = `${FRAPPE_METHOD(methodName)}${queryString ? "?" + queryString : ""}`;
-    const json = await this._fetch(path);
+    const json = await this._fetch(path, signal ? { signal } : undefined);
     return json?.message ?? [];
   }
 
@@ -225,11 +225,11 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - Filtros como `itemGroup`, `search`.
    * @returns {Promise<Array<Object>>} Lista cruda de items registrados.
    */
-  async getProductosRegistrados(filtros = {}) {
+  async getProductosRegistrados(filtros = {}, signal) {
     const { itemGroup, search, departamento, tipoItem } = filtros;
     let items = await this.#callMethod("get_inventory_view", {
       vista: "registrado", item_group: itemGroup, departamento, search, tipo_item: tipoItem,
-    });
+    }, signal);
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
@@ -264,11 +264,11 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - Opciones de filtrado (grupo, texto).
    * @returns {Promise<Array<Object>>} Lista de items inactivos.
    */
-  async getProductosDeshabilitados(filtros = {}) {
+  async getProductosDeshabilitados(filtros = {}, signal) {
     const { itemGroup, search, tipoItem } = filtros;
     let items = await this.#callMethod("get_inventory_view", {
       vista: "deshabilitado", item_group: itemGroup, search, tipo_item: tipoItem,
-    });
+    }, signal);
 
     return items.map((item) => {
       const compra = parseFloat(item.custom_precio_de_compra) || 0;
@@ -396,30 +396,16 @@ class FrappeInventoryService extends FrappeBase {
    * @returns {Promise<string>} El nuevo nombre asignado por Frappe.
    */
   async renameItem(oldCode, newCode) {
-    const response = await fetch(
-      `${this.baseUrl}/api/method/frappe.client.rename_doc`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: this.getHeaders(),
-        body: JSON.stringify({
-          doctype: 'Item',
-          old_name: oldCode,
-          new_name: newCode.trim().toUpperCase(),
-          merge: 0
-        })
-      }
-    );
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        err._server_messages
-          ? JSON.parse(JSON.parse(err._server_messages)[0]).message
-          : err.message || `Error ${response.status} al renombrar`
-      );
-    }
-    const json = await response.json();
-    return json.message; // Frappe returns the new name
+    const json = await this._fetch('/api/method/frappe.client.rename_doc', {
+      method: 'POST',
+      body: JSON.stringify({
+        doctype: 'Item',
+        old_name: oldCode,
+        new_name: newCode.trim().toUpperCase(),
+        merge: 0,
+      }),
+    });
+    return json.message;
   }
 
   /**

@@ -1,56 +1,49 @@
-// src/components/ModalReciboPDF.jsx
-// Preview + impresión PDF de venta B2B (preventa o registrada).
-// Espera datos: { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador }
 import React from 'react';
-import { TENANT } from '../config/tenant';
-
-const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[c]));
-
-const fmt2 = (n) =>
-  Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { fmtUom } from '../../utils/uom';
+import { TENANT } from '../../config/tenant';
+import { generarHTMLTicketCompra } from '../../utils/print/ticketTemplate';
+import { escHTML, fmt } from './compraUtils';
 
 function ModalReciboPDF({ datos, onClose }) {
-  const { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador } = datos;
-  const numStr = noVenta != null ? String(noVenta).padStart(4, '0') : '----';
+  const { noCompra, noFactura, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
+
+  const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
 
   const imprimir = () => {
     const win = window.open('', '_blank', 'width=750,height=700');
     const rows = filas.map(f => {
-      const sub = parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
+      const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
       const impMonto = sub * parseFloat(f.impuesto_rate || 0);
       const totalLinea = sub + impMonto;
-      const impLabel = (f.impuesto_label || 'Tasa 0') + (impMonto > 0 ? ` — $${fmt2(impMonto)}` : '');
-      const qty = parseFloat(f.qty || 0);
-      const uom = f.uom || '';
-      const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-      const presentacion = f.presentacion || '';
-      const qtyPres = cantPres > 1 ? qty / cantPres : null;
-      const cantCell = qtyPres != null && presentacion
-        ? `${qty.toFixed(2)} ${escHTML(uom)}<br/><small style="color:#666;font-size:10px">${qtyPres.toFixed(2)} ${escHTML(presentacion)}</small>`
-        : `${qty.toFixed(2)}${uom ? ' ' + escHTML(uom) : ''}`;
+      const impLabel = (f.impuesto_label || 'Tasa 0') + (impMonto > 0 ? ` — $${fmt(impMonto)}` : '');
+      const bultos = parseFloat(f.bultos || 0);
+      const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
+      const uom = fmtUom(f.uom || '');
+      const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
+      const cantCell = kgPorBulto > 0
+        ? `${totalNatural.toFixed(2)} ${uom}<br/><small style="color:#666;font-size:10px">${bultos.toFixed(2)} emp.</small>`
+        : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`;
       return `
         <tr>
           <td>${escHTML(f.item_name || f.item_code)}</td>
           <td style="text-align:center">${cantCell}</td>
-          <td style="text-align:right">$${fmt2(f.rate)}</td>
+          <td style="text-align:right">$${fmt(f.rate)}</td>
           <td style="text-align:right">${escHTML(impLabel)}</td>
-          <td style="text-align:right">$${fmt2(totalLinea)}</td>
+          <td style="text-align:right">$${fmt(totalLinea)}</td>
         </tr>`;
     }).join('');
 
     const impuestosRows = [
-      totales.iva > 0 ? `<tr><td>IVA 16%</td><td style="text-align:right">$${fmt2(totales.iva)}</td></tr>` : '',
-      totales.ieps > 0 ? `<tr><td>IEPS 8%</td><td style="text-align:right">$${fmt2(totales.ieps)}</td></tr>` : '',
-      ajuste !== 0 ? `<tr><td>Ajuste</td><td style="text-align:right">$${fmt2(ajuste)}</td></tr>` : '',
+      totales.iva > 0 ? `<tr><td>IVA 16%</td><td style="text-align:right">$${fmt(totales.iva)}</td></tr>` : '',
+      totales.ieps > 0 ? `<tr><td>IEPS 8%</td><td style="text-align:right">$${fmt(totales.ieps)}</td></tr>` : '',
+      ajuste !== 0 ? `<tr><td>Ajuste</td><td style="text-align:right">$${fmt(ajuste)}</td></tr>` : '',
     ].join('');
 
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>${esBorrador ? 'Preventa' : 'Venta'} #${escHTML(numStr)}</title>
+  <title>${esBorrador ? 'Precompra' : 'Compra'} #${escHTML(numStr)}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
@@ -59,6 +52,7 @@ function ModalReciboPDF({ datos, onClose }) {
     .header h2 { font-size: 15px; font-weight: normal; margin-top: 4px; color: #555; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 20px; }
     .info-grid span { font-size: 12px; }
+    .info-grid strong { font-size: 12px; }
     .divider { border: none; border-top: 1.5px solid #111; margin: 12px 0; }
     .divider-thin { border: none; border-top: 1px dashed #aaa; margin: 8px 0; }
     table.items { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
@@ -75,14 +69,15 @@ function ModalReciboPDF({ datos, onClose }) {
 <body>
   <div class="header">
     <h1>${escHTML(TENANT.nombreFull)}</h1>
-    <h2>${esBorrador ? 'PREVENTA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE VENTA'}</h2>
+    <h2>${esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}</h2>
   </div>
   <hr class="divider"/>
   <div class="info-grid">
-    <span><strong>No. Venta:</strong> #${escHTML(numStr)}</span>
+    <span><strong>No. Compra:</strong> #${escHTML(numStr)}</span>
+    <span><strong>No. Factura:</strong> ${escHTML(noFactura || '—')}</span>
     <span><strong>Fecha:</strong> ${escHTML(fecha)}</span>
     <span><strong>Hora:</strong> ${escHTML(hora)}</span>
-    <span><strong>Cliente:</strong> ${escHTML(cliente)}</span>
+    <span><strong>Proveedor:</strong> ${escHTML(proveedor)}</span>
   </div>
   <hr class="divider"/>
   <table class="items">
@@ -100,19 +95,30 @@ function ModalReciboPDF({ datos, onClose }) {
   <hr class="divider-thin"/>
   <table class="totales">
     <tbody>
-      <tr class="base-row"><td>Subtotal IVA 16%</td><td style="text-align:right">$${fmt2(totales.subtotalIva16 || 0)}</td></tr>
-      <tr class="base-row"><td>Subtotal IEPS 8%</td><td style="text-align:right">$${fmt2(totales.subtotalIeps || 0)}</td></tr>
-      <tr class="base-row"><td>Subtotal IVA 0%</td><td style="text-align:right">$${fmt2(totales.subtotalTasa0 || 0)}</td></tr>
-      <tr><td>Subtotal</td><td style="text-align:right">$${fmt2(totales.subtotal)}</td></tr>
+      <tr class="base-row"><td>Subtotal IVA 16%</td><td style="text-align:right">$${fmt(totales.subtotalIva16 || 0)}</td></tr>
+      <tr class="base-row"><td>Subtotal IEPS 8%</td><td style="text-align:right">$${fmt(totales.subtotalIeps || 0)}</td></tr>
+      <tr class="base-row"><td>Subtotal IVA 0%</td><td style="text-align:right">$${fmt(totales.subtotalTasa0 || 0)}</td></tr>
+      ${(() => { const d = (totales.subtotal||0) - ((totales.subtotalIva16||0)+(totales.subtotalIeps||0)+(totales.subtotalTasa0||0)); return d !== 0 ? `<tr class="base-row"><td>Ajuste</td><td style="text-align:right">$${fmt(d)}</td></tr>` : ''; })()}
+      <tr><td>Subtotal</td><td style="text-align:right">$${fmt(totales.subtotal)}</td></tr>
       ${impuestosRows}
-      <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt2(totales.total)}</td></tr>
+      <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt(totales.total)}</td></tr>
     </tbody>
   </table>
   <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
-  <script>window.onload = function(){ window.print(); }<\/script>
+  <script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>`;
+
     win.document.write(html);
+    win.document.close();
+  };
+
+  const imprimirTicket = () => {
+    const win = window.open('', '_blank', 'width=420,height=700');
+    const html = generarHTMLTicketCompra({
+      noCompra, noFactura, proveedor, fecha, hora, totales, ajuste, esBorrador,
+    });
+    win.document.write(html + '<script>window.onload=function(){window.print();}</script>');
     win.document.close();
   };
 
@@ -120,7 +126,7 @@ function ModalReciboPDF({ datos, onClose }) {
     <div className="nc-modal-overlay">
       <div className="nc-pdf-preview-modal">
         <div className="nc-pdf-modal-header">
-          <span>🧾 Vista previa — {esBorrador ? 'Preventa' : 'Venta'} #{numStr}</span>
+          <span>🧾 Vista previa — {esBorrador ? 'Precompra' : 'Compra'} #{numStr}</span>
           <button className="nc-btn-close" onClick={onClose}>×</button>
         </div>
 
@@ -129,15 +135,16 @@ function ModalReciboPDF({ datos, onClose }) {
             <div className="nc-recibo-head">
               <div className="nc-recibo-empresa">{TENANT.nombreFull}</div>
               <div className="nc-recibo-titulo">
-                {esBorrador ? 'PREVENTA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE VENTA'}
+                {esBorrador ? 'PRECOMPRA — PENDIENTE DE CONFIRMAR' : 'COMPROBANTE DE COMPRA'}
               </div>
             </div>
             <hr className="nc-recibo-div" />
             <div className="nc-recibo-info">
-              <span><strong>No. Venta:</strong> #{numStr}</span>
+              <span><strong>No. Compra:</strong> #{numStr}</span>
+              <span><strong>No. Factura:</strong> {noFactura || '—'}</span>
               <span><strong>Fecha:</strong> {fecha}</span>
               <span><strong>Hora:</strong> {hora}</span>
-              <span><strong>Cliente:</strong> {cliente}</span>
+              <span><strong>Proveedor:</strong> {proveedor}</span>
             </div>
             <hr className="nc-recibo-div" />
             <table className="nc-recibo-tabla">
@@ -152,33 +159,32 @@ function ModalReciboPDF({ datos, onClose }) {
               </thead>
               <tbody>
                 {filas.map((f, i) => {
-                  const sub = parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
+                  const sub = parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
                   const impMonto = sub * parseFloat(f.impuesto_rate || 0);
                   const totalLinea = sub + impMonto;
-                  const qty = parseFloat(f.qty || 0);
-                  const uom = f.uom || '';
-                  const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-                  const presentacion = f.presentacion || '';
-                  const qtyPres = cantPres > 1 ? qty / cantPres : null;
+                  const bultos = parseFloat(f.bultos || 0);
+                  const kgPorBulto = parseFloat(f.kg_por_bulto || 0);
+                  const uom = fmtUom(f.uom || '');
+                  const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
                   return (
-                    <tr key={i}>
+                    <tr key={`${f.item_code || ''}-${i}`}>
                       <td>{f.item_name || f.item_code}</td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600 }}>
-                          {qty.toFixed(2)}{uom ? ' ' + uom : ''}
+                          {kgPorBulto > 0
+                            ? `${totalNatural.toFixed(2)} ${uom}`
+                            : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`}
                         </div>
-                        {qtyPres != null && presentacion && (
-                          <div style={{ fontSize: '11px', color: '#666' }}>
-                            {qtyPres.toFixed(2)} {presentacion}
-                          </div>
+                        {kgPorBulto > 0 && (
+                          <div style={{ fontSize: '11px', color: '#666' }}>{bultos.toFixed(2)} emp.</div>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>${fmt2(f.rate)}</td>
+                      <td style={{ textAlign: 'right' }}>${fmt(f.rate)}</td>
                       <td style={{ textAlign: 'right' }}>
                         {f.impuesto_label || 'Tasa 0'}
-                        {impMonto > 0 && ` — $${fmt2(impMonto)}`}
+                        {impMonto > 0 && ` — $${fmt(impMonto)}`}
                       </td>
-                      <td style={{ textAlign: 'right' }}>${fmt2(totalLinea)}</td>
+                      <td style={{ textAlign: 'right' }}>${fmt(totalLinea)}</td>
                     </tr>
                   );
                 })}
@@ -187,34 +193,35 @@ function ModalReciboPDF({ datos, onClose }) {
             <hr className="nc-recibo-div-thin" />
             <div className="nc-recibo-totales">
               <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IVA 16%</span><span>${fmt2(totales.subtotalIva16 || 0)}</span>
+                <span>Subtotal IVA 16%</span><span>${fmt(totales.subtotalIva16 || 0)}</span>
               </div>
               <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IEPS 8%</span><span>${fmt2(totales.subtotalIeps || 0)}</span>
+                <span>Subtotal IEPS 8%</span><span>${fmt(totales.subtotalIeps || 0)}</span>
               </div>
               <div className="nc-recibo-total-fila nc-recibo-base">
-                <span>Subtotal IVA 0%</span><span>${fmt2(totales.subtotalTasa0 || 0)}</span>
+                <span>Subtotal IVA 0%</span><span>${fmt(totales.subtotalTasa0 || 0)}</span>
               </div>
+              {(() => { const d = (totales.subtotal||0) - ((totales.subtotalIva16||0)+(totales.subtotalIeps||0)+(totales.subtotalTasa0||0)); return d !== 0 ? (<div className="nc-recibo-total-fila nc-recibo-base"><span>Ajuste</span><span>${fmt(d)}</span></div>) : null; })()}
               <div className="nc-recibo-total-fila">
-                <span>Subtotal</span><span>${fmt2(totales.subtotal)}</span>
+                <span>Subtotal</span><span>${fmt(totales.subtotal)}</span>
               </div>
               {totales.iva > 0 && (
                 <div className="nc-recibo-total-fila">
-                  <span>IVA 16%</span><span>${fmt2(totales.iva)}</span>
+                  <span>IVA 16%</span><span>${fmt(totales.iva)}</span>
                 </div>
               )}
               {totales.ieps > 0 && (
                 <div className="nc-recibo-total-fila">
-                  <span>IEPS 8%</span><span>${fmt2(totales.ieps)}</span>
+                  <span>IEPS 8%</span><span>${fmt(totales.ieps)}</span>
                 </div>
               )}
               {ajuste !== 0 && (
                 <div className="nc-recibo-total-fila">
-                  <span>Ajuste</span><span>${fmt2(ajuste)}</span>
+                  <span>Ajuste</span><span>${fmt(ajuste)}</span>
                 </div>
               )}
               <div className="nc-recibo-total-fila nc-recibo-grand-total">
-                <span>TOTAL</span><span>${fmt2(totales.total)}</span>
+                <span>TOTAL</span><span>${fmt(totales.total)}</span>
               </div>
             </div>
             <div className="nc-recibo-footer">
@@ -225,6 +232,7 @@ function ModalReciboPDF({ datos, onClose }) {
 
         <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
           <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
+          <button className="nc-btn-secondary" onClick={imprimirTicket}>🧾 Imprimir Ticket</button>
           <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
         </div>
       </div>

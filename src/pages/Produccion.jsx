@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevaReceta from '../components/NuevaReceta';
-import ModalError from '../components/ModalError';
-import ConfirmModal from '../components/ConfirmModal';
+import ModalError from '../components/modals/ModalError';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import useConfirmModal from '../hooks/useConfirmModal';
 import { produccionService } from '../services/frappeProduccion';
 import { stockService } from '../services/frappeStock';
@@ -320,7 +320,7 @@ function Produccion() {
                   {loadingRecetas ? (
                     <tr><td colSpan={5} className="loading">Cargando recetas...</td></tr>
                   ) : recetas.length === 0 ? (
-                    <tr><td colSpan={5} className="no-data">No hay recetas registradas. Crea la primera con "Nueva Receta".</td></tr>
+                    <tr><td colSpan={5} className="no-data">No hay recetas registradas. Crea la primera con &quot;Nueva Receta&quot;.</td></tr>
                   ) : (
                     recetas.map(r => (
                       <tr key={r.name}>

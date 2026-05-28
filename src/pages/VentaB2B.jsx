@@ -3,13 +3,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevaVentaB2B from "../components/NuevaVentaB2B";
-import ModalRegistrarPago from "../components/ModalRegistrarPago";
-import ConfirmModal from "../components/ConfirmModal";
+import ModalRegistrarPago from "../components/modals/ModalRegistrarPago";
+import ConfirmModal from "../components/modals/ConfirmModal";
 import Libreta from "../components/Libreta";
-import ModalReciboPDF from "../components/ModalReciboPDF";
+import ModalReciboPDF from "../components/modals/ModalReciboPDF";
 import { ventasService } from "../services/frappeSales";
 import { IMPUESTOS_MAP } from "../config/impuestos";
 import useConfirmModal from "../hooks/useConfirmModal";
+import { fmtUom } from "../utils/uom";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
@@ -468,9 +469,9 @@ function VentaB2B() {
                                       <tbody>
                                         {items.map((it, idx) => {
                                           const hasPres = it.cantidad_por_presentacion > 1 && it.presentacion;
-                                          const base = `${Number(it.qty || 0).toFixed(2)} ${it.uom || ''}`;
+                                          const base = `${Number(it.qty || 0).toFixed(2)} ${fmtUom(it.uom || '')}`;
                                           return (
-                                          <tr key={idx}>
+                                          <tr key={`${it.item_code}-${idx}`}>
                                             <td>
                                               <div className="cell-name">{it.item_name || it.item_code}</div>
                                               <div className="cell-code" style={{ fontSize: 12, color: '#9a8a78' }}>

@@ -1,6 +1,7 @@
 // src/components/Libreta.jsx
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { ventasService } from '../services/frappeSales';
+import { fmtUom } from '../utils/uom';
 
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', {
   minimumFractionDigits: 2,
@@ -169,7 +170,7 @@ const Libreta = forwardRef(function Libreta({ readOnly = false, onCobrar }, ref)
                                         </thead>
                                         <tbody>
                                           {items.map((it, idx) => (
-                                            <tr key={idx}>
+                                            <tr key={`${it.item_code}-${idx}`}>
                                               <td>
                                                 <div className="cell-name">{it.item_name || it.item_code}</div>
                                                 <div className="cell-code" style={{ fontSize: 11, color: '#6b7280' }}>
@@ -177,7 +178,7 @@ const Libreta = forwardRef(function Libreta({ readOnly = false, onCobrar }, ref)
                                                 </div>
                                               </td>
                                               <td className="cell-right">
-                                                <div>{Number(it.qty).toFixed(2)} {it.uom}</div>
+                                                <div>{Number(it.qty).toFixed(2)} {fmtUom(it.uom)}</div>
                                                 {it.cantidad_por_presentacion > 1 && it.presentacion && (
                                                   <div style={{ fontSize: 11, color: '#6b7280' }}>
                                                     = {Number(it.qty_presentacion).toFixed(2)} {it.presentacion}

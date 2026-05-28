@@ -150,7 +150,7 @@ export const validar = {
   correo: (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length <= 120,
 
   /** Teléfono: solo dígitos, espacios, guiones y paréntesis. Min 7, Max 15 dígitos */
-  telefono: (v) => typeof v === 'string' && /^[\d\s\-\(\)]{7,20}$/.test(v),
+  telefono: (v) => typeof v === 'string' && /^[\d\s()-]{7,20}$/.test(v),
 
   /** Texto general: no vacío, máximo 200 caracteres */
   texto: (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 200,

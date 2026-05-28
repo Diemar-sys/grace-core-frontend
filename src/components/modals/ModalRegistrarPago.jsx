@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ventasService } from '../services/frappeSales';
+import { ventasService } from '../../services/frappeSales';
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

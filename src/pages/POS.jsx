@@ -14,6 +14,8 @@ import '../styles/global.css';
 import '../styles/pos/POS.css';
 import '../styles/pos/POSModals.css';
 
+const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
+
 // Fuera del componente — no se recrea en cada render
 function hoyISO() {
   return new Date().toISOString().split('T')[0];
@@ -40,7 +42,6 @@ function POS() {
   const [modalCantidad,    setModalCantidad]    = useState(false);
 
   // ── Cobro ───────────────────────────────────
-  const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
   const [modalCobrar,  setModalCobrar]  = useState(false);
   const [pagos,        setPagos]        = useState(PAGOS_INIT);
   const [loadingCobro, setLoadingCobro] = useState(false);
@@ -144,6 +145,15 @@ function POS() {
   }, []);
 
   // ─────────────────────────────────────────────
+  // TOAST
+  // ─────────────────────────────────────────────
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 4_000);
+  }, []);
+
+  // ─────────────────────────────────────────────
   // ESPERA
   // ─────────────────────────────────────────────
   const ponerEnEspera = useCallback(() => {
@@ -156,7 +166,7 @@ function POS() {
     }]);
     limpiarTicket();
     showToast('⏸ Ticket en espera');
-  }, [ticket, cliente, limpiarTicket]);
+  }, [ticket, cliente, limpiarTicket, showToast]);
 
   const retomarEspera = useCallback((id) => {
     const hold = enEspera.find(e => e.id === id);
@@ -218,15 +228,6 @@ function POS() {
     () => ticket.find(i => i.item_code === itemSeleccionado) ?? null,
     [ticket, itemSeleccionado]
   );
-
-  // ─────────────────────────────────────────────
-  // TOAST
-  // ─────────────────────────────────────────────
-  const showToast = useCallback((msg) => {
-    setToast(msg);
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(''), 4_000);
-  }, []);
 
   // ─────────────────────────────────────────────
   // CONFIRMAR VENTA

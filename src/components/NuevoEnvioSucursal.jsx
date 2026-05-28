@@ -1,10 +1,12 @@
 // src/components/NuevoEnvioSucursal.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { stockService } from '../services/frappeStock';
+import { fmtUom } from '../utils/uom';
 import { BODEGA_CENTRAL } from '../config/constants';
 import useSucursales from '../hooks/useSucursales';
-import ModalError from './ModalError';
-import ModalHojaEntrega from './ModalHojaEntrega';
+import ModalError from './modals/ModalError';
+import ModalHojaEntrega from './modals/ModalHojaEntrega';
+import { parseErrorFrappe } from '../utils/errorFrappe';
 import '../styles/NuevaCompra.css';
 
 const FILA_VACIA = () => ({
@@ -35,33 +37,44 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '' });
+  const inputRefs = useRef([]);
   const [hojaData, setHojaData] = useState(null);
 
   const sucursalLabel = sucursales.find(s => s.warehouse === warehouseDestino)?.label || warehouseDestino;
 
   // ── CRUD filas ──────────────────────────────────────────────────────────
-  const agregarFila = () => setFilas(f => [...f, FILA_VACIA()]);
+  const agregarFila = useCallback(() => setFilas(f => [...f, FILA_VACIA()]), []);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
-  const updateFila = (id, campo, valor) =>
-    setFilas(f => f.map(r => r._id === id ? { ...r, [campo]: valor } : r));
+  const updateFila = (id, campos) =>
+    setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
+
+  const focusRow = useCallback((idx) => {
+    if (idx < inputRefs.current.length) {
+      inputRefs.current[idx]?.focus();
+    } else {
+      agregarFila();
+    }
+  }, [agregarFila]);
 
   // ── Validación ──────────────────────────────────────────────────────────
   const validar = () => {
-    if (!warehouseDestino) { setError('Selecciona una sucursal'); return null; }
+    if (!warehouseDestino) {
+      setErrorModal({ isOpen: true, title: 'Falta destino', message: 'Selecciona una sucursal de destino.' });
+      return null;
+    }
     const validos = filas.filter(f => f.item_code && parseFloat(f.qty) > 0);
-    if (!validos.length) { setError('Agrega al menos un producto con cantidad'); return null; }
+    if (!validos.length) {
+      setErrorModal({ isOpen: true, title: 'Sin productos', message: 'Agrega al menos un producto con cantidad para registrar el envío.' });
+      return null;
+    }
     const sinStock = validos.filter(f => f.stock != null && parseFloat(f.qty) > parseFloat(f.stock));
     if (sinStock.length) {
       const lista = sinStock.map(f =>
         `• ${f.item_name}: pides ${f.qty} ${f.uom || ''}, hay ${f.stock} ${f.uom || ''}`
       ).join('\n');
-      setErrorModal({
-        isOpen: true,
-        message: `Stock insuficiente en Bodega Central:\n\n${lista}`,
-      });
+      setErrorModal({ isOpen: true, title: 'Stock insuficiente', message: `Bodega Central no tiene suficiente:\n\n${lista}` });
       return null;
     }
     return validos;
@@ -81,7 +94,6 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 
   // ── Confirmar envío ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {
-    setError('');
     const items = validar(); if (!items) return;
     setLoading(true);
     try {
@@ -98,16 +110,18 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         fecha, hora, sucursalLabel, warehouseDestino,
         filas: items, notas, docName: doc.name,
       });
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+    } catch (err) {
+      setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
+    } finally { setLoading(false); }
   };
 
   return (
     <div className="nc-modal">
       <ModalError
         isOpen={errorModal.isOpen}
+        title={errorModal.title}
         message={errorModal.message}
-        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        onClose={() => setErrorModal({ isOpen: false, title: '', message: '' })}
       />
 
       {hojaData && (
@@ -123,7 +137,6 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
           <button className="nc-btn-close" onClick={onCancel}>×</button>
         </div>
 
-        {error && <div className="nc-alert nc-alert-error">{error}</div>}
         {success && <div className="nc-alert nc-alert-success">{success}</div>}
 
         <div className="nc-top-row">
@@ -166,10 +179,11 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
                 <FilaEnvio
                   key={fila._id}
                   fila={fila}
-                  rowIdx={idx}
-                  onChange={(campo, valor) => updateFila(fila._id, campo, valor)}
+
+                  onChange={(campos) => updateFila(fila._id, campos)}
                   onEliminar={() => eliminarFila(fila._id)}
-                  onAddRow={agregarFila}
+                  onFocusNext={() => focusRow(idx + 1)}
+                  inputRef={el => { inputRefs.current[idx] = el; }}
                   soloUna={filas.length === 1}
                 />
               ))}
@@ -195,7 +209,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 }
 
 // ── Fila de envío (sin precios) ─────────────────────────────────────────────
-function FilaEnvio({ fila, rowIdx, onChange, onEliminar, onAddRow, soloUna }) {
+function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -214,7 +228,7 @@ function FilaEnvio({ fila, rowIdx, onChange, onEliminar, onAddRow, soloUna }) {
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
     setCursor(-1);
-    if (!texto) { onChange('item_code', ''); onChange('item_name', ''); setSugerencias([]); return; }
+    if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await stockService.buscarItemsTexto(texto);
@@ -240,49 +254,33 @@ function FilaEnvio({ fila, rowIdx, onChange, onEliminar, onAddRow, soloUna }) {
   };
 
   const seleccionar = async (item) => {
-    setBusqueda(item.item_name);
-    onChange('item_code', item.item_code);
-    onChange('item_name', item.item_name);
-    onChange('uom', item.stock_uom);
     const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
-    onChange('cantidad_por_presentacion', cantPres);
-    onChange('presentacion', item.custom_presentación || '');
+    setBusqueda(item.item_name);
+    onChange({
+      item_code:               item.item_code,
+      item_name:               item.item_name,
+      uom:                     item.stock_uom,
+      cantidad_por_presentacion: cantPres,
+      presentacion:            item.custom_presentación || '',
+      stockLoading:            true,
+    });
     setAbierto(false);
     setCursor(-1);
     setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
 
-    onChange('stockLoading', true);
     try {
       const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
       const qtyNaturalBin = parseFloat(bin?.actual_qty || 0);
       const stockEnUnidad = qtyNaturalBin * cantPres;
-      onChange('stock', stockEnUnidad);
-      if (stockEnUnidad <= 0) onChange('qty', '');
+      onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
     } catch (err) {
       console.error('Error fetch stock:', err);
-      onChange('stock', 0);
-      onChange('qty', '');
-    } finally {
-      onChange('stockLoading', false);
+      onChange({ stock: 0, qty: '', stockLoading: false });
     }
   };
 
-  const focusNextRow = () => {
-    const nextTr = document.querySelector(`tr[data-row-idx="${rowIdx + 1}"]`);
-    const nextInput = nextTr?.querySelector('.nc-buscar-input');
-    if (nextInput) {
-      nextInput.focus();
-    } else {
-      onAddRow?.();
-      setTimeout(() => {
-        const trs = document.querySelectorAll('tr[data-row-idx]');
-        const last = trs[trs.length - 1];
-        last?.querySelector('.nc-buscar-input')?.focus();
-      }, 50);
-    }
-  };
 
-  const uomLabel = fila.uom || 'unid';
+  const uomLabel = fmtUom(fila.uom || 'unid');
   const qtyNum = parseFloat(fila.qty || 0);
   const stock = fila.stock;
   const stockRestante = stock != null ? stock - qtyNum : null;
@@ -290,10 +288,11 @@ function FilaEnvio({ fila, rowIdx, onChange, onEliminar, onAddRow, soloUna }) {
   const excedeStock = stockRestante != null && stockRestante < 0;
 
   return (
-    <tr data-row-idx={rowIdx} className={excedeStock ? 'nc-fila-alerta' : ''}>
+    <tr className={excedeStock ? 'nc-fila-alerta' : ''}>
       <td>
         <div className="nc-buscador-wrap" ref={wrapRef}>
           <input className="nc-buscar-input" type="text" value={busqueda}
+            ref={inputRef}
             onChange={e => handleBusqueda(e.target.value)}
             onKeyDown={handleItemKeyDown}
             placeholder="Buscar producto..."
@@ -332,11 +331,11 @@ function FilaEnvio({ fila, rowIdx, onChange, onEliminar, onAddRow, soloUna }) {
           type="number" min="0" step="0.01"
           ref={qtyRef}
           value={sinStock ? '' : fila.qty}
-          onChange={e => onChange('qty', e.target.value)}
+          onChange={e => onChange({ qty: e.target.value })}
           placeholder={sinStock ? '—' : '0'}
           disabled={sinStock}
           title={sinStock ? 'Sin stock — elimina la fila' : ''}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextRow(); } }} />
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onFocusNext?.(); } }} />
         <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
         {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>

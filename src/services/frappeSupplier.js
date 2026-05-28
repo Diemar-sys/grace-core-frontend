@@ -47,14 +47,15 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} [filtros={}] - Posible filtro de "grupo" (Supplier Group).
    * @returns {Promise<Array<Object>>} Lista de objetos proveedor.
    */
-  async getProveedores(filtros = {}) {
+  async getProveedores(filtros = {}, signal) {
     const { grupo, search, page = 1, pageSize = 20 } = filtros;
     const params = new URLSearchParams({ page, page_size: pageSize, disabled: 0 });
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
     const res = await this._fetch(
-      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`
+      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`,
+      signal ? { signal } : undefined
     );
     return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
   }
@@ -64,14 +65,15 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} [filtros={}] - Posible filtro de grupo.
    * @returns {Promise<Array<Object>>} Lista de proveedores inactivos.
    */
-  async getProveedoresDeshabilitados(filtros = {}) {
+  async getProveedoresDeshabilitados(filtros = {}, signal) {
     const { grupo, search, page = 1, pageSize = 20 } = filtros;
     const params = new URLSearchParams({ page, page_size: pageSize, disabled: 1 });
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
     const res = await this._fetch(
-      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`
+      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`,
+      signal ? { signal } : undefined
     );
     return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
   }

@@ -378,9 +378,9 @@
 
 /* Tabla anidada dentro del detalle */
 .sys-table--nested { box-shadow: none; border-radius: 10px 10px 0 0; overflow: hidden; }
-.sys-table--nested thead th { padding: 10px 16px; font-size: 12px; }
-.sys-table--nested td { padding: 11px 16px; font-size: 14px; }
-.sys-table--nested .cell-name { font-size: 15px; }
+.sys-table--nested thead th { padding: 10px 16px; font-size: 13px; }
+.sys-table--nested td { padding: 12px 16px; font-size: 16px; }
+.sys-table--nested .cell-name { font-size: 17px; }
 
 /* Barra de totales — pegada al fondo del scroll, siempre visible */
 .venta-detalle-totales {

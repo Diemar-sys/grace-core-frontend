@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { fmt, fechaActual, deptColor, fmtModoPago } from './posUtils';
 import '../../styles/pos/POSHistorial.css';
 

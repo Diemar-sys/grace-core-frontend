@@ -1,7 +1,7 @@
 // src/components/NuevoProveedor.jsx
 import React, { useState, useEffect } from 'react';
 import { proveedores } from '../services/frappeSupplier';
-import ModalError from './ModalError';
+import ModalError from './modals/ModalError';
 import { sanitizarObjeto } from '../utils/security';
 import { TAXONOMY, getTipoDeGrupo } from '../config/proveedorTaxonomy';
 import '../styles/NuevoProveedor.css';

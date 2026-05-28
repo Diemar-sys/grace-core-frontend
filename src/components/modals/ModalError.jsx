@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/global.css';
+import '../../styles/global.css';
 /**
  * ModalError Component
  *
@@ -24,22 +24,39 @@ function ModalError({ isOpen, title, message, type = "error", onClose }) {
   const titleColor = isSuccess ? "#16a34a" : "#92400e"; // Darker green for success, darker orange for error
 
   const renderIcon = () => {
+    const svgProps = {
+      xmlns: "http://www.w3.org/2000/svg",
+      width: 50, height: 50,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: iconColor,
+      strokeWidth: 2,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    };
     switch (type) {
       case 'success-create':
-        // Double Check
         return (
-          <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="none" className="modal-icon" stroke={iconColor} viewBox="0 0 24 24"><path d="m5 13 4 4L19 7M1 13l4 4L15 7" strokeWidth={2}/></svg>
+          <svg {...svgProps}>
+            <path d="M18 6 7 17l-5-5" />
+            <path d="m22 10-7.5 7.5L13 16" />
+          </svg>
         );
       case 'success-update':
-        // Check in square
         return (
-          <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="none" className="modal-icon" stroke={iconColor} viewBox="0 0 24 24"><path d="m9 12 2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0" strokeWidth={2}/></svg>
+          <svg {...svgProps}>
+            <path d="M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.344" />
+            <path d="m9 11 3 3L22 4" />
+          </svg>
         );
       case 'error':
       default:
-        // Alert Triangle
         return (
-          <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="none" className="modal-icon" stroke={iconColor} viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3" strokeWidth={2}/></svg>
+          <svg {...svgProps}>
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
         );
     }
   };

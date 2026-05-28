@@ -1,12 +1,13 @@
 // src/pages/Catalogo.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';
-import ConfirmModal from '../components/ConfirmModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import { inventory } from '../services/frappeInventory';
 import { produccionService } from '../services/frappeProduccion';
 import useConfirmModal from '../hooks/useConfirmModal';
+import { fmtUom } from '../utils/uom';
 import '../styles/global.css';
 import '../styles/Panel.css';
 
@@ -29,7 +30,7 @@ function fmtStock(item) {
   const actual     = parseFloat(item.actual_qty) || 0;
   const cantPres   = parseFloat(item.custom_cantidad_por_presentación) || 0;
   const presentacion = item.custom_presentación || '';
-  const uom        = item.stock_uom || '';
+  const uom        = fmtUom(item.stock_uom || '');
 
   // Si hay factor de conversión: actual = empaques, total natural = empaques × cantPres
   // Ej: 16 bultos × 25 Kg/bulto = 400 Kg
@@ -87,18 +88,25 @@ function Catalogo() {
   const [selectedTipo, setSelectedTipo] = useState('');
   const [costosBOM, setCostosBOM] = useState({});
 
-  // Declarada con useCallback para que useEffect pueda declararla en sus dependencias
-  // sin suprimir el linter. Las dependencias reflejan exactamente qué valores usa.
+  const abortRef = useRef(null);
+
   const loadItems = useCallback(async () => {
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true); setSearchTerm('');
     try {
       const filtros = { itemGroup: selectedGroup || null, tipoItem: selectedTipo || null };
       let data = [];
-      if (vistaActiva === 'registrado') data = await inventory.getProductosRegistrados(filtros);
-      if (vistaActiva === 'deshabilitado') data = await inventory.getProductosDeshabilitados(filtros);
+      if (vistaActiva === 'registrado') data = await inventory.getProductosRegistrados(filtros, signal);
+      if (vistaActiva === 'deshabilitado') data = await inventory.getProductosDeshabilitados(filtros, signal);
       setItems(data);
-    } catch (err) { console.error('Error cargando inventario:', err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error cargando inventario:', err);
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
   }, [vistaActiva, selectedGroup, selectedTipo]);
 
   const deleteModal  = useConfirmModal(
@@ -128,7 +136,10 @@ function Catalogo() {
     })();
   }, []);
 
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => {
+    loadItems();
+    return () => abortRef.current?.abort();
+  }, [loadItems]);
 
   useEffect(() => {
     const ptCodes = items
@@ -441,7 +452,7 @@ function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEna
             <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>Sin stock</span>
           )}
         </td>
-        <td>{item.stock_uom || '—'}</td>
+        <td>{fmtUom(item.stock_uom || '') || '—'}</td>
         <BtnAcciones />
       </tr>
     );

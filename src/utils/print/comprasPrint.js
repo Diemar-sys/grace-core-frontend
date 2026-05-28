@@ -118,7 +118,7 @@ export async function imprimirCompraTicket(datos) {
     console.warn('Térmica no disponible, fallback navegador:', err.message);
     const win = window.open('', '_blank', 'width=420,height=700');
     const html = generarHTMLTicketCompra(datos);
-    win.document.write(html + '<script>window.onload=function(){window.print();}<\/script>');
+    win.document.write(html + '<script>window.onload=function(){window.print();}</script>');
     win.document.close();
   }
 }
@@ -224,7 +224,7 @@ export function imprimirCompraPDF(datos) {
     </tbody>
   </table>
   <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
-  <script>window.onload = function(){ window.print(); }<\/script>
+  <script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>`;
 

@@ -64,8 +64,19 @@ function Layout({ children }) {
   const [searchParams] = useSearchParams();
   const modoConsulta = searchParams.get('modo') === 'consulta';
   const navItems = NAV_ITEMS.filter(i => roleConfig.rutas.includes(i.path));
-  const enOperaciones = navItems.some(i => i.path === location.pathname) && !modoConsulta;
-  const enConsultas   = location.pathname.startsWith('/consultas');
+
+  // Rutas que pertenecen a Operaciones (todas las páginas de módulos sin ?modo=consulta)
+  const RUTAS_OPERACIONES = new Set([
+    '/catalogo', '/inventario', '/compras', '/venta-b2b',
+    '/envio-sucursal', '/proveedores', '/pos', '/produccion',
+  ]);
+  const enOperaciones = RUTAS_OPERACIONES.has(location.pathname) && !modoConsulta;
+
+  // Consultas: rutas /consultas/... O cualquier módulo con ?modo=consulta
+  const enConsultas = location.pathname.startsWith('/consultas') || modoConsulta;
+
+  // Reportes
+  const enReportes = location.pathname.startsWith('/reportes');
   const mostrarMenubar = roleConfig.rutas.includes('/panel');
 
   return (
@@ -114,7 +125,12 @@ function Layout({ children }) {
             Consultas
           </Link>
           <span className="layout-menu-btn disabled">Procesos</span>
-          <span className="layout-menu-btn disabled">Reportes</span>
+          <Link
+            to="/panel?seccion=reportes"
+            className={"layout-menu-btn" + (enReportes ? " active" : "")}
+          >
+            Reportes
+          </Link>
           <span className="layout-menu-btn disabled">Estadísticas</span>
           <span className="layout-menu-btn disabled">Configuración</span>
         </nav>

@@ -1,14 +1,13 @@
-// src/components/RegistroSalida.jsx
+// src/components/RegistroMerma.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
 import { sanitizar } from '../utils/security';
-import { getSucursalesDestino } from '../config/clientesB2B';
 import { BODEGA_CENTRAL } from '../config/constants';
-import { TENANT } from '../config/tenant';
 import { fetchStockMapKg } from '../utils/stockMP';
 import { fmtUom } from '../utils/uom';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
+import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
 
 const FILA_VACIA = () => ({
@@ -17,50 +16,50 @@ const FILA_VACIA = () => ({
   cantPres: 1, presentacion: '',
 });
 
+const MOTIVOS = [
+  'Caducidad',
+  'Daño físico',
+  'Plaga',
+  'Robo / Faltante',
+  'Error operativo',
+  'Otro',
+];
+
 /**
- * Modal para despachar o enviar mercancías internas (Transferencias/Material Issue).
- * Permite seleccionar hacia qué Sub-Almacén de los Departamentos va dirigida la salida.
- * Cantidad capturada en stock_uom (Kg/Lt/Pza); submit convierte a unidad natural
- * (BULTO/CUBETA) dividiendo por cantidad_por_presentación.
+ * Modal para registrar mermas (pérdida permanente). Stock Entry tipo "Material Issue".
+ * Cantidad capturada en stock_uom (Kg/Lt/Pza); submit convierte a unidad natural.
  */
-function RegistroSalida({ onSuccess, onCancel }) {
-  const [almacenDestino, setAlmacenDestino] = useState('');
+function RegistroMerma({ onSuccess, onCancel }) {
+  const [almacenOrigen, setAlmacenOrigen] = useState(BODEGA_CENTRAL);
+  const [motivo, setMotivo]   = useState('Caducidad');
   const [filas, setFilas]     = useState([FILA_VACIA()]);
   const [notas, setNotas]     = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [errorModal, setErrorModal] = useState(null);
+  const [mermaTarget, setMermaTarget] = useState(null);
 
-  const [grupos, setGrupos] = useState([]);
   const [almacenes, setAlmacenes] = useState([]);
-  const [stockMap, setStockMap] = useState({});
+  const [stockMap, setStockMap]   = useState({});
   const [stockLoaded, setStockLoaded] = useState(false);
 
   useEffect(() => {
     let cancel = false;
-    fetchStockMapKg(BODEGA_CENTRAL)
-      .then(m => { if (!cancel) { setStockMap(m); setStockLoaded(true); } })
-      .catch(err => { console.error('Stock origen:', err); setStockLoaded(true); });
-    Promise.all([
-      stockService.fetchAlmacenesAgrupados(),
-      stockService.fetchAlmacenes(),
-    ])
-      .then(([agrup, flat]) => {
-        if (cancel) return;
-        const exclWh = new Set([
-          BODEGA_CENTRAL,
-          TENANT.tiendaMatriz,
-          ...getSucursalesDestino().map(s => s.warehouse),
-        ]);
-        const agrupFiltrado = agrup
-          .map(g => ({ ...g, almacenes: g.almacenes.filter(a => !exclWh.has(a.name)) }))
-          .filter(g => g.almacenes.length > 0);
-        setGrupos(agrupFiltrado);
-        setAlmacenes(flat.filter(a => !exclWh.has(a.name)));
-      })
+    stockService.fetchAllWarehousesInclusive()
+      .then(list => { if (!cancel) setAlmacenes(list); })
       .catch(err => console.error('Almacenes:', err));
     return () => { cancel = true; };
   }, []);
+
+  useEffect(() => {
+    if (!almacenOrigen) { setStockMap({}); setStockLoaded(false); return; }
+    let cancel = false;
+    setStockLoaded(false);
+    fetchStockMapKg(almacenOrigen)
+      .then(m => { if (!cancel) { setStockMap(m); setStockLoaded(true); } })
+      .catch(err => { console.error('Stock origen:', err); setStockLoaded(true); });
+    return () => { cancel = true; };
+  }, [almacenOrigen]);
 
   const agregarFila  = () => setFilas(f => [...f, FILA_VACIA()]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
@@ -68,7 +67,6 @@ function RegistroSalida({ onSuccess, onCancel }) {
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
 
   // Cascade: cada fila parte del stock final de la fila ANTERIOR del mismo item.
-  // F1 usa raw; F2 usa (raw - qtyF1); F3 usa (raw - qtyF1 - qtyF2); etc.
   // Item con item_code pero sin entrada en stockMap (no hay Bin) = stock 0.
   const filasConStock = filas.map((f, idx) => {
     const info = stockLoaded && f.item_code ? stockMap[f.item_code] : null;
@@ -86,15 +84,19 @@ function RegistroSalida({ onSuccess, onCancel }) {
   const hayFaltantes = filasConStock.some(f => f.insuficiente);
 
   const handleSubmit = async () => {
-    if (!almacenDestino) {
-      setErrorModal({ title: 'Falta destino', message: 'Selecciona el almacén destino antes de continuar.' });
+    if (!almacenOrigen) {
+      setErrorModal({ title: 'Falta origen', message: 'Selecciona el almacén origen antes de continuar.' });
+      return;
+    }
+    if (!motivo) {
+      setErrorModal({ title: 'Falta motivo', message: 'Indica el motivo de la merma.' });
       return;
     }
     const itemsValidos = filasConStock.filter(f => f.item_code && parseFloat(f.qty) > 0);
     if (!itemsValidos.length) {
       setErrorModal({
         title: 'Sin productos',
-        message: 'Agrega al menos un producto con cantidad mayor a 0 para registrar la transferencia.',
+        message: 'Agrega al menos un producto con cantidad mayor a 0 para registrar la merma.',
       });
       return;
     }
@@ -102,26 +104,30 @@ function RegistroSalida({ onSuccess, onCancel }) {
       const det = itemsValidos.filter(f => f.insuficiente)
         .map(f => `${f.item_name} (pide ${f.qty} ${f.uom}, hay ${(f.stockKg ?? 0).toFixed(2)} ${f.uom})`)
         .join('; ');
-      setErrorModal({ title: 'Stock insuficiente', message: `Bodega Central no tiene suficiente: ${det}` });
+      setErrorModal({ title: 'Stock insuficiente', message: `No hay suficiente stock: ${det}` });
       return;
     }
+    setMermaTarget(itemsValidos);
+  };
 
+  const confirmarMerma = async () => {
+    if (!mermaTarget) return;
     setLoading(true);
     try {
-      // qty va en stock_uom (Kg/Lt/Pza) con conversion_factor=1 en registrarSalida.
-      // ERPNext descuenta del Bin en stock_uom directamente.
-      const itemsLimpios = itemsValidos.map(f => ({
+      const itemsLimpios = mermaTarget.map(f => ({
         item_code: f.item_code,
         qty: parseFloat(f.qty),
         uom: f.uom,
       }));
-      await stockService.registrarSalida({
-        almacenDestino, items: itemsLimpios, notas: sanitizar(notas),
+      await stockService.registrarMerma({
+        almacenOrigen, motivo, items: itemsLimpios, notas: sanitizar(notas),
       });
-      const dest = almacenes.find(a => a.name === almacenDestino)?.label || almacenDestino;
-      setSuccess(`Transferencia registrada hacia ${dest}: ${itemsValidos.length} producto(s)`);
+      setMermaTarget(null);
+      const origen = almacenes.find(a => a.name === almacenOrigen)?.label || almacenOrigen;
+      setSuccess(`Merma registrada en ${origen}: ${mermaTarget.length} producto(s)`);
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
+      setMermaTarget(null);
       setErrorModal(parseErrorFrappe(err));
     } finally {
       setLoading(false);
@@ -129,7 +135,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
   };
 
   const totalProductos = filas.filter(f => f.item_code && parseFloat(f.qty) > 0).length;
-  const labelDestino   = almacenes.find(a => a.name === almacenDestino)?.label || '';
+  const labelOrigen = almacenes.find(a => a.name === almacenOrigen)?.label || almacenOrigen;
 
   return (
     <div className="rm-modal">
@@ -139,45 +145,64 @@ function RegistroSalida({ onSuccess, onCancel }) {
         message={errorModal?.message}
         onClose={() => setErrorModal(null)}
       />
+
+      {mermaTarget && (
+        <ConfirmModal
+          title="Confirmar merma"
+          description={<>Se registrará la baja permanente de <strong>{mermaTarget.length} producto(s)</strong> por motivo: <strong>{motivo}</strong>.</>}
+          subdescription="Esta acción descuenta stock de forma permanente y no se puede deshacer."
+          confirmLabel="Sí, registrar merma"
+          loadingLabel="Guardando..."
+          confirmStyle={{ background: '#dc2626' }}
+          cancelLabel="Cancelar"
+          onConfirm={confirmarMerma}
+          onCancel={() => setMermaTarget(null)}
+          loading={loading}
+        />
+      )}
+
       <div className="rm-container salida">
         <div className="rm-header">
-          <h2>Registrar Salida / Transferencia</h2>
+          <h2>Registrar Merma</h2>
           <button className="rm-btn-close" onClick={onCancel}>x</button>
         </div>
 
         <div className="rm-info-bar">
-          <span className="rm-info-chip origen">Origen: Bodega Central - Insumos</span>
-          {labelDestino && (
-            <span className="rm-info-chip destino">Destino: {labelDestino}</span>
-          )}
+          <span className="rm-info-chip origen">Origen: {labelOrigen}</span>
+          <span className="rm-info-chip" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>
+            Tipo: Pérdida permanente (Material Issue)
+          </span>
           <span className="rm-info-chip" style={{ background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
-            Tipo: Transferencia de Material
+            Motivo: {motivo}
           </span>
         </div>
 
         {success && <div className="rm-alert rm-alert-success">{success}</div>}
         {hayFaltantes && (
           <div className="rm-alert rm-alert-error">
-            ⚠ Stock insuficiente en Bodega Central. Revisa filas en rojo.
+            ⚠ Stock insuficiente en {labelOrigen}. Revisa filas en rojo.
           </div>
         )}
 
-        <div className="rm-section">
-          <label>Almacen destino *</label>
-          <select value={almacenDestino} onChange={e => setAlmacenDestino(e.target.value)}>
-            <option value="">Selecciona destino...</option>
-            {grupos.map(g => (
-              <optgroup key={g.tipo} label={g.tipo}>
-                {g.almacenes.map(a => (
-                  <option key={a.name} value={a.name}>{a.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+        <div className="rm-section" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label>Almacen origen *</label>
+            <select value={almacenOrigen} onChange={e => setAlmacenOrigen(e.target.value)}>
+              {almacenes.map(a => (
+                <option key={a.name} value={a.name}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Motivo *</label>
+            <select value={motivo} onChange={e => setMotivo(e.target.value)}>
+              {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="rm-tabla-header">
-          <span>Productos a transferir</span>
+          <span>Productos a dar de baja</span>
         </div>
 
         <table className="rm-tabla">
@@ -213,19 +238,19 @@ function RegistroSalida({ onSuccess, onCancel }) {
           <textarea
             value={notas}
             onChange={e => setNotas(e.target.value)}
-            placeholder="Ej: Pedido para produccion del dia..."
+            placeholder="Detalle adicional de la merma..."
           />
         </div>
 
         <div className="rm-actions">
           <span className="rm-resumen">
-            <strong>{totalProductos}</strong> producto(s) para transferir
+            <strong>{totalProductos}</strong> producto(s) a registrar como merma
           </span>
           <button className="rm-btn-secondary" onClick={onCancel} disabled={loading}>Cancelar</button>
-          <button className="rm-btn-primary"   onClick={handleSubmit}
+          <button className="rm-btn-primary" onClick={handleSubmit}
             disabled={loading || hayFaltantes}
             style={hayFaltantes ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
-            {loading ? 'Guardando...' : hayFaltantes ? '✕ Stock insuficiente' : 'Confirmar Transferencia'}
+            {loading ? 'Guardando...' : hayFaltantes ? '✕ Stock insuficiente' : 'Confirmar Merma'}
           </button>
         </div>
       </div>
@@ -233,9 +258,6 @@ function RegistroSalida({ onSuccess, onCancel }) {
   );
 }
 
-/**
- * Fila con buscador + columnas stock/cantidad/stock final (pattern NuevaVentaB2B).
- */
 function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto]         = useState(false);
@@ -276,8 +298,6 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
   };
 
   const qtyNum = parseFloat(fila.qty) || 0;
-  // Idéntico a NuevaVentaB2B: Stock disp = raw - reservadoOtras.
-  // Stock final = Stock disp - qty propia.
   const stockMostrar = fila.stockEfectivo;
   const sinStock = fila.item_code && stockLoaded && stockMostrar != null && stockMostrar <= 0;
   const stockFinal = fila.stockFinal;
@@ -313,7 +333,6 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
         </div>
       </td>
 
-      {/* Stock disponible (Kg) — descuenta lo reservado por otras filas */}
       <td style={{ textAlign: 'center' }}>
         {!fila.item_code ? <span style={{ color: '#9ca3af' }}>—</span>
           : !stockLoaded ? <span style={{ fontSize: 12, color: '#6b7280' }}>...</span>
@@ -332,7 +351,6 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
           )}
       </td>
 
-      {/* Cantidad input */}
       <td style={{ textAlign: 'center' }}>
         <input
           className="rm-qty-input"
@@ -350,7 +368,6 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
         )}
       </td>
 
-      {/* Stock final (Kg) */}
       <td style={{ textAlign: 'center' }}>
         {!fila.item_code || stockFinal == null ? <span style={{ color: '#9ca3af' }}>—</span>
           : sinStock ? <span style={{ color: '#9ca3af' }}>—</span>
@@ -368,4 +385,4 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
   );
 }
 
-export default RegistroSalida;
+export default RegistroMerma;

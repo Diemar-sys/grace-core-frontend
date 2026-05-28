@@ -1,11 +1,11 @@
 // src/pages/Proveedores.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoProveedor from '../components/NuevoProveedor';
 import { proveedores } from '../services/frappeSupplier';
 import { PAGE_SIZE } from '../config/constants';
-import ConfirmModal from '../components/ConfirmModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import useConfirmModal from '../hooks/useConfirmModal';
 import useDebounce from '../hooks/useDebounce';
 import { TAXONOMY, getTipoDeGrupo } from '../config/proveedorTaxonomy';
@@ -65,8 +65,13 @@ function Proveedores() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // useCallback para que useEffect pueda declarar loadItems como dependencia limpiamente
+  const abortRef = useRef(null);
+
   const loadItems = useCallback(async () => {
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true);
     try {
       const filtros = {
@@ -76,18 +81,24 @@ function Proveedores() {
         pageSize: PAGE_SIZE,
       };
       const res = vistaActiva === 'activo'
-        ? await proveedores.getProveedores(filtros)
-        : await proveedores.getProveedoresDeshabilitados(filtros);
+        ? await proveedores.getProveedores(filtros, signal)
+        : await proveedores.getProveedoresDeshabilitados(filtros, signal);
 
       setItems(res.items || []);
       setTotal(res.total || 0);
       setTotalPages(res.total_pages || 1);
-    } catch (err) { console.error('Error cargando proveedores:', err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error cargando proveedores:', err);
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
   }, [vistaActiva, selectedGrupo, searchTerm, page]);
 
   useEffect(() => { setPage(1); }, [vistaActiva, selectedTipo, selectedGrupo, searchTerm]);
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => {
+    loadItems();
+    return () => abortRef.current?.abort();
+  }, [loadItems]);
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedTipo(''); setSelectedGrupo(''); setInputBusqueda(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };

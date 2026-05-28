@@ -180,12 +180,49 @@ const MODULOS_CONSULTAS = [
   { key: "catalogo",    path: "/catalogo?modo=consulta",    icon: <IconCatalogo />,    nombre: "Catálogo",       sub: "Ver registros",      color: "#d08700",   bg: "#fff8e6" },
   { key: "inventario",  path: "/inventario?modo=consulta",  icon: <IconInventario />,  nombre: "Inventario",     sub: "Ver registros",      color: "#2e7d32",   bg: "#e8f5e9" },
   { key: "compras",     path: "/compras?modo=consulta",     icon: <IconCompras />,     nombre: "Compras",        sub: "Ver registros",      color: "#1565c0",   bg: "#e3f0ff" },
-  { key: "venta_b2b",   path: "/venta-b2b?modo=consulta",   icon: <IconVentaB2B />,    nombre: "Venta B2B",      sub: "Ver registros",      color: "#388e3c",   bg: "#e8f5e9" },
+  { key: "venta_b2b",   path: "/venta-b2b?modo=consulta",   icon: <IconVentaB2B />,    nombre: "Venta B2B",      sub: "Historial de ventas", color: "#388e3c",   bg: "#e8f5e9" },
   { key: "envio_sucursal", path: "/envio-sucursal?modo=consulta", icon: <IconEnvioSucursal />, nombre: "Envío a Sucursal", sub: "Ver registros", color: "#0891b2", bg: "#cffafe" },
   { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
   { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },
 ];
+
+// ── Módulos de Reportes ───────────────────────────────
+const IconReporte = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 3v18h18" />
+    <path d="M7 16v-4" /><path d="M11 16V8" /><path d="M15 16v-6" /><path d="M19 16V4" />
+  </svg>
+);
+
+const MODULOS_REPORTES = [
+  { key: "ventas_categoria", path: "/reportes/ventas-categoria", icon: <IconReporte />, nombre: "Ventas por Categoría", sub: "B2B agrupado por item_group", color: "#7c2d12", bg: "#fed7aa" },
+];
+
+function ContenidoReportes() {
+  const fecha = new Date().toLocaleDateString("es-MX", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+  return (
+    <>
+      <div className="panel-greeting">
+        <h2>Reportes</h2>
+        <p>{fecha}</p>
+      </div>
+      <div className="panel-grid">
+        {MODULOS_REPORTES.map(mod => (
+          <Link key={mod.path} to={mod.path} className="panel-module"
+            style={{ "--mod-color": mod.color, "--mod-bg": mod.bg }}>
+            <div className="panel-module-icon">{mod.icon}</div>
+            <span className="panel-module-name">{mod.nombre}</span>
+            <span className="panel-module-sub">{mod.sub}</span>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
 
 function ContenidoConsultas({ modulosPermitidos }) {
   const fecha = new Date().toLocaleDateString("es-MX", {
@@ -230,7 +267,7 @@ function Panel() {
   useEffect(() => {
     const s = searchParams.get("seccion");
     if (s && s !== seccion) setSeccion(s);
-  }, [searchParams]);
+  }, [searchParams, seccion]);
 
   const handleTabChange = (key) => {
     setSeccion(key);
@@ -304,7 +341,7 @@ function Panel() {
         {seccion === "operaciones" && <ContenidoOperaciones modulosPermitidos={roleConfig.modulosPanel} />}
         {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} />}
         {seccion === "procesos" && <Proximamente titulo="Procesos" />}
-        {seccion === "reportes" && <Proximamente titulo="Reportes" />}
+        {seccion === "reportes" && <ContenidoReportes />}
         {seccion === "estadisticas" && <Proximamente titulo="Estadísticas" />}
         {seccion === "configuracion" && <Proximamente titulo="Configuración" />}
       </div>

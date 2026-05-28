@@ -1,11 +1,12 @@
 // src/components/NuevaVentaB2B.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ventasService } from '../services/frappeSales';
+import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
-import ModalError from './ModalError';
+import ModalError from './modals/ModalError';
 import BuscadorCliente from './BuscadorCliente';
-import ModalReciboPDF from './ModalReciboPDF';
+import ModalReciboPDF from './modals/ModalReciboPDF';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
@@ -55,7 +56,6 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
   const [success, setSuccess] = useState('');
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [pdfData, setPdfData] = useState(null);
-
   // IVA/IEPS se jalan del catálogo (custom_impuesto del item) — fuente única de verdad.
   // No editable en venta B2B; cambios viajan vía actualización de catálogo desde Compras.
   const IMPUESTOS = ventasService.getImpuestos();
@@ -114,18 +114,32 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
           setFilas(filasRehidratadas);
 
           // Fetch stock Bodega Central para cada item rehidratado.
-          filasRehidratadas.forEach(async (f) => {
-            try {
-              const bin = await stockService.getStockActual(f.item_code, BODEGA_CENTRAL);
-              const qtyBin = parseFloat(bin?.actual_qty || 0);
-              const stockEnUnidad = qtyBin * (f.cantidad_por_presentacion || 1);
-              setFilas(prev => prev.map(r => r._id === f._id
-                ? { ...r, stock: stockEnUnidad, stockLoading: false } : r));
-            } catch (err) {
-              setFilas(prev => prev.map(r => r._id === f._id
-                ? { ...r, stock: 0, stockLoading: false } : r));
-            }
-          });
+          const resultados = await Promise.allSettled(
+            filasRehidratadas.map(async (f) => {
+              try {
+                const bin = await stockService.getStockBin(f.item_code, BODEGA_CENTRAL);
+                const stockEnUnidad = parseFloat(bin?.actual_stock || 0) * f.cantidad_por_presentacion;
+                updateFila(f._id, { stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
+              } catch (err) {
+                console.error("Error fetch stock:", err);
+                updateFila(f._id, { stock: null, stockLoading: false });
+              }
+            })
+          );
+          // Construir mapa id → stock (todas resueltas, sin errores silenciosos)
+          const stockMap = Object.fromEntries(
+            resultados
+              .filter(r => r.status === 'fulfilled')
+              .map(r => [r.value.id, r.value.stock])
+          );
+          // UN SOLO setFilas → UN SOLO render
+          setFilas(prev =>
+            prev.map(r =>
+              r._id in stockMap
+                ? { ...r, stock: stockMap[r._id], stockLoading: false }
+                : r
+            )
+          );
         } else {
           setFilas([FILA_VACIA()]);
         }
@@ -139,7 +153,23 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
   }, [initialData]);
 
   // ── CRUD filas ──────────────────────────────────────────────────────────
-  const agregarFila = () => setFilas(f => [...f, FILA_VACIA()]);
+  const agregarFila = useCallback(() => setFilas(f => [...f, FILA_VACIA()]), []);
+
+  const inputRefs = useRef([]);
+
+  const focusRow = useCallback((idx) => {
+    if (idx < filas.length) {
+      inputRefs.current[idx]?.focus();
+    } else {
+      agregarFila();
+    }
+  }, [agregarFila, filas.length]);
+
+  useEffect(() => {
+    if (filas.length > 1) {
+      inputRefs.current[filas.length - 1]?.focus();
+    }
+  }, [filas.length]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
   const moverFila = (id, dir) => setFilas(f => {
     const i = f.findIndex(r => r._id === id);
@@ -149,8 +179,8 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     [copia[i], copia[j]] = [copia[j], copia[i]];
     return copia;
   });
-  const updateFila = (id, campo, valor) =>
-    setFilas(f => f.map(r => r._id === id ? { ...r, [campo]: valor } : r));
+  const updateFila = (id, campos) =>
+    setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
   const handleImpuesto = (id, key) => {
     // Si key viene de catálogo y no está en lista filtrada (ej. 'ieps' filtrado en venta B2B), cae a tasa0.
     const imp = IMPUESTOS.find(i => i.key === key) || IMPUESTOS.find(i => i.key === 'tasa0');
@@ -226,7 +256,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     taxOverrides: {},
     subtotalOverrides: {
       iva16: totales.subtotalIva16,
-      ieps:  totales.subtotalIeps,
+      ieps: totales.subtotalIeps,
       tasa0: totales.subtotalTasa0,
     },
   });
@@ -345,8 +375,10 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
             </thead>
             <tbody>
               {filas.map((fila, idx) => {
-                const reservadoOtras = filas.reduce((acc, r) =>
-                  r._id !== fila._id && r.item_code === fila.item_code
+                // Cascade: cada fila parte del stock final de la anterior con mismo item.
+                // F1 ve raw; F2 ve (raw - qtyF1); F3 ve (raw - qtyF1 - qtyF2).
+                const reservadoOtras = filas.slice(0, idx).reduce((acc, r) =>
+                  r.item_code === fila.item_code
                     ? acc + (parseFloat(r.qty) || 0) : acc, 0);
                 return (
                   <FilaProducto
@@ -355,12 +387,14 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
                     impuestos={IMPUESTOS}
                     rowIdx={idx}
                     reservadoOtras={reservadoOtras}
-                    onChange={(campo, valor) => updateFila(fila._id, campo, valor)}
+                    onChange={(campos) => updateFila(fila._id, campos)}
                     onImpuesto={(key) => handleImpuesto(fila._id, key)}
                     onEliminar={() => eliminarFila(fila._id)}
                     onAddRow={agregarFila}
                     soloUna={filas.length === 1}
                     bloqueaMP={ocultaMateriaPrima(cliente.name)}
+                    inputRef={(el) => { inputRefs.current[idx] = el; }}
+                    onFocusNext={() => focusRow(idx + 1)}
                   />
                 );
               })}
@@ -429,7 +463,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP }) {
+function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP, inputRef, onFocusNext }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -448,7 +482,7 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
     setCursor(-1);
-    if (!texto) { onChange('item_code', ''); onChange('item_name', ''); setSugerencias([]); return; }
+    if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await ventasService.buscarItems(texto);
@@ -484,15 +518,8 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
 
   const seleccionar = async (item) => {
     setBusqueda(item.item_name);
-    onChange('item_code', item.item_code);
-    onChange('item_name', item.item_name);
-    onChange('uom', item.stock_uom);
-
     // Conversión presentación → unidad real (Kg/Lt/Pza)
     const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
-    onChange('cantidad_por_presentacion', cantPres);
-    onChange('presentacion', item.custom_presentación || '');
-
     // Precio venta B2B = precio de compra (custom_precio_por_kg = precio/Kg).
     // Modelo confirmado 2026-05-20: B2B paga al costo, sin margen. Última compra
     // actualiza precio_por_kg → ventas siguientes al nuevo precio.
@@ -506,47 +533,35 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
     } else {
       ratePorUnidad = 0;
     }
-    onChange('precio_catalogo', ratePorUnidad);
-    if (ratePorUnidad > 0) onChange('rate', ratePorUnidad.toFixed(6));
+    onChange({
+      item_code: item.item_code,
+      item_name: item.item_name,
+      uom: item.stock_uom,
+      cantidad_por_presentacion: cantPres,
+      presentacion: item.custom_presentación || '',
+      precio_catalogo: ratePorUnidad,
+      ...(ratePorUnidad > 0 ? { rate: ratePorUnidad.toFixed(6) } : {}),
+      stockLoading: true,
+    })
     onImpuesto(item.custom_impuesto || 'tasa0');
     setAbierto(false);
     setCursor(-1);
     setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
 
-    // Fetch stock disponible Bodega Central — convertir a peso real (Kg)
-    onChange('stockLoading', true);
+    // Fetch stock disponible Bodega Central
     try {
       const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
       const qtyNaturalBin = parseFloat(bin?.actual_qty || 0);
       const stockEnUnidad = qtyNaturalBin * cantPres;
-      onChange('stock', stockEnUnidad);
-      if (stockEnUnidad <= 0) onChange('qty', '');
+      onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
     } catch (err) {
       console.error('Error fetch stock:', err);
-      onChange('stock', 0);
-      onChange('qty', '');
-    } finally {
-      onChange('stockLoading', false);
-    }
-  };
-
-  const focusNextRow = () => {
-    const nextTr = document.querySelector(`tr[data-row-idx="${rowIdx + 1}"]`);
-    const nextInput = nextTr?.querySelector('.nc-buscar-input');
-    if (nextInput) {
-      nextInput.focus();
-    } else {
-      onAddRow?.();
-      setTimeout(() => {
-        const trs = document.querySelectorAll('tr[data-row-idx]');
-        const last = trs[trs.length - 1];
-        last?.querySelector('.nc-buscar-input')?.focus();
-      }, 50);
+      onChange({ stock: 0, qty: '', stockLoading: false });
     }
   };
 
   const totalConImp = totalFila(fila);
-  const uomLabel = fila.uom || 'unid';
+  const uomLabel = fmtUom(fila.uom || 'unid');
 
   const qtyNum = parseFloat(fila.qty || 0);
   // Stock efectivo descuenta lo reservado por otras filas con mismo item.
@@ -601,11 +616,11 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
           type="number" min="0" step="0.01"
           ref={qtyRef}
           value={sinStock ? '' : fila.qty}
-          onChange={e => onChange('qty', e.target.value)}
+          onChange={e => onChange({ qty: e.target.value })}
           placeholder={sinStock ? '—' : '0'}
           disabled={sinStock}
           title={sinStock ? 'Sin stock — elimina la fila' : ''}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextRow(); } }} />
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onFocusNext(); } }} />
         <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
         {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>

@@ -124,6 +124,19 @@ class FrappeStockService extends FrappeBase {
     return data.data || [];
   }
 
+  async getItemsPresentacion(codes = []) {
+    if (!codes.length) return {};
+    const params = new URLSearchParams({
+      fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación', 'custom_presentación']),
+      filters: JSON.stringify([['name', 'in', codes]]),
+      limit_page_length: 200,
+    });
+    const data = await this._fetch(`/api/resource/Item?${params}`);
+    const dict = {};
+    (data.data || []).forEach(it => { dict[it.item_code] = it; });
+    return dict;
+  }
+
   // ─────────────────────────────────────────────
   // CONSULTAS DE STOCK
   // ─────────────────────────────────────────────
@@ -352,6 +365,151 @@ class FrappeStockService extends FrappeBase {
         basic_rate:  parseFloat(item.precio_promedio) || 0,
         uom:         item.uom,
         stock_uom:   item.uom,
+      })),
+    });
+  }
+
+  /**
+   * Historial de movimientos por almacén (Stock Entry submitted).
+   * Incluye movimientos donde el almacén aparece como origen o destino.
+   * Tipos: Material Receipt (entrada), Material Transfer (transferencia),
+   * Material Issue (mermas / consumo), Manufacture (producción).
+   * @param {{warehouse, desde, hasta}} args
+   * @returns {Promise<Array<{name, fecha, tipo, rol, origen, destino, remarks, items}>>}
+   *   rol = 'origen' | 'destino' (cómo participó el almacén filtrado).
+   */
+  async getHistorialMovimientos({ warehouse, desde, hasta } = {}, signal) {
+    if (!warehouse) throw new Error('Almacén requerido');
+    if (!desde || !hasta) throw new Error('Rango de fechas requerido');
+
+    const baseFields = ['name', 'posting_date', 'posting_time', 'stock_entry_type', 'from_warehouse', 'to_warehouse', 'remarks'];
+    const baseFilters = [
+      ['docstatus', '=', 1],
+      ['posting_date', '>=', desde],
+      ['posting_date', '<=', hasta],
+    ];
+
+    // Dos queries: como origen y como destino. Luego merge.
+    const buildParams = (rolFilter) => new URLSearchParams({
+      fields: JSON.stringify(baseFields),
+      filters: JSON.stringify([...baseFilters, rolFilter]),
+      order_by: 'posting_date desc, posting_time desc, name desc',
+      limit_page_length: 500,
+    });
+
+    const [resOrigen, resDestino] = await Promise.all([
+      this._fetch('/api/resource/Stock Entry?' + buildParams(['from_warehouse', '=', warehouse]), { signal }),
+      this._fetch('/api/resource/Stock Entry?' + buildParams(['to_warehouse', '=', warehouse]), { signal }),
+    ]);
+
+    const mapEntries = new Map();
+    (resOrigen?.data || []).forEach(e => mapEntries.set(e.name, { ...e, _roles: new Set(['origen']) }));
+    (resDestino?.data || []).forEach(e => {
+      if (mapEntries.has(e.name)) {
+        mapEntries.get(e.name)._roles.add('destino');
+      } else {
+        mapEntries.set(e.name, { ...e, _roles: new Set(['destino']) });
+      }
+    });
+    const entries = [...mapEntries.values()];
+    if (!entries.length) return [];
+
+    // Fetch items por cada SE.
+    const itemsByParent = {};
+    await Promise.all(entries.map(async (e) => {
+      try {
+        const doc = await this._fetch('/api/resource/Stock Entry/' + encodeURIComponent(e.name), { signal });
+        itemsByParent[e.name] = doc?.data?.items || [];
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('No se pudieron cargar items de', e.name, err);
+        itemsByParent[e.name] = [];
+      }
+    }));
+
+    // Catálogo para cantidad_por_presentación.
+    const allItems = Object.values(itemsByParent).flat();
+    const codes = [...new Set(allItems.map(i => i.item_code).filter(Boolean))];
+    const cantPresByCode = {};
+    if (codes.length) {
+      try {
+        const catParams = new URLSearchParams({
+          fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación']),
+          filters: JSON.stringify([['name', 'in', codes]]),
+          limit_page_length: 500,
+        });
+        const cat = await this._fetch('/api/resource/Item?' + catParams, { signal });
+        (cat?.data || []).forEach(it => {
+          cantPresByCode[it.item_code] = parseFloat(it.custom_cantidad_por_presentación) || 1;
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') console.warn('Catálogo presentación no disponible:', err?.message);
+      }
+    }
+
+    return entries
+      .sort((a, b) => {
+        const cmp = (b.posting_date || '').localeCompare(a.posting_date || '');
+        if (cmp !== 0) return cmp;
+        return (b.posting_time || '').localeCompare(a.posting_time || '');
+      })
+      .map(e => {
+        const items = (itemsByParent[e.name] || []).map(d => {
+          const cantPres = cantPresByCode[d.item_code] || 1;
+          const qtyNat = parseFloat(d.qty || 0);
+          return {
+            item_code: d.item_code,
+            item_name: d.item_name || d.item_code,
+            qty: qtyNat * cantPres,
+            uom: d.stock_uom || d.uom || '',
+            s_warehouse: d.s_warehouse || null,
+            t_warehouse: d.t_warehouse || null,
+            basic_rate: parseFloat(d.basic_rate || 0),
+            amount: parseFloat(d.amount || 0),
+          };
+        });
+        const rol = e._roles.has('origen') && e._roles.has('destino')
+          ? 'interno' : e._roles.has('origen') ? 'origen' : 'destino';
+        return {
+          name: e.name,
+          fecha: e.posting_date,
+          hora: e.posting_time,
+          tipo: e.stock_entry_type,
+          rol,
+          origen: e.from_warehouse || null,
+          destino: e.to_warehouse || null,
+          remarks: e.remarks || '',
+          items,
+        };
+      });
+  }
+
+  /**
+   * Registra una merma (pérdida) desde un almacén. Stock Entry tipo "Material Issue".
+   * @param {Object} args
+   * @param {string} args.almacenOrigen - Almacén donde se da de baja el material.
+   * @param {string} args.motivo - Razón de la merma (caducidad, daño, robo, etc.).
+   * @param {Array<{item_code, qty, uom}>} args.items - Materiales perdidos.
+   * @param {string} [args.notas=""] - Comentario adicional.
+   */
+  async registrarMerma({ almacenOrigen, motivo, items, notas = "" }) {
+    if (!almacenOrigen) throw new Error("Selecciona el almacen origen");
+    if (!motivo) throw new Error("Indica el motivo de la merma");
+    if (!items?.length) throw new Error("Agrega al menos un producto");
+    return this.crearYSubmitirStockEntry({
+      doctype:          "Stock Entry",
+      stock_entry_type: "Material Issue",
+      company:          COMPANY,
+      from_warehouse:   almacenOrigen,
+      remarks:          `Merma (${motivo})${notas ? ' — ' + notas : ''}`,
+      items: items.map(item => ({
+        item_code:         item.item_code,
+        s_warehouse:       almacenOrigen,
+        qty:               parseFloat(item.qty),
+        uom:               item.uom,
+        stock_uom:         item.uom,
+        conversion_factor: 1,
+        transfer_qty:      parseFloat(item.qty),
       })),
     });
   }

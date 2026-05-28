@@ -1,11 +1,14 @@
 // src/pages/Inventario.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import RegistroEntrada from '../components/RegistroEntrada';
 import RegistroSalida from '../components/RegistroSalida';
+import RegistroMerma from '../components/RegistroMerma';
+import HistorialMovimientos from '../components/HistorialMovimientos';
 import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
+import { fmtUom } from '../utils/uom';
 import '../styles/global.css';
 
 const VISTAS = [
@@ -15,8 +18,8 @@ const VISTAS = [
 ];
 
 const COLUMNAS = {
-  con_stock:   ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
-  agotado:     ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
+  con_stock: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
+  agotado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
   por_almacen: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
 };
 
@@ -28,24 +31,25 @@ const COLUMNAS = {
  * @returns {JSX.Element} Vista interactiva del inventario.
  */
 function Inventario() {
-  const [vistaActiva, setVistaActiva]       = useState("con_stock");
-  const [items, setItems]                   = useState([]);
-  const [warehouses, setWarehouses]         = useState([]);
+  const [vistaActiva, setVistaActiva] = useState("con_stock");
+  const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [searchParams] = useSearchParams();
   const soloLectura = searchParams.get('modo') === 'consulta';
 
-  const [itemGroups, setItemGroups]         = useState([]);
-  const [loading, setLoading]               = useState(true);
+  const [itemGroups, setItemGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedWarehouse, setSelectedWarehouse] = useState(stockService.getBodegaCentral());
-  const [selectedGroup, setSelectedGroup]   = useState("");
-  const [searchTerm, setSearchTerm]         = useState("");
-  const [almacenesAll, setAlmacenesAll]     = useState([]);
-  const [almacenVista, setAlmacenVista]     = useState(stockService.getBodegaCentral());
-  const [modalEntrada, setModalEntrada]     = useState(false);
-  const [modalSalida, setModalSalida]       = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [almacenesAll, setAlmacenesAll] = useState([]);
+  const [almacenVista, setAlmacenVista] = useState(stockService.getBodegaCentral());
+  const [modalEntrada, setModalEntrada] = useState(false);
+  const [modalSalida, setModalSalida] = useState(false);
+  const [modalMerma, setModalMerma] = useState(false);
 
-  const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
-  useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
+  const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consulta_menu' : 'menu');
+  useEffect(() => { setAccionActiva(soloLectura ? 'consulta_menu' : 'menu'); }, [soloLectura]);
 
   useEffect(() => {
     (async () => {
@@ -62,10 +66,9 @@ function Inventario() {
     })();
   }, []);
 
-  useEffect(() => { loadItems(); }, [vistaActiva, selectedWarehouse, selectedGroup, almacenVista]);
-
-  const loadItems = async () => {
-    setLoading(true); setSearchTerm("");
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    setSearchTerm("");
     try {
       if (vistaActiva === "por_almacen") {
         setItems(await stockService.getStockPorAlmacen(almacenVista));
@@ -76,10 +79,12 @@ function Inventario() {
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  };
+  }, [vistaActiva, selectedWarehouse, selectedGroup, almacenVista]);
+
+  useEffect(() => { loadItems(); }, [loadItems]);
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedWarehouse(""); setSelectedGroup(""); };
-  const handleMovimientoSuccess = () => { setModalEntrada(false); setModalSalida(false); loadItems(); };
+  const handleMovimientoSuccess = () => { setModalEntrada(false); setModalSalida(false); setModalMerma(false); loadItems(); };
 
   const filtered = items.filter(item =>
     item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,7 +93,7 @@ function Inventario() {
     item.custom_departamento?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalItems    = filtered.length;
+  const totalItems = filtered.length;
   const lowStockItems = vistaActiva === "con_stock" ? filtered.filter(i => (i.actual_qty || 0) < 10).length : null;
 
   return (
@@ -96,10 +101,10 @@ function Inventario() {
       <div className="page-container">
         <div className="page-header">
           <div className="title-group" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {!soloLectura && accionActiva !== 'menu' && (
-              <button 
-                onClick={() => setAccionActiva('menu')}
-                className="btn-refresh" 
+            {accionActiva !== 'menu' && accionActiva !== 'consulta_menu' && (
+              <button
+                onClick={() => setAccionActiva(soloLectura ? 'consulta_menu' : 'menu')}
+                className="btn-refresh"
                 style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', color: '#4b5563' }}
                 title="Volver al menú de inventario"
               >
@@ -133,104 +138,133 @@ function Inventario() {
           </div>
         </div>
 
-        {accionActiva === 'menu' ? (
+        {accionActiva === 'consulta_menu' ? (
+          /* Consultas → Inventario: 2 tarjetas */
+          <div className="panel-grid" style={{ padding: '20px 0' }}>
+            <button className="panel-module" onClick={() => setAccionActiva('consultar')}>
+              <div className="module-icon" style={{ background: '#e8f5e9', color: '#2e7d32' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                  <path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+                </svg>
+              </div>
+              <h3>Stock de Inventario</h3>
+              <p>Existencias actuales por almacén</p>
+            </button>
+            <button className="panel-module" onClick={() => setAccionActiva('historial')}>
+              <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" /><path d="M12 7v5l4 2" />
+                </svg>
+              </div>
+              <h3>Historial de Movimientos</h3>
+              <p>Entradas, salidas y mermas por almacén</p>
+            </button>
+          </div>
+        ) : accionActiva === 'menu' ? (
+          /* Operaciones → Inventario: 3 acciones */
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setModalEntrada(true)}>
               <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Registrar Ajuste (+)</h3>
               <p>Incrementar stock</p>
             </button>
             <button className="panel-module" onClick={() => setModalSalida(true)}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
               </div>
-              <h3>Registrar Salida (-)</h3>
-              <p>Mermas o traspasos</p>
+              <h3>Transferir Salida (→)</h3>
+              <p>Traspaso interno a otro almacén</p>
             </button>
-            {/*<button className="panel-module" onClick={() => setAccionActiva('consultar')}>
-              <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <button className="panel-module" onClick={() => setModalMerma(true)}>
+              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
               </div>
-              <h3>Consultar Stock</h3>
-              <p>Ver existencias y agotados</p>
-            </button>*/}
+              <h3>Registrar Merma (-)</h3>
+              <p>Pérdida permanente</p>
+            </button>
           </div>
+        ) : accionActiva === 'historial' ? (
+          <HistorialMovimientos almacenes={almacenesAll} />
         ) : (
           <>
             <div className="vistas-tabs">
-          {VISTAS.map(v => (
-            <button key={v.key}
-              className={`vista-tab ${v.color} ${vistaActiva === v.key ? "activa" : ""}`}
-              onClick={() => handleVistaChange(v.key)}>{v.label}</button>
-          ))}
-        </div>
-
-        <div className="filtros-section">
-          {vistaActiva === "por_almacen" ? (
-            <div className="filtro-group">
-              <label>Almacen</label>
-              <select value={almacenVista} onChange={e => setAlmacenVista(e.target.value)}>
-                {almacenesAll.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
-              </select>
+              {VISTAS.map(v => (
+                <button key={v.key}
+                  className={`vista-tab ${v.color} ${vistaActiva === v.key ? "activa" : ""}`}
+                  onClick={() => handleVistaChange(v.key)}>{v.label}</button>
+              ))}
             </div>
-          ) : (
-            <>
-              {(vistaActiva === "con_stock" || vistaActiva === "agotado") && (
+
+            <div className="filtros-section">
+              {vistaActiva === "por_almacen" ? (
                 <div className="filtro-group">
                   <label>Almacen</label>
-                  <select value={selectedWarehouse} onChange={e => setSelectedWarehouse(e.target.value)}>
-                    <option value="">Todos los almacenes</option>
-                    {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                  <select value={almacenVista} onChange={e => setAlmacenVista(e.target.value)}>
+                    {almacenesAll.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
                   </select>
                 </div>
+              ) : (
+                <>
+                  {(vistaActiva === "con_stock" || vistaActiva === "agotado") && (
+                    <div className="filtro-group">
+                      <label>Almacen</label>
+                      <select value={selectedWarehouse} onChange={e => setSelectedWarehouse(e.target.value)}>
+                        <option value="">Todos los almacenes</option>
+                        {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div className="filtro-group">
+                    <label>Categoria</label>
+                    <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
+                      <option value="">Todas las categorias</option>
+                      {itemGroups.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
+                    </select>
+                  </div>
+                </>
               )}
-              <div className="filtro-group">
-                <label>Categoria</label>
-                <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
-                  <option value="">Todas las categorias</option>
-                  {itemGroups.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
-                </select>
+              <div className="filtro-group search">
+                <label>Buscar</label>
+                <input type="text" placeholder="Nombre, codigo o codigo interno..."
+                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
-            </>
-          )}
-          <div className="filtro-group search">
-            <label>Buscar</label>
-            <input type="text" placeholder="Nombre, codigo o codigo interno..."
-              value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          </div>
-          
-          <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-            <button className="btn-refresh" onClick={loadItems}>
-              Actualizar
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ marginLeft: "8px", verticalAlign: "middle" }}>
-                <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
-              </svg>
-            </button>
-          </div>
-        </div>
 
-        {loading ? <div className="loading">Cargando inventario...</div> : (
-          <div className="table-container">
-            <table className="sys-table">
-              <thead>
-                <tr>{COLUMNAS[vistaActiva].map(col => <th key={col}>{col}</th>)}</tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay productos en esta vista</td></tr>
-                ) : (
-                  filtered.map((item, i) => <FilaItem key={i} item={item} />)
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </>
+              <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
+                <button className="btn-refresh" onClick={loadItems}>
+                  Actualizar
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ marginLeft: "8px", verticalAlign: "middle" }}>
+                    <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                    <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {loading ? <div className="loading">Cargando inventario...</div> : (
+              <div className="table-container">
+                <table className="sys-table">
+                  <thead>
+                    <tr>{COLUMNAS[vistaActiva].map(col => <th key={col}>{col}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay productos en esta vista</td></tr>
+                    ) : (
+                      filtered.map((item) => <FilaItem key={item.item_code} item={item} />)
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -248,6 +282,13 @@ function Inventario() {
           </div>
         </div>
       )}
+      {modalMerma && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setModalMerma(false)}>
+          <div className="edit-modal-wrapper">
+            <RegistroMerma onSuccess={handleMovimientoSuccess} onCancel={() => setModalMerma(false)} />
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
@@ -262,13 +303,13 @@ function Inventario() {
  * @returns {JSX.Element|null} Celda <tr> con datos formateados.
  */
 function FilaItem({ item }) {
-  const actual    = parseFloat(item.actual_qty) || 0;
-  const cantPres  = parseFloat(item.custom_cantidad_por_presentación) || 0;
+  const actual = parseFloat(item.actual_qty) || 0;
+  const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 0;
   const presentacion = item.custom_presentación || '';
-  const uom       = item.stock_uom || '';
+  const uom = fmtUom(item.stock_uom || '');
   const totalNatural = cantPres > 0 ? actual * cantPres : actual;
-  const totalStr  = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-  const paqStr    = cantPres > 0 && presentacion
+  const totalStr = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  const paqStr = cantPres > 0 && presentacion
     ? `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
     : `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} emp.`;
 

@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevoEnvioSucursal from "../components/NuevoEnvioSucursal";
-import ModalHojaEntrega from "../components/ModalHojaEntrega";
-import ConfirmModal from "../components/ConfirmModal";
+import ModalHojaEntrega from "../components/modals/ModalHojaEntrega";
+import ConfirmModal from "../components/modals/ConfirmModal";
 import useConfirmModal from "../hooks/useConfirmModal";
 import { stockService } from "../services/frappeStock";
 import useSucursales from "../hooks/useSucursales";
@@ -100,18 +100,9 @@ function EnvioSucursal() {
       // Rehidratar presentación desde catálogo para mostrar conversión Kg ↔ Bulto.
       const codes = [...new Set((doc?.items || []).map(i => i.item_code).filter(Boolean))];
       let dict = {};
-      if (codes.length) {
-        try {
-          const catParams = new URLSearchParams({
-            fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación', 'custom_presentación']),
-            filters: JSON.stringify([['name', 'in', codes]]),
-            limit_page_length: 200,
-          });
-          const catRes = await fetch('/api/resource/Item?' + catParams, { credentials: 'include' });
-          const catData = await catRes.json();
-          (catData?.data || []).forEach(it => { dict[it.item_code] = it; });
-        } catch (e) { console.warn('Catálogo no disponible:', e); }
-      }
+      try {
+        dict = await stockService.getItemsPresentacion(codes);
+      } catch (e) { console.warn('Catálogo no disponible:', e); }
       const filas = (doc?.items || []).map(it => {
         const m = dict[it.item_code] || {};
         const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
@@ -338,7 +329,7 @@ function EnvioSucursal() {
                         </thead>
                         <tbody>
                           {e.items.map((it, idx) => (
-                            <tr key={idx}>
+                            <tr key={`${it.item_code}-${idx}`}>
                               <td>
                                 <div className="cell-name">{it.item_name || it.item_code}</div>
                                 <div className="cell-code" style={{ fontSize: '12px', color: '#6b7280' }}>
