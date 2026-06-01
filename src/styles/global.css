@@ -440,6 +440,15 @@
   transform: scale(1.08);
 }
 
+/* Tablet landscape (Galaxy A11+ DeX-off): compactar tarjetas de las
+   vistas landing (Venta B2B, etc.) para que las filas quepan sin scroll */
+@media (min-width: 1081px) and (max-width: 1366px) {
+  .module-icon { width: 52px; height: 52px; border-radius: 14px; }
+  .module-icon svg { width: 26px; height: 26px; }
+  .panel-module h3 { font-size: 15px; }
+  .panel-module p  { font-size: 12px; }
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   .module-icon { width: 64px; height: 64px; border-radius: 16px; }

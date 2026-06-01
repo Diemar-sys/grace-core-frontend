@@ -264,3 +264,22 @@
   box-shadow: 0 6px 20px rgba(22,163,74,0.4);
 }
 .pos-cobrar-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+/* ══ RESPONSIVE ════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .pos-ticket-footer  { padding: 12px 14px; gap: 8px; }
+  .pos-total-amount   { font-size: 26px; }
+  .pos-cobrar-btn     { padding: 14px; font-size: 17px; }
+  .pos-action-bar     { padding: 8px 12px; gap: 8px; }
+}
+
+@media (max-width: 480px) {
+  .pos-ticket-header  { padding: 12px 14px 10px; }
+  .pos-ticket-title   { font-size: 16px; }
+  .pos-ticket-item    { padding: 10px 12px; gap: 7px; }
+  .pos-ticket-item-name { font-size: 14px; }
+  .pos-total-amount   { font-size: 22px; }
+  .pos-cobrar-btn     { padding: 12px; font-size: 16px; }
+  .pos-qty-btn        { width: 28px; height: 28px; font-size: 18px; }
+  .pos-qty-input      { width: 36px; font-size: 14px; }
+}

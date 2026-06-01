@@ -147,3 +147,12 @@
   .pos-products-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .pos-dept-select { min-width: 120px; }
 }
+
+@media (max-width: 480px) {
+  .pos-toolbar       { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .pos-dept-select   { min-width: unset; width: 100%; }
+  .pos-historial-btn { width: 100%; justify-content: center; }
+  .pos-products-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; }
+  .pos-card-name     { font-size: 14px; }
+  .pos-card-price    { font-size: 20px; }
+}

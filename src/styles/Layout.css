@@ -92,3 +92,14 @@
   .main-content   { padding: 16px; }
   .layout-menubar { overflow-x: auto; }
 }
+
+@media (max-width: 480px) {
+  .layout-topbar  { padding: 0 12px; height: 48px; }
+  .layout-logo h2 { font-size: 12px; }
+  .layout-logo span { display: none; }
+  .layout-user-chip { padding: 5px 8px; font-size: 12px; gap: 4px; }
+  .layout-logout-btn { padding: 5px 10px; font-size: 12px; }
+  .layout-menubar { padding: 0 8px; gap: 2px; }
+  .layout-menu-btn { padding: 6px 10px; font-size: 13px; }
+  .main-content   { padding: 10px 8px; }
+}

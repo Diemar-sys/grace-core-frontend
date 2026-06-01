@@ -110,6 +110,23 @@
 .panel-soon h3  { margin: 0; font-size: 20px; color: #6b3209; font-family: 'Lora', Georgia, serif; }
 .panel-soon p   { margin: 0; font-size: 14px; }
 
+/* ── Tablet landscape (Galaxy A11+ DeX-off) ─────────────────────────
+   Viewport >1080 mantiene 4 columnas, pero las tarjetas altas hacían
+   que la 2ª fila se cortara (sin scroll visible). Se compacta altura
+   para que 2 filas quepan en landscape sin DeX. */
+@media (min-width: 1081px) and (max-width: 1366px) {
+  .panel-body    { padding: 18px 20px; }
+  .panel-greeting { margin-bottom: 16px; }
+  .panel-greeting h2 { font-size: 20px; }
+
+  .panel-grid    { gap: 12px; }
+  .panel-module  { padding: 14px 12px 12px; gap: 8px; }
+  .panel-module-icon { width: 52px; height: 52px; border-radius: 14px; }
+  .panel-module-icon svg { width: 26px; height: 26px; }
+  .panel-module-name { font-size: 15px; }
+  .panel-module-sub  { font-size: 12px; }
+}
+
 /* ── Tablet / laptop angosto ────────────────────────── */
 @media (max-width: 1080px) {
   .panel-grid { grid-template-columns: repeat(2, 1fr); max-width: 680px; }

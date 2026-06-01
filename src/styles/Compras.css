@@ -75,3 +75,37 @@
   cursor: pointer;
 }
 .comp-btn-confirmar:hover { background: #eaffea; }
+
+/* ── Tablet (768px) ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .comp-proveedor-wrap { min-width: 100%; }
+  .comp-actions-bar    { width: 100%; justify-content: stretch; }
+  .comp-btn-nueva      { width: 100%; justify-content: center; }
+  .comp-stat-total     { font-size: 18px !important; }
+  .comp-td-acciones    { width: auto; flex-wrap: wrap; gap: 4px; }
+
+  /* ocultar columna Subtotal (4a) en tablet */
+  .sys-table thead tr th:nth-child(4),
+  .sys-table tbody tr td:nth-child(4) { display: none; }
+}
+
+/* ── Móvil (480px) ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .comp-stat-total { font-size: 15px !important; }
+
+  /* ocultar Subtotal (4a) y Fecha (2a) en móvil */
+  .sys-table thead tr th:nth-child(2),
+  .sys-table tbody tr td:nth-child(2),
+  .sys-table thead tr th:nth-child(4),
+  .sys-table tbody tr td:nth-child(4) { display: none; }
+
+  /* botones de acción más compactos */
+  .comp-btn-editar,
+  .comp-btn-eliminar,
+  .comp-btn-confirmar {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .comp-td-acciones { width: auto; flex-wrap: wrap; gap: 3px; }
+}

@@ -312,3 +312,17 @@
   .rm-container { border-radius: 0; max-height: calc(100vh - 60px); padding: 16px 16px 0; }
   .rm-tabla th:nth-child(3), .rm-tabla td:nth-child(3) { display: none; }
 }
+
+@media (max-width: 480px) {
+  .rm-container   { padding: 12px 10px 0; }
+  .rm-header h2   { font-size: 24px; }
+  .rm-info-chip   { font-size: 13px; padding: 6px 10px; }
+  .rm-actions     { flex-direction: column; gap: 8px; align-items: stretch; }
+  .rm-resumen     { margin-right: 0; font-size: 14px; }
+  .rm-btn-primary,
+  .rm-btn-secondary { min-width: unset; width: 100%; text-align: center; font-size: 16px; }
+
+  /* Ocultar columna UOM (3a ya oculta) y Stock actual si existe */
+  .rm-tabla th:nth-child(4), .rm-tabla td:nth-child(4) { display: none; }
+  .rm-qty-input   { width: 70px; }
+}

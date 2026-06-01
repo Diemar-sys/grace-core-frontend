@@ -429,3 +429,53 @@
   font-size: 13px;
   background: #f0fdf4;
 }
+
+/* ══ TABLET (768px) ════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Tabs scroll horizontal si no caben */
+  .prod-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .prod-tab-btn { padding: 10px 16px; font-size: 14px; white-space: nowrap; }
+
+  /* Modal receta */
+  .receta-overlay { padding: 16px 8px; }
+  .receta-header  { padding: 20px 20px 16px; }
+  .receta-header h2 { font-size: 20px; }
+  .receta-body    { padding: 20px 20px; }
+  .receta-footer  { padding: 16px 20px; gap: 8px; }
+
+  /* Grids: 4 col → 2 col */
+  .receta-meta-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* Grids: 3 col → 2 col */
+  .registro-grid    { grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Header lista recetas */
+  .prod-lista-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+  /* Ocultar columna Departamento (3a) en tabla recetas */
+  .sys-table thead tr th:nth-child(3),
+  .sys-table tbody tr td:nth-child(3) { display: none; }
+}
+
+/* ══ MÓVIL (480px) ═════════════════════════════════════ */
+@media (max-width: 480px) {
+  .receta-header h2 { font-size: 17px; }
+  .receta-header  { padding: 16px 14px 12px; }
+  .receta-body    { padding: 16px 14px; }
+  .receta-footer  { flex-direction: column; padding: 14px; }
+
+  /* Grids: todo 1 columna */
+  .receta-meta-grid { grid-template-columns: 1fr; gap: 12px; }
+  .registro-grid    { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Botones footer apilados */
+  .btn-guardar-receta,
+  .btn-activar-receta,
+  .btn-cancelar-receta { width: 100%; text-align: center; }
+
+  /* Registro form */
+  .registro-form { padding: 16px 14px; }
+
+  /* Ingredientes table: ocultar col Unidad (2a) */
+  .ingredientes-table thead tr th:nth-child(2),
+  .ingredientes-table tbody tr td:nth-child(2) { display: none; }
+}

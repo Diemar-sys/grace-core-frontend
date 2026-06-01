@@ -158,6 +158,7 @@
   z-index: 600;
   max-height: 200px;
   overflow-y: auto;
+  min-width: 240px;
 }
 
 .nc-dropdown-item {
@@ -183,6 +184,9 @@
 .nc-dropdown-item .d-name {
   font-weight: 700;
   color: #3f2b1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nc-dropdown-item .d-sub {
@@ -668,28 +672,69 @@
   cursor: not-allowed;
 }
 
+/* ── Tablet landscape (Galaxy A11+ y similares) ──────────────────────
+   Dispositivo principal de almacén. ~1000px caía en el hueco entre
+   desktop y móvil → fuentes gigantes reventaban las 11 columnas.
+   Aquí se compactan fuentes/padding para que TODO quepa sin scroll. */
+@media (min-width: 769px) and (max-width: 1280px) {
+  .nc-container { padding: 18px 18px 0; }
+
+  /* Tabla compacta */
+  .nc-tabla th { padding: 9px 8px; font-size: 11px; letter-spacing: 0.2px; }
+  .nc-tabla td { padding: 8px 6px; font-size: 13px; }
+
+  /* Inputs */
+  .nc-input { padding: 8px 8px; font-size: 14px; }
+  .nc-input.cantidad { min-width: 64px; font-size: 14px; }
+  .nc-input.precio   { width: 90px; min-width: 80px; font-size: 14px; }
+  .nc-buscar-input   { padding: 9px 10px; font-size: 14px; }
+
+  /* Badges / valores de catálogo: bajar tamaños 18-20px → ~13px */
+  .nc-catalog-val,
+  .nc-precio-fijo,
+  .nc-subtotal     { font-size: 14px; padding: 4px 7px; }
+  .nc-kg-badge     { font-size: 13px; padding: 2px 7px; }
+  .nc-var-badge-sm { font-size: 12px; padding: 4px 8px; }
+  .nc-imp-badge    { font-size: 11px; padding: 3px 8px; }
+
+  /* Botones de fila más compactos */
+  .nc-btn-mover    { padding: 3px 5px; }
+  .nc-fila-mover   { gap: 2px; }
+
+  /* Dropdown: escapa la celda angosta para no romper el texto vertical */
+  .nc-dropdown      { min-width: 280px; }
+  .nc-dropdown-item { padding: 9px 12px; font-size: 14px; }
+}
+
 @media (max-width: 768px) {
-  .nc-container {
-    border-radius: 0;
-    padding: 16px 12px 0;
-  }
+  .nc-container    { border-radius: 0; padding: 16px 12px 0; }
+  .nc-top-row      { flex-direction: column; }
+  .nc-field.nc-fecha { flex: 1; }
+  .nc-tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .nc-tabla col.col-uom { display: none; }
+  .nc-resumen-box  { margin-left: 0; width: 100%; box-sizing: border-box; }
+  .nc-resumen-fila { width: 100%; }
+}
 
-  .nc-top-row {
-    flex-direction: column;
-  }
+@media (max-width: 480px) {
+  .nc-container    { padding: 10px 8px 0; }
+  .nc-resumen-fila { font-size: 13px; gap: 8px; }
+  .nc-resumen-fila .monto { font-size: 14px; }
+  .nc-resumen-fila.total  { font-size: 16px; }
 
-  .nc-field.nc-fecha {
-    flex: 1;
-  }
+  /* Acciones apiladas */
+  .nc-actions { flex-direction: column; gap: 8px; }
+  .nc-btn-secondary,
+  .nc-btn-primary,
+  .nc-btn-borrador { min-width: unset; width: 100%; text-align: center; justify-content: center; }
 
-  .nc-tabla col.col-uom {
-    display: none;
-  }
+  /* Tabla: ocultar Stock final (4a) en NuevaVentaB2B */
+  .nc-tabla thead tr th:nth-child(4),
+  .nc-tabla tbody tr td:nth-child(4) { display: none; }
 
-  /* Agrega esto aquí para móviles */
-  .nc-tabla-scroll {
-    overflow-x: auto;
-  }
+  /* Inputs más compactos */
+  .nc-input.cantidad { min-width: 60px; }
+  .nc-input.precio   { min-width: 80px; }
 }
 
 /* ── KG columns ─────────────────────────── */
