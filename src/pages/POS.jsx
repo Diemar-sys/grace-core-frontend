@@ -13,6 +13,10 @@ import { imprimirTicketTermico } from '../services/printService';
 import '../styles/global.css';
 import '../styles/pos/POS.css';
 import '../styles/pos/POSModals.css';
+import { db } from '../db/db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { seedCatalogo, seedStock } from '../db/sync';
+import { generateUUID } from '../db/uuid';
 
 const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
 
@@ -23,33 +27,53 @@ function hoyISO() {
 
 function POS() {
   // ── Catálogo ──────────────────────────────────
-  const [todosProductos,  setTodosProductos]  = useState([]);
-  const [departamentos,   setDepartamentos]   = useState([]);
-  const [busqueda,        setBusqueda]        = useState('');
-  const [departamento,    setDepartamento]    = useState('');
-  const [loadingProds,    setLoadingProds]    = useState(false);
+
+  // Constante para obtener los productos de Dexie en tiempo real
+  const todosProductos = useLiveQuery(() => db.catalogo.toArray(), [], []);
+  const stockRaw = useLiveQuery(() => db.stock.toArray(), [], []);
+  const stockMap = useMemo(
+    () => new Map(stockRaw.map(s => [s.item_code, s.qty])),
+    [stockRaw]
+  );
+
+  const departamentos = useMemo(() => {
+    const depts = new Set();
+    todosProductos.forEach(p => {
+      if (p.custom_departamento) {
+        p.custom_departamento.split(',').forEach(d => {
+          const t = d.trim();
+          if (t) depts.add(t);
+        });
+      }
+    });
+    return Array.from(depts).sort();
+  }, [todosProductos]);
+
+  const [busqueda, setBusqueda] = useState('');
+  const [departamento, setDepartamento] = useState('');
+  const [loadingProds, setLoadingProds] = useState(false);
 
   // ── Ticket ────────────────────────────────────
-  const [ticket,  setTicket]  = useState([]);
+  const [ticket, setTicket] = useState([]);
   const [cliente, setCliente] = useState('Público en General');
 
   // ── Espera ────────────────────────────────────
-  const [enEspera,      setEnEspera]      = useState([]);
-  const [modalEspera,   setModalEspera]   = useState(false);
+  const [enEspera, setEnEspera] = useState([]);
+  const [modalEspera, setModalEspera] = useState(false);
 
   // ── Selección + cantidad ──────────────────────
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
-  const [modalCantidad,    setModalCantidad]    = useState(false);
+  const [modalCantidad, setModalCantidad] = useState(false);
 
   // ── Cobro ───────────────────────────────────
-  const [modalCobrar,  setModalCobrar]  = useState(false);
-  const [pagos,        setPagos]        = useState(PAGOS_INIT);
+  const [modalCobrar, setModalCobrar] = useState(false);
+  const [pagos, setPagos] = useState(PAGOS_INIT);
   const [loadingCobro, setLoadingCobro] = useState(false);
-  const [errorCobro,   setErrorCobro]   = useState('');
+  const [errorCobro, setErrorCobro] = useState('');
 
   // ── Toast ─────────────────────────────────────
-  const [toast,     setToast]     = useState('');
-  const toastTimer               = useRef(null);
+  const [toast, setToast] = useState('');
+  const toastTimer = useRef(null);
 
   // ─────────────────────────────────────────────
   // CARGA INICIAL
@@ -57,21 +81,9 @@ function POS() {
   const cargarProductos = useCallback(async () => {
     setLoadingProds(true);
     try {
-      const data = await posService.buscarProductos();
-      setTodosProductos(data);
-      const depts = new Set();
-      data.forEach(p => {
-        if (p.custom_departamento) {
-          p.custom_departamento.split(',').forEach(d => {
-            const t = d.trim();
-            if (t) depts.add(t);
-          });
-        }
-      });
-      setDepartamentos(Array.from(depts).sort());
-    } catch (e) {
-      console.error('Error cargando productos:', e);
-    } finally {
+      await Promise.all([seedCatalogo(), seedStock()]);
+    }
+    finally {
       setLoadingProds(false);
     }
   }, []);
@@ -99,6 +111,11 @@ function POS() {
   // TICKET — helpers
   // ─────────────────────────────────────────────
   const agregarProducto = useCallback((prod) => {
+    const qty = stockMap.get(prod.item_code);
+    if (qty !== undefined && qty <= 0) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      showToast(`⚠ ${prod.item_name}: caché indica agotado — verifica existencia física`);
+    }
     setTicket(prev => {
       const existing = prev.find(i => i.item_code === prod.item_code);
       if (existing) {
@@ -109,12 +126,12 @@ function POS() {
       return [...prev, {
         item_code: prod.item_code,
         item_name: prod.item_name,
-        qty:       1,
-        precio:    parseFloat(prod.custom_precio_de_venta) || 0,
+        qty: 1,
+        precio: parseFloat(prod.custom_precio_de_venta) || 0,
         stock_uom: prod.stock_uom || 'PZA',
       }];
     });
-  }, []);
+  }, [stockMap]); // showToast excluido: stable (deps=[]), no cambia entre renders
 
   const cambiarCantidad = useCallback((itemCode, delta) => {
     setTicket(prev =>
@@ -159,10 +176,10 @@ function POS() {
   const ponerEnEspera = useCallback(() => {
     if (!ticket.length) return;
     setEnEspera(prev => [...prev, {
-      id:      Date.now(),
-      ticket:  [...ticket],
+      id: Date.now(),
+      ticket: [...ticket],
       cliente,
-      hora:    new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+      hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
     }]);
     limpiarTicket();
     showToast('⏸ Ticket en espera');
@@ -175,10 +192,10 @@ function POS() {
       setEnEspera(prev => [
         ...prev.filter(e => e.id !== id),
         {
-          id:      Date.now(),
-          ticket:  [...ticket],
+          id: Date.now(),
+          ticket: [...ticket],
           cliente,
-          hora:    new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+          hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     } else {
@@ -216,12 +233,12 @@ function POS() {
   }, [itemSeleccionado, quitarItem, limpiarTicket]);
 
   // ── Totales ───────────────────────────────────
-  const total       = ticket.reduce((s, i) => s + i.qty * i.precio, 0);
-  const totalQty    = ticket.reduce((s, i) => s + i.qty, 0);
+  const total = ticket.reduce((s, i) => s + i.qty * i.precio, 0);
+  const totalQty = ticket.reduce((s, i) => s + i.qty, 0);
   const totalPagado = Object.values(pagos).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  const pendiente   = Math.max(0, total - totalPagado);
-  const cambio      = Math.max(0, totalPagado - total);
-  const importeOk   = pendiente === 0 && totalPagado > 0;
+  const pendiente = Math.max(0, total - totalPagado);
+  const cambio = Math.max(0, totalPagado - total);
+  const importeOk = pendiente === 0 && totalPagado > 0;
 
   // ── Item seleccionado (una sola búsqueda) ──────
   const itemSeleccionadoData = useMemo(
@@ -236,29 +253,48 @@ function POS() {
     if (!ticket.length || !importeOk) return;
     setLoadingCobro(true);
     setErrorCobro('');
-    // Construir array de pagos con monto > 0
+
     const pagosArray = Object.entries(pagos)
       .filter(([, v]) => parseFloat(v) > 0)
       .map(([metodo, v]) => ({ metodo, monto: parseFloat(v) }));
+
     try {
-      await posService.crearVenta({ items: ticket, customer: cliente, pagos: pagosArray });
-      // Imprimir ticket térmico; fallback a PDF si el servidor no responde
+      // 1) Armar el objeto venta que vivirá en el outbox
+      const venta = {
+        uuid: generateUUID(),
+        estado: 'pendiente',
+        items: ticket, cliente, pagos: pagosArray, total, cambio,
+        created_at: new Date().toISOString(),
+      };
+
+      // 2) Escritura atómica: venta entra + stock baja, todo o nada
+      await db.transaction('rw', db.outbox, db.stock, async () => {
+        await db.outbox.add(venta);
+        for(const item of ticket) {
+          const stockItem = await db.stock.get(item.item_code);
+          if (!stockItem) {
+            continue
+          }
+          await db.stock.update(item.item_code, { qty: stockItem.qty - item.qty });
+        }
+      });
+
+      // 3) Esto ya NO toca red — queda igual que hoy
       try {
         await imprimirTicketTermico({ items: ticket, cliente, pagos: pagosArray, total, cambio });
       } catch {
         imprimirHTML(generarHTMLTicket(ticket, cliente, pagosArray, total, cambio));
       }
       const cambioFmt = cambio > 0 ? ` | Cambio: ${fmt(cambio)}` : '';
-      showToast(`✅ Venta registrada — Total: ${fmt(total)}${cambioFmt}`);
+      showToast(`Venta registrada — Total: ${fmt(total)}${cambioFmt}`);
       limpiarTicket();
       setModalCobrar(false);
     } catch (err) {
-      setErrorCobro(err.message || 'Error al registrar la venta');
+      setErrorCobro(err.message || 'Error al guardar la venta');
     } finally {
       setLoadingCobro(false);
     }
   }, [ticket, importeOk, cliente, pagos, cambio, total, showToast, limpiarTicket]);
-
 
   // ─────────────────────────────────────────────
   // RENDER
@@ -266,36 +302,37 @@ function POS() {
   return (
     <Layout>
       <div className="pos-view">
-          <POSCatalogo
-            productosFiltrados={productosFiltrados}
-            todosProductos={todosProductos}
-            departamentos={departamentos}
-            busqueda={busqueda}
-            setBusqueda={setBusqueda}
-            departamento={departamento}
-            setDepartamento={setDepartamento}
-            loadingProds={loadingProds}
-            cargarProductos={cargarProductos}
-            agregarProducto={agregarProducto}
-          />
-          <POSTicket
-            ticket={ticket}
-            cliente={cliente}
-            setCliente={setCliente}
-            total={total}
-            totalQty={totalQty}
-            cambiarCantidad={cambiarCantidad}
-            setCantidadDirecta={setCantidadDirecta}
-            quitarItem={quitarItem}
-            onCobrar={() => { setErrorCobro(''); setModalCobrar(true); }}
-            itemSeleccionado={itemSeleccionado}
-            setItemSeleccionado={setItemSeleccionado}
-            onEspera={() => ticket.length ? ponerEnEspera() : setModalEspera(true)}
-            onCantidad={() => itemSeleccionado && setModalCantidad(true)}
-            onRemover={removerItem}
-            numEspera={enEspera.length}
-          />
-        </div>
+        <POSCatalogo
+          productosFiltrados={productosFiltrados}
+          todosProductos={todosProductos}
+          departamentos={departamentos}
+          busqueda={busqueda}
+          setBusqueda={setBusqueda}
+          departamento={departamento}
+          setDepartamento={setDepartamento}
+          loadingProds={loadingProds}
+          cargarProductos={cargarProductos}
+          agregarProducto={agregarProducto}
+          stockMap={stockMap}
+        />
+        <POSTicket
+          ticket={ticket}
+          cliente={cliente}
+          setCliente={setCliente}
+          total={total}
+          totalQty={totalQty}
+          cambiarCantidad={cambiarCantidad}
+          setCantidadDirecta={setCantidadDirecta}
+          quitarItem={quitarItem}
+          onCobrar={() => { setErrorCobro(''); setModalCobrar(true); }}
+          itemSeleccionado={itemSeleccionado}
+          setItemSeleccionado={setItemSeleccionado}
+          onEspera={() => ticket.length ? ponerEnEspera() : setModalEspera(true)}
+          onCantidad={() => itemSeleccionado && setModalCantidad(true)}
+          onRemover={removerItem}
+          numEspera={enEspera.length}
+        />
+      </div>
 
       {modalCobrar && (
         <POSModalCobro

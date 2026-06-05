@@ -13,6 +13,7 @@ function POSCatalogo({
   loadingProds,
   cargarProductos,
   agregarProducto,
+  stockMap,
 }) {
   return (
     <div className="pos-left">
@@ -65,11 +66,13 @@ function POSCatalogo({
           productosFiltrados.map(prod => {
             const color = deptColor(prod.custom_departamento || '');
             const precio = parseFloat(prod.custom_precio_de_venta) || 0;
+            const qty = stockMap?.get(prod.item_code);
+            const agotado = qty !== undefined && qty <= 0;
             return (
               <div
                 key={prod.item_code}
                 id={`prod-${prod.item_code}`}
-                className="pos-product-card"
+                className={`pos-product-card${agotado ? ' pos-product-card--agotado' : ''}`}
                 onClick={() => agregarProducto(prod)}
                 style={{ borderTop: `3px solid ${color}` }}
                 title={`Agregar ${prod.item_name} al ticket`}
@@ -80,6 +83,11 @@ function POSCatalogo({
                 <span className="pos-card-name">{prod.item_name}</span>
                 <span className="pos-card-price">{fmt(precio)}</span>
                 <span className="pos-card-uom">por {prod.stock_uom || 'PZA'}</span>
+                {qty !== undefined && (
+                  <span className={`pos-card-stock${agotado ? ' pos-card-stock--agotado' : ''}`}>
+                    {agotado ? '⚠ Agotado' : `${qty} disponibles`}
+                  </span>
+                )}
               </div>
             );
           })

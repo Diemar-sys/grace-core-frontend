@@ -56,7 +56,7 @@ function Layout({ children }) {
   const roleConfig = getRoleConfig(user?.role);
 
   const handleLogout = () => {
-    posService._posProfile = null;
+    posService.clearCache();
     auth.logout();
     navigate("/login");
   };
@@ -100,7 +100,9 @@ function Layout({ children }) {
             <UserIcon />
             {user?.fullName || user?.email || "Usuario"}
             {user?.posProfile && (
-              <span className="user-branch-badge">{user.posProfile}</span>
+              <span className="user-branch-badge">
+                {typeof user.posProfile === 'string' ? user.posProfile : user.posProfile?.name}
+              </span>
             )}
           </div>
           <button className="panel-logout-btn" onClick={handleLogout}>

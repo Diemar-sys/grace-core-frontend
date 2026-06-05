@@ -159,7 +159,7 @@ class FrappeStockService extends FrappeBase {
 
     const itemCodes = bins.map(b => b.item_code);
     const itemParams = new URLSearchParams({
-      fields: JSON.stringify(["item_code", "item_name", "item_group", "stock_uom", "custom_c_digo_interno"]),
+      fields: JSON.stringify(["item_code", "item_name", "item_group", "stock_uom", "custom_código_interno"]),
       filters: JSON.stringify([["item_code", "in", itemCodes], ["disabled", "=", 0]]),
       limit_page_length: 1000,
     });

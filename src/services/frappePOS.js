@@ -28,18 +28,36 @@ const DEFAULT_POS_PROFILE = TENANT.posProfileDefault;
 
 class FrappePOSService extends FrappeBase {
 
-  /** Obtiene el POS Profile asignado al usuario activo. Se cachea tras la primera llamada. */
-  async getPOSProfile() {
-    if (this._posProfile) return this._posProfile;
+  /**
+   * Fetch + caché del POS Profile del usuario activo.
+   * El backend devuelve {name, warehouse}. Un solo request, cacheado;
+   * getPOSProfile() y getWarehouse() lo consumen sin duplicar la llamada.
+   * @private
+   * @returns {Promise<{name: string, warehouse: string|null}>}
+   */
+  async _getProfileData() {
+    if (this._posProfileData) return this._posProfileData;
     const json = await this._fetch(POS_METHOD('get_pos_profile_usuario'));
-    this._posProfile = json?.message || DEFAULT_POS_PROFILE;
-    return this._posProfile;
+    this._posProfileData = json?.message || { name: DEFAULT_POS_PROFILE, warehouse: null };
+    return this._posProfileData;
+  }
+
+  /** Nombre del POS Profile del usuario activo (string). */
+  async getPOSProfile() {
+    const { name } = await this._getProfileData();
+    return name;
+  }
+
+  /** Warehouse del POS Profile del usuario activo (de dónde vende su sucursal). */
+  async getWarehouse() {
+    const { warehouse } = await this._getProfileData();
+    return warehouse;
   }
 
   /** Limpia el caché de sesión. Llamar desde logout() para evitar que un usuario
    *  herede el POS Profile de la sesión anterior. */
   clearCache() {
-    this._posProfile = null;
+    this._posProfileData = null;
   }
 
   // ─────────────────────────────────────────────────

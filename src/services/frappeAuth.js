@@ -92,7 +92,8 @@ class FrappeAuthService extends FrappeBase {
       );
       if (!res.ok) return null;
       const data = await res.json();
-      return data?.message || null;
+      // El endpoint ahora devuelve {name, warehouse}; el badge solo usa el nombre.
+      return data?.message?.name || null;
     } catch {
       return null;
     }

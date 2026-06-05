@@ -301,7 +301,9 @@ function Panel() {
             <UserIcon />
             {user?.fullName || user?.email || "Usuario"}
             {user?.posProfile && (
-              <span className="user-branch-badge">{user.posProfile}</span>
+              <span className="user-branch-badge">
+                {typeof user.posProfile === 'string' ? user.posProfile : user.posProfile?.name}
+              </span>
             )}
           </div>
           <button className="panel-logout-btn" onClick={handleLogout}>
