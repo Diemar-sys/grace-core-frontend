@@ -15,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
 import ConsultasInventario from './pages/ConsultasInventario';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
+import Egresos from './pages/Egresos';
 import ErrorBoundary from './components/ErrorBoundary';
 
 /**
@@ -127,6 +128,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ReportesVentasCategoria />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/egresos"
+          element={
+            <ProtectedRoute>
+              <Egresos />
             </ProtectedRoute>
           }
         />

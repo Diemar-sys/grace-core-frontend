@@ -88,6 +88,13 @@ const IconEnvioSucursal = () => (
     <circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" />
   </svg>
 );
+const IconEgresos = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>
+  </svg>
+);
 const IconProduccion = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -113,6 +120,7 @@ const MODULOS = [
   { key: "proveedores", path: "/proveedores", icon: <IconProveedores />,nombre: "Proveedores",     sub: "Catálogos",         color: "#6a1b9a",    bg: "#f3e5f5" },
   { key: "pos",         path: "/pos",         icon: <IconPOS />,        nombre: "Punto de Venta",  sub: "Ventas",            color: "#bf360c",    bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion",  icon: <IconProduccion />, nombre: "Producción",      sub: "Recetas y consumo", color: "#3b848aff",  bg: "#d1f0f3ff" },
+  { key: "egresos",     path: "/egresos",     icon: <IconEgresos />,    nombre: "Egresos",         sub: "Gastos y pagos",    color: "#dc2626",    bg: "#fee2e2" },
 ];
 
 // ── Opciones del menú principal ───────────────────────
@@ -336,6 +344,11 @@ function Panel() {
             </button>
           );
         })}
+        {user?.role === 'admin' && (
+          <button className="panel-menu-btn" onClick={() => navigate('/egresos')}>
+            Egresos
+          </button>
+        )}
       </nav>
 
       {/* CONTENIDO */}

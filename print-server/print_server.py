@@ -218,6 +218,8 @@ def imprimir_compra():
         no_compra  = data.get('no_compra')
         no_factura = data.get('no_factura', '') or '-'
         proveedor  = data.get('proveedor', '') or '-'
+        facturado_a = (data.get('facturado_a', '') or 'SIN FACTURA').upper()
+        pagado      = bool(data.get('pagado', False))
         fecha      = data.get('fecha', '')
         hora       = data.get('hora', '')
         subtotal_iva16 = float(data.get('subtotal_iva16', 0))
@@ -252,6 +254,8 @@ def imprimir_compra():
             p.text(f"{LPAD}NO. COMPRA  : #{num_str}\n")
             p.text(f"{LPAD}NO. FACTURA : {no_factura[:25]}\n")
             p.text(f"{LPAD}PROVEEDOR   : {proveedor[:25]}\n")
+            p.text(f"{LPAD}FACTURADO A : {facturado_a[:25]}\n")
+            p.text(f"{LPAD}ESTADO PAGO : {'PAGADO' if pagado else 'PENDIENTE'}\n")
             p.text(f"{LPAD}FECHA       : {fecha}\n")
             p.text(f"{LPAD}HORA        : {hora}\n")
             p.text("-" * 32 + "\n")
@@ -276,6 +280,100 @@ def imprimir_compra():
             p.set(font='b', align='left')
             p.text("-" * 32 + "\n")
             p.set(font='b', bold= False, align='center')
+            p.text(f"Generado {fecha} {hora}\n")
+            p.text("www.panaderiasgrace.mx\n")
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
+
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
+
+@app.route('/imprimir-egreso', methods=['POST', 'OPTIONS'])
+def imprimir_egreso():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+
+        no_egreso     = data.get('no_egreso', '') or '-'
+        fecha         = data.get('fecha', '')
+        categoria     = (data.get('categoria', '') or '').upper()
+        subcategoria  = (data.get('subcategoria', '') or '').upper()
+        concepto      = data.get('concepto', '') or ''
+        facturado_a   = data.get('facturado_a', '') or '-'
+        con_factura   = bool(data.get('con_factura', 0))
+        total         = float(data.get('monto', 0))
+        impuesto_tipo = (data.get('impuesto_tipo', '') or '').upper()
+        monto_impuesto = float(data.get('monto_impuesto', 0))
+        gas           = data.get('gas')  # desglose solo para subcategoria GAS
+
+        hora = datetime.now().strftime('%H:%M')
+
+        p = get_printer()
+        try:
+            # Header
+            p.set(font='b', align='center', bold=True, double_height=True, double_width=True)
+            p.text("GRACE\n")
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text("Panaderia & Reposteria\n")
+            p.text("-" * 32 + "\n")
+            p.set(align='center', bold=True)
+            p.text("** COMPROBANTE DE EGRESO **\n")
+            p.set(align='left', bold=False)
+            p.text("-" * 32 + "\n")
+
+            # Datos
+            p.set(font='b', align='left')
+            p.text(f"NO. EGRESO  : {no_egreso}\n")
+            p.text(f"FECHA       : {fecha}  {hora}\n")
+            p.text(f"CATEGORIA   : {categoria[:18]}\n")
+            if subcategoria:
+                p.text(f"SUBCATEGORIA: {subcategoria[:18]}\n")
+            if concepto:
+                p.text(f"CONCEPTO    : {concepto[:18]}\n")
+            p.text(f"FACTURADO A : {facturado_a[:18]}\n")
+            p.text(f"CON FACTURA : {'SI' if con_factura else 'NO'}\n")
+            p.text("-" * 32 + "\n")
+
+            # Desglose
+            if gas:
+                g_lit = float(gas.get('litros', 0)); g_pre = float(gas.get('precio', 0))
+                g_sub = float(gas.get('subtotal_gas', g_lit * g_pre))
+                a_lit = float(gas.get('aditivo_litros', 0)); a_pre = float(gas.get('aditivo_precio', 0))
+                a_sub = float(gas.get('aditivo_subtotal', a_lit * a_pre))
+                subtotal  = float(gas.get('subtotal', g_sub + a_sub))
+                descuento = float(gas.get('descuento', 0))
+                base      = float(gas.get('base', subtotal - descuento))
+                iva       = float(gas.get('iva', monto_impuesto))
+                p.text("GAS\n")
+                p.text(f"  {g_lit:.2f} L x {fmt(g_pre)}{fmt(g_sub):>12}\n")
+                if a_lit > 0:
+                    p.text("ADITIVO\n")
+                    p.text(f"  {a_lit:.2f} L x {fmt(a_pre)}{fmt(a_sub):>12}\n")
+                p.text("-" * 32 + "\n")
+                p.text(f"{'SUBTOTAL:':<18}{fmt(subtotal):>14}\n")
+                if descuento > 0:
+                    p.text(f"{'DESCUENTO:':<18}{fmt(-descuento):>14}\n")
+                p.text(f"{'BASE GRAVABLE:':<18}{fmt(base):>14}\n")
+                p.text(f"{'IVA 16%:':<18}{fmt(iva):>14}\n")
+            else:
+                base = total - monto_impuesto
+                p.text(f"{'BASE:':<18}{fmt(base):>14}\n")
+                if monto_impuesto > 0:
+                    p.text(f"{impuesto_tipo + ':':<18}{fmt(monto_impuesto):>14}\n")
+            p.text("-" * 32 + "\n")
+
+            # Total
+            p.set(font='a', bold=True)
+            p.text(f"TOTAL: {fmt(total):>16}\n")
+            p.set(font='b', bold=False, align='center')
+            p.text("-" * 32 + "\n")
             p.text(f"Generado {fecha} {hora}\n")
             p.text("www.panaderiasgrace.mx\n")
             p.text("\n\n")

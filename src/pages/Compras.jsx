@@ -49,8 +49,10 @@ function Compras() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [facturadoSaving, setFacturadoSaving] = useState(null);
 
   const [estadoFiltro, setEstadoFiltro] = useState('recibida');
+  const [pagoFiltro, setPagoFiltro] = useState('todas'); // 'todas' | 'pagadas' | 'pendientes'
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
 
@@ -101,6 +103,10 @@ function Compras() {
     (compra) => comprasService.cancelarCompra(compra.name),
     { onSuccess: () => cargar() }
   );
+  const pagoModal = useConfirmModal(
+    ({ name, value }) => comprasService.updatePagado(name, value),
+    { onSuccess: () => cargar() }
+  );
 
   // AbortController: cancela el fetch si el componente se desmonta o las fechas cambian.
   useEffect(() => {
@@ -116,6 +122,23 @@ function Compras() {
       setModal('editar');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Re-etiqueta el responsable fiscal de una compra (funciona aun confirmada:
+  // el custom field tiene allow_on_submit=1). Update optimista + revierte si falla.
+  const handleFacturadoChange = async (name, value) => {
+    const prev = compras;
+    setCompras(cs => cs.map(c => c.name === name ? { ...c, custom_facturado_a: value } : c));
+    setFacturadoSaving(name);
+    try {
+      await comprasService.updateFacturadoA(name, value);
+    } catch (err) {
+      console.error(err);
+      setCompras(prev);  // revertir
+      alert('No se pudo actualizar el responsable fiscal: ' + (err?.message || 'error'));
+    } finally {
+      setFacturadoSaving(null);
     }
   };
 
@@ -169,6 +192,8 @@ function Compras() {
   // Filtrado local en vivo (igual que Catálogo / Proveedores)
   const filteredCompras = compras.filter(c => {
     if (estadoFiltro !== 'todas' && c.docstatus !== ESTADO_DOCSTATUS[estadoFiltro]) return false;
+    if (pagoFiltro === 'pagadas'    && !c.custom_pagado) return false;
+    if (pagoFiltro === 'pendientes' &&  c.custom_pagado) return false;
     const term = searchTerm.toLowerCase();
     const supName = (c.supplier_name || '').toLowerCase();
     const supId = (c.supplier || '').toLowerCase();
@@ -176,9 +201,10 @@ function Compras() {
     return supName.includes(term) || supId.includes(term) || noCompra.includes(term);
   });
 
-  const totalPeriodo = filteredCompras
-    .filter(c => c.docstatus === 1)
-    .reduce((sum, c) => sum + (c.grand_total || 0), 0);
+  const confirmadas = filteredCompras.filter(c => c.docstatus === 1);
+  const totalPeriodo    = confirmadas.reduce((sum, c) => sum + (c.grand_total || 0), 0);
+  const pagadoTotal     = confirmadas.filter(c =>  c.custom_pagado).reduce((s, c) => s + (c.grand_total || 0), 0);
+  const pendienteTotal  = confirmadas.filter(c => !c.custom_pagado).reduce((s, c) => s + (c.grand_total || 0), 0);
 
   return (
     <Layout>
@@ -202,6 +228,14 @@ function Compras() {
             <div className="stat-card warning">
               <span className="stat-number comp-stat-total">${fmt(totalPeriodo)}</span>
               <span className="stat-label">Total periodo</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-number comp-stat-total" style={{ color: '#16a34a' }}>${fmt(pagadoTotal)}</span>
+              <span className="stat-label">Pagado</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(pendienteTotal)}</span>
+              <span className="stat-label">Se debe</span>
             </div>
           </div>
         </div>
@@ -274,6 +308,26 @@ function Compras() {
               ))}
             </div>
 
+            {/* TABS DE PAGO */}
+            <div className="vistas-tabs">
+              {[
+                { key: 'todas',      label: 'Todas' },
+                { key: 'pendientes', label: 'Por pagar' },
+                { key: 'pagadas',    label: 'Pagadas' },
+              ].map(t => (
+                <button key={t.key}
+                  className={`vista-tab ${pagoFiltro === t.key ? 'activa' : ''}`}
+                  onClick={() => setPagoFiltro(t.key)}>
+                  {t.label}
+                  <span className="comp-tab-count">
+                    {t.key === 'todas'
+                      ? compras.filter(c => c.docstatus === 1).length
+                      : compras.filter(c => c.docstatus === 1 && (t.key === 'pagadas' ? c.custom_pagado : !c.custom_pagado)).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             {/* FILTROS + BOTÓN */}
             <div className="filtros-section">
               <div className="filtro-group">
@@ -337,11 +391,14 @@ function Compras() {
                           <th className="cell-right">IVA 16%</th>
                           <th className="cell-right">IEPS 8%</th>
                           <th className="cell-right">Total</th>
+                          <th className="cell-right">Alma</th>
+                          <th className="cell-right">Luis</th>
+                          <th className="cell-right">S/F</th>
                         </tr>
                       </thead>
                       <tbody>
                         {reporteData.length === 0 ? (
-                          <tr><td colSpan={9} className="no-data">Sin compras confirmadas en {reporteAño}</td></tr>
+                          <tr><td colSpan={12} className="no-data">Sin compras confirmadas en {reporteAño}</td></tr>
                         ) : reporteData.map(r => (
                           <tr key={r.mes}>
                             <td className="cell-name">{new Date(r.mes + '-02').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</td>
@@ -353,6 +410,9 @@ function Compras() {
                             <td className="cell-right">${fmt(r.iva)}</td>
                             <td className="cell-right">${fmt(r.ieps)}</td>
                             <td className="cell-right cell-bold">${fmt(r.total)}</td>
+                            <td className="cell-right">${fmt(r.porFacturado?.alma || 0)}</td>
+                            <td className="cell-right">${fmt(r.porFacturado?.luis || 0)}</td>
+                            <td className="cell-right">${fmt(r.porFacturado?.sinFactura || 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -366,7 +426,10 @@ function Compras() {
                           iva:  a.iva  + r.iva,
                           ieps: a.ieps + r.ieps,
                           total: a.total + r.total,
-                        }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0 });
+                          alma:       a.alma       + (r.porFacturado?.alma || 0),
+                          luis:       a.luis       + (r.porFacturado?.luis || 0),
+                          sinFactura: a.sinFactura + (r.porFacturado?.sinFactura || 0),
+                        }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0, alma:0, luis:0, sinFactura:0 });
                         return (
                           <tfoot>
                             <tr style={{ fontWeight: 700, borderTop: '2px solid #374151', background: '#f9fafb' }}>
@@ -379,6 +442,9 @@ function Compras() {
                               <td className="cell-right">${fmt(tot.iva)}</td>
                               <td className="cell-right">${fmt(tot.ieps)}</td>
                               <td className="cell-right">${fmt(tot.total)}</td>
+                              <td className="cell-right">${fmt(tot.alma)}</td>
+                              <td className="cell-right">${fmt(tot.luis)}</td>
+                              <td className="cell-right">${fmt(tot.sinFactura)}</td>
                             </tr>
                           </tfoot>
                         );
@@ -400,15 +466,17 @@ function Compras() {
                       <th># Compra</th>
                       <th>Fecha</th>
                       <th>Proveedor</th>
+                      <th>Facturado a</th>
                       <th>Subtotal</th>
                       <th>Total</th>
                       <th>Estado</th>
+                      <th>Pagado</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCompras.length === 0 ? (
-                      <tr><td colSpan={7} className="no-data">No hay compras registradas</td></tr>
+                      <tr><td colSpan={9} className="no-data">No hay compras registradas</td></tr>
                     ) : (
                       filteredCompras.map(c => (
                         <tr key={c.name}>
@@ -417,6 +485,17 @@ function Compras() {
                           </td>
                           <td>{c.posting_date}</td>
                           <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
+                          <td>
+                            {soloLectura
+                              ? <span className={(c.custom_facturado_a && c.custom_facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>{c.custom_facturado_a || 'SIN FACTURA'}</span>
+                              : <select className="comp-facturado-select" value={c.custom_facturado_a || 'SIN FACTURA'}
+                                  disabled={facturadoSaving === c.name}
+                                  onChange={e => handleFacturadoChange(c.name, e.target.value)}>
+                                  <option value="SIN FACTURA">SIN FACTURA</option>
+                                  <option value="ALMA RODRIGUEZ">ALMA RODRIGUEZ</option>
+                                  <option value="LUIS TORRES">LUIS TORRES</option>
+                                </select>}
+                          </td>
                           <td className="cell-right">${fmt(c.total)}</td>
                           <td className="cell-right cell-bold">${fmt(c.grand_total)}</td>
                           <td>
@@ -426,6 +505,13 @@ function Compras() {
                               }`}>
                               {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
                             </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <input type="checkbox" checked={!!c.custom_pagado}
+                              disabled={c.docstatus !== 1 || pagoModal.loading}
+                              onChange={() => pagoModal.open({ name: c.name, value: c.custom_pagado ? 0 : 1, compra: c })}
+                              title={c.custom_pagado ? 'Pagada' : 'Pendiente de pago'}
+                              style={{ width: 18, height: 18, cursor: c.docstatus === 1 ? 'pointer' : 'not-allowed' }} />
                           </td>
                           <td className="comp-td-acciones">
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -536,6 +622,25 @@ function Compras() {
           onCancel={cancelModal.close}
           loading={cancelModal.loading}
           error={cancelModal.error}
+        />
+      )}
+
+      {/* Modal marcar pagada / pendiente */}
+      {pagoModal.item && (
+        <ConfirmModal
+          title={pagoModal.item.value ? 'Marcar como PAGADA' : 'Marcar como PENDIENTE'}
+          description={pagoModal.item.value
+            ? <>¿Confirmas que la compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> ya fue <strong>pagada</strong> al proveedor?</>
+            : <>La compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> volverá a quedar como <strong>pendiente de pago</strong>.</>}
+          icon={ICON_WARNING}
+          confirmLabel={pagoModal.item.value ? 'Sí, ya se pagó' : 'Sí, dejar pendiente'}
+          loadingLabel="Guardando..."
+          confirmStyle={{ background: pagoModal.item.value ? '#16a34a' : '#d97706' }}
+          cancelLabel="Cancelar"
+          onConfirm={pagoModal.confirm}
+          onCancel={pagoModal.close}
+          loading={pagoModal.loading}
+          error={pagoModal.error}
         />
       )}
     </Layout>

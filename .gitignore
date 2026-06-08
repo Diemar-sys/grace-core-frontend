@@ -26,3 +26,7 @@ dist-ssr
 !.env.example
 cookies.txt
 commit_msg.txt
+msg_commit.txt
+
+# Python bytecode (print-server)
+__pycache__/

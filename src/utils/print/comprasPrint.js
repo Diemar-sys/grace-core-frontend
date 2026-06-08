@@ -76,6 +76,8 @@ export function docToDatosImpresion(doc) {
     fecha,
     hora,
     proveedor: doc.supplier_name || doc.supplier || '',
+    facturadoA: doc.custom_facturado_a || 'SIN FACTURA',
+    pagado: !!doc.custom_pagado,
     filas,
     totales,
     ajuste,
@@ -92,6 +94,8 @@ export async function imprimirCompraTicket(datos) {
     no_compra: datos.noCompra,
     no_factura: datos.noFactura || '',
     proveedor: datos.proveedor || '',
+    facturado_a: datos.facturadoA || 'SIN FACTURA',
+    pagado: !!datos.pagado,
     fecha: datos.fecha || '',
     hora: datos.hora || '',
     subtotal_iva16: datos.totales?.subtotalIva16 || 0,
@@ -127,7 +131,7 @@ export async function imprimirCompraTicket(datos) {
  * Imprime PDF detallado con tabla de items, impuestos por línea y totales.
  */
 export function imprimirCompraPDF(datos) {
-  const { noCompra, noFactura, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
+  const { noCompra, noFactura, fecha, hora, proveedor, facturadoA, pagado, filas, totales, ajuste, esBorrador } = datos;
   const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
 
   const win = window.open('', '_blank', 'width=750,height=700');
@@ -198,6 +202,8 @@ export function imprimirCompraPDF(datos) {
     <span><strong>Fecha:</strong> ${escHTML(fecha)}</span>
     <span><strong>Hora:</strong> ${escHTML(hora)}</span>
     <span><strong>Proveedor:</strong> ${escHTML(proveedor)}</span>
+    <span><strong>Facturado a:</strong> ${escHTML(facturadoA || 'SIN FACTURA')}</span>
+    <span><strong>Estado de pago:</strong> ${pagado ? 'PAGADO' : 'PENDIENTE'}</span>
   </div>
   <hr class="divider"/>
   <table class="items">

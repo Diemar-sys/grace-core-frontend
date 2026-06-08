@@ -21,6 +21,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   );
   const [fecha] = useState(initialData?.posting_date || new Date().toISOString().split('T')[0]);
   const [billNo, setBillNo] = useState('');
+  const [facturadoA, setFacturadoA] = useState(initialData?.custom_facturado_a || 'SIN FACTURA');
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [notas, setNotas] = useState(initialData?.remarks || '');
   const [ajuste, setAjuste] = useState(String(initialData?.rounding_adjustment || ''));
@@ -40,6 +41,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [margenConfirm, setMargenConfirm] = useState({ isOpen: false, message: '', items: null, ajusteNum: null });
   const [cambiosPendientes, setCambiosPendientes] = useState(null);
   const [pdfData, setPdfData] = useState(null);
 
@@ -56,6 +58,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         const doc = await comprasService.getCompraBorrador(initialData.name);
         setProveedor({ name: doc.supplier, label: doc.supplier_name || doc.supplier });
         if (doc.supplier_delivery_note) setBillNo(doc.supplier_delivery_note);
+        if (doc.custom_facturado_a) setFacturadoA(doc.custom_facturado_a);
         if (doc.remarks) setNotas(doc.remarks);
 
         if (doc.taxes?.length) {
@@ -196,18 +199,10 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     return ajusteParaErp;
   };
 
-  const validarMargen = (items) => {
-    const violaciones = items.filter(f => { const v = calcVariacion(f); return v && Math.abs(v.diff) > margenNum; });
-    if (violaciones.length > 0) {
-      const lista = violaciones.map(f => {
-        const v = calcVariacion(f);
-        return `• ${f.item_name}: catálogo $${fmt(v.catalogo)} → compra $${fmt(v.actual)} (diff $${fmt(Math.abs(v.diff))})`;
-      }).join('\n');
-      setErrorModal({ isOpen: true, message: `La variación de precio supera el margen configurado de $${fmt(margenNum)}. Revisa los siguientes productos:\n\n${lista}` });
-      return null;
-    }
-    return items;
-  };
+  // Detecta productos cuya variación de precio supera el margen. Ya NO bloquea:
+  // devuelve la lista de violaciones para que el usuario decida (aceptar/cancelar).
+  const detectarViolacionesMargen = (items) =>
+    items.filter(f => { const v = calcVariacion(f); return v && Math.abs(v.diff) > margenNum; });
 
   // ── Guardar borrador ──────────────────────────────────────────────────────
   const handleBorrador = async () => {
@@ -223,16 +218,16 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     try {
       let docNoCompra = null;
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess('BORRADOR ACTUALIZADO');
         docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
-        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides });
+        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
         docNoCompra = doc?.custom_no_de_compra ?? null;
       }
       const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-      setPdfData({ noCompra: docNoCompra, noFactura: billNo, fecha, hora, proveedor: proveedor.label, filas: items, totales, ajuste: ajusteEfectivo, esBorrador: true });
+      setPdfData({ noCompra: docNoCompra, noFactura: billNo, fecha, hora, proveedor: proveedor.label, facturadoA, pagado: false, filas: items, totales, ajuste: ajusteEfectivo, esBorrador: true });
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -242,7 +237,27 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setError('');
     const items  = validar();          if (!items)    return;
     const ajusteNum = validarAjuste(); if (ajusteNum === null) return;
-    const itemsOk   = validarMargen(items); if (!itemsOk) return;
+
+    // Margen excedido: NO bloquea — pregunta al usuario si acepta continuar.
+    const violaciones = detectarViolacionesMargen(items);
+    if (violaciones.length > 0) {
+      const lista = violaciones.map(f => {
+        const v = calcVariacion(f);
+        return `• ${f.item_name}: catálogo $${fmt(v.catalogo)} → compra $${fmt(v.actual)} (diff $${fmt(Math.abs(v.diff))})`;
+      }).join('\n');
+      setMargenConfirm({
+        isOpen: true,
+        message: `La variación de precio supera el margen configurado de $${fmt(margenNum)}:\n\n${lista}\n\n¿Confirmar la compra de todos modos?`,
+        items, ajusteNum,
+      });
+      return;
+    }
+    ejecutarConfirmacion(items, ajusteNum);
+  };
+
+  // Ejecuta el alta/confirmación de la compra (separado para reusarse tras el
+  // aviso de margen cuando el usuario acepta continuar).
+  const ejecutarConfirmacion = async (items, ajusteNum) => {
     const taxOverrides = {
       ...(ivaManual  && totales.iva  > 0 ? { iva16: parseFloat(ivaOverride  || 0) } : {}),
       ...(iepsManual && totales.ieps > 0 ? { ieps:  parseFloat(iepsOverride || 0) } : {}),
@@ -252,13 +267,13 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setLoading(true);
     try {
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         await comprasService.confirmarBorrador(initialData.name);
       } else {
-        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, taxOverrides, subtotalOverrides });
+        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
-      const conCambio = itemsOk.filter(f => calcVariacion(f)?.cambio);
+      const conCambio = items.filter(f => calcVariacion(f)?.cambio);
       if (conCambio.length > 0) { setCambiosPendientes(conCambio); } else { onSuccess?.(); }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -287,6 +302,20 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         isOpen={errorModal.isOpen}
         message={errorModal.message}
         onClose={() => setErrorModal({ isOpen: false, message: '' })}
+      />
+
+      <ModalError
+        isOpen={margenConfirm.isOpen}
+        title="VARIACIÓN DE PRECIO"
+        message={margenConfirm.message}
+        confirmLabel="Confirmar de todos modos"
+        cancelLabel="Cancelar"
+        onClose={() => setMargenConfirm({ isOpen: false, message: '', items: null, ajusteNum: null })}
+        onConfirm={() => {
+          const { items, ajusteNum } = margenConfirm;
+          setMargenConfirm({ isOpen: false, message: '', items: null, ajusteNum: null });
+          ejecutarConfirmacion(items, ajusteNum);
+        }}
       />
 
       {cambiosPendientes && (
@@ -326,6 +355,15 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             <label>No. Factura</label>
             <input type="text" className="nc-input-factura" value={billNo}
               onChange={e => setBillNo(e.target.value)} placeholder="Ej: FAC-001" />
+          </div>
+          <div className="nc-field nc-facturado-a">
+            <label>Facturado a</label>
+            <select className="nc-input-factura" value={facturadoA}
+              onChange={e => setFacturadoA(e.target.value)}>
+              <option value="SIN FACTURA">SIN FACTURA</option>
+              <option value="ALMA RODRIGUEZ">ALMA RODRIGUEZ</option>
+              <option value="LUIS TORRES">LUIS TORRES</option>
+            </select>
           </div>
           <div className="nc-field nc-fecha">
             <label>Fecha</label>

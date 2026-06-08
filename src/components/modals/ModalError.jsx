@@ -15,7 +15,7 @@ import '../../styles/global.css';
  * @param {Function} props.onClose - Handler invocado para descartar la alerta
  * @returns {JSX.Element|null} El contenedor o render null si `!isOpen`
  */
-function ModalError({ isOpen, title, message, type = "error", onClose }) {
+function ModalError({ isOpen, title, message, type = "error", onClose, onConfirm, confirmLabel, cancelLabel }) {
   if (!isOpen) return null;
 
   const isSuccess = type.startsWith("success");
@@ -70,9 +70,21 @@ function ModalError({ isOpen, title, message, type = "error", onClose }) {
         <h3 style={{ color: titleColor }}>{title || defaultTitle}</h3>
         <p className="modal-aviso-mensaje">{message}</p>
         <div className="del-modal-actions" style={{ marginTop: '24px' }}>
-          <button className="del-btn-disable" onClick={onClose} autoFocus>
-            Entendido
-          </button>
+          {onConfirm ? (
+            <>
+              <button className="del-btn-cancel" onClick={onClose}
+                style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>
+                {cancelLabel || 'Cancelar'}
+              </button>
+              <button className="del-btn-disable" onClick={onConfirm} autoFocus>
+                {confirmLabel || 'Aceptar'}
+              </button>
+            </>
+          ) : (
+            <button className="del-btn-disable" onClick={onClose} autoFocus>
+              Entendido
+            </button>
+          )}
         </div>
       </div>
     </div>

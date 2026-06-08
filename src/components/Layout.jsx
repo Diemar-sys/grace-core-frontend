@@ -77,6 +77,9 @@ function Layout({ children }) {
 
   // Reportes
   const enReportes = location.pathname.startsWith('/reportes');
+
+  // Egresos
+  const enEgresos = location.pathname.startsWith('/egresos');
   const mostrarMenubar = roleConfig.rutas.includes('/panel');
 
   return (
@@ -134,6 +137,14 @@ function Layout({ children }) {
             Reportes
           </Link>
           <span className="layout-menu-btn disabled">Estadísticas</span>
+          {roleConfig.rutas.includes('/panel') && (
+            <Link
+              to="/egresos"
+              className={"layout-menu-btn" + (enEgresos ? " active" : "")}
+            >
+              Egresos
+            </Link>
+          )}
           <span className="layout-menu-btn disabled">Configuración</span>
         </nav>
       )}

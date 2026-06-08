@@ -164,7 +164,7 @@ class FrappeComprasService extends FrappeBase {
    * @param {number|null} [data.noCompra=null] - Número de compra interno para el documento.
    * @returns {Object} Payload final para enviar a Frappe.
    */
-  _buildPayload({ supplier, fecha, billNo = "", items, notas = "", ajuste = 0, noCompra = null, taxOverrides = {}, subtotalOverrides = {} }) {
+  _buildPayload({ supplier, fecha, billNo = "", items, notas = "", ajuste = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
     const resumenImpuestos = this._calcularImpuestos(items, taxOverrides);
     const ajusteNum = parseFloat(ajuste || 0);
 
@@ -187,6 +187,7 @@ class FrappeComprasService extends FrappeBase {
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || "",
       custom_no_de_compra: noCompra || null,
+      custom_facturado_a: facturadoA || "SIN FACTURA",
       custom_subtotal_iva_16:  subtotalOverrides.iva16  ?? null,
       custom_subtotal_ieps_8:  subtotalOverrides.ieps   ?? null,
       custom_subtotal_iva_0:   subtotalOverrides.tasa0  ?? null,
@@ -214,11 +215,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento creado en ERPNext.
    */
-  async guardarBorrador({ supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async guardarBorrador({ supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -234,11 +235,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento final.
    */
-  async registrarCompra({ supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async registrarCompra({ supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -271,12 +272,12 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Nuevos datos.
    * @returns {Promise<Object>} Datos actualizados.
    */
-  async actualizarBorrador(name, { supplier, fecha, billNo, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async actualizarBorrador(name, { supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const doc = await this.getCompraBorrador(name);
     const noCompra = doc.custom_no_de_compra || null;
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const updated = await this._fetch(
       "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
       { method: "PUT", body: JSON.stringify(payload) }
@@ -357,6 +358,38 @@ class FrappeComprasService extends FrappeBase {
     return result;
   }
 
+  // ── Editar responsable fiscal (facturado a) ─────────────────────────────
+
+  /**
+   * Cambia el campo custom_facturado_a de una compra. Funciona aun en compras
+   * confirmadas (docstatus 1) porque el custom field tiene allow_on_submit=1.
+   * @param {string} name - Identificador del Purchase Receipt.
+   * @param {string} facturadoA - 'SIN FACTURA' | 'ALMA RODRIGUEZ' | 'LUIS TORRES'.
+   * @returns {Promise<Object>} Documento actualizado.
+   */
+  async updateFacturadoA(name, facturadoA) {
+    const data = await this._fetch(
+      "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
+      { method: "PUT", body: JSON.stringify({ custom_facturado_a: facturadoA }) }
+    );
+    return data.data;
+  }
+
+  /**
+   * Marca/desmarca una compra como pagada. Funciona aun en compras confirmadas
+   * (custom field con allow_on_submit=1).
+   * @param {string} name - Identificador del Purchase Receipt.
+   * @param {boolean|number} pagado - true/1 pagada, false/0 pendiente.
+   * @returns {Promise<Object>} Documento actualizado.
+   */
+  async updatePagado(name, pagado) {
+    const data = await this._fetch(
+      "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
+      { method: "PUT", body: JSON.stringify({ custom_pagado: pagado ? 1 : 0 }) }
+    );
+    return data.data;
+  }
+
   // ── Reporte fiscal mensual ───────────────────────────────────────────────
 
   async getReporteFiscalMensual(año) {
@@ -365,7 +398,7 @@ class FrappeComprasService extends FrappeBase {
 
     // Lista de receipts confirmados del año
     const lista = await this._fetch(`/api/resource/Purchase Receipt?${new URLSearchParams({
-      fields: JSON.stringify(["name","posting_date","grand_total"]),
+      fields: JSON.stringify(["name","posting_date","grand_total","custom_facturado_a"]),
       filters: JSON.stringify([["docstatus","=",1],["posting_date",">=",desde],["posting_date","<=",hasta]]),
       limit_page_length: 500,
     })}`);
@@ -378,19 +411,30 @@ class FrappeComprasService extends FrappeBase {
     const docs = await Promise.all(
       entries.map(e =>
         this._fetch(`/api/resource/Purchase Receipt/${encodeURIComponent(e.name)}`)
-          .then(r => ({ ...r.data, posting_date: e.posting_date }))
+          .then(r => ({ ...r.data, posting_date: e.posting_date, custom_facturado_a: e.custom_facturado_a }))
           .catch(() => null)
       )
     );
+
+    // Clave de agrupación por responsable fiscal
+    const facturadoKey = (v) => {
+      const s = (v || 'SIN FACTURA').toUpperCase();
+      if (s === 'ALMA RODRIGUEZ') return 'alma';
+      if (s === 'LUIS TORRES')  return 'luis';
+      return 'sinFactura';
+    };
 
     const meses = {};
     for (const doc of docs) {
       if (!doc) continue;
       const mes = doc.posting_date.slice(0, 7);
-      if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0 };
+      if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0,
+        porFacturado: { alma: 0, luis: 0, sinFactura: 0 } };
       const m = meses[mes];
       m.compras++;
-      m.total += parseFloat(doc.grand_total || 0);
+      const gt = parseFloat(doc.grand_total || 0);
+      m.total += gt;
+      m.porFacturado[facturadoKey(doc.custom_facturado_a)] += gt;
 
       // IVA e IEPS desde tax entries — son los valores ajustados manualmente para cuadrar con CFDI
       let docIva = 0, docIeps = 0;
@@ -444,7 +488,7 @@ class FrappeComprasService extends FrappeBase {
       fields: JSON.stringify([
         "name", "supplier", "supplier_name", "docstatus",
         "posting_date", "total", "grand_total", "status",
-        "custom_no_de_compra", "rounding_adjustment",
+        "custom_no_de_compra", "rounding_adjustment", "custom_facturado_a", "custom_pagado",
       ]),
       filters: JSON.stringify(filters),
       order_by: "custom_no_de_compra desc",

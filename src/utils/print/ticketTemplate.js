@@ -153,7 +153,7 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
  * @param {number} [datos.ajuste=0] - Ajuste por redondeo.
  * @param {boolean} [datos.esBorrador=false] - Si es precompra.
  */
-export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, fecha, hora, totales, ajuste = 0, esBorrador = false }) {
+export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, facturadoA, pagado, fecha, hora, totales, ajuste = 0, esBorrador = false }) {
   const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
   const titulo = esBorrador ? '** PRECOMPRA **' : '** TICKET DE COMPRA **';
 
@@ -198,6 +198,8 @@ export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, fecha,
   <div class="info-row"><span>NO. COMPRA:</span><span>#${numStr}</span></div>
   <div class="info-row"><span>NO. FACTURA:</span><span>${noFactura || '—'}</span></div>
   <div class="info-row"><span>PROVEEDOR:</span><span>${proveedor || '—'}</span></div>
+  <div class="info-row"><span>FACTURADO A:</span><span>${facturadoA || 'SIN FACTURA'}</span></div>
+  <div class="info-row"><span>ESTADO PAGO:</span><span>${pagado ? 'PAGADO' : 'PENDIENTE'}</span></div>
   <div class="info-row"><span>FECHA:</span><span>${fecha || fmtFecha()}</span></div>
   <div class="info-row"><span>HORA:</span><span>${hora || fmtHora()}</span></div>
   <div class="div-eq"></div>
