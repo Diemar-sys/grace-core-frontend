@@ -33,6 +33,45 @@ export const subtotalFila = (f) => parseFloat(f.bultos || 0) * parseFloat(f.rate
 export const impuestoFila = (f) => subtotalFila(f) * parseFloat(f.impuesto_rate || 0);
 export const totalFila    = (f) => subtotalFila(f) + impuestoFila(f);
 
+/**
+ * Calcula los totales EFECTIVOS de una compra: aplica overrides manuales sobre los
+ * valores calculados y deriva el ajuste por redondeo SAT (espejo de ERPNext, precisión 6).
+ * Función PURA — produce el grand_total que se envía a ERPNext. Testeable de forma aislada.
+ *
+ * @param {object} p
+ * @param {{subtotal:number, iva:number, ieps:number, subtotalIva16:number, subtotalIeps:number, subtotalTasa0:number}} p.calc - Totales calculados desde las filas.
+ * @param {{iva?:any, ieps?:any, subtotalIva16?:any, subtotalIeps?:any, subtotalTasa0?:any}} [p.overrides] - Valores ingresados a mano.
+ * @param {{iva?:boolean, ieps?:boolean, subtotalIva16?:boolean, subtotalIeps?:boolean, subtotalTasa0?:boolean, ajuste?:boolean}} [p.manual] - Qué campos están en modo manual.
+ * @param {string|number} [p.ajuste] - Ajuste manual de balance.
+ * @returns {object} Totales efectivos + ajusteSAT/ajusteParaErp + total.
+ */
+export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, ajuste = 0 }) => {
+  const num = (v) => parseFloat(v || 0);
+
+  const iva  = (manual.iva  && calc.iva  > 0) ? num(overrides.iva)  : calc.iva;
+  const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps;
+
+  const subtotalIva16 = manual.subtotalIva16 ? num(overrides.subtotalIva16) : calc.subtotalIva16;
+  const subtotalIeps  = manual.subtotalIeps  ? num(overrides.subtotalIeps)  : calc.subtotalIeps;
+  const subtotalTasa0 = manual.subtotalTasa0 ? num(overrides.subtotalTasa0) : calc.subtotalTasa0;
+
+  const subtotalEfectivo = subtotalIva16 + subtotalIeps + subtotalTasa0;
+  const subtotalDiff     = subtotalEfectivo - calc.subtotal;
+
+  const rawTotal       = subtotalEfectivo + iva + ieps;
+  // Ajuste SAT: lleva el total a 2 decimales exactos sin redondeo intermedio (precisión 6).
+  const ajusteSAT      = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
+  const ajusteEfectivo = manual.ajuste ? num(ajuste) : ajusteSAT;
+  const ajusteParaErp  = ajusteEfectivo + subtotalDiff;
+
+  return {
+    iva, ieps, subtotalIva16, subtotalIeps, subtotalTasa0,
+    subtotalEfectivo, subtotalDiff, rawTotal,
+    ajusteSAT, ajusteEfectivo, ajusteParaErp,
+    total: rawTotal + ajusteEfectivo,
+  };
+};
+
 export const calcVariacion = (fila) => {
   const actual   = parseFloat(fila.rate || 0);
   const catalogo = parseFloat(fila.precio_catalogo || 0);

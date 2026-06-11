@@ -6,7 +6,7 @@ import POSTicket from '../components/pos/POSTicket';
 import POSModalCobro from '../components/pos/POSModalCobro';
 import POSModalEspera from '../components/pos/POSModalEspera';
 import POSModalCantidad from '../components/pos/POSModalCantidad';
-import { fmt } from '../components/pos/posUtils';
+import { fmt, calcularCobro } from '../components/pos/posUtils';
 import { generarHTMLTicket } from '../utils/print/ticketTemplate';
 import { imprimirHTML } from '../utils/print/printUtils';
 import { imprimirTicketTermico } from '../services/printService';
@@ -17,6 +17,7 @@ import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { seedCatalogo, seedStock } from '../db/sync';
 import { generateUUID } from '../db/uuid';
+import { DEFAULT_CUSTOMER } from '../config/constants';
 
 const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
 
@@ -55,7 +56,7 @@ function POS() {
 
   // ── Ticket ────────────────────────────────────
   const [ticket, setTicket] = useState([]);
-  const [cliente, setCliente] = useState('Público en General');
+  const [cliente, setCliente] = useState(DEFAULT_CUSTOMER);
 
   // ── Espera ────────────────────────────────────
   const [enEspera, setEnEspera] = useState([]);
@@ -156,7 +157,7 @@ function POS() {
 
   const limpiarTicket = useCallback(() => {
     setTicket([]);
-    setCliente('Público en General');
+    setCliente(DEFAULT_CUSTOMER);
     setItemSeleccionado(null);
     setPagos({ Efectivo: '', Tarjeta: '', Transferencia: '' });
   }, []);
@@ -232,13 +233,8 @@ function POS() {
     }
   }, [itemSeleccionado, quitarItem, limpiarTicket]);
 
-  // ── Totales ───────────────────────────────────
-  const total = ticket.reduce((s, i) => s + i.qty * i.precio, 0);
-  const totalQty = ticket.reduce((s, i) => s + i.qty, 0);
-  const totalPagado = Object.values(pagos).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  const pendiente = Math.max(0, total - totalPagado);
-  const cambio = Math.max(0, totalPagado - total);
-  const importeOk = pendiente === 0 && totalPagado > 0;
+  // ── Totales (lógica pura testeada en posUtils) ─
+  const { total, totalQty, totalPagado, pendiente, cambio, importeOk } = calcularCobro(ticket, pagos);
 
   // ── Item seleccionado (una sola búsqueda) ──────
   const itemSeleccionadoData = useMemo(

@@ -7,7 +7,7 @@
  */
 
 import FrappeBase from './FrappeBase';
-import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
+import { COMPANY, BODEGA_CENTRAL, DEFAULT_CUSTOMER } from '../config/constants';
 import { IMPUESTOS_LIST } from '../config/impuestos';
 import { loadAppConfig, getAppConfigSync } from './appConfig';
 import { getSucursalesInternas } from '../config/clientesB2B';
@@ -63,7 +63,7 @@ class FrappeSalesService extends FrappeBase {
     if (this._abortCliente) this._abortCliente.abort();
     this._abortCliente = new AbortController();
 
-    const excluidos = ['Público en General', ...getSucursalesInternas()];
+    const excluidos = [DEFAULT_CUSTOMER, ...getSucursalesInternas()];
     const filters = [
       ['disabled', '=', 0],
       ['name', 'not in', excluidos],

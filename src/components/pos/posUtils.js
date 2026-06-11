@@ -29,3 +29,20 @@ export const MODOS_PAGO_DISPLAY = {
 export const fmtModoPago = (modo = '') =>
   MODOS_PAGO_DISPLAY[modo] || modo;
 
+/**
+ * Calcula los totales de un cobro de POS. Función pura — sin estado ni efectos.
+ * @param {Array<{qty:number, precio:number}>} ticket - Líneas del ticket.
+ * @param {Object<string,string|number>} pagos - Montos por método de pago.
+ * @returns {{total:number, totalQty:number, totalPagado:number,
+ *            pendiente:number, cambio:number, importeOk:boolean}}
+ */
+export const calcularCobro = (ticket = [], pagos = {}) => {
+  const total       = ticket.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.precio) || 0), 0);
+  const totalQty    = ticket.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+  const totalPagado = Object.values(pagos).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const pendiente   = Math.max(0, total - totalPagado);
+  const cambio      = Math.max(0, totalPagado - total);
+  const importeOk   = pendiente === 0 && totalPagado > 0;
+  return { total, totalQty, totalPagado, pendiente, cambio, importeOk };
+};
+

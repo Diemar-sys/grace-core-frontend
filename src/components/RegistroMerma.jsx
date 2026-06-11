@@ -5,7 +5,7 @@ import { sanitizar } from '../utils/security';
 import { BODEGA_CENTRAL } from '../config/constants';
 import { fetchStockMapKg } from '../utils/stockMP';
 import { fmtUom } from '../utils/uom';
-import { parseErrorFrappe } from '../utils/errorFrappe';
+import { parseErrorFrappe, logError } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
@@ -47,7 +47,7 @@ function RegistroMerma({ onSuccess, onCancel }) {
     let cancel = false;
     stockService.fetchAllWarehousesInclusive()
       .then(list => { if (!cancel) setAlmacenes(list); })
-      .catch(err => console.error('Almacenes:', err));
+      .catch(err => logError('Almacenes', err));
     return () => { cancel = true; };
   }, []);
 
@@ -57,7 +57,7 @@ function RegistroMerma({ onSuccess, onCancel }) {
     setStockLoaded(false);
     fetchStockMapKg(almacenOrigen)
       .then(m => { if (!cancel) { setStockMap(m); setStockLoaded(true); } })
-      .catch(err => { console.error('Stock origen:', err); setStockLoaded(true); });
+      .catch(err => { logError('Stock origen', err); setStockLoaded(true); });
     return () => { cancel = true; };
   }, [almacenOrigen]);
 

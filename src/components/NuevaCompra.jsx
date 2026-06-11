@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { comprasService } from '../services/frappePurchase';
 import ModalError from './modals/ModalError';
+import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalSugerenciaPrecios from './compras/ModalSugerenciaPrecios';
 import ModalReciboPDF from './compras/ModalReciboPDF';
 import BuscadorProveedor from './compras/BuscadorProveedor';
 import FilaProducto from './compras/FilaProducto';
 import {
   FILA_VACIA, MARGEN_DEFAULT, fmt,
-  parseImpuesto, subtotalFila, calcVariacion,
+  parseImpuesto, subtotalFila, calcVariacion, calcularTotalesEfectivos,
 } from './compras/compraUtils';
 import '../styles/NuevaCompra.css';
 
@@ -120,15 +121,6 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
 
-  const moverFila = (id, dir) => setFilas(f => {
-    const i = f.findIndex(r => r._id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= f.length) return f;
-    const copia = [...f];
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-    return copia;
-  });
-
   const updateFila = (id, campos) =>
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
 
@@ -160,28 +152,49 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     return acc;
   }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalTasa0: 0, subtotalIeps: 0 });
 
-  const ivaEfectivo  = (ivaManual  && totales.iva  > 0) ? parseFloat(ivaOverride  || 0) : totales.iva;
-  const iepsEfectivo = (iepsManual && totales.ieps > 0) ? parseFloat(iepsOverride || 0) : totales.ieps;
-  totales.iva  = ivaEfectivo;
-  totales.ieps = iepsEfectivo;
+  // Valores calculados (antes de overrides) que el render necesita para los inputs base.
+  const subtotalIva16Calc = totales.subtotalIva16;
+  const subtotalIepsCalc  = totales.subtotalIeps;
+  const subtotalTasa0Calc = totales.subtotalTasa0;
 
-  const subtotalIva16Calc  = totales.subtotalIva16;
-  const subtotalIepsCalc   = totales.subtotalIeps;
-  const subtotalTasa0Calc  = totales.subtotalTasa0;
-  totales.subtotalIva16 = subtotalIva16Manual ? parseFloat(subtotalIva16Override || 0) : subtotalIva16Calc;
-  totales.subtotalIeps  = subtotalIepsManual  ? parseFloat(subtotalIepsOverride  || 0) : subtotalIepsCalc;
-  totales.subtotalTasa0 = subtotalTasa0Manual ? parseFloat(subtotalTasa0Override || 0) : subtotalTasa0Calc;
+  // Totales efectivos (overrides manuales + ajuste SAT) — lógica pura testeada en compraUtils.
+  const efectivos = calcularTotalesEfectivos({
+    calc: {
+      subtotal:      totales.subtotal,
+      iva:           totales.iva,
+      ieps:          totales.ieps,
+      subtotalIva16: subtotalIva16Calc,
+      subtotalIeps:  subtotalIepsCalc,
+      subtotalTasa0: subtotalTasa0Calc,
+    },
+    overrides: {
+      iva:           ivaOverride,
+      ieps:          iepsOverride,
+      subtotalIva16: subtotalIva16Override,
+      subtotalIeps:  subtotalIepsOverride,
+      subtotalTasa0: subtotalTasa0Override,
+    },
+    manual: {
+      iva:           ivaManual,
+      ieps:          iepsManual,
+      subtotalIva16: subtotalIva16Manual,
+      subtotalIeps:  subtotalIepsManual,
+      subtotalTasa0: subtotalTasa0Manual,
+      ajuste:        ajusteManual,
+    },
+    ajuste,
+  });
 
-  const subtotalCalc    = totales.subtotal;
-  const subtotalEfectivo = totales.subtotalIva16 + totales.subtotalIeps + totales.subtotalTasa0;
-  const subtotalDiff    = subtotalEfectivo - subtotalCalc;
-  totales.subtotal      = subtotalEfectivo;
+  const ajusteEfectivo = efectivos.ajusteEfectivo;
+  const ajusteParaErp  = efectivos.ajusteParaErp;
 
-  const rawTotal       = subtotalEfectivo + ivaEfectivo + iepsEfectivo;
-  const ajusteSAT      = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
-  const ajusteEfectivo = ajusteManual ? parseFloat(ajuste || 0) : ajusteSAT;
-  const ajusteParaErp  = ajusteEfectivo + subtotalDiff;
-  totales.total        = rawTotal + ajusteEfectivo;
+  totales.iva           = efectivos.iva;
+  totales.ieps          = efectivos.ieps;
+  totales.subtotalIva16 = efectivos.subtotalIva16;
+  totales.subtotalIeps  = efectivos.subtotalIeps;
+  totales.subtotalTasa0 = efectivos.subtotalTasa0;
+  totales.subtotal      = efectivos.subtotalEfectivo;
+  totales.total         = efectivos.total;
 
   // ── Validaciones ─────────────────────────────────────────────────────────
   const validar = () => {
@@ -228,7 +241,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       }
       const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       setPdfData({ noCompra: docNoCompra, noFactura: billNo, fecha, hora, proveedor: proveedor.label, facturadoA, pagado: false, filas: items, totales, ajuste: ajusteEfectivo, esBorrador: true });
-    } catch (err) { setError(err.message); }
+    } catch (err) { setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }); }
     finally { setLoading(false); }
   };
 
@@ -275,7 +288,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
       const conCambio = items.filter(f => calcVariacion(f)?.cambio);
       if (conCambio.length > 0) { setCambiosPendientes(conCambio); } else { onSuccess?.(); }
-    } catch (err) { setError(err.message); }
+    } catch (err) { setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }); }
     finally { setLoading(false); }
   };
 
@@ -375,7 +388,6 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
             <colgroup>
-              <col className="col-mover" />
               <col className="col-producto" />
               <col className="col-cantidad" />
               <col className="col-cantidad" />
@@ -389,7 +401,6 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             </colgroup>
             <thead>
               <tr>
-                <th></th>
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Por empaque</th>
@@ -412,10 +423,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
                   onChange={(campos) => updateFila(fila._id, campos)}
                   onImpuesto={(key) => handleImpuesto(fila._id, key)}
                   onEliminar={() => eliminarFila(fila._id)}
-                  onMover={(dir) => moverFila(fila._id, dir)}
                   onFocusNext={() => focusRow(idx + 1)}
-                  esPrimera={idx === 0}
-                  esUltima={idx === filas.length - 1}
                   soloUna={filas.length === 1}
                 />
               ))}

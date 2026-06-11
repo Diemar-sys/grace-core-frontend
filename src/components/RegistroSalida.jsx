@@ -7,7 +7,7 @@ import { BODEGA_CENTRAL } from '../config/constants';
 import { TENANT } from '../config/tenant';
 import { fetchStockMapKg } from '../utils/stockMP';
 import { fmtUom } from '../utils/uom';
-import { parseErrorFrappe } from '../utils/errorFrappe';
+import { parseErrorFrappe, logError } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import '../styles/RegistroMovimiento.css';
 
@@ -40,7 +40,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
     let cancel = false;
     fetchStockMapKg(BODEGA_CENTRAL)
       .then(m => { if (!cancel) { setStockMap(m); setStockLoaded(true); } })
-      .catch(err => { console.error('Stock origen:', err); setStockLoaded(true); });
+      .catch(err => { logError('Stock origen', err); setStockLoaded(true); });
     Promise.all([
       stockService.fetchAlmacenesAgrupados(),
       stockService.fetchAlmacenes(),
@@ -58,7 +58,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
         setGrupos(agrupFiltrado);
         setAlmacenes(flat.filter(a => !exclWh.has(a.name)));
       })
-      .catch(err => console.error('Almacenes:', err));
+      .catch(err => logError('Almacenes', err));
     return () => { cancel = true; };
   }, []);
 

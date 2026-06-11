@@ -16,6 +16,17 @@ const stripHTML = (s) =>
 const ITEM_CODE_RE = /art[íi]culo\s+([A-Z0-9-]{6,})/i;
 
 /**
+ * Punto ÚNICO de registro de errores no-fatales (cargas secundarias, fetch de
+ * apoyo). Centraliza lo que antes era `console.error` disperso en ~40 sitios:
+ * mañana se enchufa Sentry/tracking aquí sin tocar cada componente.
+ * @param {string} contexto - Dónde ocurrió (ej. 'Stock origen', 'Almacenes').
+ * @param {unknown} err
+ */
+export function logError(contexto, err) {
+  console.error(`[${contexto}]`, err);
+}
+
+/**
  * Parsea un error de Frappe y devuelve título + mensaje amigable.
  * @param {Error|string} err
  * @returns {{ title: string, message: string }}
@@ -42,6 +53,11 @@ export function parseErrorFrappe(err) {
       title: 'Stock insuficiente',
       message: 'La cantidad solicitada supera el stock disponible. Ajusta las cantidades.',
     };
+  }
+
+  // Folio de factura de proveedor duplicado
+  if (/folio|ya existe una compra/i.test(txt)) {
+    return { title: 'Folio de factura duplicado', message: txt };
   }
 
   // Permisos

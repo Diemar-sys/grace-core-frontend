@@ -3,15 +3,16 @@
 // Convierte actual_qty (unidad natural, ej. BULTO) a stock_uom (Kg) usando
 // custom_cantidad_por_presentación. Usado por RegistroSalida, RegistroMerma.
 
-import { inventory } from '../services/frappeInventory';
+import { inventory as defaultInventory } from '../services/frappeInventory';
 
 /**
- * Carga el stock de un almacén y lo expone por item_code con info de presentación.
- * @param {string} warehouse
- * @returns {Promise<Object<string, {actual:number, cantPres:number, presentacion:string, uom:string, stockKg:number}>>}
+ * Transforma filas de stock crudas a un mapa por item_code, convirtiendo
+ * actual_qty (presentación, ej. BULTO) a stock_uom (Kg) via cantidad por presentación.
+ * Función PURA — sin red ni efectos. Testeable de forma aislada.
+ * @param {Array<Object>} items - Filas de stock de ERPNext.
+ * @returns {Object<string, {actual:number, cantPres:number, presentacion:string, uom:string, stockKg:number}>}
  */
-export async function fetchStockMapKg(warehouse) {
-  const items = await inventory.getProductosConStock({ warehouse });
+export function buildStockMapKg(items = []) {
   const map = {};
   items.forEach(it => {
     const actual = parseFloat(it.actual_qty) || 0;
@@ -25,5 +26,16 @@ export async function fetchStockMapKg(warehouse) {
     };
   });
   return map;
+}
+
+/**
+ * Carga el stock de un almacén y lo expone por item_code con info de presentación.
+ * @param {string} warehouse
+ * @param {{inventory?: object}} [deps] - Inyección de dependencias (default: singleton real).
+ * @returns {Promise<Object<string, object>>}
+ */
+export async function fetchStockMapKg(warehouse, { inventory = defaultInventory } = {}) {
+  const items = await inventory.getProductosConStock({ warehouse });
+  return buildStockMapKg(items);
 }
 
