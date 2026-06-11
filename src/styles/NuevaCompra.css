@@ -158,7 +158,7 @@
   z-index: 600;
   max-height: 200px;
   overflow-y: auto;
-  min-width: 240px;
+  min-width: 340px;
 }
 
 .nc-dropdown-item {
@@ -184,9 +184,8 @@
 .nc-dropdown-item .d-name {
   font-weight: 700;
   color: #3f2b1a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .nc-dropdown-item .d-sub {
@@ -244,19 +243,19 @@
 }
 
 .nc-tabla col.col-producto {
-  width: 22%;
+  width: 35%;
 }
 
 .nc-tabla col.col-cantidad {
-  width: 8%;
+  width: 6%;
 }
 
 .nc-tabla col.col-precio-fijo {
-  width: 8%;
+  width: 7%;
 }
 
 .nc-tabla col.col-precio-compra {
-  width: 11%;
+  width: 9%;
 }
 
 .nc-tabla col.col-diferencia {
@@ -295,6 +294,20 @@
   outline: none;
   border-color: #f59e0b;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+/* Quitar flechas spinner de inputs number — se teclea valor exacto */
+.nc-input[type="number"],
+.nc-input-ajuste[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.nc-input[type="number"]::-webkit-outer-spin-button,
+.nc-input[type="number"]::-webkit-inner-spin-button,
+.nc-input-ajuste[type="number"]::-webkit-outer-spin-button,
+.nc-input-ajuste[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Precio de catálogo (fijo, solo lectura) */
@@ -340,14 +353,14 @@
 .nc-input.precio {
   text-align: right;
   width: 100%;
-  min-width: 130px;
+  min-width: 90px;
   font-size: 14px;
 }
 
 .nc-input.cantidad {
   text-align: center;
   width: 100%;
-  min-width: 90px;
+  min-width: 56px;
   font-size: 14px;
 }
 

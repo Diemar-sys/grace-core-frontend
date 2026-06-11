@@ -5,7 +5,7 @@ import '../styles/NuevoInsumo.css';
 
 function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
   const {
-    formData, setFormData,
+    formData,
     catalogos,
     esAbarrotes,
     loading,
@@ -17,6 +17,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
     IMPUESTOS,
     handleChange,
     handleItemGroupChange,
+    handleTipoChange,
     generateCode,
     handleSubmit,
   } = useInsumoForm({ editItem, onSuccess });
@@ -101,19 +102,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
               <div className="form-group">
                 <label>Tipo de Item *</label>
                 <select name="custom_tipo_item" value={formData.custom_tipo_item}
-                  onChange={e => {
-                    const nuevoTipo = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      custom_tipo_item: nuevoTipo,
-                      ...(nuevoTipo === 'PRODUCTO TERMINADO' && {
-                        custom_presentación: '',
-                        custom_cantidad_por_presentación: '',
-                        custom_precio_de_compra: '',
-                        custom_precio_por_kg: '',
-                      }),
-                    }));
-                  }}
+                  onChange={handleTipoChange}
                   required>
                   <option value="MATERIA PRIMA">MATERIA PRIMA / INSUMO</option>
                   <option value="PRODUCTO TERMINADO">PRODUCTO TERMINADO</option>

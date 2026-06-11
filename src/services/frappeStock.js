@@ -113,13 +113,19 @@ class FrappeStockService extends FrappeBase {
    * @returns {Promise<Array<Object>>} Coincidencias activas.
    */
   async buscarItemsTexto(search = "") {
-    const filters = [["disabled", "=", 0]];
-    if (search) filters.push(["item_name", "like", `%${search}%`]);
     const params = new URLSearchParams({
       fields: JSON.stringify(["item_code", "item_name", "stock_uom", "item_group", "custom_cantidad_por_presentación", "custom_presentación", "custom_precio_por_kg", "custom_precio_final", "custom_precio_de_compra", "valuation_rate"]),
-      filters: JSON.stringify(filters),
+      filters: JSON.stringify([["disabled", "=", 0]]),
       limit_page_length: 20,
     });
+    if (search) {
+      // or_filters: grupo OR (item_name | item_code | código interno), AND'd con disabled=0
+      params.set("or_filters", JSON.stringify([
+        ["item_name", "like", `%${search}%`],
+        ["item_code", "like", `%${search}%`],
+        ["custom_código_interno", "like", `%${search}%`],
+      ]));
+    }
     const data = await this._fetch(`/api/resource/Item?${params}`);
     return data.data || [];
   }

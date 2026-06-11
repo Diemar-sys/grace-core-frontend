@@ -109,3 +109,67 @@
 
   .comp-td-acciones { width: auto; flex-wrap: wrap; gap: 3px; }
 }
+
+/* ── Facturado a ─────────────────────────────────────── */
+/* Badge bloqueado (compra pagada o modo consulta) */
+.comp-facturado-badge,
+.comp-sinfactura-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.comp-facturado-badge::before,
+.comp-sinfactura-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* Facturado a una persona — verde */
+.comp-facturado-badge {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.comp-facturado-badge::before { background: #10b981; }
+/* Sin factura — gris tenue, borde punteado (estado "vacío") */
+.comp-sinfactura-badge {
+  background: #f9fafb;
+  color: #9ca3af;
+  border: 1px dashed #d1d5db;
+}
+.comp-sinfactura-badge::before { background: #d1d5db; }
+
+/* Select editable (compra no pagada) */
+.comp-facturado-select {
+  padding: 5px 28px 5px 11px;
+  border-radius: 8px;
+  border: 1px solid #e5d2b8;
+  background: #fff;
+  color: #3f2b1a;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  /* flecha custom */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238b6a4e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 4 6 8 10 4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.comp-facturado-select:hover { border-color: #f59e0b; }
+.comp-facturado-select:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+.comp-facturado-select:disabled { opacity: 0.6; cursor: progress; }

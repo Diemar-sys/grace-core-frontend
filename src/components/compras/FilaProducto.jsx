@@ -3,7 +3,7 @@ import { comprasService } from '../../services/frappePurchase';
 import { fmtUom } from '../../utils/uom';
 import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion } from './compraUtils';
 
-function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onMover, onFocusNext, inputRef, esPrimera, esUltima, soloUna }) {
+function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusNext, inputRef, soloUna }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -77,18 +77,10 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onMover,
     <tr className={superaMargen ? 'nc-fila-alerta' : ''}>
 
       <td>
-        <div className="nc-fila-mover">
-          <button className="nc-btn-mover" onClick={() => onMover(-1)}
-            disabled={esPrimera} title="Mover arriba">▲</button>
-          <button className="nc-btn-mover" onClick={() => onMover(1)}
-            disabled={esUltima} title="Mover abajo">▼</button>
-        </div>
-      </td>
-
-      <td>
         <div className="nc-buscador-wrap" ref={wrapRef}>
           <input className="nc-buscar-input" type="text" value={busqueda}
             ref={inputRef}
+            title={busqueda}
             onChange={e => handleBusqueda(e.target.value)}
             onKeyDown={handleItemKeyDown}
             placeholder="Buscar producto..."

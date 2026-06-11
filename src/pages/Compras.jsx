@@ -486,8 +486,9 @@ function Compras() {
                           <td>{c.posting_date}</td>
                           <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
                           <td>
-                            {soloLectura
-                              ? <span className={(c.custom_facturado_a && c.custom_facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>{c.custom_facturado_a || 'SIN FACTURA'}</span>
+                            {(soloLectura || c.custom_pagado)
+                              ? <span className={(c.custom_facturado_a && c.custom_facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}
+                                  title={c.custom_pagado ? 'Pagada — facturado bloqueado' : undefined}>{c.custom_facturado_a || 'SIN FACTURA'}</span>
                               : <select className="comp-facturado-select" value={c.custom_facturado_a || 'SIN FACTURA'}
                                   disabled={facturadoSaving === c.name}
                                   onChange={e => handleFacturadoChange(c.name, e.target.value)}>
@@ -508,10 +509,10 @@ function Compras() {
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <input type="checkbox" checked={!!c.custom_pagado}
-                              disabled={c.docstatus !== 1 || pagoModal.loading}
+                              disabled={c.docstatus !== 1 || c.custom_pagado || pagoModal.loading}
                               onChange={() => pagoModal.open({ name: c.name, value: c.custom_pagado ? 0 : 1, compra: c })}
-                              title={c.custom_pagado ? 'Pagada' : 'Pendiente de pago'}
-                              style={{ width: 18, height: 18, cursor: c.docstatus === 1 ? 'pointer' : 'not-allowed' }} />
+                              title={c.custom_pagado ? 'Pagada (bloqueada, no se puede revertir)' : 'Pendiente de pago'}
+                              style={{ width: 18, height: 18, cursor: (c.docstatus === 1 && !c.custom_pagado) ? 'pointer' : 'not-allowed' }} />
                           </td>
                           <td className="comp-td-acciones">
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

@@ -154,6 +154,22 @@ export default function useInsumoForm({ editItem, onSuccess }) {
     setEsAbarrotes(abarrotes);
   }, []);
 
+  const handleTipoChange = useCallback((e) => {
+    const nuevoTipo = e.target.value;
+    setEsAbarrotes(false);
+    setFormData(prev => ({
+      ...prev,
+      custom_tipo_item: nuevoTipo,
+      item_group: '',   // el bucket de categorías cambia con el tipo → limpiar para no dejar una inválida del bucket anterior
+      ...(nuevoTipo === 'PRODUCTO TERMINADO' && {
+        custom_presentación: '',
+        custom_cantidad_por_presentación: '',
+        custom_precio_de_compra: '',
+        custom_precio_por_kg: '',
+      }),
+    }));
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === 'custom_precio_de_venta') ultimoCampoModificado.current = 'venta';
@@ -230,11 +246,17 @@ export default function useInsumoForm({ editItem, onSuccess }) {
 
   // ── Derivados expuestos al componente ────────────────────────────────────
   const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
+  const esInsumoGeneral     = formData.custom_tipo_item === 'INSUMO GENERAL';
   const precioPorKg         = parseFloat(formData.custom_precio_por_kg) || 0;
   const PADRE_PT            = 'PRODUCTOS TERMINADOS';
+  const PADRE_IG            = 'INSUMOS GENERALES';
+  // 3 buckets por parent_item_group: PT → hijos de PT; INSUMO GENERAL → hijos de IG;
+  // MATERIA PRIMA → el resto (excluye PT e IG para no mezclar limpieza/papelería con materia prima)
   const categoriasFiltradas = esProductoTerminado
     ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_PT)
-    : catalogos.itemGroups.filter(g => g.parent_item_group !== PADRE_PT);
+    : esInsumoGeneral
+      ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_IG)
+      : catalogos.itemGroups.filter(g => g.parent_item_group !== PADRE_PT && g.parent_item_group !== PADRE_IG);
 
   return {
     formData, setFormData,
@@ -249,6 +271,7 @@ export default function useInsumoForm({ editItem, onSuccess }) {
     IMPUESTOS,
     handleChange,
     handleItemGroupChange,
+    handleTipoChange,
     generateCode,
     handleSubmit,
   };
