@@ -25,6 +25,12 @@ export default defineConfig({
         secure: false,
         cookieDomainRewrite: '',
       },
+      // Impresión en dev → print-server local. Quita el prefijo /print.
+      '^/print': {
+        target: 'http://localhost:6789',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/print/, ''),
+      },
     },
   },
 })

@@ -1,4 +1,6 @@
-const PRINT_SERVER = 'http://localhost:6789';
+// Ruta relativa: el nginx del frontend proxya /print → print-server del host (torre).
+// Mismo origen → sin CORS, sin IP hardcodeada. En dev, vite.config proxya /print a localhost:6789.
+const PRINT_SERVER = '/print';
 
 export async function imprimirTicketTermico({ items, cliente, pagos, total, cambio = 0 }) {
   const res = await fetch(`${PRINT_SERVER}/imprimir`, {

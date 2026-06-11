@@ -395,7 +395,7 @@ def cors(response, status=None):
     return response
 
 if __name__ == '__main__':
-    print("Servidor de impresion corriendo en http://localhost:6789")
-    # debug=True activa auto-reload: cualquier cambio en este archivo reinicia el server
-    # sin necesidad de "sudo systemctl restart print-server".
-    app.run(host='127.0.0.1', port=6789, debug=True, use_reloader=True)
+    # 0.0.0.0: el nginx del frontend (en contenedor) llega vía host-gateway.
+    # En LAN confiable; el acceso real se controla en nginx (location /print).
+    print("Servidor de impresion corriendo en http://0.0.0.0:6789")
+    app.run(host='0.0.0.0', port=6789, debug=False, use_reloader=False)

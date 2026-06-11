@@ -1,0 +1,6 @@
+node_modules
+dist
+.git
+*.log
+msg_commit.txt
+# NO ignorar .env: contiene las VITE_* que se hornean en el build

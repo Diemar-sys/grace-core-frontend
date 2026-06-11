@@ -109,7 +109,7 @@ export async function imprimirCompraTicket(datos) {
     es_borrador: !!datos.esBorrador,
   };
   try {
-    const res = await fetch('http://localhost:6789/imprimir-compra', {
+    const res = await fetch('/print/imprimir-compra', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
