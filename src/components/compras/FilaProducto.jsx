@@ -55,6 +55,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
       item_code:       item.item_code,
       item_name:       item.item_name,
       uom:             item.stock_uom,
+      presentacion:    item.custom_presentación || '',
       kg_por_bulto:    item.custom_cantidad_por_presentación || '',
       precio_por_kg:   item.custom_precio_por_kg || '',
       precio_catalogo: precioCatalogo,

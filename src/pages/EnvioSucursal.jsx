@@ -110,7 +110,7 @@ function EnvioSucursal() {
           item_code: it.item_code,
           item_name: it.item_name,
           uom: it.stock_uom || it.uom,
-          qty: parseFloat(it.qty || 0) * cantPres, // doc guarda en presentación natural → display en stock_uom
+          qty: parseFloat(it.qty || 0), // el doc ya guarda en unidad base (stock_uom)
           cantidad_por_presentacion: cantPres,
           presentacion: m.custom_presentación || '',
         };

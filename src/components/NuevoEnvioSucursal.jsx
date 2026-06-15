@@ -80,17 +80,14 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     return validos;
   };
 
-  // Convierte UI (qty en Kg/Lt/Pza) → payload (qty en presentación natural)
-  const itemsPayload = (items) => items.map(f => {
-    const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-    const qtyKg = parseFloat(f.qty || 0);
-    return {
-      item_code: f.item_code,
-      item_name: f.item_name,
-      uom: f.uom,
-      qty: cantPres > 0 ? qtyKg / cantPres : qtyKg,
-    };
-  });
+  // El stock vive en unidad base (stock_uom); el Stock Entry transfiere en base.
+  // La UI captura qty en Kg/Lt/Pza (base) → se manda tal cual, sin convertir a presentación.
+  const itemsPayload = (items) => items.map(f => ({
+    item_code: f.item_code,
+    item_name: f.item_name,
+    uom: f.uom,
+    qty: parseFloat(f.qty || 0),
+  }));
 
   // ── Confirmar envío ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {

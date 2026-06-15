@@ -94,7 +94,7 @@ class FrappeComprasService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify([
         "item_code", "item_name", "stock_uom", "item_group",
-        "last_purchase_rate", "custom_impuesto",
+        "last_purchase_rate", "custom_impuesto", "custom_presentación",
         "custom_cantidad_por_presentación", "custom_precio_de_compra",
         "custom_precio_por_kg",
       ]),
@@ -191,17 +191,27 @@ class FrappeComprasService extends FrappeBase {
       custom_subtotal_iva_16:  subtotalOverrides.iva16  ?? null,
       custom_subtotal_ieps_8:  subtotalOverrides.ieps   ?? null,
       custom_subtotal_iva_0:   subtotalOverrides.tasa0  ?? null,
-      items: items.map(item => ({
-        item_code: item.item_code,
-        item_name: item.item_name,
-        qty: parseFloat(item.qty),
-        rate: parseFloat(item.rate),
-        uom: item.uom,
-        stock_uom: item.uom,
-        warehouse: BODEGA_CENTRAL,
-        conversion_factor: 1,
-        description: "Impuesto: " + (item.impuesto_label || "Tasa 0"),
-      })),
+      items: items.map(item => {
+        // Conversión de UOM NATIVA: se compra en la PRESENTACIÓN (CAJA/BULTO/…) y
+        // ERPNext calcula solo el stock en unidad base (stock_uom del item) y la
+        // valuación por unidad base, usando conversion_factor. El factor es POR ITEM
+        // (custom_cantidad_por_presentación), nunca depende del nombre de la presentación.
+        // Sin presentación o factor 1 → se compra directo en la unidad base.
+        // NO se manda stock_uom: ERPNext lo toma del maestro del item (evita la mentira
+        // histórica de stock_uom = presentación con conversion_factor 1).
+        const factor = parseFloat(item.kg_por_bulto) || 1;
+        const usarPresentacion = factor > 1 && !!item.presentacion;
+        return {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          qty: parseFloat(item.qty),
+          rate: parseFloat(item.rate),
+          uom: usarPresentacion ? item.presentacion : item.uom,
+          conversion_factor: usarPresentacion ? factor : 1,
+          warehouse: BODEGA_CENTRAL,
+          description: "Impuesto: " + (item.impuesto_label || "Tasa 0"),
+        };
+      }),
       taxes: resumenImpuestos,
       disable_rounded_total: 1,
       rounding_adjustment: 0,

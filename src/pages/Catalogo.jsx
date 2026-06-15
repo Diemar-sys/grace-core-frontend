@@ -32,12 +32,11 @@ function fmtStock(item) {
   const presentacion = item.custom_presentación || '';
   const uom        = fmtUom(item.stock_uom || '');
 
-  // Si hay factor de conversión: actual = empaques, total natural = empaques × cantPres
-  // Ej: 16 bultos × 25 Kg/bulto = 400 Kg
-  const totalNatural = cantPres > 0 ? actual * cantPres : actual;
-  const totalStr   = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  // actual_qty ya viene en unidad base (stock_uom). La presentación (empaques) se
+  // deriva dividiendo. Ej: 400 Kg / 25 Kg-por-bulto = 16 bultos.
+  const totalStr   = `${actual.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   const paqStr     = cantPres > 0 && presentacion
-    ? `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
+    ? `${(actual / cantPres).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
     : null;
   return { actual, totalStr, paqStr };
 }

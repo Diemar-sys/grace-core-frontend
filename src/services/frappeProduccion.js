@@ -24,7 +24,7 @@ class FrappeProduccionService extends FrappeBase {
     const filters = [['docstatus', '!=', 2]];
     if (search) filters.push(['item', 'like', `%${search}%`]);
     const params = new URLSearchParams({
-      fields: JSON.stringify(['name', 'item', 'item_name', 'quantity', 'uom', 'is_active', 'is_default', 'creation']),
+      fields: JSON.stringify(['name', 'item', 'item_name', 'quantity', 'uom', 'is_active', 'is_default', 'creation', 'custom_departamento']),
       filters: JSON.stringify(filters),
       order_by: 'creation desc',
       limit_page_length: 200,

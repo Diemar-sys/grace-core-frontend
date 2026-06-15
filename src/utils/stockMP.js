@@ -1,16 +1,18 @@
 // src/utils/stockMP.js
 // Helpers compartidos para cargar stock por almacén con presentación.
-// Convierte actual_qty (unidad natural, ej. BULTO) a stock_uom (Kg) usando
+// Bin.actual_qty ya viene en UNIDAD BASE (stock_uom, ej. Kg) gracias a la conversión
+// UOM nativa en la compra; la presentación (ej. BULTO) se deriva dividiendo entre
 // custom_cantidad_por_presentación. Usado por RegistroSalida, RegistroMerma.
 
 import { inventory as defaultInventory } from '../services/frappeInventory';
 
 /**
- * Transforma filas de stock crudas a un mapa por item_code, convirtiendo
- * actual_qty (presentación, ej. BULTO) a stock_uom (Kg) via cantidad por presentación.
+ * Transforma filas de stock crudas a un mapa por item_code. `actual_qty` ya está en
+ * unidad base (stock_uom); `stockKg` es esa cantidad base y `presentaciones` su
+ * equivalente en presentación (base / cantPres).
  * Función PURA — sin red ni efectos. Testeable de forma aislada.
  * @param {Array<Object>} items - Filas de stock de ERPNext.
- * @returns {Object<string, {actual:number, cantPres:number, presentacion:string, uom:string, stockKg:number}>}
+ * @returns {Object<string, {actual:number, cantPres:number, presentacion:string, uom:string, stockKg:number, presentaciones:number}>}
  */
 export function buildStockMapKg(items = []) {
   const map = {};
@@ -22,7 +24,8 @@ export function buildStockMapKg(items = []) {
       cantPres,
       presentacion: it.custom_presentación || '',
       uom: it.stock_uom || '',
-      stockKg: actual * cantPres,
+      stockKg: actual,
+      presentaciones: actual / cantPres,
     };
   });
   return map;

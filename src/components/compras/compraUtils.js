@@ -8,7 +8,7 @@ export const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
 
 export const FILA_VACIA = () => ({
   _id: Math.random(),
-  item_code: '', item_name: '', uom: '',
+  item_code: '', item_name: '', uom: '', presentacion: '',
   bultos: '', kg_por_bulto: '', rate: '',
   precio_catalogo: '',
   precio_por_kg: '',

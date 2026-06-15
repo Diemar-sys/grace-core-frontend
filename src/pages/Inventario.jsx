@@ -303,15 +303,16 @@ function Inventario() {
  * @returns {JSX.Element|null} Celda <tr> con datos formateados.
  */
 function FilaItem({ item }) {
+  // actual_qty ya viene en unidad base (stock_uom); la presentación se deriva dividiendo.
   const actual = parseFloat(item.actual_qty) || 0;
   const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 0;
   const presentacion = item.custom_presentación || '';
   const uom = fmtUom(item.stock_uom || '');
-  const totalNatural = cantPres > 0 ? actual * cantPres : actual;
-  const totalStr = `${totalNatural.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  const totalStr = `${actual.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  const enPresentacion = cantPres > 0 ? actual / cantPres : actual;
   const paqStr = cantPres > 0 && presentacion
-    ? `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
-    : `${actual.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} emp.`;
+    ? `${enPresentacion.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
+    : `${enPresentacion.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} emp.`;
 
   return (
     <tr>
