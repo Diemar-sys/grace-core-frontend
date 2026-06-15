@@ -433,26 +433,6 @@ class FrappeStockService extends FrappeBase {
       }
     }));
 
-    // Catálogo para cantidad_por_presentación.
-    const allItems = Object.values(itemsByParent).flat();
-    const codes = [...new Set(allItems.map(i => i.item_code).filter(Boolean))];
-    const cantPresByCode = {};
-    if (codes.length) {
-      try {
-        const catParams = new URLSearchParams({
-          fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación']),
-          filters: JSON.stringify([['name', 'in', codes]]),
-          limit_page_length: 500,
-        });
-        const cat = await this._fetch('/api/resource/Item?' + catParams, { signal });
-        (cat?.data || []).forEach(it => {
-          cantPresByCode[it.item_code] = parseFloat(it.custom_cantidad_por_presentación) || 1;
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') console.warn('Catálogo presentación no disponible:', err?.message);
-      }
-    }
-
     return entries
       .sort((a, b) => {
         const cmp = (b.posting_date || '').localeCompare(a.posting_date || '');
@@ -461,12 +441,10 @@ class FrappeStockService extends FrappeBase {
       })
       .map(e => {
         const items = (itemsByParent[e.name] || []).map(d => {
-          const cantPres = cantPresByCode[d.item_code] || 1;
-          const qtyNat = parseFloat(d.qty || 0);
           return {
             item_code: d.item_code,
             item_name: d.item_name || d.item_code,
-            qty: qtyNat * cantPres,
+            qty: parseFloat(d.qty || 0), // el doc ya guarda en unidad base
             uom: d.stock_uom || d.uom || '',
             s_warehouse: d.s_warehouse || null,
             t_warehouse: d.t_warehouse || null,
@@ -701,40 +679,18 @@ class FrappeStockService extends FrappeBase {
       its.map(d => ({ ...d, parent }))
     );
 
-    // Rehidratar cantidad_por_presentación desde catálogo: doc guarda qty en
-    // unidad natural (ej. Bulto), display debe ser stock_uom (Kg).
-    const codes = [...new Set(allDetails.map(d => d.item_code).filter(Boolean))];
-    const cantPresByCode = {};
-    if (codes.length) {
-      try {
-        const catParams = new URLSearchParams({
-          fields: JSON.stringify(['item_code', 'custom_cantidad_por_presentación']),
-          filters: JSON.stringify([['name', 'in', codes]]),
-          limit_page_length: 500,
-        });
-        const cat = await this._fetch('/api/resource/Item?' + catParams, { signal });
-        (cat?.data || []).forEach(it => {
-          cantPresByCode[it.item_code] = parseFloat(it.custom_cantidad_por_presentación) || 1;
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') console.warn('Catálogo presentación no disponible:', err?.message);
-      }
-    }
-
     const itemsByParentFinal = {};
     allDetails.forEach(d => {
       if (!itemsByParentFinal[d.parent]) itemsByParentFinal[d.parent] = [];
-      const cantPres = cantPresByCode[d.item_code] || 1;
-      const precio = parseFloat(d.custom_precio_venta || 0); // precio por Kg
-      const qtyNatural = parseFloat(d.qty || 0);
-      const qtyDisplay = qtyNatural * cantPres; // qty en stock_uom (Kg)
+      const precio = parseFloat(d.custom_precio_venta || 0); // precio por unidad base
+      const qtyBase = parseFloat(d.qty || 0); // el doc ya guarda en unidad base
       itemsByParentFinal[d.parent].push({
         item_code: d.item_code,
         item_name: d.item_name,
-        qty: qtyDisplay,
+        qty: qtyBase,
         uom: d.stock_uom || d.uom,
         custom_precio_venta: precio,
-        monto: qtyDisplay * precio,
+        monto: qtyBase * precio,
       });
     });
 

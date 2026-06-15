@@ -92,15 +92,14 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
             const imp = parseImpuesto(i.description || '');
             const m = dict[i.item_code] || {};
             const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
-            const qtyNatural = parseFloat(i.qty) || 0;
-            const rateNatural = parseFloat(i.rate) || 0;
+            // El doc guarda qty y rate en unidad base → se leen directo, sin convertir.
             return {
               _id: Math.random(),
               item_code: i.item_code || '',
               item_name: i.item_name || '',
               uom: i.uom || m.stock_uom || '',
-              qty: cantPres > 0 ? String(qtyNatural * cantPres) : String(qtyNatural),
-              rate: cantPres > 0 ? String(rateNatural / cantPres) : String(rateNatural),
+              qty: String(parseFloat(i.qty) || 0),
+              rate: String(parseFloat(i.rate) || 0),
               precio_catalogo: '',
               cantidad_por_presentacion: cantPres,
               presentacion: m.custom_presentación || '',
@@ -236,16 +235,13 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
    * Convierte items del UI (qty en Kg, rate por Kg) → payload ERPNext (qty en
    * presentación natural, rate por presentación). Total qty×rate se preserva.
    */
-  const itemsPayload = (items) => items.map(f => {
-    const cantPres = parseFloat(f.cantidad_por_presentacion) || 1;
-    const qtyKg = parseFloat(f.qty || 0);
-    const rateKg = parseFloat(f.rate || 0);
-    return {
-      ...f,
-      qty: cantPres > 0 ? qtyKg / cantPres : qtyKg,
-      rate: rateKg * cantPres,
-    };
-  });
+  // La venta se registra en unidad base: qty y rate van directo, sin convertir a
+  // presentación (el stock vive en base y se descuenta así del Bin).
+  const itemsPayload = (items) => items.map(f => ({
+    ...f,
+    qty: parseFloat(f.qty || 0),
+    rate: parseFloat(f.rate || 0),
+  }));
 
   const buildPayloadCommon = (items) => ({
     customer: cliente.name,
@@ -551,8 +547,7 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
     // Fetch stock disponible Bodega Central
     try {
       const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
-      const qtyNaturalBin = parseFloat(bin?.actual_qty || 0);
-      const stockEnUnidad = qtyNaturalBin * cantPres;
+      const stockEnUnidad = parseFloat(bin?.actual_qty || 0); // Bin ya en unidad base
       onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
     } catch (err) {
       console.error('Error fetch stock:', err);

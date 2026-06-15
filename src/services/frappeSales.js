@@ -181,7 +181,6 @@ class FrappeSalesService extends FrappeBase {
         qty: parseFloat(item.qty),
         rate: parseFloat(item.rate),
         uom: item.uom,
-        stock_uom: item.uom,
         warehouse: BODEGA_CENTRAL,
         conversion_factor: 1,
         description: 'Impuesto: ' + (item.impuesto_label || 'Tasa 0'),
@@ -366,10 +365,8 @@ class FrappeSalesService extends FrappeBase {
     const itemsRaw = data?.data?.items || [];
     if (!itemsRaw.length) return [];
 
-    // ERPNext guarda qty en presentación natural (ej. 1 bulto).
-    // Frontend muestra en stock_uom real (ej. 25 Kg).
-    // Convertir: qtyDisplay = qtyNatural × cantPres, rateDisplay = rateNatural / cantPres.
-    // Total preservado: qtyNatural × rateNatural ≡ qtyDisplay × rateDisplay.
+    // El doc guarda qty y rate en unidad base → se leen directo. cantPres solo sirve
+    // para mostrar el equivalente en presentación (base / cantPres).
     const codes = [...new Set(itemsRaw.map(i => i.item_code).filter(Boolean))];
     let dict = {};
     if (codes.length) {
@@ -391,19 +388,17 @@ class FrappeSalesService extends FrappeBase {
     return itemsRaw.map(it => {
       const m = dict[it.item_code] || {};
       const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
-      const qtyNat = parseFloat(it.qty || 0);
-      const rateNat = parseFloat(it.rate || 0);
       return {
         item_code: it.item_code,
         item_name: it.item_name,
-        qty: qtyNat * cantPres,       // display en stock_uom (Kg/Lt/Pza)
+        qty: parseFloat(it.qty || 0),   // ya en unidad base
         uom: m.stock_uom || it.stock_uom || it.uom || '',
-        rate: cantPres > 0 ? rateNat / cantPres : rateNat,
+        rate: parseFloat(it.rate || 0), // ya por unidad base
         amount: parseFloat(it.amount || 0), // total preservado
         description: it.description || '',
         cantidad_por_presentacion: cantPres,
         presentacion: m.custom_presentación || '',
-        qty_presentacion: qtyNat,     // útil mostrar "1 Bulto"
+        qty_presentacion: cantPres > 0 ? (parseFloat(it.qty || 0) / cantPres) : parseFloat(it.qty || 0), // equiv. en presentación, ej. "2 Bulto"
       };
     });
   }
@@ -496,9 +491,7 @@ class FrappeSalesService extends FrappeBase {
       const grp = it.item_group || '(sin categoría)';
       if (!grupos[grp]) grupos[grp] = { item_group: grp, qtyTotal: 0, montoTotal: 0, _items: {} };
       const meta = dict[it.item_code] || {};
-      const cantPres = parseFloat(meta.custom_cantidad_por_presentación) || 1;
-      const qtyNat = parseFloat(it.qty || 0);
-      const qtyDisp = qtyNat * cantPres;
+      const qtyDisp = parseFloat(it.qty || 0); // ya en unidad base
       const monto = parseFloat(it.amount || 0);
 
       const code = it.item_code || '(sin código)';
