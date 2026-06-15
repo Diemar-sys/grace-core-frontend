@@ -114,8 +114,15 @@ class FrappeAuthService extends FrappeBase {
    * @returns {Promise<void>}
    */
   async logout() {
-    await fetch(`/api/method/logout`);
+    // Estado local PRIMERO (síncrono, antes del await): cierra la sesión sí o sí,
+    // sin depender de la red → rompe la carrera con el redirect de Login.
     localStorage.removeItem('frappe_user');
+    // Avisar al server (invalida cookie sid). Best-effort: offline NO debe frenar.
+    try {
+      await fetch(`/api/method/logout`);
+    } catch {
+      // offline / server caído: la sesión local ya quedó cerrada arriba.
+    }
     // Limpiar caché de servicios para evitar que el siguiente usuario
     // herede datos de la sesión anterior (ej: POS Profile, almacenes, etc.).
     const [{ posService }, { inventory }, { stockService }] = await Promise.all([

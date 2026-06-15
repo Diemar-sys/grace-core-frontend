@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "../services/frappeAuth";
-import { posService } from "../services/frappePOS";
 import { getRoleConfig } from "../config/roles";
 import { TENANT } from "../config/tenant";
 import "../styles/Layout.css";
@@ -55,10 +54,14 @@ function Layout({ children }) {
   const user = auth.getUser();
   const roleConfig = getRoleConfig(user?.role);
 
-  const handleLogout = () => {
-    posService.clearCache();
-    auth.logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    // try/finally: pase lo que pase con auth.logout() (red caída, etc.),
+    // SIEMPRE navegamos a /login. El estado local ya se limpió dentro de logout().
+    try {
+      await auth.logout();
+    } finally {
+      navigate('/login');
+    }
   };
 
   const [searchParams] = useSearchParams();
