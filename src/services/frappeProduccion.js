@@ -75,12 +75,34 @@ class FrappeProduccionService extends FrappeBase {
     return data.data;
   }
   /**
-   * Actualiza una receta (BOM) existente (solo posible si es borrador / docstatus=0).
-   * @param {string} bomName - ID del BOM.
-   * @param {Object} payload - Datos de la receta a actualizar.
-   * @returns {Promise<Object>} Datos del BOM actualizado.
+   * Actualiza una receta (BOM).
+   *
+   * ERPNext NO permite editar un BOM ya activo (docstatus=1): un PUT sobre el
+   * documento confirmado dispara "Falta un valor para: Precio" porque la validación
+   * de campos obligatorios del renglón corre sin pasar por el costeo por catálogo.
+   *
+   * Por eso, si la receta está activa, se desactiva la versión vigente y se crea una
+   * NUEVA como borrador con los cambios; la activación (si aplica) la decide quien
+   * llama. Desactivar (no cancelar) es seguro aunque haya producción vinculada al BOM
+   * viejo, que queda como histórico inactivo. Si es borrador, se edita en su lugar.
+   *
+   * @param {string} bomName - ID del BOM a actualizar.
+   * @param {Object} payload - Datos de la receta.
+   * @returns {Promise<Object>} BOM resultante (el mismo si era borrador; uno nuevo si estaba activo).
    */
   async actualizarBOM(bomName, { item, quantity, uom, items, custom_departamento = '' }) {
+    const actual = await this.getBOMDetalle(bomName);
+
+    // Receta activa → desactivar la vigente y crear una versión nueva (borrador).
+    if (actual?.docstatus === 1) {
+      await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_active: 0, is_default: 0 }),
+      });
+      return this.crearBOM({ item, quantity, uom, items, custom_departamento });
+    }
+
+    // Borrador → edición en su lugar.
     const data = await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
       method: 'PUT',
       body: JSON.stringify({
