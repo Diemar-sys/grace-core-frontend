@@ -48,6 +48,7 @@ export async function imprimirEgresoTicket(egreso) {
 
   const payload = {
     no_egreso: egreso.name || '',
+    no_de_compra: egreso.no_de_compra || null,
     fecha: egreso.fecha || '',
     categoria: egreso.categoria || '',
     subcategoria: egreso.subcategoria || '',
@@ -106,6 +107,7 @@ function _htmlEgreso(p, gas) {
   <div class="c"><h1 class="b">GRACE</h1>Panaderia &amp; Reposteria</div>
   <hr/><div class="c b">** COMPROBANTE DE EGRESO **</div><hr/>
   <div>No. Egreso : ${p.no_egreso}</div>
+  ${p.no_de_compra ? `<div>No. Compra : ${p.no_de_compra}</div>` : ''}
   <div>Fecha      : ${p.fecha}</div>
   <div>Categoria  : ${p.categoria}</div>
   ${p.subcategoria ? `<div>Subcat.    : ${p.subcategoria}</div>` : ''}

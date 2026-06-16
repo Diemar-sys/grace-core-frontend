@@ -255,6 +255,11 @@ function POS() {
       .map(([metodo, v]) => ({ metodo, monto: parseFloat(v) }));
 
     try {
+      // ponytail: outbox se escribe pero NADIE lo drena → ventas no llegan al backend.
+      // Pendiente (cuando POS entre a producción): listener online → leer outbox →
+      // crearVenta por uuid → borrar de outbox. Requiere idempotencia server-side
+      // (campo custom_uuid_offline + índice unique + endpoint atómico create+submit)
+      // o hay doble cobro. NO activar el POS en prod sin esto.
       // 1) Armar el objeto venta que vivirá en el outbox
       const venta = {
         uuid: generateUUID(),

@@ -25,20 +25,16 @@ class FrappeComprasService extends FrappeBase {
   // ── Auto-incremento No. de Compra ────────────────────────────────────────
   
   /**
-   * Obtiene el siguiente número de compra consecutivo leyendo el último
-   * documento de tipo 'Purchase Receipt' registrado en el sistema.
+   * Obtiene el siguiente número de compra consecutivo. La serie es COMPARTIDA
+   * entre Purchase Receipt (compras de inventario) y Egreso (gastos categoría
+   * GASTO), así que se resuelve en el backend tomando el máximo de ambas tablas.
    * @returns {Promise<number>} Siguiente número de compra disponible.
    */
   async getSiguienteNumero() {
-    const params = new URLSearchParams({
-      fields: JSON.stringify(["custom_no_de_compra"]),
-      filters: JSON.stringify([["docstatus", "in", [0, 1]]]),
-      order_by: "custom_no_de_compra desc",
-      limit_page_length: 1,
-    });
-    const data = await this._fetch("/api/resource/Purchase Receipt?" + params);
-    const ultimo = data.data?.[0]?.custom_no_de_compra || 0;
-    return ultimo + 1;
+    const res = await this._fetch(
+      "/api/method/gestion_panaderia.api.compras_api.get_siguiente_no_compra"
+    );
+    return res.message || 1;
   }
 
   /**
@@ -439,11 +435,12 @@ class FrappeComprasService extends FrappeBase {
       if (!doc) continue;
       const mes = doc.posting_date.slice(0, 7);
       if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0,
-        porFacturado: { alma: 0, luis: 0, sinFactura: 0 } };
+        pagado: 0, pendiente: 0, porFacturado: { alma: 0, luis: 0, sinFactura: 0 } };
       const m = meses[mes];
       m.compras++;
       const gt = parseFloat(doc.grand_total || 0);
       m.total += gt;
+      if (doc.custom_pagado) m.pagado += gt; else m.pendiente += gt;
       m.porFacturado[facturadoKey(doc.custom_facturado_a)] += gt;
 
       // IVA e IEPS desde tax entries — son los valores ajustados manualmente para cuadrar con CFDI

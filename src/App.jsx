@@ -15,6 +15,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
 import ConsultasInventario from './pages/ConsultasInventario';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
+import ReporteGastos from './pages/ReporteGastos';
+import ReporteCompras from './pages/ReporteCompras';
 import Egresos from './pages/Egresos';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -128,6 +130,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ReportesVentasCategoria />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/gastos"
+          element={
+            <ProtectedRoute>
+              <ReporteGastos />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/compras"
+          element={
+            <ProtectedRoute>
+              <ReporteCompras />
             </ProtectedRoute>
           }
         />

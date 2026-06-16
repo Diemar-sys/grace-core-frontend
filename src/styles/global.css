@@ -297,6 +297,19 @@
   font-family: inherit;
 }
 .filtro-group.search input { min-width: 280px; }
+/* Dropdowns de filtro compactos (Compras: Estado/Facturas/Facturado/Proveedor) */
+.filtro-group.filtro-sm select,
+.filtro-group.filtro-sm input {
+  min-width: 130px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.filtro-group.search.filtro-sm input { min-width: 200px; }
+/* Botones compactos para alinear con los filtros (Compras: Reporte Fiscal / Actualizar) */
+.btn-refresh.btn-compacto {
+  padding: 10px 14px;
+  font-size: 14px;
+}
 .filtro-group select:focus,
 .filtro-group input:focus {
   outline: none;
@@ -316,8 +329,16 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
   position: relative;
   text-align: left;
+}
+/* Tabla ancha (Reporte de Compras: 14 columnas) — compacta para que entre Sin Factura */
+.sys-table.report-compact thead th,
+.sys-table.report-compact td {
+  padding: 11px 13px;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 /* Scrollbar */

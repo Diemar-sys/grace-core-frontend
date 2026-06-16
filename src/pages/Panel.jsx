@@ -193,6 +193,7 @@ const MODULOS_CONSULTAS = [
   { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
   { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },
+  { key: "egresos",     path: "/reportes/gastos",           icon: <IconCompras />,     nombre: "Egresos",        sub: "Gasto por cuenta y periodo", color: "#b45309",   bg: "#fef3c7" },
 ];
 
 // ── Módulos de Reportes ───────────────────────────────
@@ -206,6 +207,7 @@ const IconReporte = () => (
 
 const MODULOS_REPORTES = [
   { key: "ventas_categoria", path: "/reportes/ventas-categoria", icon: <IconReporte />, nombre: "Ventas por Categoría", sub: "B2B agrupado por item_group", color: "#7c2d12", bg: "#fed7aa" },
+  { key: "compras_reporte", path: "/reportes/compras", icon: <IconReporte />, nombre: "Compras", sub: "Resumen fiscal mensual por proveedor", color: "#1565c0", bg: "#e3f0ff" },
 ];
 
 function ContenidoReportes() {

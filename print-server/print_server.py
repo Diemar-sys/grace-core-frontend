@@ -302,6 +302,7 @@ def imprimir_egreso():
             return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
 
         no_egreso     = data.get('no_egreso', '') or '-'
+        no_de_compra  = data.get('no_de_compra')  # solo gastos categoría GASTO
         fecha         = data.get('fecha', '')
         categoria     = (data.get('categoria', '') or '').upper()
         subcategoria  = (data.get('subcategoria', '') or '').upper()
@@ -331,6 +332,8 @@ def imprimir_egreso():
             # Datos
             p.set(font='b', align='left')
             p.text(f"NO. EGRESO  : {no_egreso}\n")
+            if no_de_compra:
+                p.text(f"NO. COMPRA  : {no_de_compra}\n")
             p.text(f"FECHA       : {fecha}  {hora}\n")
             p.text(f"CATEGORIA   : {categoria[:18]}\n")
             if subcategoria:

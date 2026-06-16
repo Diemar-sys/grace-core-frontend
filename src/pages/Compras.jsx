@@ -53,29 +53,10 @@ function Compras() {
 
   const [estadoFiltro, setEstadoFiltro] = useState('recibida');
   const [pagoFiltro, setPagoFiltro] = useState('todas'); // 'todas' | 'pagadas' | 'pendientes'
+  const [facturadoFiltro, setFacturadoFiltro] = useState('todas'); // 'todas' | cuenta fiscal
+  const [proveedorFiltro, setProveedorFiltro] = useState('todas'); // 'todas' | supplier_name
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
-
-  const [vistaReporte, setVistaReporte] = useState(false);
-  const [reporteData, setReporteData] = useState([]);
-  const [reporteAño, setReporteAño] = useState(String(new Date().getFullYear()));
-  const [reporteLoading, setReporteLoading] = useState(false);
-
-  const cargarReporte = useCallback(async (año) => {
-    setReporteLoading(true);
-    try {
-      const data = await comprasService.getReporteFiscalMensual(año || reporteAño);
-      setReporteData(data);
-    } catch (err) {
-      console.error('Error reporte fiscal:', err);
-    } finally {
-      setReporteLoading(false);
-    }
-  }, [reporteAño]);
-
-  useEffect(() => {
-    if (vistaReporte) cargarReporte(reporteAño);
-  }, [vistaReporte, reporteAño, cargarReporte]);
 
   // useCallback: el linter puede verificar dependencias. AbortSignal se recibe como
   // argumento para que el useEffect controle su ciclo de vida de forma explícita.
@@ -189,22 +170,24 @@ function Compras() {
     setBorradorEditar(null);
   };
 
+  // Proveedores distintos para el dropdown (de las compras cargadas)
+  const proveedoresUnicos = [...new Set(compras.map(c => c.supplier_name).filter(Boolean))].sort();
+
   // Filtrado local en vivo (igual que Catálogo / Proveedores)
   const filteredCompras = compras.filter(c => {
     if (estadoFiltro !== 'todas' && c.docstatus !== ESTADO_DOCSTATUS[estadoFiltro]) return false;
     if (pagoFiltro === 'pagadas'    && !c.custom_pagado) return false;
     if (pagoFiltro === 'pendientes' &&  c.custom_pagado) return false;
-    const term = searchTerm.toLowerCase();
+    if (facturadoFiltro !== 'todas' && (c.custom_facturado_a || 'SIN FACTURA') !== facturadoFiltro) return false;
+    if (proveedorFiltro !== 'todas' && c.supplier_name !== proveedorFiltro) return false;
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
     const supName = (c.supplier_name || '').toLowerCase();
     const supId = (c.supplier || '').toLowerCase();
     const noCompra = String(c.custom_no_de_compra ?? '').toLowerCase();
-    return supName.includes(term) || supId.includes(term) || noCompra.includes(term);
+    const termNum = term.replace(/^#/, ''); // permite buscar "#34" o "34"
+    return supName.includes(term) || supId.includes(term) || noCompra.includes(termNum);
   });
-
-  const confirmadas = filteredCompras.filter(c => c.docstatus === 1);
-  const totalPeriodo    = confirmadas.reduce((sum, c) => sum + (c.grand_total || 0), 0);
-  const pagadoTotal     = confirmadas.filter(c =>  c.custom_pagado).reduce((s, c) => s + (c.grand_total || 0), 0);
-  const pendienteTotal  = confirmadas.filter(c => !c.custom_pagado).reduce((s, c) => s + (c.grand_total || 0), 0);
 
   return (
     <Layout>
@@ -212,31 +195,9 @@ function Compras() {
 
         {/* HEADER */}
         <div className="page-header">
-          <div className="title-group" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div>
-              <h1 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                Compras
-              </h1>
-              <span className="header-subtitle" style={{ display: 'block', marginTop: '4px' }}>Registro de recepciones de mercancia por proveedor</span>
-            </div>
-          </div>
-          <div className="stats-cards">
-            <div className="stat-card">
-              <span className="stat-number">{filteredCompras.filter(c => c.docstatus === 1).length}</span>
-              <span className="stat-label">Confirmadas</span>
-            </div>
-            <div className="stat-card warning">
-              <span className="stat-number comp-stat-total">${fmt(totalPeriodo)}</span>
-              <span className="stat-label">Total periodo</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number comp-stat-total" style={{ color: '#16a34a' }}>${fmt(pagadoTotal)}</span>
-              <span className="stat-label">Pagado</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(pendienteTotal)}</span>
-              <span className="stat-label">Se debe</span>
-            </div>
+          <div className="title-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0 }}>Compras</h1>
+            <span className="header-subtitle">Registro de recepciones de mercancia por proveedor</span>
           </div>
         </div>
 
@@ -287,76 +248,67 @@ function Compras() {
           </div>
         ) : (
           <>
-            {/* TABS DE ESTADO */}
-            <div className="vistas-tabs">
-              {[
-                { key: 'recibida',  label: 'Recibida',  color: 'vista-stock' },
-                { key: 'en_espera', label: 'En espera', color: 'vista-agotado' },
-                { key: 'cancelada', label: 'Cancelada', color: 'vista-deshabilitado' },
-                { key: 'todas',     label: 'Todas',     color: 'vista-registrado' },
-              ].map(t => (
-                <button key={t.key}
-                  className={`vista-tab ${t.color} ${estadoFiltro === t.key ? 'activa' : ''}`}
-                  onClick={() => setEstadoFiltro(t.key)}>
-                  {t.label}
-                  <span className="comp-tab-count">
-                    {t.key === 'todas'
-                      ? compras.length
-                      : compras.filter(c => c.docstatus === ESTADO_DOCSTATUS[t.key]).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* TABS DE PAGO */}
-            <div className="vistas-tabs">
-              {[
-                { key: 'todas',      label: 'Todas' },
-                { key: 'pendientes', label: 'Por pagar' },
-                { key: 'pagadas',    label: 'Pagadas' },
-              ].map(t => (
-                <button key={t.key}
-                  className={`vista-tab ${pagoFiltro === t.key ? 'activa' : ''}`}
-                  onClick={() => setPagoFiltro(t.key)}>
-                  {t.label}
-                  <span className="comp-tab-count">
-                    {t.key === 'todas'
-                      ? compras.filter(c => c.docstatus === 1).length
-                      : compras.filter(c => c.docstatus === 1 && (t.key === 'pagadas' ? c.custom_pagado : !c.custom_pagado)).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             {/* FILTROS + BOTÓN */}
             <div className="filtros-section">
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
+                <label>Estado</label>
+                <select className="comp-date-input" value={estadoFiltro}
+                  onChange={e => setEstadoFiltro(e.target.value)}>
+                  <option value="recibida">Recibida ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.recibida).length})</option>
+                  <option value="en_espera">En espera ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.en_espera).length})</option>
+                  <option value="cancelada">Cancelada ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.cancelada).length})</option>
+                  <option value="todas">Todas ({compras.length})</option>
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
+                <label>Facturas</label>
+                <select className="comp-date-input" value={pagoFiltro}
+                  onChange={e => setPagoFiltro(e.target.value)}>
+                  <option value="todas">Todas ({compras.filter(c => c.docstatus === 1).length})</option>
+                  <option value="pendientes">Por pagar ({compras.filter(c => c.docstatus === 1 && !c.custom_pagado).length})</option>
+                  <option value="pagadas">Pagadas ({compras.filter(c => c.docstatus === 1 && c.custom_pagado).length})</option>
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
+                <label>Facturado a</label>
+                <select className="comp-date-input" value={facturadoFiltro}
+                  onChange={e => setFacturadoFiltro(e.target.value)}>
+                  <option value="todas">Todas</option>
+                  <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
+                  <option value="LUIS TORRES">Luis Torres</option>
+                  <option value="SIN FACTURA">Sin factura</option>
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
+                <label>Proveedor</label>
+                <select className="comp-date-input" value={proveedorFiltro}
+                  onChange={e => setProveedorFiltro(e.target.value)}>
+                  <option value="todas">Todos</option>
+                  {proveedoresUnicos.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
                 <label>Desde</label>
                 <input type="date" className="comp-date-input" value={desde}
                   onChange={e => setDesde(e.target.value)} />
               </div>
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
                 <label>Hasta</label>
                 <input type="date" className="comp-date-input" value={hasta}
                   onChange={e => setHasta(e.target.value)} />
               </div>
-              <div className="filtro-group search">
+              <div className="filtro-group search filtro-sm">
                 <label>Buscar proveedor / #</label>
                 <input type="text" placeholder="Ej: LASTUR, #001"
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
 
-              <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                <button className="btn-refresh"
-                  style={vistaReporte ? { background: '#1e3a5f', color: '#fff' } : {}}
-                  onClick={() => setVistaReporte(v => !v)}>
-                  {vistaReporte ? '← Compras' : '📊 Reporte Fiscal'}
-                </button>
-                <button className="btn-refresh" onClick={() => cargar()}>
+              <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <button className="btn-refresh btn-compacto" onClick={() => cargar()}>
                   Actualizar
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ marginLeft: "8px", verticalAlign: "middle" }}>
+                    style={{ marginLeft: "6px", verticalAlign: "middle" }}>
                     <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
                     <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
                   </svg>
@@ -364,101 +316,10 @@ function Compras() {
               </div>
             </div>
 
-            {/* REPORTE FISCAL */}
-            {vistaReporte && (
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <label style={{ fontWeight: 600, fontSize: '14px' }}>Año:</label>
-                  <select value={reporteAño} onChange={e => setReporteAño(e.target.value)}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px' }}>
-                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <button className="btn-refresh" onClick={() => cargarReporte(reporteAño)}>Actualizar</button>
-                </div>
-                {reporteLoading ? (
-                  <div className="loading">Cargando reporte...</div>
-                ) : (
-                  <div className="table-container">
-                    <table className="sys-table">
-                      <thead>
-                        <tr>
-                          <th>Mes</th>
-                          <th className="cell-right"># Compras</th>
-                          <th className="cell-right">Subtotal IVA 16%</th>
-                          <th className="cell-right">Subtotal IEPS 8%</th>
-                          <th className="cell-right">Subtotal IVA 0%</th>
-                          <th className="cell-right">Subtotal</th>
-                          <th className="cell-right">IVA 16%</th>
-                          <th className="cell-right">IEPS 8%</th>
-                          <th className="cell-right">Total</th>
-                          <th className="cell-right">Alma</th>
-                          <th className="cell-right">Luis</th>
-                          <th className="cell-right">S/F</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reporteData.length === 0 ? (
-                          <tr><td colSpan={12} className="no-data">Sin compras confirmadas en {reporteAño}</td></tr>
-                        ) : reporteData.map(r => (
-                          <tr key={r.mes}>
-                            <td className="cell-name">{new Date(r.mes + '-02').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</td>
-                            <td className="cell-right">{r.compras}</td>
-                            <td className="cell-right">${fmt(r.subtotalIva16)}</td>
-                            <td className="cell-right">${fmt(r.subtotalIeps)}</td>
-                            <td className="cell-right">${fmt(r.subtotalTasa0)}</td>
-                            <td className="cell-right cell-bold">${fmt(r.subtotal)}</td>
-                            <td className="cell-right">${fmt(r.iva)}</td>
-                            <td className="cell-right">${fmt(r.ieps)}</td>
-                            <td className="cell-right cell-bold">${fmt(r.total)}</td>
-                            <td className="cell-right">${fmt(r.porFacturado?.alma || 0)}</td>
-                            <td className="cell-right">${fmt(r.porFacturado?.luis || 0)}</td>
-                            <td className="cell-right">${fmt(r.porFacturado?.sinFactura || 0)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      {reporteData.length > 1 && (() => {
-                        const tot = reporteData.reduce((a, r) => ({
-                          compras: a.compras + r.compras,
-                          subtotalIva16: a.subtotalIva16 + r.subtotalIva16,
-                          subtotalIeps:  a.subtotalIeps  + r.subtotalIeps,
-                          subtotalTasa0: a.subtotalTasa0 + r.subtotalTasa0,
-                          subtotal: a.subtotal + r.subtotal,
-                          iva:  a.iva  + r.iva,
-                          ieps: a.ieps + r.ieps,
-                          total: a.total + r.total,
-                          alma:       a.alma       + (r.porFacturado?.alma || 0),
-                          luis:       a.luis       + (r.porFacturado?.luis || 0),
-                          sinFactura: a.sinFactura + (r.porFacturado?.sinFactura || 0),
-                        }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0, alma:0, luis:0, sinFactura:0 });
-                        return (
-                          <tfoot>
-                            <tr style={{ fontWeight: 700, borderTop: '2px solid #374151', background: '#f9fafb' }}>
-                              <td>TOTAL {reporteAño}</td>
-                              <td className="cell-right">{tot.compras}</td>
-                              <td className="cell-right">${fmt(tot.subtotalIva16)}</td>
-                              <td className="cell-right">${fmt(tot.subtotalIeps)}</td>
-                              <td className="cell-right">${fmt(tot.subtotalTasa0)}</td>
-                              <td className="cell-right">${fmt(tot.subtotal)}</td>
-                              <td className="cell-right">${fmt(tot.iva)}</td>
-                              <td className="cell-right">${fmt(tot.ieps)}</td>
-                              <td className="cell-right">${fmt(tot.total)}</td>
-                              <td className="cell-right">${fmt(tot.alma)}</td>
-                              <td className="cell-right">${fmt(tot.luis)}</td>
-                              <td className="cell-right">${fmt(tot.sinFactura)}</td>
-                            </tr>
-                          </tfoot>
-                        );
-                      })()}
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* TABLA */}
-            {!vistaReporte && loading ? (
+            {loading ? (
               <div className="loading">Cargando compras...</div>
-            ) : !vistaReporte && (
+            ) : (
               <div className="table-container">
                 <table className="sys-table">
                   <thead>

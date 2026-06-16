@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
@@ -480,7 +480,7 @@ export default function Egresos() {
             <table className="egresos-tabla">
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Subcategoría</th><th>Concepto</th>
+                  <th>Fecha</th><th>No. compra</th><th>Subcategoría</th><th>Concepto</th>
                   <th>Monto</th><th>Impuesto</th><th>Factura</th><th></th>
                 </tr>
               </thead>
@@ -488,6 +488,7 @@ export default function Egresos() {
                 {egresos.map(e => (
                   <tr key={e.name}>
                     <td>{e.fecha}</td>
+                    <td className="egresos-nocompra">{e.no_de_compra ? `#${e.no_de_compra}` : <span className="text-muted">—</span>}</td>
                     <td>{e.subcategoria || '—'}</td>
                     <td>{e.concepto || <span className="text-muted">{e.descripcion ? '(ver detalle)' : '—'}</span>}</td>
                     <td className="egresos-monto">{fmtN(e.monto)}</td>
