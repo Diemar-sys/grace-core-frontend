@@ -341,10 +341,15 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
         {/* FOOTER */}
         <div className="receta-footer">
           <button className="btn-cancelar-receta" onClick={onCancel}>Cancelar</button>
-          <button className="btn-guardar-receta" disabled={loading}
-            onClick={() => handleGuardar(false)}>
-            {loading ? 'Guardando...' : 'Guardar Borrador'}
-          </button>
+          {/* Editar una receta ACTIVA siempre crea+activa una versión nueva (la vieja
+              pasa a histórico). "Guardar Borrador" solo aplica a recetas nuevas o ya-borrador,
+              para no dejar el producto sin versión activa en producción. */}
+          {!(editBOM?.docstatus === 1 && editBOM?.is_active) && (
+            <button className="btn-guardar-receta" disabled={loading}
+              onClick={() => handleGuardar(false)}>
+              {loading ? 'Guardando...' : 'Guardar Borrador'}
+            </button>
+          )}
           <button className="btn-activar-receta" disabled={loading}
             onClick={() => handleGuardar(true)}>
             {loading ? 'Guardando...' : 'Guardar y Activar'}

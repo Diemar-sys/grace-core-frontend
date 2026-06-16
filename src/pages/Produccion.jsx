@@ -328,7 +328,7 @@ function Produccion() {
                         <td className="cell-qty">{r.quantity} {r.uom}</td>
                         <td className="cell-code">{r.custom_departamento || '—'}</td>
                         <td>
-                          {r.is_active
+                          {r.docstatus === 1 && r.is_active
                             ? <span className="prod-badge-activa">Activa</span>
                             : <span className="prod-badge-borrador">Borrador</span>
                           }

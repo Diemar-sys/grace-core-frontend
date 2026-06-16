@@ -24,8 +24,11 @@ class FrappeProduccionService extends FrappeBase {
     const filters = [['docstatus', '!=', 2]];
     if (search) filters.push(['item', 'like', `%${search}%`]);
     const params = new URLSearchParams({
-      fields: JSON.stringify(['name', 'item', 'item_name', 'quantity', 'uom', 'is_active', 'is_default', 'creation', 'custom_departamento']),
+      fields: JSON.stringify(['name', 'item', 'item_name', 'quantity', 'uom', 'docstatus', 'is_active', 'is_default', 'creation', 'custom_departamento']),
       filters: JSON.stringify(filters),
+      // Mostrar solo la receta vigente (activa) y borradores reales (docstatus=0);
+      // ocultar las versiones submitted-inactivas que deja el auto-versionado como histórico.
+      or_filters: JSON.stringify([['docstatus', '=', 0], ['is_active', '=', 1]]),
       order_by: 'creation desc',
       limit_page_length: 200,
     });
