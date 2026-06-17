@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ventasService } from '../services/frappeSales';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
+import { inventory } from '../services/frappeInventory';
 import { BODEGA_CENTRAL } from '../config/constants';
 import ModalError from './modals/ModalError';
 import BuscadorCliente from './BuscadorCliente';
@@ -112,32 +113,26 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
           });
           setFilas(filasRehidratadas);
 
-          // Fetch stock Bodega Central para cada item rehidratado.
+          // Fetch stock Bodega Central por item. Cada promesa RETORNA {id, stock}
+          // (no muta acá) → se aplica todo en un solo setFilas (un solo render).
           const resultados = await Promise.allSettled(
             filasRehidratadas.map(async (f) => {
-              try {
-                const bin = await stockService.getStockBin(f.item_code, BODEGA_CENTRAL);
-                const stockEnUnidad = parseFloat(bin?.actual_stock || 0) * f.cantidad_por_presentacion;
-                updateFila(f._id, { stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
-              } catch (err) {
-                console.error("Error fetch stock:", err);
-                updateFila(f._id, { stock: null, stockLoading: false });
-              }
+              const bin = await stockService.getStockBin(f.item_code, BODEGA_CENTRAL);
+              const stockEnUnidad = parseFloat(bin?.actual_stock || 0) * f.cantidad_por_presentacion;
+              return { id: f._id, stock: stockEnUnidad };
             })
           );
-          // Construir mapa id → stock (todas resueltas, sin errores silenciosos)
           const stockMap = Object.fromEntries(
             resultados
-              .filter(r => r.status === 'fulfilled')
+              .filter(r => r.status === 'fulfilled' && r.value)
               .map(r => [r.value.id, r.value.stock])
           );
-          // UN SOLO setFilas → UN SOLO render
           setFilas(prev =>
-            prev.map(r =>
-              r._id in stockMap
-                ? { ...r, stock: stockMap[r._id], stockLoading: false }
-                : r
-            )
+            prev.map(r => {
+              if (!(r._id in stockMap)) return { ...r, stockLoading: false };
+              const stock = stockMap[r._id];
+              return { ...r, stock, stockLoading: false, ...(stock <= 0 ? { qty: '' } : {}) };
+            })
           );
         } else {
           setFilas([FILA_VACIA()]);
@@ -488,7 +483,12 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
       // Price List por canal (precio capturado manual, no calculado).
       const filtrado = res.filter(it => {
         if (it.custom_tipo_item === 'PRODUCTO TERMINADO') return false;
-        if (bloqueaMP && it.custom_tipo_item === 'MATERIA PRIMA') return false;
+        // Puerta Real recibe su MATERIA PRIMA por transferencia → se oculta.
+        // EXCEPTO: abarrotes (reventa) y MP marcada "Vendible a sucursales" (B2B),
+        // que la oficina habilita item por item desde el Catálogo.
+        if (bloqueaMP && it.custom_tipo_item === 'MATERIA PRIMA'
+            && !inventory.esProductoParaVenta(it.item_group)
+            && !it.custom_vendible_b2b) return false;
         return true;
       });
       setSugerencias(filtrado); setAbierto(true);
@@ -516,16 +516,21 @@ function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, o
     setBusqueda(item.item_name);
     // Conversión presentación → unidad real (Kg/Lt/Pza)
     const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
-    // Precio venta B2B = precio de compra (custom_precio_por_kg = precio/Kg).
-    // Modelo confirmado 2026-05-20: B2B paga al costo, sin margen. Última compra
-    // actualiza precio_por_kg → ventas siguientes al nuevo precio.
+    // Precio B2B por unidad base:
+    //  • Abarrotes (reventa) → precio de reventa (custom_precio_de_venta).
+    //  • Materia prima → al COSTO (precio_por_kg). Modelo confirmado 2026-05-20.
+    // Tras la migración UOM, precio_de_venta y precio_por_kg ya son POR UNIDAD BASE
+    // (no por presentación) → no se divide entre cantPres.
+    const esAbarrote = inventory.esProductoParaVenta(item.item_group);
     let ratePorUnidad;
-    if (item.custom_precio_por_kg) {
+    if (esAbarrote && item.custom_precio_de_venta) {
+      ratePorUnidad = parseFloat(item.custom_precio_de_venta);
+    } else if (item.custom_precio_por_kg) {
       ratePorUnidad = parseFloat(item.custom_precio_por_kg);
     } else if (item.custom_precio_de_venta) {
-      ratePorUnidad = parseFloat(item.custom_precio_de_venta) / cantPres;
+      ratePorUnidad = parseFloat(item.custom_precio_de_venta);
     } else if (item.standard_rate) {
-      ratePorUnidad = parseFloat(item.standard_rate) / cantPres;
+      ratePorUnidad = parseFloat(item.standard_rate);
     } else {
       ratePorUnidad = 0;
     }

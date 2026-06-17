@@ -25,6 +25,7 @@ const ESTADO_INICIAL = {
   custom_precio_de_venta: '',
   custom_porcentaje_de_ganancia: '',
   custom_ganancia: '',
+  custom_vendible_b2b: false,
   disabled: false,
   description: '',
 };
@@ -73,6 +74,7 @@ export default function useInsumoForm({ editItem, onSuccess }) {
             custom_precio_de_venta:            editItem.custom_precio_de_venta || '',
             custom_porcentaje_de_ganancia:     editItem.custom_porcentaje_de_ganancia || '',
             custom_ganancia:                   editItem.custom_ganancia || '',
+            custom_vendible_b2b:               editItem.custom_vendible_b2b || false,
             opening_stock:                     '',
             default_warehouse:                 '',
             disabled:                          editItem.disabled || false,
@@ -112,29 +114,31 @@ export default function useInsumoForm({ editItem, onSuccess }) {
     setFormData(prev => ({ ...prev, custom_precio_final: base }));
   }, [formData.custom_precio_de_venta, formData.custom_impuesto, formData.custom_tipo_item]);
 
-  // ── Cálculo bidireccional abarrotes: compra+porcentaje → venta ───────────
+  // ── Cálculo bidireccional abarrotes: costo/base + porcentaje → venta ─────
+  // El costo base es el precio POR UNIDAD BASE (precio_por_kg = compra/cantidad),
+  // NO el precio de la presentación. Se vende por pza, así que el margen va por pza.
   useEffect(() => {
     if (!esAbarrotes || ultimoCampoModificado.current === 'venta') return;
-    const compra     = parseFloat(formData.custom_precio_de_compra) || 0;
+    const costoBase  = parseFloat(formData.custom_precio_por_kg) || 0;
     const porcentaje = parseFloat(formData.custom_porcentaje_de_ganancia) || 0;
-    if (compra > 0 && porcentaje > 0) {
-      const venta   = compra * (1 + porcentaje / 100);
-      const ganancia = venta - compra;
+    if (costoBase > 0 && porcentaje > 0) {
+      const venta    = costoBase * (1 + porcentaje / 100);
+      const ganancia = venta - costoBase;
       setFormData(prev => ({ ...prev, custom_precio_de_venta: venta.toFixed(4), custom_ganancia: ganancia.toFixed(4) }));
     }
-  }, [esAbarrotes, formData.custom_precio_de_compra, formData.custom_porcentaje_de_ganancia]);
+  }, [esAbarrotes, formData.custom_precio_por_kg, formData.custom_porcentaje_de_ganancia]);
 
   // ── Cálculo bidireccional abarrotes: venta → porcentaje ─────────────────
   useEffect(() => {
     if (!esAbarrotes || ultimoCampoModificado.current !== 'venta') return;
-    const compra = parseFloat(formData.custom_precio_de_compra) || 0;
-    const venta  = parseFloat(formData.custom_precio_de_venta) || 0;
-    if (compra > 0 && venta > 0) {
-      const porcentaje = ((venta - compra) / compra) * 100;
-      const ganancia   = venta - compra;
+    const costoBase = parseFloat(formData.custom_precio_por_kg) || 0;
+    const venta     = parseFloat(formData.custom_precio_de_venta) || 0;
+    if (costoBase > 0 && venta > 0) {
+      const porcentaje = ((venta - costoBase) / costoBase) * 100;
+      const ganancia   = venta - costoBase;
       setFormData(prev => ({ ...prev, custom_porcentaje_de_ganancia: porcentaje.toFixed(4), custom_ganancia: ganancia.toFixed(4) }));
     }
-  }, [esAbarrotes, formData.custom_precio_de_venta, formData.custom_precio_de_compra]);
+  }, [esAbarrotes, formData.custom_precio_de_venta, formData.custom_precio_por_kg]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleItemGroupChange = useCallback((e) => {
@@ -252,6 +256,12 @@ export default function useInsumoForm({ editItem, onSuccess }) {
   const PADRE_IG            = 'INSUMOS GENERALES';
   // 3 buckets por parent_item_group: PT → hijos de PT; INSUMO GENERAL → hijos de IG;
   // MATERIA PRIMA → el resto (excluye PT e IG para no mezclar limpieza/papelería con materia prima)
+  // Unidad base = UOM que NO es presentación. stock_uom maneja Bin/valuación/BOM y
+  // debe ser base (g/Kg/L/ml/PZA); las presentaciones (CAJA/BULTO…) solo van en el
+  // picker de Presentación. Data-driven: una presentación nueva sale sola del picker.
+  const nombresPresentacion = new Set(catalogos.presentaciones.map(p => p.name));
+  const unidadesBase = catalogos.uoms.filter(u => !nombresPresentacion.has(u.name));
+
   const categoriasFiltradas = esProductoTerminado
     ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_PT)
     : esInsumoGeneral
@@ -268,6 +278,7 @@ export default function useInsumoForm({ editItem, onSuccess }) {
     esProductoTerminado,
     precioPorKg,
     categoriasFiltradas,
+    unidadesBase,
     IMPUESTOS,
     handleChange,
     handleItemGroupChange,

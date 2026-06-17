@@ -80,16 +80,23 @@ function RegistroEntrada({ onSuccess, onCancel }) {
     }
     setLoading(true);
     try {
-      // Enviamos qty = bultos (empaques), igual que NuevaCompra.
-      // El stock_uom del item determina la unidad; ERPNext almacena el conteo de empaques.
-      const items = itemsValidos.map(f => ({
-        ...f,
-        qty: f.bultos,
-        basic_rate: parseFloat(f.basic_rate) > 0 ? parseFloat(f.basic_rate) : undefined,
-      }));
+      // qty SIEMPRE en unidad base = bultos × contenido_por_empaque.
+      // Ej: 3 CAJA × 12 PZA = 36 PZA. registrarEntrada manda conversion_factor=1,
+      // así que la conversión debe venir ya aplicada aquí (el Bin vive en base).
+      // basic_rate es el costo POR UNIDAD BASE (precio_por_kg/precio_final).
+      const items = itemsValidos.map(f => {
+        const bultos    = parseFloat(f.bultos) || 0;
+        const contenido = parseFloat(f.kg_por_bulto) || 0;
+        const qtyBase   = contenido > 0 ? bultos * contenido : bultos;
+        return {
+          ...f,
+          qty: qtyBase,
+          basic_rate: parseFloat(f.basic_rate) > 0 ? parseFloat(f.basic_rate) : undefined,
+        };
+      });
       await stockService.registrarEntrada({ items, notas: sanitizar(notas), warehouse });
-      const totalBultos = itemsValidos.reduce((s, f) => s + parseFloat(f.bultos), 0);
-      setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${totalBultos.toFixed(2)} unidades en total`);
+      const totalBase = items.reduce((s, it) => s + parseFloat(it.qty), 0);
+      setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${totalBase.toFixed(2)} unidades base en total`);
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
       setErrorModal(parseErrorFrappe(err));

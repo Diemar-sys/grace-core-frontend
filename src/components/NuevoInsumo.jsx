@@ -14,6 +14,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
     esProductoTerminado,
     precioPorKg,
     categoriasFiltradas,
+    unidadesBase,
     IMPUESTOS,
     handleChange,
     handleItemGroupChange,
@@ -166,7 +167,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   <label>Unidad de Medida *</label>
                   <select name="stock_uom" value={formData.stock_uom} onChange={handleChange} required>
                     <option value="">Selecciona unidad...</option>
-                    {catalogos.uoms.map(u => (
+                    {unidadesBase.map(u => (
                       <option key={u.name} value={u.name}>{u.name}</option>
                     ))}
                   </select>
@@ -184,7 +185,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   <label>Unidad de Medida *</label>
                   <select name="stock_uom" value={formData.stock_uom} onChange={handleChange} required>
                     <option value="">Selecciona unidad...</option>
-                    {catalogos.uoms.map(u => (
+                    {unidadesBase.map(u => (
                       <option key={u.name} value={u.name}>{u.name}</option>
                     ))}
                   </select>
@@ -341,6 +342,16 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                 <span>Fuera de Existencia (Deshabilitar)</span>
               </label>
             </div>
+            {!esProductoTerminado && (
+              <div className="form-group checkbox-group">
+                <label className="checkbox-label">
+                  <input type="checkbox" name="custom_vendible_b2b"
+                    checked={!!formData.custom_vendible_b2b} onChange={handleChange} />
+                  <span>Vendible a sucursales (B2B)</span>
+                </label>
+                <small>Marca esto para que esta materia prima aparezca en Venta B2B (ej. Puerta Real).</small>
+              </div>
+            )}
             <div className="form-group">
               <label>Descripción / Notas</label>
               <textarea name="description" value={formData.description} onChange={handleChange} rows="3" />

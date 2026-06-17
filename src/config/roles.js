@@ -1,34 +1,62 @@
-// Roles de la app y sus permisos
+// Niveles de la app (deben coincidir con permisos.NIVELES del backend).
+// Cada nivel define qué MÓDULOS ve (tiles/rutas) y si ve Reportes.
+// El gating de módulos es frontend; los roles Frappe dan acceso API grueso.
+
+const ROUTE = {
+  catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
+  venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
+  pos: '/pos', produccion: '/produccion', egresos: '/egresos',
+};
+
+const RUTAS_REPORTES = ['/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos'];
+
+// Construye la lista de rutas permitidas a partir de los módulos del nivel.
+function rutasDe(modulos, { reportes = false, cuentas = false } = {}) {
+  return [
+    '/panel',
+    ...modulos.map(k => ROUTE[k]),
+    ...(modulos.includes('pos') ? ['/consultas/pos'] : []),
+    ...(reportes ? RUTAS_REPORTES : []),
+    ...(cuentas ? ['/cuentas'] : []),
+  ];
+}
+
+const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'egresos'];
+const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'egresos'];
+const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos'];
+
 export const ROLES = {
-  admin: {
-    rutas: ['/panel', '/catalogo', '/inventario', '/compras', '/venta-b2b', '/envio-sucursal', '/proveedores', '/pos', '/produccion', '/consultas/pos', '/reportes/ventas-categoria', '/reportes/gastos', '/reportes/compras', '/egresos'],
-    inicio: '/panel',
-    modulosPanel: ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos'],
-  },
-  vendedor: {
-    rutas: ['/panel', '/pos', '/consultas/pos'],
-    inicio: '/panel',
+  Vendedor: {
     modulosPanel: ['pos'],
+    reportes: false,
+    rutas: rutasDe(['pos']),
+    inicio: '/panel',
+  },
+  'Almacén': {
+    modulosPanel: MOD_ALMACEN,
+    reportes: false,
+    rutas: rutasDe(MOD_ALMACEN),
+    inicio: '/panel',
+  },
+  Operaciones: {
+    modulosPanel: MOD_OPERACIONES,
+    reportes: false,
+    rutas: rutasDe(MOD_OPERACIONES),
+    inicio: '/panel',
+  },
+  Gerente: {
+    modulosPanel: MOD_GERENTE,
+    reportes: true,
+    // /cuentas en rutas para que el dueño (Gerente + System Manager) navegue ahí;
+    // el resto de Gerentes verá AccesoRestringido (lo corta el backend).
+    rutas: rutasDe(MOD_GERENTE, { reportes: true, cuentas: true }),
+    inicio: '/panel',
   },
 };
 
-// Roles que elevan a admin (tienen precedencia sobre Sales User)
-const FRAPPE_ROLES_ADMIN = new Set([
-  'System Manager',
-  'Administrator',
-  'Administrador',
-  'Account Manager',
-  'Sales Manager',
-]);
+export const NIVELES_VALIDOS = Object.keys(ROLES);
 
-export function resolveRole(frappeRoles = []) {
-  if (frappeRoles.some(r => FRAPPE_ROLES_ADMIN.has(r))) return 'admin';
-  if (frappeRoles.includes('Sales User')) return 'vendedor';
-  // Rol desconocido → mínimo privilegio (fail-closed). Si en el futuro se agrega
-  // un rol nuevo en ERPNext sin registrarlo aquí, no obtendrá acceso de admin.
-  return 'vendedor';
-}
-
+// Fail-closed: nivel desconocido → Vendedor (mínimo privilegio).
 export function getRoleConfig(role) {
-  return ROLES[role] || ROLES.vendedor;
+  return ROLES[role] || ROLES.Vendedor;
 }

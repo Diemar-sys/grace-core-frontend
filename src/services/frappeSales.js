@@ -101,7 +101,7 @@ class FrappeSalesService extends FrappeBase {
         'custom_impuesto', 'custom_tipo_item', 'custom_departamento',
         'custom_cantidad_por_presentación', 'custom_presentación',
         'custom_precio_de_venta', 'custom_precio_por_kg', 'standard_rate',
-        'valuation_rate',
+        'valuation_rate', 'custom_vendible_b2b',
       ]),
       filters: JSON.stringify(filters),
       limit_page_length: 20,

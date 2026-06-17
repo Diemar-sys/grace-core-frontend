@@ -1,6 +1,7 @@
 import FrappeBase from './FrappeBase';
 import { loadAppConfig, clearAppConfigCache } from './appConfig';
 import { loadSucursalesConfig, clearSucursalesConfigCache } from './sucursalesConfig';
+import { NIVELES_VALIDOS } from '../config/roles';
 
 // URL vacía intencional: el proxy de Vite (vite.config.js) redirige /api/* → Frappe.
 // En producción, el reverse proxy de nginx hace lo mismo, por lo que tampoco se necesita.
@@ -48,15 +49,17 @@ class FrappeAuthService extends FrappeBase {
     const emailData = await emailRes.json();
     const email = emailData.message;
 
-    const [role, posProfile] = await Promise.all([
+    const [role, posProfile, puedeCuentas] = await Promise.all([
       this._fetchRole(),
       this._fetchPOSProfile(),
+      this._fetchPuedeCuentas(),
     ]);
     localStorage.setItem('frappe_user', JSON.stringify({
       email,
       fullName: data.full_name,
       role,
       posProfile,
+      puedeCuentas,
     }));
 
     // Pre-cargar configs dinámicos para que reads síncronos (buildTaxes,
@@ -75,13 +78,26 @@ class FrappeAuthService extends FrappeBase {
       const res = await fetch(
         '/api/method/gestion_panaderia.api.pos_api.get_user_app_role'
       );
-      // Fail-closed: si el servidor no responde correctamente, usar el rol de menor privilegio
-      if (!res.ok) return 'vendedor';
+      // Fail-closed: si el servidor no responde correctamente, usar el nivel de menor privilegio
+      if (!res.ok) return 'Vendedor';
       const data = await res.json();
-      return data.message === 'admin' ? 'admin' : 'vendedor';
+      return NIVELES_VALIDOS.includes(data.message) ? data.message : 'Vendedor';
     } catch {
       // Sin red o error inesperado → mínimo privilegio
-      return 'vendedor';
+      return 'Vendedor';
+    }
+  }
+
+  async _fetchPuedeCuentas() {
+    try {
+      const res = await fetch(
+        '/api/method/gestion_panaderia.api.cuentas_api.puede_administrar_cuentas'
+      );
+      if (!res.ok) return false;  // fail-closed
+      const data = await res.json();
+      return data.message === true;
+    } catch {
+      return false;
     }
   }
 
@@ -155,9 +171,8 @@ class FrappeAuthService extends FrappeBase {
       const raw = localStorage.getItem('frappe_user');
       if (!raw) return null;
       const user = JSON.parse(raw);
-      // Verificar campos mínimos y que el rol sea un valor conocido
-      const ROLES_VALIDOS = ['admin', 'vendedor'];
-      if (!user?.email || !ROLES_VALIDOS.includes(user?.role)) {
+      // Verificar campos mínimos y que el nivel sea un valor conocido
+      if (!user?.email || !NIVELES_VALIDOS.includes(user?.role)) {
         // Objeto malformado o rol inesperado — limpiar y forzar re-login
         localStorage.removeItem('frappe_user');
         return null;

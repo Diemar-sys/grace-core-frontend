@@ -1,27 +1,13 @@
 // src/pages/Panel.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { User, LogOut } from "lucide-react";
 import { auth } from "../services/frappeAuth";
 import { getRoleConfig } from "../config/roles";
 import { TENANT } from "../config/tenant";
 import "../styles/Panel.css";
 
 // ── Iconos topbar ─────────────────────────────────────
-const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
 const ClockIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -234,11 +220,48 @@ function ContenidoReportes() {
   );
 }
 
-function ContenidoConsultas({ modulosPermitidos }) {
+// ── Configuración ─────────────────────────────────────
+const IconCuentas = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+  </svg>
+);
+
+const MODULOS_CONFIG = [
+  { key: "cuentas", path: "/cuentas", icon: <IconCuentas />, nombre: "Cuentas", sub: "Usuarios y permisos", color: "#475569", bg: "#e2e8f0" },
+];
+
+function ContenidoConfiguracion() {
   const fecha = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric"
   });
-  const modulos = MODULOS_CONSULTAS.filter(m => modulosPermitidos.includes(m.key));
+  return (
+    <>
+      <div className="panel-greeting"><h2>Configuración</h2><p>{fecha}</p></div>
+      <div className="panel-grid">
+        {MODULOS_CONFIG.map(mod => (
+          <Link key={mod.path} to={mod.path} className="panel-module"
+            style={{ "--mod-color": mod.color, "--mod-bg": mod.bg }}>
+            <div className="panel-module-icon">{mod.icon}</div>
+            <span className="panel-module-name">{mod.nombre}</span>
+            <span className="panel-module-sub">{mod.sub}</span>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ContenidoConsultas({ modulosPermitidos, puedeReportes }) {
+  const fecha = new Date().toLocaleDateString("es-MX", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+  // La consulta de Egresos apunta a /reportes/gastos (un reporte): solo niveles con reportes.
+  const modulos = MODULOS_CONSULTAS.filter(m =>
+    modulosPermitidos.includes(m.key) && (m.key !== 'egresos' || puedeReportes));
   return (
     <>
       <div className="panel-greeting">
@@ -308,7 +331,7 @@ function Panel() {
         </div>
         <div className="panel-topbar-right">
           <div className="panel-user-chip">
-            <UserIcon />
+            <User size={18} />
             {user?.fullName || user?.email || "Usuario"}
             {user?.posProfile && (
               <span className="user-branch-badge">
@@ -317,20 +340,26 @@ function Panel() {
             )}
           </div>
           <button className="panel-logout-btn" onClick={handleLogout}>
-            <LogoutIcon /> Salir
+            <LogOut size={16} /> Salir
           </button>
         </div>
       </header>
 
-      {/* BARRA DE MENÚ */}
+      {/* BARRA DE MENÚ — habilitado por capacidad del nivel */}
       <nav className="panel-menubar">
         {MENU.map(item => {
-          const esVendedor = user?.role === 'vendedor';
-          const esConsultas = item.key === 'consultas';
-          const esSoloOp   = esVendedor && item.key !== 'operaciones' && !esConsultas;
-          const isActive   = seccion === item.key;
+          // procesos/estadisticas: siempre "próximamente" (deshabilitado).
+          const habilitado = {
+            operaciones:   roleConfig.modulosPanel.length > 0,
+            consultas:     roleConfig.modulosPanel.length > 0,
+            procesos:      false,
+            reportes:      !!roleConfig.reportes,
+            estadisticas:  false,
+            configuracion: !!user?.puedeCuentas,
+          }[item.key];
+          const isActive = seccion === item.key;
 
-          if (esSoloOp) {
+          if (!habilitado) {
             return (
               <span key={item.key} className="panel-menu-btn disabled"
                 style={{ opacity: 0.35, cursor: 'default' }}>
@@ -346,7 +375,7 @@ function Panel() {
             </button>
           );
         })}
-        {user?.role === 'admin' && (
+        {roleConfig.rutas.includes('/egresos') && (
           <button className="panel-menu-btn" onClick={() => navigate('/egresos')}>
             Egresos
           </button>
@@ -356,11 +385,15 @@ function Panel() {
       {/* CONTENIDO */}
       <div className="panel-body">
         {seccion === "operaciones" && <ContenidoOperaciones modulosPermitidos={roleConfig.modulosPanel} />}
-        {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} />}
+        {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} puedeReportes={roleConfig.reportes} />}
         {seccion === "procesos" && <Proximamente titulo="Procesos" />}
-        {seccion === "reportes" && <ContenidoReportes />}
+        {seccion === "reportes" && (roleConfig.reportes
+          ? <ContenidoReportes />
+          : <Proximamente titulo="Reportes" />)}
         {seccion === "estadisticas" && <Proximamente titulo="Estadísticas" />}
-        {seccion === "configuracion" && <Proximamente titulo="Configuración" />}
+        {seccion === "configuracion" && (user?.puedeCuentas
+          ? <ContenidoConfiguracion />
+          : <Proximamente titulo="Configuración" />)}
       </div>
 
     </div>

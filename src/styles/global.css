@@ -21,8 +21,35 @@
   --font-body:          'DM Sans', system-ui, sans-serif;
   --radius-card:        14px;
   --radius-input:       9px;
+  --radius-pill:        999px;
   --shadow-card:        0 2px 8px rgba(107,50,9,0.08);
   --shadow-btn:         0 8px 20px rgba(107,50,9,0.18);
+
+  /* Escala de espaciado (Refactoring UI: ritmo consistente, no números al azar) */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+  /* Sombras en capas (elevación creíble, suave) */
+  --shadow-sm: 0 1px 2px rgba(107,50,9,0.06);
+  --shadow-md: 0 6px 22px rgba(107,50,9,0.08);
+  --shadow-lg: 0 18px 40px rgba(107,50,9,0.16);
+
+  /* Superficies y texto extra */
+  --color-surface-2:    #fffdf8;   /* tarjeta cálida */
+  --color-surface-sunk:  #f7eede;  /* encabezados/zonas hundidas */
+  --color-text-soft:    #8b6a4e;
+  --color-hairline:     #ecdcc4;
+
+  /* Estados semánticos */
+  --color-success:      #2e7d32; --color-success-bg: #e8f5e9;
+  --color-danger:       #c0392b; --color-danger-bg:  #fdecea;
+  --color-warning:      #b45309; --color-warning-bg: #fef3c7;
+
+  /* Colores por NIVEL (consistentes en Cuentas y futuros badges) */
+  --nivel-vendedor:     #bf360c; --nivel-vendedor-bg:    #fbe9e7;
+  --nivel-almacen:      #2e7d32; --nivel-almacen-bg:     #e8f5e9;
+  --nivel-operaciones:  #1565c0; --nivel-operaciones-bg: #e3f0ff;
+  --nivel-gerente:      #6a1b9a; --nivel-gerente-bg:     #f3e5f5;
 }
 
 /* ══ CONTENEDORES DE PÁGINA ══════════════════════════ */
@@ -42,70 +69,70 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30px;
-  height: 110px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.28);
-  border-bottom: 1px solid rgba(232,168,76,0.35);
+  padding: 0 var(--space-5);
+  height: 68px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  border-bottom: 1px solid rgba(232,168,76,0.30);
   position: sticky;
   top: 0;
   z-index: 100;
 }
-.panel-topbar-left { display: flex; align-items: center; gap: 10px; }
+.panel-topbar-left { display: flex; align-items: center; gap: var(--space-3); }
 .panel-logo-icon { color: #f2c48d; display: flex; align-items: center; }
-/*--- TÍTULO: ---PANADERÍAS GRACE --- */
-.panel-topbar-left h1 { margin: 0; font-size: 36px; font-weight: 700; color: white; font-family: 'Lora', Georgia, serif; letter-spacing: -0.01em; }
-/*--- SUBTÍTULO: ---SISTEMA DE GESTIÓN --- */
-.panel-topbar-left span { font-size: 13px; color: #e8a84c; text-transform: uppercase; letter-spacing: 0.12em; display: block; line-height: 1; font-weight: 500; }
-/*--- ESPACIO ENTRE ADMINISTRADOR Y SALIR ---*/
-.panel-topbar-right { display: flex; align-items: center; gap: 8px; }
-/*--- PROPIEDADES DEL ÍCONO DEL USUARIO LOGGEADO ---*/
+.logo-imagen-pq { height: 42px; width: auto; }
+/*--- TÍTULO: PANADERÍAS GRACE --- */
+.panel-topbar-left h1 { margin: 0; font-size: 22px; font-weight: 700; color: white; font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.1; }
+/*--- SUBTÍTULO: SISTEMA ERP WEB --- */
+.panel-topbar-left span { font-size: 10.5px; color: #e8a84c; text-transform: uppercase; letter-spacing: 0.14em; display: block; line-height: 1; font-weight: 600; }
+.panel-topbar-right { display: flex; align-items: center; gap: var(--space-3); }
+/*--- CHIP DEL USUARIO LOGUEADO ---*/
 .panel-user-chip {
-  display: flex; align-items: center; gap: 9px;
-  background: rgba(255,255,255,0.12); border-radius: 12px;
-  padding: 8px 18px 8px 12px; font-size: 17px; color: white; font-weight: 500;
+  display: flex; align-items: center; gap: var(--space-2);
+  background: rgba(255,255,255,0.10); border-radius: 10px;
+  padding: 7px 14px; font-size: 14px; color: white; font-weight: 500;
 }
-.panel-user-chip svg { color: #f2c48d; width: 20px; height: 20px; }
+.panel-user-chip svg { color: #f2c48d; width: 18px; height: 18px; }
 .user-branch-badge {
-  background: rgba(255,255,255,0.18); border-radius: 7px;
-  padding: 3px 10px; font-size: 14px; color: #f2c48d;
-  font-weight: 600; letter-spacing: 0.03em; margin-left: 6px;
+  background: rgba(242,196,141,0.18); border-radius: var(--radius-pill);
+  padding: 3px 10px; font-size: 12px; color: #f6d4a8;
+  font-weight: 600; letter-spacing: 0.02em; margin-left: 4px;
 }
-/*--- PROPIEDADES DEL BOTÓN SALIR ---*/
+/*--- BOTÓN SALIR ---*/
 .panel-logout-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 9px 20px; border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.3); background: transparent;
-  color: white; font-size: 17px; font-weight: 500; cursor: pointer;
-  transition: background 0.15s; font-family: inherit;
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.28); background: transparent;
+  color: white; font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s; font-family: inherit;
 }
-.panel-logout-btn:hover { background: rgba(255,255,255,0.15); }
+.panel-logout-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.5); }
 
 /* ── Barra de menú principal ────────────────────────── */
-/*Operaciones, Consultas, Procesos, Reportes, Estadística y Configuración*/
-.panel-menubar {
+.panel-menubar, .layout-menubar {
   background: #4a2205;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 36px;
-  height: 52px;
-  gap: 4px;
-  border-bottom: 2px solid rgba(232,168,76,0.2);
+  padding: 0 var(--space-6);
+  height: 46px;
+  gap: var(--space-1);
+  border-bottom: 1px solid rgba(232,168,76,0.18);
+  position: sticky; top: 68px; z-index: 90;
 }
 
-.panel-menu-btn {
+.panel-menu-btn, .layout-menu-btn {
   display: flex; align-items: center;
-  padding: 6px 18px; border-radius: 6px;
+  padding: 6px 16px; border-radius: 8px;
   border: none; background: transparent;
-  color: rgba(255,255,255,0.65);
-  font-size: 15px; font-weight: 500;
-  cursor: pointer; font-family: 'DM Sans', inherit;
+  color: rgba(255,255,255,0.62);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body);
   white-space: nowrap; text-decoration: none;
   transition: background 0.15s, color 0.15s;
-  letter-spacing: 0.01em;
 }
-.panel-menu-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
-.panel-menu-btn.active { background: rgba(232,168,76,0.15); color: #e8a84c; font-weight: 600; }
+.panel-menu-btn:hover, .layout-menu-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.92); }
+.panel-menu-btn.active, .layout-menu-btn.active { background: rgba(232,168,76,0.16); color: #f0b86a; font-weight: 600; }
+.panel-menu-btn.disabled, .layout-menu-btn.disabled { opacity: 0.32; cursor: default; }
 
 .page-header {
   display: flex;

@@ -75,7 +75,7 @@ function ConsultasPOS() {
 
   const navigate = useNavigate();
   // puedeCancel se mantiene como derivado de la sesión actual para el render de botones
-  const puedeCancel = auth.getUser()?.role === 'admin';
+  const puedeCancel = auth.getUser()?.role === 'Gerente';
 
   useEffect(() => {
     if (vista !== 'historial') return;
@@ -122,7 +122,7 @@ function ConsultasPOS() {
   }, []);
 
   const cancelarVenta = useCallback((name) => {
-    if (auth.getUser()?.role !== 'admin') {
+    if (auth.getUser()?.role !== 'Gerente') {
       setErrorModal({ title: 'Sin permisos', message: 'Tu usuario no tiene permisos para cancelar ventas.' });
       return;
     }

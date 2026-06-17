@@ -393,3 +393,14 @@ body:has(.login-container) #root {
     gap: 1.5rem;
   }
 }
+
+/* Mensaje de error del login */
+.login-error {
+  background: var(--color-danger-bg, #fdecea);
+  color: #a52222;
+  border: 1px solid #f3c9c4;
+  padding: 11px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
