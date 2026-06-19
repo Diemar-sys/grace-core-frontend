@@ -14,7 +14,7 @@
   max-width: none;
   background: #fffbf6;
   border-radius: 18px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 28px 36px 0;
   box-sizing: border-box;
@@ -22,7 +22,7 @@
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #f2c48d #fffbf6;
+  scrollbar-color: #f3ede2 #fffbf6;
 }
 
 .nc-container::-webkit-scrollbar {
@@ -35,7 +35,7 @@
 }
 
 .nc-container::-webkit-scrollbar-thumb {
-  background: #f2c48d;
+  background: #f3ede2;
   border-radius: 999px;
 }
 
@@ -53,7 +53,7 @@
 .nc-header h2 {
   margin: 0;
   font-size: 22px;
-  color: #7a3f0a;
+  color: #a8402c;
 }
 
 .nc-btn-close {
@@ -457,9 +457,9 @@
   align-items: center;
   padding: 10px 10px;
   border-radius: 10px;
-  border: 1px dashed #f2c48d;
+  border: 1px dashed #f3ede2;
   background: transparent;
-  color: #7a3f0a;
+  color: #a8402c;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -573,7 +573,7 @@
 .nc-resumen-fila.total {
   font-size: 18px;
   font-weight: 700;
-  color: #7a3f0a;
+  color: #a8402c;
   border-top: 1px solid #f0dcc2;
   padding-top: 8px;
   margin-top: 4px;
@@ -670,8 +670,8 @@
 
 .nc-btn-primary {
   background: #fffbf6;
-  color: #7a3f0a;
-  border-color: #f2c48d;
+  color: #a8402c;
+  border-color: #f3ede2;
   box-shadow: 0 8px 18px rgba(122, 63, 10, 0.14);
 }
 
@@ -1181,3 +1181,128 @@ tr.nc-fila-alerta:hover td {
   font-size: 10px;
   color: #888;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Override "Talavera/Grace" — homologa el modal con Compras.
+   Scopeado a .nc-modal; tokens --tv-* desde :root (global.css).
+   ═══════════════════════════════════════════════════════════ */
+.nc-modal .nc-container {
+  background: var(--tv-masa);
+  color: var(--tv-ink);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.nc-modal .nc-header { border-bottom: 1px solid var(--tv-hairline); }
+.nc-modal .nc-header h2 {
+  font-family: var(--tv-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--tv-ink);
+}
+.nc-modal .nc-btn-close { color: var(--tv-ink-soft); background: transparent; border: none; }
+.nc-modal .nc-btn-close:hover { color: var(--tv-marca); }
+
+/* etiquetas + títulos de sección: mono uppercase */
+.nc-modal .nc-field label {
+  font-family: var(--tv-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: 10.5px;
+  color: var(--tv-ink-soft);
+}
+.nc-modal .nc-section-title {
+  font-family: var(--tv-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--tv-marca);
+}
+
+/* inputs / selects / textarea */
+.nc-modal input,
+.nc-modal select,
+.nc-modal textarea,
+.nc-modal .nc-input,
+.nc-modal .nc-input-factura,
+.nc-modal .nc-buscar-input {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-hairline);
+  border-radius: 8px;
+  color: var(--tv-ink);
+  font-family: inherit;
+}
+.nc-modal input:focus,
+.nc-modal select:focus,
+.nc-modal textarea:focus,
+.nc-modal .nc-input:focus,
+.nc-modal .nc-input-factura:focus,
+.nc-modal .nc-buscar-input:focus {
+  outline: none;
+  border-color: var(--tv-marca);
+  box-shadow: 0 0 0 3px rgba(200, 80, 60, 0.18);
+}
+
+/* tabla de productos */
+.nc-modal .nc-tabla thead th {
+  background: var(--tv-sunk);
+  color: var(--tv-ink-soft);
+  font-family: var(--tv-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  font-size: 10px;
+  border-bottom: 2px solid var(--tv-marca);
+}
+.nc-modal .nc-tabla td { border-bottom: 1px solid var(--tv-line); color: var(--tv-ink); }
+.nc-modal .monto,
+.nc-modal .nc-catalog-val {
+  font-family: var(--tv-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* + Agregar producto: dashed coral */
+.nc-modal .nc-btn-agregar {
+  border: 1px dashed var(--tv-marca);
+  color: var(--tv-marca);
+  background: var(--tv-marca-wash);
+  border-radius: 8px;
+  font-weight: 600;
+}
+.nc-modal .nc-btn-agregar:hover { background: #f7ddd4; }
+
+/* totales: Total en coral, mono tabular */
+.nc-modal .nc-fila-totales .monto { font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
+.nc-modal .nc-fila-totales.grande .monto,
+.nc-modal .nc-fila-totales.grande { color: var(--tv-marca); font-weight: 700; }
+
+/* badge impuesto */
+.nc-modal .nc-imp-badge { border-radius: 999px; font-family: var(--tv-mono); font-size: 10px; }
+
+/* footer: botones en paleta */
+.nc-modal .nc-btn-secondary {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-hairline);
+  color: var(--tv-ink);
+  border-radius: 9px;
+  font-weight: 600;
+}
+.nc-modal .nc-btn-secondary:hover { background: var(--tv-marca-wash); border-color: var(--tv-marca); color: var(--tv-marca); }
+
+.nc-modal .nc-btn-borrador {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-marca);
+  color: var(--tv-marca);
+  border-radius: 9px;
+  font-weight: 600;
+}
+.nc-modal .nc-btn-borrador:hover { background: var(--tv-marca-wash); }
+
+.nc-modal .nc-btn-primary {
+  background: var(--tv-marca);
+  border: 1px solid var(--tv-marca);
+  color: #fff;
+  border-radius: 9px;
+  font-weight: 700;
+}
+.nc-modal .nc-btn-primary:hover { background: var(--tv-marca-deep); border-color: var(--tv-marca-deep); }

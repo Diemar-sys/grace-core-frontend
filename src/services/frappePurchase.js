@@ -160,7 +160,7 @@ class FrappeComprasService extends FrappeBase {
    * @param {number|null} [data.noCompra=null] - Número de compra interno para el documento.
    * @returns {Object} Payload final para enviar a Frappe.
    */
-  _buildPayload({ supplier, fecha, billNo = "", items, notas = "", ajuste = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
+  _buildPayload({ supplier, fecha, billNo = "", notaRemision = "", tipoComprobante = "Nota", items, notas = "", ajuste = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
     const resumenImpuestos = this._calcularImpuestos(items, taxOverrides);
     const ajusteNum = parseFloat(ajuste || 0);
 
@@ -183,6 +183,8 @@ class FrappeComprasService extends FrappeBase {
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || "",
       custom_no_de_compra: noCompra || null,
+      custom_nota_remision: notaRemision || "",
+      custom_tipo_comprobante: tipoComprobante || "Nota",
       custom_facturado_a: facturadoA || "SIN FACTURA",
       custom_subtotal_iva_16:  subtotalOverrides.iva16  ?? null,
       custom_subtotal_ieps_8:  subtotalOverrides.ieps   ?? null,
@@ -221,11 +223,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento creado en ERPNext.
    */
-  async guardarBorrador({ supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async guardarBorrador({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -241,11 +243,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento final.
    */
-  async registrarCompra({ supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async registrarCompra({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -278,12 +280,12 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Nuevos datos.
    * @returns {Promise<Object>} Datos actualizados.
    */
-  async actualizarBorrador(name, { supplier, fecha, billNo, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async actualizarBorrador(name, { supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const doc = await this.getCompraBorrador(name);
     const noCompra = doc.custom_no_de_compra || null;
-    const payload = this._buildPayload({ supplier, fecha, billNo, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const updated = await this._fetch(
       "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
       { method: "PUT", body: JSON.stringify(payload) }
@@ -495,7 +497,7 @@ class FrappeComprasService extends FrappeBase {
       fields: JSON.stringify([
         "name", "supplier", "supplier_name", "docstatus",
         "posting_date", "total", "grand_total", "status",
-        "custom_no_de_compra", "rounding_adjustment", "custom_facturado_a", "custom_pagado",
+        "custom_no_de_compra", "custom_nota_remision", "custom_tipo_comprobante", "custom_consolidado", "supplier_delivery_note", "rounding_adjustment", "custom_facturado_a", "custom_pagado",
       ]),
       filters: JSON.stringify(filters),
       order_by: "custom_no_de_compra desc",
@@ -503,6 +505,22 @@ class FrappeComprasService extends FrappeBase {
     });
     const data = await this._fetch("/api/resource/Purchase Receipt?" + params, { signal });
     return data?.data || [];
+  }
+
+  /** Marca compras como consolidadas y les asigna el No. de Factura (capturado al agrupar). */
+  async consolidarCompras(names, folio = "") {
+    return this._fetch("/api/method/gestion_panaderia.api.compras_api.consolidar_compras", {
+      method: "POST",
+      body: JSON.stringify({ names: JSON.stringify(names), folio }),
+    });
+  }
+
+  /** Desbloquea una compra consolidada (solo Gerente, validado server-side). */
+  async desconsolidarCompra(name) {
+    return this._fetch("/api/method/gestion_panaderia.api.compras_api.desconsolidar_compra", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
   }
 
   /**

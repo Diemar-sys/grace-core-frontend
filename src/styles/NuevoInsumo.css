@@ -13,7 +13,7 @@
   max-width: 1500px;
   background: #fffbf6;
   border-radius: 18px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 28px 36px 32px;
   box-sizing: border-box;
@@ -25,7 +25,7 @@
 
   /* Scrollbar discreta en tono cálido */
   scrollbar-width: thin;
-  scrollbar-color: #f2c48d #fffbf6;
+  scrollbar-color: #f3ede2 #fffbf6;
 }
 
 .nuevo-insumo-container::-webkit-scrollbar {
@@ -36,7 +36,7 @@
   border-radius: 999px;
 }
 .nuevo-insumo-container::-webkit-scrollbar-thumb {
-  background: #f2c48d;
+  background: #f3ede2;
   border-radius: 999px;
 }
 .nuevo-insumo-container::-webkit-scrollbar-thumb:hover {
@@ -55,7 +55,7 @@
 .nuevo-insumo-container .form-header h2 {
   margin: 0;
   font-size: 22px;
-  color: #7a3f0a;
+  color: #a8402c;
 }
 
 .nuevo-insumo-container .btn-close {
@@ -115,7 +115,7 @@
   margin: 0 0 12px 0;
   font-size: 18px;
   font-weight: 700;
-  color: #7a3f0a;
+  color: #a8402c;
   border-bottom: 1px solid #f2e2c8;
   padding-bottom: 8px;
 }
@@ -181,9 +181,9 @@
 .nuevo-insumo-container .btn-auto {
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   background: #fffbf6;
-  color: #7a3f0a;
+  color: #a8402c;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -202,7 +202,7 @@
   padding: 4px 8px;
   border-radius: 999px;
   background: #fffbf6;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   font-size: 11px;
 }
 
@@ -213,13 +213,13 @@
 /* Sección de precios especial */
 .section-precios {
   background: linear-gradient(135deg, #fffaf3 0%, #fffbf6 100%);
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   border-radius: 14px;
   padding: 16px 16px 18px;
 }
 
 .section-precios h3 {
-  color: #7a3f0a;
+  color: #a8402c;
   border-bottom-color: #f2e2c8;
   display: flex;
   flex-direction: column;
@@ -302,8 +302,8 @@
 
 .form-actions .btn-primary {
   background: #fffbf6;
-  color: #7a3f0a;
-  border-color: #f2c48d;
+  color: #a8402c;
+  border-color: #f3ede2;
   box-shadow: 0 10px 22px rgba(122, 63, 10, 0.16);
 }
 

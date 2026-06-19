@@ -16,8 +16,8 @@ const VISTAS = [
   { key: 'deshabilitado', label: 'DESHABILITADOS', color: 'vista-deshabilitado' },
 ];
 const COLUMNAS = {
-  registrado:    ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Unidad de Medida', 'Acciones'],
-  deshabilitado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Unidad de Medida', 'Acciones'],
+  registrado:    ['Código', 'Código Interno', 'Producto', 'Cantidad por presentación', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Acciones'],
+  deshabilitado: ['Código', 'Código Interno', 'Producto', 'Cantidad por presentación', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Acciones'],
 };
 
 /**
@@ -235,23 +235,21 @@ function Catalogo() {
           </div>
         ) : (
           <>
-            <div className="vistas-tabs">
-              {VISTAS.map(v => (
-                <button key={v.key}
-                  className={`vista-tab ${v.color} ${vistaActiva === v.key ? 'activa' : ''}`}
-                  onClick={() => handleVistaChange(v.key)}>{v.label}</button>
-              ))}
-            </div>
-
             <div className="filtros-section">
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
+                <label>Vista</label>
+                <select value={vistaActiva} onChange={e => handleVistaChange(e.target.value)}>
+                  {VISTAS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
                 <label>Categoría</label>
                 <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
                   <option value="">Todas las categorías</option>
                   {itemGroups.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
                 </select>
               </div>
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
                 <label>Tipo de Item</label>
                 <select value={selectedTipo} onChange={e => setSelectedTipo(e.target.value)}>
                   <option value="">Todos los tipos</option>
@@ -260,14 +258,14 @@ function Catalogo() {
                   <option value="INSUMO GENERAL">Insumo General</option>
                 </select>
               </div>
-              <div className="filtro-group search">
+              <div className="filtro-group search filtro-sm">
                 <label>Buscar</label>
                 <input type="text" placeholder="Nombre, código o código interno..."
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-                <button className="btn-refresh" onClick={loadItems}>
+                <button className="btn-refresh btn-compacto" onClick={loadItems}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -434,10 +432,18 @@ function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEna
             )
           : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>sin receta</span>)
       : '—';
+    const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 0;
+    const presentacion = item.custom_presentación || '';
+    const uomStr = fmtUom(item.stock_uom || '');
+    const cantPresStr = cantPres > 0
+      ? `${cantPres} ${uomStr}${presentacion ? ` / ${presentacion}` : ''}`
+      : '—';
     return (
       <tr>
         <td className="cell-code">{item.item_code || '—'}</td>
+        <td>{item.custom_código_interno || '—'}</td>
         <td className="cell-name">{item.item_name}</td>
+        <td>{cantPresStr}</td>
         <td>{item.custom_total_presentacion ? `$${parseFloat(item.custom_total_presentacion).toFixed(2)}` : '—'}</td>
         <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
         <td>{costoCell}</td>
@@ -451,7 +457,6 @@ function FilaItem({ item, vista, onEdit, editLoading, onDelete, onDisable, onEna
             <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>Sin stock</span>
           )}
         </td>
-        <td>{fmtUom(item.stock_uom || '') || '—'}</td>
         <BtnAcciones />
       </tr>
     );

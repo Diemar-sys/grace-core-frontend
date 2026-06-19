@@ -183,18 +183,15 @@ function Proveedores() {
           </div>
         ) : (
           <>
-            {/* PESTAÑAS */}
-            <div className="vistas-tabs">
-              {VISTAS.map(v => (
-                <button key={v.key}
-                  className={`vista-tab ${v.color} ${vistaActiva === v.key ? 'activa' : ''}`}
-                  onClick={() => handleVistaChange(v.key)}>{v.label}</button>
-              ))}
-            </div>
-
             {/* FILTROS */}
             <div className="filtros-section">
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
+                <label>Vista</label>
+                <select value={vistaActiva} onChange={e => handleVistaChange(e.target.value)}>
+                  {VISTAS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
                 <label>Tipo</label>
                 <select value={selectedTipo} onChange={e => {
                   setSelectedTipo(e.target.value);
@@ -206,7 +203,7 @@ function Proveedores() {
                   ))}
                 </select>
               </div>
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
                 <label>Subtipo</label>
                 <select
                   value={selectedGrupo}
@@ -219,7 +216,7 @@ function Proveedores() {
                   ))}
                 </select>
               </div>
-              <div className="filtro-group search">
+              <div className="filtro-group search filtro-sm">
                 <label>Buscar</label>
                 <input type="text" placeholder="Nombre, alias o razón social..."
                   value={inputBusqueda} onChange={e => setInputBusqueda(e.target.value)} />

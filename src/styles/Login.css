@@ -61,7 +61,7 @@ body:has(.login-container) #root {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background-color: #fdf9f3;
+  background-color: #faf8f3;
   overflow-y: auto;
 }
 
@@ -72,7 +72,7 @@ body:has(.login-container) #root {
   border-radius: 16px;
   box-shadow: 0 8px 40px rgba(107,50,9,0.14), 0 2px 8px rgba(0,0,0,0.06);
   padding: 2.5rem;
-  border-top: 3px solid #e8a84c;
+  border-top: 3px solid #e8826c;
 }
 
 /* Header */
@@ -89,9 +89,9 @@ body:has(.login-container) #root {
   height: 80px;
   margin: 0 auto 1.5rem;
   background: linear-gradient(135deg, #fff8ec, #fef0d4);
-  border: 1.5px solid #e8a84c;
+  border: 1.5px solid #e8826c;
   border-radius: 50%;
-  color: #6b3209;
+  color: #c8503c;
   box-shadow: 0 4px 16px rgba(232,168,76,0.25);
 }
 
@@ -103,7 +103,7 @@ body:has(.login-container) #root {
 .login-title {
   font-size: 2.2rem;
   font-weight: 700;
-  color: #2d1a0e;
+  color: #2c2a27;
   margin: 0 0 0.75rem 0;
   line-height: 1.2;
   font-family: 'Lora', Georgia, serif;
@@ -163,7 +163,7 @@ body:has(.login-container) #root {
 }
 
 .form-input:focus {
-  border-color: #e8a84c;
+  border-color: #e8826c;
   box-shadow: 0 0 0 3px rgba(232, 168, 76, 0.15);
 }
 
@@ -199,7 +199,7 @@ body:has(.login-container) #root {
   font-size: 1rem;
   font-weight: 600;
   color: white;
-  background: linear-gradient(135deg, #7a3f0a 0%, #6b3209 100%);
+  background: linear-gradient(135deg, #a8402c 0%, #c8503c 100%);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -213,7 +213,7 @@ body:has(.login-container) #root {
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(107,50,9,0.32);
-  background: linear-gradient(135deg, #8a4f1a 0%, #7a3f0a 100%);
+  background: linear-gradient(135deg, #8a4f1a 0%, #a8402c 100%);
 }
 
 .login-button:disabled {
@@ -239,7 +239,7 @@ body:has(.login-container) #root {
 .link-button {
   background: none;
   border: none;
-  color: #7a3f0a;
+  color: #a8402c;
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
@@ -248,7 +248,7 @@ body:has(.login-container) #root {
 
 .link-button:hover {
   text-decoration: underline;
-  color: #6b3209;
+  color: #c8503c;
 }
 
 .help-text {
@@ -261,7 +261,7 @@ body:has(.login-container) #root {
   display: none;
   flex: 1;
   position: relative;
-  background: linear-gradient(155deg, #5a2a06 0%, #3d1a04 40%, #210e02 75%, #140801 100%);
+  background: linear-gradient(155deg, #2c2a27 0%, #3d1a04 40%, #210e02 75%, #140801 100%);
   overflow-y: auto;
 }
 

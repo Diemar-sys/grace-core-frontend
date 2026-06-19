@@ -7,7 +7,7 @@ import BuscadorProveedor from "../components/compras/BuscadorProveedor";
 import ConfirmModal from "../components/modals/ConfirmModal";
 import { comprasService } from "../services/frappePurchase";
 import useConfirmModal from "../hooks/useConfirmModal";
-import { docToDatosImpresion, imprimirCompraPDF, imprimirCompraTicket } from "../utils/print/comprasPrint";
+import { docToDatosImpresion, imprimirCompraPDF, imprimirCompraTicket, imprimirTicketConsolidado } from "../utils/print/comprasPrint";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
@@ -55,8 +55,27 @@ function Compras() {
   const [pagoFiltro, setPagoFiltro] = useState('todas'); // 'todas' | 'pagadas' | 'pendientes'
   const [facturadoFiltro, setFacturadoFiltro] = useState('todas'); // 'todas' | cuenta fiscal
   const [proveedorFiltro, setProveedorFiltro] = useState('todas'); // 'todas' | supplier_name
+  const [vista, setVista] = useState('notas'); // default: vista con muchas filas (etiquetada "Facturas" en el dropdown)
+  const [expandido, setExpandido] = useState(() => new Set()); // facturas con su dropdown de notas abierto
+  const toggleExpand = (key) => setExpandido(prev => {
+    const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n;
+  });
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consultar' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consultar' : 'menu'); }, [soloLectura]);
+
+  // Selección para ticket consolidado (notas/remisiones de UN proveedor).
+  const [seleccion, setSeleccion] = useState([]);
+  const toggleSel = (c) => setSeleccion(prev => {
+    if (c.custom_consolidado) return prev; // ya bloqueada, no se selecciona
+    if (prev.some(x => x.name === c.name)) return prev.filter(x => x.name !== c.name);
+    if (prev.length && prev[0].supplier !== c.supplier) return [c]; // distinto proveedor → reinicia
+    return [...prev, c];
+  });
+  const sumaSel = seleccion.reduce((s, c) => s + parseFloat(c.grand_total || 0), 0);
+  // Consolidable: tipo Nota (sin consolidar). El No. de Factura se captura al agrupar,
+  // no por nota, así no se repite el folio en cada captura.
+  const esConsolidable = (c) => c.custom_tipo_comprobante === 'Nota';
+  const [folioConsolidar, setFolioConsolidar] = useState('');
 
   // useCallback: el linter puede verificar dependencias. AbortSignal se recibe como
   // argumento para que el useEffect controle su ciclo de vida de forma explícita.
@@ -86,6 +105,26 @@ function Compras() {
   );
   const pagoModal = useConfirmModal(
     ({ name, value }) => comprasService.updatePagado(name, value),
+    { onSuccess: () => cargar() }
+  );
+  // Consolidar: bloquea las notas seleccionadas y luego imprime el ticket.
+  const consolidarModal = useConfirmModal(
+    async (sel) => {
+      const folio = folioConsolidar.trim();
+      if (!folio) throw new Error('Captura el No. de Factura para agrupar.');
+      await comprasService.consolidarCompras(sel.map(c => c.name), folio);
+      const proveedor = sel[0].supplier_name || sel[0].supplier;
+      const notas = sel.map(c => ({
+        no_compra: c.custom_no_de_compra, remision: c.custom_nota_remision,
+        fecha: c.posting_date, total: c.grand_total,
+      }));
+      await imprimirTicketConsolidado(proveedor, folio, notas);
+    },
+    { onSuccess: () => { setSeleccion([]); setFolioConsolidar(''); cargar(); } }
+  );
+  // Desagrupar: desbloquea una compra consolidada (solo Gerente, validado server-side).
+  const desagruparModal = useConfirmModal(
+    (name) => comprasService.desconsolidarCompra(name),
     { onSuccess: () => cargar() }
   );
 
@@ -173,6 +212,14 @@ function Compras() {
   // Proveedores distintos para el dropdown (de las compras cargadas)
   const proveedoresUnicos = [...new Set(compras.map(c => c.supplier_name).filter(Boolean))].sort();
 
+  // Vista "Facturas": colapsa notas consolidadas en 1 fila por (proveedor + No. Factura).
+  // Facturas individuales salen 1 c/u; notas sueltas y sin factura se ocultan.
+  const reimprimirConsolidado = (g) =>
+    imprimirTicketConsolidado(g.supplier_name || g.supplier, g.folio, g.notas.map(c => ({
+      no_compra: c.custom_no_de_compra, remision: c.custom_nota_remision,
+      fecha: c.posting_date, total: c.grand_total,
+    })));
+
   // Filtrado local en vivo (igual que Catálogo / Proveedores)
   const filteredCompras = compras.filter(c => {
     if (estadoFiltro !== 'todas' && c.docstatus !== ESTADO_DOCSTATUS[estadoFiltro]) return false;
@@ -189,9 +236,64 @@ function Compras() {
     return supName.includes(term) || supId.includes(term) || noCompra.includes(termNum);
   });
 
+  const facturasAgrupadas = (() => {
+    const grupos = new Map();
+    for (const c of filteredCompras) {
+      const esConsolidada = c.custom_consolidado && c.custom_tipo_comprobante === 'Nota';
+      const esFactura = c.custom_tipo_comprobante === 'Factura';
+      if (!esConsolidada && !esFactura) continue; // notas sueltas → fuera
+      const folio = c.supplier_delivery_note || '';
+      if (esConsolidada && !folio) continue; // nota consolidada sin factura → solo en vista Notas
+      const key = c.supplier + '|' + (folio || c.name);
+      const g = grupos.get(key) || {
+        key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
+        facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
+        posting_date: c.posting_date, pagadas: 0, notas: [],
+      };
+      g.total += parseFloat(c.total || 0);
+      g.grand_total += parseFloat(c.grand_total || 0);
+      if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
+      if (c.custom_pagado) g.pagadas += 1;
+      g.notas.push(c);
+      grupos.set(key, g);
+    }
+    return [...grupos.values()].sort((a, b) => (b.posting_date || '').localeCompare(a.posting_date || ''));
+  })();
+
+  // Vista Notas: notas consolidadas plegadas bajo su factura; el resto individual.
+  // El grupo aparece en la posición de su 1ª nota (orden por # desc de filteredCompras).
+  const notasItems = (() => {
+    const grupos = new Map();
+    const items = [];
+    for (const c of filteredCompras) {
+      const consolidada = c.custom_consolidado && c.custom_tipo_comprobante === 'Nota';
+      if (!consolidada) {
+        if (c.custom_tipo_comprobante === 'Factura') continue; // factura directa → vista Facturas
+        items.push({ tipo: 'individual', compra: c });
+        continue;
+      }
+      const folio = c.supplier_delivery_note || '';
+      const key = c.supplier + '|' + (folio || c.name);
+      let g = grupos.get(key);
+      if (!g) {
+        g = { key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
+          facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
+          posting_date: c.posting_date, pagadas: 0, notas: [] };
+        grupos.set(key, g);
+        items.push({ tipo: 'grupo', grupo: g });
+      }
+      g.total += parseFloat(c.total || 0);
+      g.grand_total += parseFloat(c.grand_total || 0);
+      if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
+      if (c.custom_pagado) g.pagadas += 1;
+      g.notas.push(c);
+    }
+    return items;
+  })();
+
   return (
     <Layout>
-      <div className="page-container">
+      <div className="page-container comprasv2">
 
         {/* HEADER */}
         <div className="page-header">
@@ -204,35 +306,35 @@ function Compras() {
         {accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setModal('nueva')}>
-              <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <div className="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Registrar Compra</h3>
               <p>Capturar mercancía recibida</p>
             </button>
-            <button className="panel-module" onClick={() => setAccionActiva('editar')}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+            <button className="panel-module" onClick={() => { setAccionActiva('editar'); setEstadoFiltro('en_espera'); }}>
+              <div className="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Borrador</h3>
               <p>Modificar compras pendientes</p>
             </button>
-            <button className="panel-module" onClick={() => setAccionActiva('confirmar')}>
-              <div className="module-icon" style={{ background: '#dcfce7', color: '#16a34a' }}>
+            <button className="panel-module" onClick={() => { setAccionActiva('confirmar'); setEstadoFiltro('en_espera'); }}>
+              <div className="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
               <h3>Confirmar Borrador</h3>
               <p>Procesar definitivamente</p>
             </button>
-            <button className="panel-module" onClick={() => setAccionActiva('eliminar')}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
+            <button className="panel-module" onClick={() => { setAccionActiva('eliminar'); setEstadoFiltro('en_espera'); }}>
+              <div className="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
               </div>
               <h3>Eliminar Borrador</h3>
               <p>Descartar compras erradas</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('cancelar')}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <div className="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
               <h3>Cancelar Compra</h3>
@@ -250,6 +352,14 @@ function Compras() {
           <>
             {/* FILTROS + BOTÓN */}
             <div className="filtros-section">
+              <div className="filtro-group filtro-sm">
+                <label>Vista</label>
+                <select className="comp-date-input" value={vista}
+                  onChange={e => setVista(e.target.value)}>
+                  <option value="facturas">Notas ({facturasAgrupadas.length})</option>
+                  <option value="notas">Facturas ({notasItems.length})</option>
+                </select>
+              </div>
               <div className="filtro-group filtro-sm">
                 <label>Estado</label>
                 <select className="comp-date-input" value={estadoFiltro}
@@ -316,6 +426,20 @@ function Compras() {
               </div>
             </div>
 
+            {/* Barra de ticket consolidado (notas de un proveedor) */}
+            {vista === 'notas' && seleccion.length > 0 && (
+              <div className="comp-consol-bar">
+                <span>
+                  {seleccion.length} nota(s) de <strong>{seleccion[0].supplier_name || seleccion[0].supplier}</strong>
+                  {' · '}<strong>${fmt(sumaSel)}</strong>
+                </span>
+                <div className="comp-consol-actions">
+                  <button className="comp-btn-editar" onClick={() => setSeleccion([])}>Limpiar</button>
+                  <button className="comp-btn-confirmar" onClick={() => { setFolioConsolidar(''); consolidarModal.open(seleccion); }}>Agrupar e imprimir</button>
+                </div>
+              </div>
+            )}
+
             {/* TABLA */}
             {loading ? (
               <div className="loading">Cargando compras...</div>
@@ -324,25 +448,93 @@ function Compras() {
                 <table className="sys-table">
                   <thead>
                     <tr>
-                      <th># Compra</th>
+                      <th>{vista === 'facturas' ? '# Factura' : '# Compra'}</th>
                       <th>Fecha</th>
                       <th>Proveedor</th>
                       <th>Facturado a</th>
                       <th>Subtotal</th>
                       <th>Total</th>
-                      <th>Estado</th>
+                      <th>{vista === 'facturas' ? 'Notas' : 'Estado'}</th>
                       <th>Pagado</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCompras.length === 0 ? (
-                      <tr><td colSpan={9} className="no-data">No hay compras registradas</td></tr>
-                    ) : (
-                      filteredCompras.map(c => (
+                    {vista === 'facturas' ? (
+                      facturasAgrupadas.length === 0 ? (
+                        <tr><td colSpan={9} className="no-data">No hay facturas consolidadas</td></tr>
+                      ) : (
+                        facturasAgrupadas.map(g => {
+                          const abierto = expandido.has(g.key);
+                          const multi = g.notas.length > 1;
+                          return (
+                          <React.Fragment key={g.key}>
+                          <tr className={multi ? 'comp-row-grupo' : undefined}>
+                            <td className="cell-code">
+                              {multi && (
+                                <button className="comp-expand-btn" onClick={() => toggleExpand(g.key)}
+                                  title={abierto ? 'Ocultar notas' : 'Ver notas'}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: 6, color: 'inherit', fontSize: '0.85em' }}>
+                                  {abierto ? '▾' : '▸'}
+                                </button>
+                              )}
+                              {g.folio || '(sin folio)'}
+                            </td>
+                            <td>{g.posting_date}</td>
+                            <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
+                            <td>
+                              <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                                {g.facturado_a || 'SIN FACTURA'}
+                              </span>
+                            </td>
+                            <td className="cell-right">${fmt(g.total)}</td>
+                            <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
+                            <td style={{ textAlign: 'center' }}>{g.notas.length}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
+                                {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
+                              </span>
+                            </td>
+                            <td className="comp-td-acciones">
+                              <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)}
+                                title="Imprimir ticket consolidado"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                Ticket
+                              </button>
+                            </td>
+                          </tr>
+                          {abierto && g.notas.map(n => (
+                            <tr key={n.name} className="comp-subrow">
+                              <td className="cell-code" style={{ paddingLeft: 28 }}>{n.custom_no_de_compra ? `#${n.custom_no_de_compra}` : '—'}</td>
+                              <td>{n.posting_date}</td>
+                              <td>{n.custom_nota_remision || '—'}</td>
+                              <td></td>
+                              <td className="cell-right">${fmt(n.total)}</td>
+                              <td className="cell-right">${fmt(n.grand_total)}</td>
+                              <td colSpan={3}></td>
+                            </tr>
+                          ))}
+                          </React.Fragment>
+                          );
+                        })
+                      )
+                    ) : (() => {
+                      const fila = (c) => (
                         <tr key={c.name}>
                           <td className="cell-code">
+                            {c.custom_consolidado ? (
+                              <input type="checkbox" className="comp-sel"
+                                checked readOnly disabled
+                                title="Consolidada (bloqueada)" />
+                            ) : esConsolidable(c) ? (
+                              <input type="checkbox" className="comp-sel"
+                                checked={seleccion.some(x => x.name === c.name)}
+                                onChange={() => toggleSel(c)}
+                                title="Seleccionar para ticket consolidado" />
+                            ) : null}
                             {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}
+                            {!!c.custom_consolidado && <span className="comp-consol-badge" title="Consolidada">🔒</span>}
                           </td>
                           <td>{c.posting_date}</td>
                           <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
@@ -377,19 +569,25 @@ function Compras() {
                           </td>
                           <td className="comp-td-acciones">
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              {/* Imprimir PDF + Ticket — disponibles siempre */}
+                              {/* Imprimir PDF + Ticket — ocultos en modo cancelar */}
+                              {accionActiva !== 'cancelar' && (
+                                <>
                               <button className="comp-btn-editar" onClick={() => handleImprimir(c.name, 'pdf')}
-                                title="Imprimir PDF detallado"
-                                style={{ background: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd' }}>
+                                title="Imprimir PDF detallado">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                               </button>
                               <button className="comp-btn-editar" onClick={() => handleImprimir(c.name, 'ticket')}
-                                title="Imprimir Ticket"
-                                style={{ background: '#f3e8ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
+                                title="Imprimir Ticket">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
                               </button>
+                                </>
+                              )}
                               {!soloLectura && (
                                 <>
+                                {!!c.custom_consolidado && (
+                                  <button className="comp-btn-eliminar" onClick={() => desagruparModal.open(c.name)}
+                                    title="Desagrupar (solo Gerente)">Desagrupar</button>
+                                )}
                                 {c.docstatus === 0 && (
                                   <>
                                     {accionActiva === 'confirmar' && (
@@ -412,7 +610,7 @@ function Compras() {
                                 )}
                                 {c.docstatus === 1 && accionActiva === 'cancelar' && (
                                   <button className="comp-btn-eliminar" onClick={() => cancelModal.open(c)}
-                                    title="Cancelar compra" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #f59e0b' }}>
+                                    title="Cancelar compra">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                                   </button>
                                 )}
@@ -421,8 +619,51 @@ function Compras() {
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
+                      );
+                      if (notasItems.length === 0)
+                        return <tr><td colSpan={9} className="no-data">No hay compras registradas</td></tr>;
+                      return notasItems.map(it => {
+                        if (it.tipo !== 'grupo') return fila(it.compra);
+                        const g = it.grupo, ek = 'ng-' + g.key, ab = expandido.has(ek);
+                        return (
+                          <React.Fragment key={ek}>
+                            <tr className="comp-row-grupo">
+                              <td className="cell-code">
+                                <button className="comp-expand-btn" onClick={() => toggleExpand(ek)}
+                                  title={ab ? 'Ocultar notas' : 'Ver notas'}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: 6, color: 'inherit', fontSize: '0.85em' }}>
+                                  {ab ? '▾' : '▸'}
+                                </button>
+                                {g.folio || '(sin folio)'} <span className="comp-consol-badge" title="Notas consolidadas">🔒 {g.notas.length}</span>
+                              </td>
+                              <td>{g.posting_date}</td>
+                              <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
+                              <td>
+                                <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                                  {g.facturado_a || 'SIN FACTURA'}
+                                </span>
+                              </td>
+                              <td className="cell-right">${fmt(g.total)}</td>
+                              <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
+                              <td><span className="status-badge status-ok">Recibida</span></td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
+                                  {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
+                                </span>
+                              </td>
+                              <td className="comp-td-acciones">
+                                <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)} title="Imprimir ticket consolidado"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                  Ticket
+                                </button>
+                              </td>
+                            </tr>
+                            {ab && g.notas.map(fila)}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -503,6 +744,48 @@ function Compras() {
           onCancel={pagoModal.close}
           loading={pagoModal.loading}
           error={pagoModal.error}
+        />
+      )}
+
+      {/* Modal consolidar (bloquea + imprime) */}
+      {consolidarModal.item && (
+        <ConfirmModal
+          title="Agrupar e imprimir"
+          description={<>
+            Se agruparán <strong>{consolidarModal.item.length} nota(s)</strong> de <strong>{consolidarModal.item[0]?.supplier_name || consolidarModal.item[0]?.supplier}</strong> (${fmt(consolidarModal.item.reduce((s, c) => s + parseFloat(c.grand_total || 0), 0))}) bajo un mismo No. de Factura:
+            <input type="text" autoFocus className="comp-date-input" style={{ display: 'block', width: '100%', marginTop: 10 }}
+              placeholder="No. de Factura (ej: FAC-001)"
+              value={folioConsolidar} onChange={e => setFolioConsolidar(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && folioConsolidar.trim() && !consolidarModal.loading) consolidarModal.confirm(); }} />
+          </>}
+          subdescription="El folio se asigna a todas. Las notas quedarán BLOQUEADAS para no re-mezclarlas. Solo un Gerente puede desagrupar."
+          icon={ICON_WARNING}
+          confirmLabel="Consolidar e imprimir"
+          loadingLabel="Consolidando..."
+          confirmStyle={{ background: '#16a34a' }}
+          cancelLabel="Cancelar"
+          onConfirm={consolidarModal.confirm}
+          onCancel={consolidarModal.close}
+          loading={consolidarModal.loading}
+          error={consolidarModal.error}
+        />
+      )}
+
+      {/* Modal desagrupar (solo Gerente) */}
+      {desagruparModal.item && (
+        <ConfirmModal
+          title="Desagrupar compra"
+          description={<>La compra <strong>{desagruparModal.item}</strong> se desbloqueará y podrá volver a consolidarse.</>}
+          subdescription="Solo un Gerente puede hacerlo (se valida en el servidor)."
+          icon={ICON_WARNING}
+          confirmLabel="Sí, desagrupar"
+          loadingLabel="Desagrupando..."
+          confirmStyle={{ background: '#d97706' }}
+          cancelLabel="Cancelar"
+          onConfirm={desagruparModal.confirm}
+          onCancel={desagruparModal.close}
+          loading={desagruparModal.loading}
+          error={desagruparModal.error}
         />
       )}
     </Layout>

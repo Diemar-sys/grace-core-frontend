@@ -389,6 +389,64 @@ def imprimir_egreso():
         traceback.print_exc()
         return cors(jsonify({'ok': False, 'error': str(e)}), 500)
 
+
+@app.route('/imprimir-ticket-consolidado', methods=['POST', 'OPTIONS'])
+def imprimir_ticket_consolidado():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+
+        proveedor = (data.get('proveedor', '') or '-')
+        factura   = (data.get('factura', '') or '-')
+        fecha     = data.get('fecha', '') or datetime.now().strftime('%d/%m/%Y')
+        notas     = data.get('notas', []) or []
+        gran_total = sum(float(n.get('total') or 0) for n in notas)
+
+        p = get_printer()
+        try:
+            p.set(font='b', align='center', bold=True, double_height=True, double_width=True)
+            p.text("GRACE\n")
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text("Panaderia & Reposteria\n")
+            p.text("-" * 32 + "\n")
+            p.set(align='center', bold=True)
+            p.text("** TICKET CONSOLIDADO **\n")
+            p.set(align='left', bold=False)
+            p.text("-" * 32 + "\n")
+
+            p.set(font='b', align='left')
+            p.text(f"PROVEEDOR : {str(proveedor)[:28]}\n")
+            p.text(f"FACTURA   : {str(factura)[:28]}\n")
+            p.text(f"FECHA     : {fecha}\n")
+            p.text("-" * 32 + "\n")
+            p.text(f"{'#COMPRA':<7}{'REMISION':<15}{'TOTAL':>10}\n")
+            p.text("-" * 32 + "\n")
+            for n in notas:
+                num = str(n.get('no_compra') or '-')
+                rem = str(n.get('remision') or '-')[:14]
+                tot = fmt(float(n.get('total') or 0))
+                p.text(f"#{num:<6}{rem:<15}{tot:>10}\n")
+            p.text("=" * 32 + "\n")
+            p.set(font='a', bold=True)
+            p.text(f"GRAN TOTAL:{fmt(gran_total):>11}\n")
+            p.set(font='b', bold=False, align='center')
+            p.text(f"{len(notas)} nota(s)\n")
+            p.text(f"Generado {fecha}\n")
+            p.text("www.panaderiasgrace.mx\n")
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
+
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
+
+
 def cors(response, status=None):
     if status:
         response.status_code = status

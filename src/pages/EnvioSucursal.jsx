@@ -173,27 +173,16 @@ function EnvioSucursal() {
           </div>
         </div>
 
-        <div className="vistas-tabs">
-          {[
-            { key: 'enviada',   label: 'Enviada',   color: 'vista-stock' },
-            { key: 'cancelada', label: 'Cancelada', color: 'vista-deshabilitado' },
-            { key: 'todas',     label: 'Todas',     color: 'vista-registrado' },
-          ].map(t => (
-            <button key={t.key}
-              className={`vista-tab ${t.color} ${estadoFiltro === t.key ? 'activa' : ''}`}
-              onClick={() => setEstadoFiltro(t.key)}>
-              {t.label}
-              <span className="comp-tab-count">
-                {t.key === 'todas'
-                  ? envios.length
-                  : envios.filter(e => e.docstatus === ESTADO_DOCSTATUS[t.key]).length}
-              </span>
-            </button>
-          ))}
-        </div>
-
         <div className="filtros-section">
-          <div className="filtro-group">
+          <div className="filtro-group filtro-sm">
+            <label>Estado</label>
+            <select value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}>
+              <option value="enviada">Enviada ({envios.filter(e => e.docstatus === ESTADO_DOCSTATUS.enviada).length})</option>
+              <option value="cancelada">Cancelada ({envios.filter(e => e.docstatus === ESTADO_DOCSTATUS.cancelada).length})</option>
+              <option value="todas">Todas ({envios.length})</option>
+            </select>
+          </div>
+          <div className="filtro-group filtro-sm">
             <label>Sucursal</label>
             <select className="comp-date-input" value={sucursalSel}
               onChange={e => setSucursalSel(e.target.value)}>
@@ -202,17 +191,17 @@ function EnvioSucursal() {
               ))}
             </select>
           </div>
-          <div className="filtro-group">
+          <div className="filtro-group filtro-sm">
             <label>Desde</label>
             <input type="date" className="comp-date-input" value={desde}
               onChange={e => setDesde(e.target.value)} />
           </div>
-          <div className="filtro-group">
+          <div className="filtro-group filtro-sm">
             <label>Hasta</label>
             <input type="date" className="comp-date-input" value={hasta}
               onChange={e => setHasta(e.target.value)} />
           </div>
-          <div className="filtro-group search">
+          <div className="filtro-group search filtro-sm">
             <label>Buscar # / nota</label>
             <input type="text" placeholder="Ej: MAT-STE-..., entrega"
               value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />

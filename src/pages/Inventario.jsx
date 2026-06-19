@@ -101,16 +101,6 @@ function Inventario() {
       <div className="page-container">
         <div className="page-header">
           <div className="title-group" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {accionActiva !== 'menu' && accionActiva !== 'consulta_menu' && (
-              <button
-                onClick={() => setAccionActiva(soloLectura ? 'consulta_menu' : 'menu')}
-                className="btn-refresh"
-                style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', color: '#4b5563' }}
-                title="Volver al menú de inventario"
-              >
-                ← Volver
-              </button>
-            )}
             <div>
               <h1 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
                 Inventario
@@ -193,17 +183,15 @@ function Inventario() {
           <HistorialMovimientos almacenes={almacenesAll} />
         ) : (
           <>
-            <div className="vistas-tabs">
-              {VISTAS.map(v => (
-                <button key={v.key}
-                  className={`vista-tab ${v.color} ${vistaActiva === v.key ? "activa" : ""}`}
-                  onClick={() => handleVistaChange(v.key)}>{v.label}</button>
-              ))}
-            </div>
-
             <div className="filtros-section">
+              <div className="filtro-group filtro-sm">
+                <label>Vista</label>
+                <select value={vistaActiva} onChange={e => handleVistaChange(e.target.value)}>
+                  {VISTAS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                </select>
+              </div>
               {vistaActiva === "por_almacen" ? (
-                <div className="filtro-group">
+                <div className="filtro-group filtro-sm">
                   <label>Almacen</label>
                   <select value={almacenVista} onChange={e => setAlmacenVista(e.target.value)}>
                     {almacenesAll.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
@@ -212,7 +200,7 @@ function Inventario() {
               ) : (
                 <>
                   {(vistaActiva === "con_stock" || vistaActiva === "agotado") && (
-                    <div className="filtro-group">
+                    <div className="filtro-group filtro-sm">
                       <label>Almacen</label>
                       <select value={selectedWarehouse} onChange={e => setSelectedWarehouse(e.target.value)}>
                         <option value="">Todos los almacenes</option>
@@ -220,7 +208,7 @@ function Inventario() {
                       </select>
                     </div>
                   )}
-                  <div className="filtro-group">
+                  <div className="filtro-group filtro-sm">
                     <label>Categoria</label>
                     <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
                       <option value="">Todas las categorias</option>
@@ -229,14 +217,14 @@ function Inventario() {
                   </div>
                 </>
               )}
-              <div className="filtro-group search">
+              <div className="filtro-group search filtro-sm">
                 <label>Buscar</label>
                 <input type="text" placeholder="Nombre, codigo o codigo interno..."
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                <button className="btn-refresh" onClick={loadItems}>
+                <button className="btn-refresh btn-compacto" onClick={loadItems}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"

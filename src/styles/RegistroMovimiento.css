@@ -13,7 +13,7 @@
   max-width: 1400px;
   background: #fffbf6;
   border-radius: 18px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 28px 36px 0;
   box-sizing: border-box;
@@ -21,11 +21,11 @@
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #f2c48d #fffbf6;
+  scrollbar-color: #f3ede2 #fffbf6;
 }
 .rm-container::-webkit-scrollbar       { width: 6px; }
 .rm-container::-webkit-scrollbar-track { background: #fffbf6; border-radius: 999px; }
-.rm-container::-webkit-scrollbar-thumb { background: #f2c48d; border-radius: 999px; }
+.rm-container::-webkit-scrollbar-thumb { background: #f3ede2; border-radius: 999px; }
 .rm-container::-webkit-scrollbar-thumb:hover { background: #e5a857; }
 
 /* Header */
@@ -35,7 +35,7 @@
   justify-content: space-between;
   margin-bottom: 18px;
 }
-.rm-header h2 { margin: 0; font-size: 40px; color: #7a3f0a; }
+.rm-header h2 { margin: 0; font-size: 40px; color: #a8402c; }
 .rm-btn-close {
   border: none; background: transparent; font-size: 30px;
   cursor: pointer; color: #8b6a4e; padding: 4px 6px; border-radius: 999px;
@@ -247,9 +247,9 @@
   gap: 6px;
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px dashed #f2c48d;
+  border: 1px dashed #f3ede2;
   background: transparent;
-  color: #7a3f0a;
+  color: #a8402c;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -286,7 +286,7 @@
   font-size: 16px;
   color: #8b6a4e;
 }
-.rm-resumen strong { color: #7a3f0a; }
+.rm-resumen strong { color: #a8402c; }
 
 .rm-btn-secondary, .rm-btn-primary {
   min-width: 130px;
@@ -299,7 +299,7 @@
 }
 .rm-btn-secondary { background: #fff; color: #5b4026; border-color: #e5d2b8; }
 .rm-btn-secondary:hover { background: #fff6ea; }
-.rm-btn-primary   { background: #fffbf6; color: #7a3f0a; border-color: #f2c48d; box-shadow: 0 8px 18px rgba(122,63,10,0.14); }
+.rm-btn-primary   { background: #fffbf6; color: #a8402c; border-color: #f3ede2; box-shadow: 0 8px 18px rgba(122,63,10,0.14); }
 .rm-btn-primary:hover { background: #fff6ea; }
 .rm-btn-primary:disabled,
 .rm-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }

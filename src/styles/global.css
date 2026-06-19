@@ -7,17 +7,19 @@
 
 /* ══ VARIABLES ══════════════════════════════════════════ */
 :root {
-  --color-brand:        #6b3209;
-  --color-brand-mid:    #7a3f0a;
-  --color-brand-light:  #e8a84c;
-  --color-brand-bg:     #fdf9f3;
-  --color-brand-hover:  #fef3e2;
-  --color-border:       #e8d5b8;
-  --color-border-input: #d9c4a0;
-  --color-text:         #2d1a0e;
-  --color-text-muted:   #7a5c3e;
+  /* Paleta base retargeteada a Talavera/Grace (carbón+coral+harina). Los
+     nombres legacy --color-* se conservan para no tocar cada CSS de vista. */
+  --color-brand:        #c8503c;  /* coral listón (antes café) */
+  --color-brand-mid:    #a8402c;
+  --color-brand-light:  #e8826c;  /* coral claro (antes ámbar) */
+  --color-brand-bg:     #faf8f3;  /* harina */
+  --color-brand-hover:  #fbeee9;  /* coral wash */
+  --color-border:       #e7e1d6;
+  --color-border-input: #d9d2c6;
+  --color-text:         #2c2a27;  /* tinta */
+  --color-text-muted:   #6f675d;
   --color-surface:      #ffffff;
-  --font-display:       'Lora', Georgia, 'Times New Roman', serif;
+  --font-display:       'Space Grotesk', system-ui, sans-serif;
   --font-body:          'DM Sans', system-ui, sans-serif;
   --radius-card:        14px;
   --radius-input:       9px;
@@ -36,9 +38,9 @@
 
   /* Superficies y texto extra */
   --color-surface-2:    #fffdf8;   /* tarjeta cálida */
-  --color-surface-sunk:  #f7eede;  /* encabezados/zonas hundidas */
-  --color-text-soft:    #8b6a4e;
-  --color-hairline:     #ecdcc4;
+  --color-surface-sunk:  #f1ede4;  /* encabezados/zonas hundidas (harina hundida) */
+  --color-text-soft:    #6f675d;
+  --color-hairline:     #e7e1d6;
 
   /* Estados semánticos */
   --color-success:      #2e7d32; --color-success-bg: #e8f5e9;
@@ -50,6 +52,27 @@
   --nivel-almacen:      #2e7d32; --nivel-almacen-bg:     #e8f5e9;
   --nivel-operaciones:  #1565c0; --nivel-operaciones-bg: #e3f0ff;
   --nivel-gerente:      #6a1b9a; --nivel-gerente-bg:     #f3e5f5;
+
+  /* ── Dirección "Talavera/Grace" (rediseño UI; paleta del logo:
+        carbón insignia + rojo coral listón + harina). Tokens --tv-*
+        compartidos por las vistas ya migradas (Compras, modal NuevaCompra…). ── */
+  --tv-masa:        #faf8f3;  /* fondo harina */
+  --tv-surface:     #ffffff;
+  --tv-sunk:        #f1ede4;  /* zona hundida / thead interno */
+  --tv-carbon:      #3a3835;  /* pizarra insignia (thead tabla) */
+  --tv-cream:       #f3ede2;  /* crema wordmark (texto sobre carbón) */
+  --tv-ink:         #2c2a27;
+  --tv-ink-soft:    #6f675d;
+  --tv-marca:       #c8503c;  /* rojo coral listón Grace */
+  --tv-marca-deep:  #a8402c;
+  --tv-marca-wash:  #fbeee9;
+  --tv-hairline:    #e7e1d6;
+  --tv-line:        #efeae0;
+  --tv-ok:   #1e7a53; --tv-ok-bg:   #e6f4ec;
+  --tv-warn: #9a6700; --tv-warn-bg: #fbf1d9;
+  --tv-stop: #8f2f23; --tv-stop-bg: #f6e3df;
+  --tv-display: 'Space Grotesk', system-ui, sans-serif;
+  --tv-mono:    'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* ══ CONTENEDORES DE PÁGINA ══════════════════════════ */
@@ -64,26 +87,26 @@
 /* ══ HEADER ══════════════════════════════════════════════ */
 /* ── Topbar superior (logo + usuario) ───────────────── */
 .panel-topbar {
-  background: linear-gradient(135deg, #5a2a06 0%, #7a3f0a 60%, #6b3209 100%);
-  color: white;
+  background: linear-gradient(135deg, #2c2a27 0%, #3a3835 60%, #2c2a27 100%);
+  color: var(--tv-cream);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-5);
   height: 68px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
-  border-bottom: 1px solid rgba(232,168,76,0.30);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+  border-bottom: 2px solid var(--tv-marca);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 .panel-topbar-left { display: flex; align-items: center; gap: var(--space-3); }
-.panel-logo-icon { color: #f2c48d; display: flex; align-items: center; }
+.panel-logo-icon { color: var(--tv-cream); display: flex; align-items: center; }
 .logo-imagen-pq { height: 42px; width: auto; }
 /*--- TÍTULO: PANADERÍAS GRACE --- */
-.panel-topbar-left h1 { margin: 0; font-size: 22px; font-weight: 700; color: white; font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.1; }
+.panel-topbar-left h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--tv-cream); font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.1; }
 /*--- SUBTÍTULO: SISTEMA ERP WEB --- */
-.panel-topbar-left span { font-size: 10.5px; color: #e8a84c; text-transform: uppercase; letter-spacing: 0.14em; display: block; line-height: 1; font-weight: 600; }
+.panel-topbar-left span { font-size: 10.5px; color: var(--tv-marca); text-transform: uppercase; letter-spacing: 0.14em; display: block; line-height: 1; font-weight: 600; }
 .panel-topbar-right { display: flex; align-items: center; gap: var(--space-3); }
 /*--- CHIP DEL USUARIO LOGUEADO ---*/
 .panel-user-chip {
@@ -91,10 +114,10 @@
   background: rgba(255,255,255,0.10); border-radius: 10px;
   padding: 7px 14px; font-size: 14px; color: white; font-weight: 500;
 }
-.panel-user-chip svg { color: #f2c48d; width: 18px; height: 18px; }
+.panel-user-chip svg { color: var(--tv-cream); width: 18px; height: 18px; }
 .user-branch-badge {
-  background: rgba(242,196,141,0.18); border-radius: var(--radius-pill);
-  padding: 3px 10px; font-size: 12px; color: #f6d4a8;
+  background: rgba(200,80,60,0.20); border-radius: var(--radius-pill);
+  padding: 3px 10px; font-size: 12px; color: #eaa595;
   font-weight: 600; letter-spacing: 0.02em; margin-left: 4px;
 }
 /*--- BOTÓN SALIR ---*/
@@ -109,14 +132,14 @@
 
 /* ── Barra de menú principal ────────────────────────── */
 .panel-menubar, .layout-menubar {
-  background: #4a2205;
+  background: #232220;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 var(--space-6);
   height: 46px;
   gap: var(--space-1);
-  border-bottom: 1px solid rgba(232,168,76,0.18);
+  border-bottom: 1px solid rgba(200,80,60,0.22);
   position: sticky; top: 68px; z-index: 90;
 }
 
@@ -131,7 +154,7 @@
   transition: background 0.15s, color 0.15s;
 }
 .panel-menu-btn:hover, .layout-menu-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.92); }
-.panel-menu-btn.active, .layout-menu-btn.active { background: rgba(232,168,76,0.16); color: #f0b86a; font-weight: 600; }
+.panel-menu-btn.active, .layout-menu-btn.active { background: rgba(200,80,60,0.20); color: #e8826c; font-weight: 600; }
 .panel-menu-btn.disabled, .layout-menu-btn.disabled { opacity: 0.32; cursor: default; }
 
 .page-header {
@@ -146,9 +169,9 @@
   display: flex;
   align-items: center;
   font-size: 28px;
-  color: var(--color-brand);
+  color: var(--tv-marca);
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--tv-display);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -214,7 +237,7 @@
   flex-wrap: wrap;
 }
 .stat-card {
-  background: linear-gradient(135deg, #fdf9f3 0%, #fef3e2 100%);
+  background: linear-gradient(135deg, #faf8f3 0%, #fef3e2 100%);
   color: var(--color-brand);
   padding: 10px 18px;
   border-radius: var(--radius-card);
@@ -222,7 +245,7 @@
   align-items: center;
   gap: 10px;
   box-shadow: 0 4px 16px rgba(107,50,9,0.12);
-  border: 1px solid #e8d5b8;
+  border: 1px solid #e7e1d6;
 }
 .stat-card.warning {
   color: #b45309;
@@ -370,8 +393,8 @@
 
 /* Scrollbar */
 .table-container::-webkit-scrollbar       { width: 7px; }
-.table-container::-webkit-scrollbar-track { background:#fdf9f3; border-radius:10px; }
-.table-container::-webkit-scrollbar-thumb { background:#e8a84c; border-radius:10px; }
+.table-container::-webkit-scrollbar-track { background:#faf8f3; border-radius:10px; }
+.table-container::-webkit-scrollbar-thumb { background:#e8826c; border-radius:10px; }
 .table-container::-webkit-scrollbar-thumb:hover { background:#c8882c; }
 
 /* Clase compartida para TODAS las tablas de página */
@@ -391,7 +414,7 @@
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  box-shadow: inset 0 -2px 0 #e8d5b8;
+  box-shadow: inset 0 -2px 0 #e7e1d6;
   font-family: var(--font-body);
 }
 .sys-table td {
@@ -436,7 +459,7 @@
   display: flex; align-items: center; gap: 28px;
   padding: 12px 20px;
   background: linear-gradient(180deg, #fdf4e6 0%, #fbeccf 100%);
-  border: 1px solid #e8d5b8; border-top: none;
+  border: 1px solid #e7e1d6; border-top: none;
   border-radius: 0 0 10px 10px;
   box-shadow: 0 -4px 12px rgba(107,50,9,0.08);
   font-family: var(--font-body);
@@ -447,7 +470,7 @@
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #9a6a3a; font-weight: 600;
 }
 .venta-detalle-totales .vdt-val { font-size: 16px; font-weight: 700; color: #5a3410; }
-.venta-detalle-totales .vdt-total .vdt-val { font-size: 20px; color: var(--color-brand, #6b3209); }
+.venta-detalle-totales .vdt-total .vdt-val { font-size: 20px; color: var(--color-brand, #c8503c); }
 
 /* ══ BADGES DE ESTADO ════════════════════════════════════ */
 .status-badge {
@@ -508,7 +531,7 @@
   margin: 0;
   font-size: 17px;
   font-weight: 700;
-  color: #2d1a0e;
+  color: #2c2a27;
   line-height: 1.2;
   font-family: 'DM Sans', inherit;
 }
@@ -746,3 +769,49 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
 .modal-success .modal-footer .btn-primary:hover {
     background-color: #218838 !important;
 }
+
+/* ══ TABLA TALAVERA GLOBAL ════════════════════════════════
+   Promovido desde Compras (.comprasv2): thead carbón insignia + texto crema,
+   hover coral, folio/montos mono. Compras conserva su variante .comprasv2 (más
+   específica). Aplica a todas las vistas que usan .sys-table. */
+.sys-table { border-collapse: collapse; width: 100%; }
+.sys-table thead th {
+  background: var(--tv-carbon);
+  color: var(--tv-cream);
+  font-family: var(--tv-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 3px solid var(--tv-marca);
+  white-space: nowrap;
+}
+.sys-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--tv-line);
+  color: var(--tv-ink);
+  font-size: 15px;
+  vertical-align: middle;
+}
+.sys-table tbody tr:last-child td { border-bottom: none; }
+.sys-table tbody tr { transition: background 0.1s; }
+.sys-table tbody tr:hover { background: var(--tv-marca-wash); }
+.sys-table .cell-code {
+  font-family: var(--tv-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tv-marca);
+}
+/* Montos: mono tabular, más grandes (homologado con Compras) */
+.sys-table .cell-right,
+.sys-table td[align="right"],
+.sys-table .cell-num {
+  text-align: right;
+  font-family: var(--tv-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  color: var(--tv-ink);
+}
+.sys-table .cell-bold { font-weight: 700; font-size: 17px; }

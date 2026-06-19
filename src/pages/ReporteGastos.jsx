@@ -90,11 +90,11 @@ function ReporteGastos() {
         </div>
 
         <div className="filtros-section" style={{ flexWrap: 'wrap' }}>
-          <div className="filtro-group">
+          <div className="filtro-group filtro-sm">
             <label>Desde</label>
             <input type="date" value={desde} onChange={e => setDesde(e.target.value)} />
           </div>
-          <div className="filtro-group">
+          <div className="filtro-group filtro-sm">
             <label>Hasta</label>
             <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} />
           </div>

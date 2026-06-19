@@ -237,3 +237,67 @@ export function imprimirCompraPDF(datos) {
   win.document.write(html);
   win.document.close();
 }
+
+/**
+ * Ticket de compra CONSOLIDADO: suma de varias notas/remisiones de un mismo
+ * proveedor (el que cuadra con la factura). Imprime por el navegador.
+ * @param {string} proveedor - Nombre del proveedor.
+ * @param {string} factura - No. de factura que consolida las notas (puede ir vacío).
+ * @param {Array<{no_compra, remision, fecha, total}>} notas - Filas a sumar.
+ */
+export async function imprimirTicketConsolidado(proveedor, factura, notas) {
+  const hoy = new Date().toLocaleDateString('es-MX');
+  // Térmica WL88S primero (print-server); fallback a navegador si no responde.
+  try {
+    const res = await fetch('/print/imprimir-ticket-consolidado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proveedor, factura, fecha: hoy, notas }),
+    });
+    if (!res.ok) throw new Error('Print server ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Error térmica');
+    return;
+  } catch (err) {
+    console.warn('Térmica no disponible, fallback navegador:', err.message);
+  }
+  const granTotal = notas.reduce((s, n) => s + parseFloat(n.total || 0), 0);
+  const filas = notas.map(n => `
+    <tr>
+      <td>#${escHTML(n.no_compra ?? '—')}</td>
+      <td>${escHTML(n.remision || '—')}</td>
+      <td>${escHTML(n.fecha || '')}</td>
+      <td class="r">$${fmt2(n.total)}</td>
+    </tr>`).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+  <title>Ticket consolidado — ${escHTML(proveedor)}</title>
+  <style>
+    @page { margin: 8mm; }
+    body { font-family: 'JetBrains Mono', ui-monospace, monospace; color: #2c2a27; width: 320px; margin: 0 auto; font-size: 12px; }
+    h1 { font-family: 'Space Grotesk', sans-serif; font-size: 16px; margin: 0 0 2px; }
+    .sub { color: #6f675d; font-size: 11px; margin: 0 0 10px; }
+    .meta { margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #6f675d; border-bottom: 2px solid #c8503c; padding: 4px 2px; }
+    td { padding: 5px 2px; border-bottom: 1px solid #efeae0; }
+    .r { text-align: right; }
+    .gran { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 8px; border-top: 2px solid #2c2a27; font-weight: 700; font-size: 15px; color: #c8503c; }
+    .n { color: #6f675d; font-size: 11px; text-align: right; margin-top: 4px; }
+  </style></head><body>
+    <h1>Panaderías Grace</h1>
+    <p class="sub">TICKET DE COMPRA CONSOLIDADO</p>
+    <div class="meta"><strong>Proveedor:</strong> ${escHTML(proveedor)}<br><strong>Factura:</strong> ${escHTML(factura || '—')}<br><strong>Fecha:</strong> ${escHTML(hoy)}</div>
+    <table>
+      <thead><tr><th># Compra</th><th>Remisión</th><th>Fecha</th><th class="r">Total</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <div class="gran"><span>GRAN TOTAL</span><span>$${fmt2(granTotal)}</span></div>
+    <div class="n">${notas.length} nota(s)</div>
+    <script>window.onload=function(){window.print();}</script>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=420,height=700');
+  win.document.write(html);
+  win.document.close();
+}

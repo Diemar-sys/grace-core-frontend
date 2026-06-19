@@ -22,6 +22,8 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   );
   const [fecha] = useState(initialData?.posting_date || new Date().toISOString().split('T')[0]);
   const [billNo, setBillNo] = useState('');
+  const [notaRemision, setNotaRemision] = useState('');
+  const [tipoComprobante, setTipoComprobante] = useState('Nota');
   const [facturadoA, setFacturadoA] = useState(initialData?.custom_facturado_a || 'SIN FACTURA');
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [notas, setNotas] = useState(initialData?.remarks || '');
@@ -59,6 +61,8 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         const doc = await comprasService.getCompraBorrador(initialData.name);
         setProveedor({ name: doc.supplier, label: doc.supplier_name || doc.supplier });
         if (doc.supplier_delivery_note) setBillNo(doc.supplier_delivery_note);
+        if (doc.custom_nota_remision) setNotaRemision(doc.custom_nota_remision);
+        if (doc.custom_tipo_comprobante) setTipoComprobante(doc.custom_tipo_comprobante);
         if (doc.custom_facturado_a) setFacturadoA(doc.custom_facturado_a);
         if (doc.remarks) setNotas(doc.remarks);
 
@@ -232,11 +236,11 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     try {
       let docNoCompra = null;
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess('BORRADOR ACTUALIZADO');
         docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
-        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
         docNoCompra = doc?.custom_no_de_compra ?? null;
       }
@@ -281,10 +285,10 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setLoading(true);
     try {
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
         await comprasService.confirmarBorrador(initialData.name);
       } else {
-        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
       const conCambio = items.filter(f => calcVariacion(f)?.cambio);
@@ -366,9 +370,24 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             <BuscadorProveedor value={proveedor} onChange={setProveedor} />
           </div>
           <div className="nc-field nc-factura">
+            <label>Tipo</label>
+            <select className="nc-input-factura" value={tipoComprobante}
+              onChange={e => { const v = e.target.value; setTipoComprobante(v); if (v === 'Nota') setBillNo(''); }}>
+              <option value="Nota">Nota (remisión)</option>
+              <option value="Factura">Factura directa</option>
+            </select>
+          </div>
+          <div className="nc-field nc-factura">
             <label>No. Factura</label>
             <input type="text" className="nc-input-factura" value={billNo}
-              onChange={e => setBillNo(e.target.value)} placeholder="Ej: FAC-001" />
+              disabled={tipoComprobante === 'Nota'}
+              onChange={e => setBillNo(e.target.value)}
+              placeholder={tipoComprobante === 'Nota' ? 'Se asigna al agrupar' : 'Ej: FAC-001'} />
+          </div>
+          <div className="nc-field nc-factura">
+            <label>Nota de remisión</label>
+            <input type="text" className="nc-input-factura" value={notaRemision}
+              onChange={e => setNotaRemision(e.target.value)} placeholder="Ej: REM-123" />
           </div>
           <div className="nc-field nc-facturado-a">
             <label>Facturado a</label>

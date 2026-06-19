@@ -13,7 +13,7 @@
   max-width: 900px;
   background: #fffbf6;
   border-radius: 18px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 24px 28px 0;
   box-sizing: border-box;
@@ -21,12 +21,12 @@
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #f2c48d #fffbf6;
+  scrollbar-color: #f3ede2 #fffbf6;
 }
 
 .np-container::-webkit-scrollbar { width: 6px; }
 .np-container::-webkit-scrollbar-track { background: #fffbf6; border-radius: 999px; }
-.np-container::-webkit-scrollbar-thumb { background: #f2c48d; border-radius: 999px; }
+.np-container::-webkit-scrollbar-thumb { background: #f3ede2; border-radius: 999px; }
 .np-container::-webkit-scrollbar-thumb:hover { background: #e5a857; }
 
 /* HEADER */
@@ -40,7 +40,7 @@
 .np-header h2 {
   margin: 0;
   font-size: 22px;
-  color: #7a3f0a;
+  color: #a8402c;
 }
 
 .np-btn-close {
@@ -84,7 +84,7 @@
   margin: 0 0 14px 0;
   font-size: 18px;
   font-weight: 700;
-  color: #7a3f0a;
+  color: #a8402c;
   border-bottom: 1px solid #f2e2c8;
   padding-bottom: 8px;
 }
@@ -184,8 +184,8 @@
 
 .np-btn-primary {
   background: #fffbf6;
-  color: #7a3f0a;
-  border-color: #f2c48d;
+  color: #a8402c;
+  border-color: #f3ede2;
   box-shadow: 0 10px 22px rgba(122, 63, 10, 0.16);
 }
 
@@ -227,7 +227,7 @@
 .np-contacto-col h3 {
   font-size: 13px;
   font-weight: 700;
-  color: #7a3f0a;
+  color: #a8402c;
   margin: 0 0 4px;
   padding-bottom: 6px;
   border-bottom: 1px solid #f2e2c8;

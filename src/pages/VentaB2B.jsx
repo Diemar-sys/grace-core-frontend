@@ -307,45 +307,34 @@ function VentaB2B() {
           </>
         ) : (
           <>
-            <div className="vistas-tabs">
-              {[
-                { key: 'registrada', label: 'Registrada', color: 'vista-stock' },
-                { key: 'preventa',   label: 'Preventa',   color: 'vista-agotado' },
-                { key: 'cancelada',  label: 'Cancelada',  color: 'vista-deshabilitado' },
-                { key: 'todas',      label: 'Todas',      color: 'vista-registrado' },
-              ].map(t => (
-                <button key={t.key}
-                  className={`vista-tab ${t.color} ${estadoFiltro === t.key ? 'activa' : ''}`}
-                  onClick={() => setEstadoFiltro(t.key)}>
-                  {t.label}
-                  <span className="comp-tab-count">
-                    {t.key === 'todas'
-                      ? ventas.length
-                      : ventas.filter(v => v.docstatus === ESTADO_DOCSTATUS[t.key]).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             <div className="filtros-section">
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
+                <label>Estado</label>
+                <select value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}>
+                  <option value="registrada">Registrada ({ventas.filter(v => v.docstatus === ESTADO_DOCSTATUS.registrada).length})</option>
+                  <option value="preventa">Preventa ({ventas.filter(v => v.docstatus === ESTADO_DOCSTATUS.preventa).length})</option>
+                  <option value="cancelada">Cancelada ({ventas.filter(v => v.docstatus === ESTADO_DOCSTATUS.cancelada).length})</option>
+                  <option value="todas">Todas ({ventas.length})</option>
+                </select>
+              </div>
+              <div className="filtro-group filtro-sm">
                 <label>Desde</label>
                 <input type="date" className="comp-date-input" value={desde}
                   onChange={e => setDesde(e.target.value)} />
               </div>
-              <div className="filtro-group">
+              <div className="filtro-group filtro-sm">
                 <label>Hasta</label>
                 <input type="date" className="comp-date-input" value={hasta}
                   onChange={e => setHasta(e.target.value)} />
               </div>
-              <div className="filtro-group search">
+              <div className="filtro-group search filtro-sm">
                 <label>Buscar cliente / #</label>
                 <input type="text" placeholder="Ej: ZAKIA, #001"
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
 
               <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                <button className="btn-refresh" onClick={() => cargar()}>
+                <button className="btn-refresh btn-compacto" onClick={() => cargar()}>
                   Actualizar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"

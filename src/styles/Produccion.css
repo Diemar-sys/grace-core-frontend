@@ -22,10 +22,10 @@
   transition: all 0.18s;
   font-family: inherit;
 }
-.prod-tab-btn:hover { color: #7a3f0a; }
+.prod-tab-btn:hover { color: #a8402c; }
 .prod-tab-btn.active {
-  color: #7a3f0a;
-  border-bottom-color: #7a3f0a;
+  color: #a8402c;
+  border-bottom-color: #a8402c;
 }
 
 /* ══ ALERTA STOCK BAJO ═══════════════════════════════════ */
@@ -90,7 +90,7 @@
 .receta-modal {
   background: #fffbf6;
   border-radius: 18px;
-  border: 1px solid #f2c48d;
+  border: 1px solid #f3ede2;
   width: 100%;
   max-width: 1200px;
   box-shadow: 0 20px 60px rgba(122, 63, 10, 0.18);
@@ -115,7 +115,7 @@
   padding: 28px 36px 24px;
   border-bottom: 1px solid #f0dcc2;
 }
-.receta-header h2 { margin: 0; font-size: 26px; font-weight: 800; color: #7a3f0a; }
+.receta-header h2 { margin: 0; font-size: 26px; font-weight: 800; color: #a8402c; }
 .receta-body { padding: 32px 36px; }
 
 /* ══ FORMULARIO RECETA ══════════════════════════════════ */
@@ -206,7 +206,7 @@
   border: 1px dashed #e5d2b8;
   border-radius: 8px;
   background: #fffbf6;
-  color: #7a3f0a;
+  color: #a8402c;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -272,7 +272,7 @@
   padding: 12px 28px;
   border-radius: 10px;
   border: none;
-  background: #7a3f0a;
+  background: #a8402c;
   color: white;
   font-size: 16px;
   font-weight: 700;
