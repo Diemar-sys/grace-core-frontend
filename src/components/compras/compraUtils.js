@@ -72,6 +72,64 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   };
 };
 
+// ── Agrupación de compras (vista Facturas) ───────────────────────────────────
+// Recibe filteredCompras y devuelve grupos por proveedor+folio, ordenados por fecha desc.
+export function agruparFacturas(filteredCompras) {
+  const grupos = new Map();
+  for (const c of filteredCompras) {
+    const esConsolidada = !!(c.custom_consolidado && c.custom_tipo_comprobante === 'Nota');
+    const esFactura = c.custom_tipo_comprobante === 'Factura';
+    if (!esConsolidada && !esFactura) continue;
+    const folio = c.supplier_delivery_note || '';
+    if (esConsolidada && !folio) continue;
+    const key = c.supplier + '|' + (folio || c.name);
+    const g = grupos.get(key) || {
+      key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
+      facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
+      posting_date: c.posting_date, pagadas: 0, notas: [], esConsolidacion: false,
+    };
+    g.total      += parseFloat(c.total || 0);
+    g.grand_total += parseFloat(c.grand_total || 0);
+    if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
+    if (c.custom_pagado) g.pagadas += 1;
+    g.esConsolidacion = g.esConsolidacion || esConsolidada;
+    g.notas.push(c);
+    grupos.set(key, g);
+  }
+  return [...grupos.values()].sort((a, b) => (b.posting_date || '').localeCompare(a.posting_date || ''));
+}
+
+// ── Lista de notas (vista Notas) ─────────────────────────────────────────────
+// Devuelve items planos con tipo 'individual' | 'grupo' (consolidadas plegadas).
+export function listarNotas(filteredCompras) {
+  const grupos = new Map();
+  const items  = [];
+  for (const c of filteredCompras) {
+    const consolidada = c.custom_consolidado && c.custom_tipo_comprobante === 'Nota';
+    if (!consolidada) {
+      if (c.custom_tipo_comprobante === 'Factura') continue;
+      items.push({ tipo: 'individual', compra: c });
+      continue;
+    }
+    const folio = c.supplier_delivery_note || '';
+    const key   = c.supplier + '|' + (folio || c.name);
+    let g = grupos.get(key);
+    if (!g) {
+      g = { key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
+        facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
+        posting_date: c.posting_date, pagadas: 0, notas: [] };
+      grupos.set(key, g);
+      items.push({ tipo: 'grupo', grupo: g });
+    }
+    g.total      += parseFloat(c.total || 0);
+    g.grand_total += parseFloat(c.grand_total || 0);
+    if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
+    if (c.custom_pagado) g.pagadas += 1;
+    g.notas.push(c);
+  }
+  return items;
+}
+
 export const calcVariacion = (fila) => {
   const actual   = parseFloat(fila.rate || 0);
   const catalogo = parseFloat(fila.precio_catalogo || 0);

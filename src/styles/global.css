@@ -92,7 +92,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-6);
   height: 68px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.22);
   border-bottom: 2px solid var(--tv-marca);
@@ -100,7 +100,7 @@
   top: 0;
   z-index: 100;
 }
-.panel-topbar-left { display: flex; align-items: center; gap: var(--space-3); }
+.panel-topbar-left { display: flex; align-items: center; gap: var(--space-4); }
 .panel-logo-icon { color: var(--tv-cream); display: flex; align-items: center; }
 .logo-imagen-pq { height: 42px; width: auto; }
 /*--- TÍTULO: PANADERÍAS GRACE --- */

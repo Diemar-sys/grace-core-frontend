@@ -338,3 +338,17 @@
 .comprasv2 .comp-row-grupo > td { font-weight: 500; }
 .comprasv2 .comp-expand-btn { line-height: 1; padding: 0 2px; }
 .comprasv2 .comp-subrow > td { background: var(--tv-harina, #faf8f3); font-size: 0.9em; color: #6b6b6b; border-top: none; }
+
+/* Modal detalle compra */
+.comp-detalle-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.comp-detalle-modal { background: #fff; border-radius: 10px; width: min(860px, 96vw); max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+.comp-detalle-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--tv-hairline, #e5d2b8); background: var(--tv-carbon, #2b2825); color: #fff; border-radius: 10px 10px 0 0; flex-shrink: 0; }
+.comp-detalle-num { font-family: monospace; font-size: 1rem; font-weight: 700; margin-right: .75rem; color: var(--tv-coral, #e05a2b); }
+.comp-detalle-proveedor { font-size: .95rem; font-weight: 600; margin-right: .75rem; }
+.comp-detalle-fecha { font-size: .85rem; color: #bbb; }
+.comp-detalle-close { background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; padding: 0 .25rem; line-height: 1; }
+.comp-detalle-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.comp-detalle-tabla { width: 100%; }
+.comp-detalle-tabla thead th { background: var(--tv-carbon, #3a3835) !important; color: #fff !important; position: sticky; top: 0; z-index: 2; }
+.comp-detalle-footer { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1.25rem; border-top: 1px solid var(--tv-hairline, #e5d2b8); font-size: .9rem; color: #666; flex-shrink: 0; }
+.comp-detalle-total { color: var(--tv-coral, #e05a2b); font-size: 1.05rem; }

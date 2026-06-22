@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   subtotalFila, impuestoFila, totalFila, calcVariacion, parseImpuesto, totalPorFila,
-  calcularTotalesEfectivos,
+  calcularTotalesEfectivos, agruparFacturas, listarNotas,
 } from './compraUtils';
 
 describe('compraUtils — subtotales e impuestos', () => {
@@ -125,5 +125,130 @@ describe('compraUtils — calcVariacion (precio vs catálogo)', () => {
   it('cambio=false si diferencia despreciable (<0.005)', () => {
     const v = calcVariacion({ rate: '10.002', precio_catalogo: '10' });
     expect(v.cambio).toBe(false);
+  });
+});
+
+// ── Fixtures ─────────────────────────────────────────────────────────────────
+const mkCompra = (overrides) => ({
+  name: 'PR-001', supplier: 'SUP-A', supplier_name: 'Proveedor A',
+  posting_date: '2026-06-01', docstatus: 1,
+  custom_tipo_comprobante: 'Factura', custom_consolidado: 0,
+  supplier_delivery_note: '', custom_facturado_a: 'ALMA RODRIGUEZ',
+  total: '100', grand_total: '116', custom_pagado: 0,
+  ...overrides,
+});
+
+describe('agruparFacturas — vista Facturas', () => {
+  it('factura directa → 1 grupo, esConsolidacion=false', () => {
+    const grupos = agruparFacturas([mkCompra({ supplier_delivery_note: 'FAC-001' })]);
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].esConsolidacion).toBe(false);
+    expect(grupos[0].folio).toBe('FAC-001');
+  });
+
+  it('nota suelta (sin consolidar) → excluida de vista Facturas', () => {
+    const grupos = agruparFacturas([
+      mkCompra({ custom_tipo_comprobante: 'Nota', custom_consolidado: 0 }),
+    ]);
+    expect(grupos).toHaveLength(0);
+  });
+
+  it('nota consolidada sin folio → excluida de vista Facturas', () => {
+    const grupos = agruparFacturas([
+      mkCompra({ custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: '' }),
+    ]);
+    expect(grupos).toHaveLength(0);
+  });
+
+  it('2 notas consolidadas mismo proveedor+folio → colapsan en 1 grupo', () => {
+    const base = { supplier: 'SUP-A', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-X' };
+    const grupos = agruparFacturas([
+      mkCompra({ ...base, name: 'PR-001', total: '100', grand_total: '116' }),
+      mkCompra({ ...base, name: 'PR-002', total: '200', grand_total: '232' }),
+    ]);
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].esConsolidacion).toBe(true);
+    expect(grupos[0].notas).toHaveLength(2);
+    expect(grupos[0].grand_total).toBeCloseTo(348, 2);
+  });
+
+  it('2 notas distintos proveedores → 2 grupos separados', () => {
+    const base = { custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-X' };
+    const grupos = agruparFacturas([
+      mkCompra({ ...base, supplier: 'SUP-A', name: 'PR-001' }),
+      mkCompra({ ...base, supplier: 'SUP-B', name: 'PR-002' }),
+    ]);
+    expect(grupos).toHaveLength(2);
+  });
+
+  it('ordena por fecha desc', () => {
+    const grupos = agruparFacturas([
+      mkCompra({ name: 'PR-001', supplier_delivery_note: 'F1', posting_date: '2026-05-01' }),
+      mkCompra({ name: 'PR-002', supplier_delivery_note: 'F2', posting_date: '2026-06-15' }),
+    ]);
+    expect(grupos[0].folio).toBe('F2');
+    expect(grupos[1].folio).toBe('F1');
+  });
+
+  it('pagadas cuenta correctamente dentro del grupo', () => {
+    const base = { supplier: 'SUP-A', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-Y' };
+    const grupos = agruparFacturas([
+      mkCompra({ ...base, name: 'PR-001', custom_pagado: 1 }),
+      mkCompra({ ...base, name: 'PR-002', custom_pagado: 0 }),
+    ]);
+    expect(grupos[0].pagadas).toBe(1);
+    expect(grupos[0].notas).toHaveLength(2);
+  });
+});
+
+describe('listarNotas — vista Notas', () => {
+  it('nota suelta → tipo individual', () => {
+    const items = listarNotas([
+      mkCompra({ custom_tipo_comprobante: 'Nota', custom_consolidado: 0 }),
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0].tipo).toBe('individual');
+  });
+
+  it('factura directa → excluida de vista Notas', () => {
+    const items = listarNotas([mkCompra({ custom_tipo_comprobante: 'Factura' })]);
+    expect(items).toHaveLength(0);
+  });
+
+  it('2 notas consolidadas mismo grupo → 1 item tipo grupo con 2 notas', () => {
+    const base = { supplier: 'SUP-A', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-Z' };
+    const items = listarNotas([
+      mkCompra({ ...base, name: 'PR-001' }),
+      mkCompra({ ...base, name: 'PR-002' }),
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0].tipo).toBe('grupo');
+    expect(items[0].grupo.notas).toHaveLength(2);
+  });
+
+  it('mix: nota suelta + grupo consolidado → ambos aparecen', () => {
+    const items = listarNotas([
+      mkCompra({ name: 'PR-001', custom_tipo_comprobante: 'Nota', custom_consolidado: 0 }),
+      mkCompra({ name: 'PR-002', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-Z' }),
+    ]);
+    expect(items).toHaveLength(2);
+    const tipos = items.map(i => i.tipo);
+    expect(tipos).toContain('individual');
+    expect(tipos).toContain('grupo');
+  });
+
+  it('notas consolidadas sin folio → cada una tiene key propio (supplier|name) → 2 grupos de 1', () => {
+    // Sin folio el key cae a supplier+name, así que no se pueden colapsar entre sí.
+    // Cada nota aparece como su propio grupo. (Con folio sí colapsan, ver test anterior.)
+    const base = { supplier: 'SUP-A', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: '' };
+    const items = listarNotas([
+      mkCompra({ ...base, name: 'PR-001' }),
+      mkCompra({ ...base, name: 'PR-002' }),
+    ]);
+    expect(items).toHaveLength(2);
+    items.forEach(i => {
+      expect(i.tipo).toBe('grupo');
+      expect(i.grupo.notas).toHaveLength(1);
+    });
   });
 });

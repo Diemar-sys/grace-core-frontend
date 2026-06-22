@@ -18,9 +18,9 @@ const VISTAS = [
 ];
 
 const COLUMNAS = {
-  con_stock: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
-  agotado: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
-  por_almacen: ['Código', 'Producto', 'Total', 'Precio por Unidad', 'Stock', 'Unidad de Medida'],
+  con_stock:   ['Código', 'Cód. Interno', 'Nombre', 'Precio por Kg', 'Stock', 'Total'],
+  agotado:     ['Código', 'Cód. Interno', 'Nombre', 'Precio por Kg', 'Stock', 'Total'],
+  por_almacen: ['Código', 'Cód. Interno', 'Nombre', 'Precio por Kg', 'Stock', 'Total'],
 };
 
 
@@ -290,7 +290,7 @@ function Inventario() {
  * @param {string} props.vista - Vista actual seleccionada en la UI.
  * @returns {JSX.Element|null} Celda <tr> con datos formateados.
  */
-function FilaItem({ item }) {
+export function FilaItem({ item }) {
   // actual_qty ya viene en unidad base (stock_uom); la presentación se deriva dividiendo.
   const actual = parseFloat(item.actual_qty) || 0;
   const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 0;
@@ -305,10 +305,8 @@ function FilaItem({ item }) {
   return (
     <tr>
       <td className="cell-code">{item.item_code || '—'}</td>
+      <td className="cell-code" style={{ color: '#6b7280' }}>{item.custom_código_interno || '—'}</td>
       <td className="cell-name">{item.item_name}</td>
-      <td className="cell-qty">
-        <span style={{ fontWeight: 600 }}>{totalStr}</span>
-      </td>
       <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
       <td className="cell-qty">
         {actual > 0 ? (
@@ -317,7 +315,9 @@ function FilaItem({ item }) {
           <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>Agotado</span>
         )}
       </td>
-      <td>{uom || '—'}</td>
+      <td className="cell-qty">
+        <span style={{ fontWeight: 600 }}>{totalStr}</span>
+      </td>
     </tr>
   );
 }

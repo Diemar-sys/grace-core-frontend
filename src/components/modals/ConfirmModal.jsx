@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 /**
  * Modal de confirmación genérico.
@@ -43,6 +43,12 @@ function ConfirmModal({
   fallbackLoadingLabel = 'Procesando...',
   fallbackDescription,
 }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape' && !loading) onCancel(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [loading, onCancel]);
+
   return (
     <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="del-modal">
