@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import RegistroEntrada from '../components/RegistroEntrada';
+import ConteoFisico from '../components/ConteoFisico';
 import RegistroSalida from '../components/RegistroSalida';
 import RegistroMerma from '../components/RegistroMerma';
 import HistorialMovimientos from '../components/HistorialMovimientos';
@@ -44,7 +44,7 @@ function Inventario() {
   const [searchTerm, setSearchTerm] = useState("");
   const [almacenesAll, setAlmacenesAll] = useState([]);
   const [almacenVista, setAlmacenVista] = useState(stockService.getBodegaCentral());
-  const [modalEntrada, setModalEntrada] = useState(false);
+  const [modalConteo, setModalConteo]   = useState(false);
   const [modalSalida, setModalSalida] = useState(false);
   const [modalMerma, setModalMerma] = useState(false);
 
@@ -157,12 +157,12 @@ function Inventario() {
         ) : accionActiva === 'menu' ? (
           /* Operaciones → Inventario: 3 acciones */
           <div className="panel-grid" style={{ padding: '20px 0' }}>
-            <button className="panel-module" onClick={() => setModalEntrada(true)}>
-              <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+            <button className="panel-module" onClick={() => setModalConteo(true)}>
+              <div className="module-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               </div>
-              <h3>Registrar Ajuste (+)</h3>
-              <p>Incrementar stock</p>
+              <h3>Conteo Físico</h3>
+              <p>Ajuste por inventario real</p>
             </button>
             <button className="panel-module" onClick={() => setModalSalida(true)}>
               <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
@@ -256,10 +256,13 @@ function Inventario() {
         )}
       </div>
 
-      {modalEntrada && (
-        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setModalEntrada(false)}>
+      {modalConteo && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setModalConteo(false)}>
           <div className="edit-modal-wrapper">
-            <RegistroEntrada onSuccess={handleMovimientoSuccess} onCancel={() => setModalEntrada(false)} />
+            <ConteoFisico
+              onSuccess={() => { setModalConteo(false); handleMovimientoSuccess(); }}
+              onCancel={() => setModalConteo(false)}
+            />
           </div>
         </div>
       )}

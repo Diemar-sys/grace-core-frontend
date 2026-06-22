@@ -375,6 +375,31 @@ class FrappeStockService extends FrappeBase {
     });
   }
 
+  async crearConteoFisico({ items, warehouse, remarks = 'Conteo físico de inventario' }) {
+    if (!items?.length) throw new Error('Sin ítems para ajustar');
+    const today = new Date().toISOString().split('T')[0];
+    const created = await this._fetch('/api/resource/Stock Reconciliation', {
+      method: 'POST',
+      body: JSON.stringify({
+        doctype: 'Stock Reconciliation',
+        purpose: 'Stock Reconciliation',
+        posting_date: today,
+        company: COMPANY,
+        remarks,
+        items: items.map(it => ({
+          item_code: it.item_code,
+          warehouse: warehouse || BODEGA_CENTRAL,
+          qty: parseFloat(it.qty),
+        })),
+      }),
+    });
+    const submitted = await this._fetch(
+      `/api/resource/Stock Reconciliation/${encodeURIComponent(created.data.name)}`,
+      { method: 'PUT', body: JSON.stringify({ docstatus: 1 }) }
+    );
+    return submitted.data;
+  }
+
   /**
    * Historial de movimientos por almacén (Stock Entry submitted).
    * Incluye movimientos donde el almacén aparece como origen o destino.
