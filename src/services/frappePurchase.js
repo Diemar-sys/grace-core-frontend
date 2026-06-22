@@ -6,6 +6,7 @@
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 import { IMPUESTOS_LIST } from '../config/impuestos';
+import { calcConversion } from '../components/compras/compraUtils';
 import { getAppConfigSync } from './appConfig';
 
 class FrappeComprasService extends FrappeBase {
@@ -197,8 +198,7 @@ class FrappeComprasService extends FrappeBase {
         // Sin presentación o factor 1 → se compra directo en la unidad base.
         // NO se manda stock_uom: ERPNext lo toma del maestro del item (evita la mentira
         // histórica de stock_uom = presentación con conversion_factor 1).
-        const factor = parseFloat(item.kg_por_bulto) || 1;
-        const usarPresentacion = factor > 1 && !!item.presentacion;
+        const { factor, usarPresentacion } = calcConversion(item.kg_por_bulto, item.presentacion);
         return {
           item_code: item.item_code,
           item_name: item.item_name,

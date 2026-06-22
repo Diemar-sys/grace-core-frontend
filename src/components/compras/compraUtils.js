@@ -26,6 +26,13 @@ export const fmt = (n) =>
 
 export const totalPorFila = (f) => parseFloat(f.bultos || 0) * parseFloat(f.kg_por_bulto || 0);
 
+// Determina si aplica conversión de presentación al enviar a ERPNext.
+// factor !== 1 cubre tanto > 1 (BULTO 25 Kg) como < 1 (CAJA 0.45 Kg).
+export function calcConversion(kg_por_bulto, presentacion) {
+  const factor = parseFloat(kg_por_bulto) || 1;
+  return { factor, usarPresentacion: factor !== 1 && !!presentacion };
+}
+
 // Sin redondeo intermedio por línea — espejo del cálculo server-side de ERPNext
 // con Currency Precision = 6. UI suma con precisión completa y redondea solo al
 // mostrar via fmt(). Así total UI coincide con grand_total de ERPNext.

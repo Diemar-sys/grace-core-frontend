@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   subtotalFila, impuestoFila, totalFila, calcVariacion, parseImpuesto, totalPorFila,
-  calcularTotalesEfectivos, agruparFacturas, listarNotas,
+  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion,
 } from './compraUtils';
 
 describe('compraUtils — subtotales e impuestos', () => {
@@ -125,6 +125,41 @@ describe('compraUtils — calcVariacion (precio vs catálogo)', () => {
   it('cambio=false si diferencia despreciable (<0.005)', () => {
     const v = calcVariacion({ rate: '10.002', precio_catalogo: '10' });
     expect(v.cambio).toBe(false);
+  });
+});
+
+describe('calcConversion — factor de presentación', () => {
+  it('CAJA 0.45 Kg → usarPresentacion=true (antes bug: factor > 1 lo excluía)', () => {
+    const { factor, usarPresentacion } = calcConversion('0.45', 'CAJA');
+    expect(factor).toBeCloseTo(0.45);
+    expect(usarPresentacion).toBe(true);
+  });
+
+  it('BULTO 25 Kg → usarPresentacion=true', () => {
+    const { factor, usarPresentacion } = calcConversion('25', 'BULTO');
+    expect(factor).toBe(25);
+    expect(usarPresentacion).toBe(true);
+  });
+
+  it('BIDON 19 Kg → usarPresentacion=true', () => {
+    const { usarPresentacion } = calcConversion('19', 'BIDON');
+    expect(usarPresentacion).toBe(true);
+  });
+
+  it('sin presentación → usarPresentacion=false aunque tenga factor', () => {
+    const { usarPresentacion } = calcConversion('25', '');
+    expect(usarPresentacion).toBe(false);
+  });
+
+  it('factor=1 (SUELTO) → usarPresentacion=false (sin conversión, es directo en Kg)', () => {
+    const { usarPresentacion } = calcConversion('1', 'SUELTO');
+    expect(usarPresentacion).toBe(false);
+  });
+
+  it('sin datos → factor=1, usarPresentacion=false', () => {
+    const { factor, usarPresentacion } = calcConversion('', '');
+    expect(factor).toBe(1);
+    expect(usarPresentacion).toBe(false);
   });
 });
 
