@@ -245,14 +245,14 @@ export function imprimirCompraPDF(datos) {
  * @param {string} factura - No. de factura que consolida las notas (puede ir vacío).
  * @param {Array<{no_compra, remision, fecha, total}>} notas - Filas a sumar.
  */
-export async function imprimirTicketConsolidado(proveedor, factura, notas) {
+export async function imprimirTicketConsolidado(proveedor, factura, notas, facturadoA = '') {
   const hoy = new Date().toLocaleDateString('es-MX');
   // Térmica WL88S primero (print-server); fallback a navegador si no responde.
   try {
     const res = await fetch('/print/imprimir-ticket-consolidado', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proveedor, factura, fecha: hoy, notas }),
+      body: JSON.stringify({ proveedor, factura, fecha: hoy, notas, facturado_a: facturadoA }),
     });
     if (!res.ok) throw new Error('Print server ' + res.status);
     const json = await res.json();
@@ -287,7 +287,7 @@ export async function imprimirTicketConsolidado(proveedor, factura, notas) {
   </style></head><body>
     <h1>Panaderías Grace</h1>
     <p class="sub">TICKET DE COMPRA CONSOLIDADO</p>
-    <div class="meta"><strong>Proveedor:</strong> ${escHTML(proveedor)}<br><strong>Factura:</strong> ${escHTML(factura || '—')}<br><strong>Fecha:</strong> ${escHTML(hoy)}</div>
+    <div class="meta"><strong>Proveedor:</strong> ${escHTML(proveedor)}<br><strong>Factura:</strong> ${escHTML(factura || '—')}<br><strong>Facturado a:</strong> ${escHTML(facturadoA || 'SIN FACTURA')}<br><strong>Fecha:</strong> ${escHTML(hoy)}</div>
     <table>
       <thead><tr><th># Compra</th><th>Remisión</th><th>Fecha</th><th class="r">Total</th></tr></thead>
       <tbody>${filas}</tbody>

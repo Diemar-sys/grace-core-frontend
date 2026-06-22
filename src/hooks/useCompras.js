@@ -94,7 +94,7 @@ export default function useCompras() {
         no_compra: c.custom_no_de_compra, remision: c.custom_nota_remision,
         fecha: c.posting_date, total: c.grand_total,
       }));
-      await imprimirTicketConsolidado(proveedor, folio, notas);
+      await imprimirTicketConsolidado(proveedor, folio, notas, sel[0].custom_facturado_a || '');
     },
     { onSuccess: () => { setSeleccion([]); setFolioConsolidar(''); cargar(); } }
   );
@@ -172,7 +172,7 @@ export default function useCompras() {
     imprimirTicketConsolidado(g.supplier_name || g.supplier, g.folio, g.notas.map(c => ({
       no_compra: c.custom_no_de_compra, remision: c.custom_nota_remision,
       fecha: c.posting_date, total: c.grand_total,
-    })));
+    })), g.facturado_a || '');
 
   const filteredCompras = compras.filter(c => {
     if (estadoFiltro !== 'todas' && c.docstatus !== ESTADO_DOCSTATUS[estadoFiltro]) return false;
