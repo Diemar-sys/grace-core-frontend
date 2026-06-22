@@ -55,7 +55,7 @@ function Compras() {
   const [pagoFiltro, setPagoFiltro] = useState('todas'); // 'todas' | 'pagadas' | 'pendientes'
   const [facturadoFiltro, setFacturadoFiltro] = useState('todas'); // 'todas' | cuenta fiscal
   const [proveedorFiltro, setProveedorFiltro] = useState('todas'); // 'todas' | supplier_name
-  const [vista, setVista] = useState('notas'); // default: vista con muchas filas (etiquetada "Facturas" en el dropdown)
+  const [vista, setVista] = useState('facturas'); // default: Facturas (tipo=Factura + grupos consolidados)
   const [expandido, setExpandido] = useState(() => new Set()); // facturas con su dropdown de notas abierto
   const toggleExpand = (key) => setExpandido(prev => {
     const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n;
@@ -125,6 +125,11 @@ function Compras() {
   // Desagrupar: desbloquea una compra consolidada (solo Gerente, validado server-side).
   const desagruparModal = useConfirmModal(
     (name) => comprasService.desconsolidarCompra(name),
+    { onSuccess: () => cargar() }
+  );
+  // Cancelar en cascada: cancela todas las notas del grupo consolidado (revierte stock c/u).
+  const cancelConsolidadoModal = useConfirmModal(
+    (g) => comprasService.cancelarConsolidado(g.notas.map(c => c.name)),
     { onSuccess: () => cargar() }
   );
 
@@ -239,7 +244,7 @@ function Compras() {
   const facturasAgrupadas = (() => {
     const grupos = new Map();
     for (const c of filteredCompras) {
-      const esConsolidada = c.custom_consolidado && c.custom_tipo_comprobante === 'Nota';
+      const esConsolidada = !!(c.custom_consolidado && c.custom_tipo_comprobante === 'Nota');
       const esFactura = c.custom_tipo_comprobante === 'Factura';
       if (!esConsolidada && !esFactura) continue; // notas sueltas → fuera
       const folio = c.supplier_delivery_note || '';
@@ -248,12 +253,13 @@ function Compras() {
       const g = grupos.get(key) || {
         key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
         facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
-        posting_date: c.posting_date, pagadas: 0, notas: [],
+        posting_date: c.posting_date, pagadas: 0, notas: [], esConsolidacion: false,
       };
       g.total += parseFloat(c.total || 0);
       g.grand_total += parseFloat(c.grand_total || 0);
       if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
       if (c.custom_pagado) g.pagadas += 1;
+      g.esConsolidacion = g.esConsolidacion || esConsolidada; // grupo real de notas vs factura directa
       g.notas.push(c);
       grupos.set(key, g);
     }
@@ -356,8 +362,8 @@ function Compras() {
                 <label>Vista</label>
                 <select className="comp-date-input" value={vista}
                   onChange={e => setVista(e.target.value)}>
-                  <option value="facturas">Notas ({facturasAgrupadas.length})</option>
-                  <option value="notas">Facturas ({notasItems.length})</option>
+                  <option value="facturas">Facturas ({facturasAgrupadas.length})</option>
+                  <option value="notas">Notas ({notasItems.length})</option>
                 </select>
               </div>
               <div className="filtro-group filtro-sm">
@@ -462,11 +468,11 @@ function Compras() {
                   <tbody>
                     {vista === 'facturas' ? (
                       facturasAgrupadas.length === 0 ? (
-                        <tr><td colSpan={9} className="no-data">No hay facturas consolidadas</td></tr>
+                        <tr><td colSpan={9} className="no-data">No hay facturas registradas</td></tr>
                       ) : (
                         facturasAgrupadas.map(g => {
                           const abierto = expandido.has(g.key);
-                          const multi = g.notas.length > 1;
+                          const multi = g.esConsolidacion && g.notas.length > 1;
                           return (
                           <React.Fragment key={g.key}>
                           <tr className={multi ? 'comp-row-grupo' : undefined}>
@@ -489,22 +495,42 @@ function Compras() {
                             </td>
                             <td className="cell-right">${fmt(g.total)}</td>
                             <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
-                            <td style={{ textAlign: 'center' }}>{g.notas.length}</td>
+                            <td style={{ textAlign: 'center' }}>{g.esConsolidacion ? g.notas.length : '—'}</td>
                             <td style={{ textAlign: 'center' }}>
                               <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
                                 {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
                               </span>
                             </td>
                             <td className="comp-td-acciones">
-                              <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)}
-                                title="Imprimir ticket consolidado"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
-                                Ticket
-                              </button>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                {g.esConsolidacion ? (
+                                  <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)}
+                                    title="Imprimir ticket consolidado"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                    Ticket
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button className="comp-btn-editar" onClick={() => handleImprimir(g.notas[0].name, 'pdf')} title="Imprimir PDF detallado">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </button>
+                                    <button className="comp-btn-editar" onClick={() => handleImprimir(g.notas[0].name, 'ticket')} title="Imprimir Ticket">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                    </button>
+                                  </>
+                                )}
+                                {!soloLectura && accionActiva === 'cancelar' && (
+                                  <button className="comp-btn-eliminar"
+                                    onClick={() => g.esConsolidacion ? cancelConsolidadoModal.open(g) : cancelModal.open(g.notas[0])}
+                                    title={g.esConsolidacion ? 'Cancelar grupo en cascada' : 'Cancelar compra'}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
-                          {abierto && g.notas.map(n => (
+                          {g.esConsolidacion && abierto && g.notas.map(n => (
                             <tr key={n.name} className="comp-subrow">
                               <td className="cell-code" style={{ paddingLeft: 28 }}>{n.custom_no_de_compra ? `#${n.custom_no_de_compra}` : '—'}</td>
                               <td>{n.posting_date}</td>
@@ -652,11 +678,18 @@ function Compras() {
                                 </span>
                               </td>
                               <td className="comp-td-acciones">
-                                <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)} title="Imprimir ticket consolidado"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
-                                  Ticket
-                                </button>
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  <button className="comp-btn-confirmar" onClick={() => reimprimirConsolidado(g)} title="Imprimir ticket consolidado"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                    Ticket
+                                  </button>
+                                  {!soloLectura && accionActiva === 'cancelar' && (
+                                    <button className="comp-btn-eliminar" onClick={() => cancelConsolidadoModal.open(g)} title="Cancelar grupo en cascada">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                             {ab && g.notas.map(fila)}
@@ -725,6 +758,24 @@ function Compras() {
           onCancel={cancelModal.close}
           loading={cancelModal.loading}
           error={cancelModal.error}
+        />
+      )}
+
+      {/* Modal cancelar grupo consolidado EN CASCADA */}
+      {cancelConsolidadoModal.item && (
+        <ConfirmModal
+          title={`Cancelar grupo ${cancelConsolidadoModal.item.folio || ''}`}
+          description={<>Se cancelarán <strong>las {cancelConsolidadoModal.item.notas.length} nota(s)</strong> de este grupo consolidado y se <strong>revertirá el stock de cada una</strong>. Quedarán en historial como canceladas.</>}
+          subdescription="La cancelación es en cascada e irreversible."
+          icon={ICON_WARNING}
+          confirmLabel="Sí, cancelar todo el grupo"
+          loadingLabel="Cancelando..."
+          confirmStyle={{ background: '#d97706' }}
+          cancelLabel="Regresar"
+          onConfirm={cancelConsolidadoModal.confirm}
+          onCancel={cancelConsolidadoModal.close}
+          loading={cancelConsolidadoModal.loading}
+          error={cancelConsolidadoModal.error}
         />
       )}
 

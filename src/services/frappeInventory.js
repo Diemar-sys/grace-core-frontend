@@ -153,7 +153,7 @@ class FrappeInventoryService extends FrappeBase {
       "custom_código_interno", "custom_tipo_item", "custom_departamento",
       "custom_presentación", "custom_cantidad_por_presentación",
       "custom_precio_de_compra", "custom_impuesto", "custom_precio_por_kg", "custom_precio_final",
-      "custom_precio_de_venta", "custom_porcentaje_de_ganancia", "custom_ganancia",
+      "custom_precio_de_venta", "custom_precio_de_venta_pueblos", "custom_porcentaje_de_ganancia", "custom_ganancia",
       "custom_vendible_b2b",
     ].join('","');
 
@@ -330,6 +330,7 @@ class FrappeInventoryService extends FrappeBase {
       custom_precio_por_kg: esProductoTerminado ? null : (parseFloat(formData.custom_precio_por_kg) || null),
       custom_precio_final: parseFloat(formData.custom_precio_final) || null,
       custom_precio_de_venta: parseFloat(formData.custom_precio_de_venta) || null,
+      custom_precio_de_venta_pueblos: parseFloat(formData.custom_precio_de_venta_pueblos) || null,
       custom_porcentaje_de_ganancia: parseFloat(formData.custom_porcentaje_de_ganancia) || null,
       custom_ganancia: parseFloat(formData.custom_ganancia) || null,
       custom_vendible_b2b: formData.custom_vendible_b2b ? 1 : 0,
@@ -374,6 +375,7 @@ class FrappeInventoryService extends FrappeBase {
       custom_precio_por_kg: esProductoTerminado ? null : (parseFloat(formData.custom_precio_por_kg) || null),
       custom_precio_final: parseFloat(formData.custom_precio_final) || null,
       custom_precio_de_venta: parseFloat(formData.custom_precio_de_venta) || null,
+      custom_precio_de_venta_pueblos: parseFloat(formData.custom_precio_de_venta_pueblos) || null,
       custom_porcentaje_de_ganancia: parseFloat(formData.custom_porcentaje_de_ganancia) || null,
       custom_ganancia: parseFloat(formData.custom_ganancia) || null,
       custom_vendible_b2b: formData.custom_vendible_b2b ? 1 : 0,

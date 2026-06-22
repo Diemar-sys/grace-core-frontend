@@ -351,6 +351,14 @@ class FrappeComprasService extends FrappeBase {
     return data.message;
   }
 
+  /** Cancela en cascada todas las compras de un grupo consolidado (revierte stock de cada una). */
+  async cancelarConsolidado(names) {
+    return this._fetch("/api/method/gestion_panaderia.api.compras_api.cancelar_consolidado", {
+      method: "POST",
+      body: JSON.stringify({ names: JSON.stringify(names) }),
+    });
+  }
+
   // ── Eliminar borrador existente ──────────────────────────────────────────
   
   /**

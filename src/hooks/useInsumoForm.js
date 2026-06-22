@@ -23,6 +23,7 @@ const ESTADO_INICIAL = {
   custom_impuesto: 'tasa0',
   custom_precio_final: '',
   custom_precio_de_venta: '',
+  custom_precio_de_venta_pueblos: '',
   custom_porcentaje_de_ganancia: '',
   custom_ganancia: '',
   custom_vendible_b2b: false,
@@ -72,6 +73,7 @@ export default function useInsumoForm({ editItem, onSuccess }) {
             custom_impuesto:                   editItem.custom_impuesto || 'tasa0',
             custom_precio_final:               editItem.custom_precio_final || '',
             custom_precio_de_venta:            editItem.custom_precio_de_venta || '',
+            custom_precio_de_venta_pueblos:    editItem.custom_precio_de_venta_pueblos || '',
             custom_porcentaje_de_ganancia:     editItem.custom_porcentaje_de_ganancia || '',
             custom_ganancia:                   editItem.custom_ganancia || '',
             custom_vendible_b2b:               editItem.custom_vendible_b2b || false,
@@ -170,6 +172,7 @@ export default function useInsumoForm({ editItem, onSuccess }) {
         custom_cantidad_por_presentación: '',
         custom_precio_de_compra: '',
         custom_precio_por_kg: '',
+        stock_uom: 'PZA',
       }),
     }));
   }, []);

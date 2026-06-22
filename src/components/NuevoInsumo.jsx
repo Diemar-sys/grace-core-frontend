@@ -225,8 +225,8 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   </select>
                   <small>
                     {(() => {
-                      const imp    = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
-                      const tasa   = imp?.rate ?? 0;
+                      const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
+                      const tasa = imp?.rate ?? 0;
                       const precio = parseFloat(formData.custom_precio_de_compra) || 0;
                       if (tasa > 0 && precio > 0) return `Con un ${imp.label} = $${(precio * tasa).toFixed(4)}`;
                       return tasa === 0 ? 'Sin impuesto aplicable' : 'Ingresa el precio de compra primero';
@@ -238,7 +238,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   <input type="number"
                     value={(() => {
                       const precio = parseFloat(formData.custom_precio_de_compra) || 0;
-                      const imp    = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
+                      const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
                       return precio > 0 ? (precio * (1 + (imp?.rate ?? 0))).toFixed(4) : '';
                     })()}
                     readOnly className="input-calculated" placeholder="Auto" />
@@ -287,7 +287,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   <small>
                     {(() => {
                       const precioPublico = parseFloat(formData.custom_precio_de_venta) || 0;
-                      const imp  = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
+                      const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
                       const tasa = imp?.rate ?? 0;
                       if (precioPublico > 0 && tasa > 0) {
                         const base = precioPublico / (1 + tasa);
@@ -297,6 +297,15 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                       return 'Ingresa el precio al público primero';
                     })()}
                   </small>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Precio Pueblos-Camionetas ($)</label>
+                  <input type="number" name="custom_precio_de_venta_pueblos"
+                    value={formData.custom_precio_de_venta_pueblos}
+                    onChange={handleChange} placeholder="Ej: 18.00" min="0" step="0.01" />
+                  <small>Precio para el canal Pueblos/Camionetas. Si lo dejas vacío, ese canal usa el precio de Sucursal.</small>
                 </div>
               </div>
             </div>
