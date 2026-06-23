@@ -210,9 +210,20 @@ function Compras() {
                                 <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
                                 <td style={{ textAlign: 'center' }}>{g.esConsolidacion ? g.notas.length : '—'}</td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
-                                    {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
-                                  </span>
+                                  {(!g.esConsolidacion && !g.notas[0]?.custom_pagado) ? (
+                                    <span
+                                      className="status-badge status-low"
+                                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                                      title="Marcar como pagada"
+                                      onClick={e => { e.stopPropagation(); pagoModal.open({ name: g.notas[0].name, value: 1, compra: g.notas[0] }); }}
+                                    >
+                                      {`${g.pagadas}/${g.notas.length}`}
+                                    </span>
+                                  ) : (
+                                    <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
+                                      {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="comp-td-acciones">
                                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -295,7 +306,7 @@ function Compras() {
                               {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                             <input type="checkbox" checked={!!c.custom_pagado}
                               disabled={c.docstatus !== 1 || c.custom_pagado || pagoModal.loading}
                               onChange={() => pagoModal.open({ name: c.name, value: c.custom_pagado ? 0 : 1, compra: c })}

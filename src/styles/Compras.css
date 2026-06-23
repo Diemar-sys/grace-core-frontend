@@ -291,6 +291,22 @@
 }
 
 /* ══ RESPONSIVE ══════════════════════════════════════════ */
+
+/* Tablet portrait 769–1024px: oculta SUBTOTAL (col 5) y NOTAS (col 7),
+   compacta filtros, fija altura tabla para que el fondo del card sea visible */
+@media (max-width: 1024px) {
+  .comprasv2 .sys-table thead tr th:nth-child(5),
+  .comprasv2 .sys-table tbody tr td:nth-child(5) { display: none; } /* Subtotal */
+  .comprasv2 .sys-table thead tr th:nth-child(7),
+  .comprasv2 .sys-table tbody tr td:nth-child(7) { display: none; } /* Notas */
+  .comprasv2 .filtro-group select,
+  .comprasv2 .filtro-group input,
+  .comprasv2 .comp-date-input { font-size: 13px; padding: 7px 10px; }
+  .comprasv2 .comp-badge { font-size: 11px; padding: 3px 8px; }
+  /* Sin flex: 1 en tablet → la tabla tiene max-height fijo, el card muestra su fondo */
+  .comprasv2 .table-container { flex: none; max-height: 58vh; }
+}
+
 @media (max-width: 768px) {
   .comprasv2 { padding: var(--space-4); }
   .comprasv2 .comp-stat-total { font-size: 18px; }
