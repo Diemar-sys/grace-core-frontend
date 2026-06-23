@@ -26,7 +26,7 @@ function Compras() {
     proveedoresUnicos, filteredCompras, facturasAgrupadas, notasItems,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
-    cargar, handleEditar, handleFacturadoChange, handleImprimir,
+    cargar, handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,
     handleConfirmarBorrador, handleModalSuccess, handleModalCancel,
     reimprimirConsolidado,
   } = useCompras();
@@ -202,9 +202,20 @@ function Compras() {
                                 <td>{g.posting_date}</td>
                                 <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
                                 <td>
-                                  <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
-                                    {g.facturado_a || 'SIN FACTURA'}
-                                  </span>
+                                  {g.notas.every(n => n.custom_pagado)
+                                    ? <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}
+                                        title="Pagada — facturado bloqueado">
+                                        {g.facturado_a || 'SIN FACTURA'}
+                                      </span>
+                                    : <select className="comp-facturado-select"
+                                        disabled={g.notas.some(n => facturadoSaving === n.name)}
+                                        value={g.facturado_a || 'SIN FACTURA'}
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => handleFacturadoChangeGroup(g.notas, e.target.value)}>
+                                        <option value="SIN FACTURA">SIN FACTURA</option>
+                                        <option value="ALMA RODRIGUEZ">ALMA RODRIGUEZ</option>
+                                        <option value="LUIS TORRES">LUIS TORRES</option>
+                                      </select>}
                                 </td>
                                 <td className="cell-right">${fmt(g.total)}</td>
                                 <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
@@ -376,9 +387,19 @@ function Compras() {
                               <td>{g.posting_date}</td>
                               <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
                               <td>
-                                <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
-                                  {g.facturado_a || 'SIN FACTURA'}
-                                </span>
+                                {g.notas.every(n => n.custom_pagado)
+                                  ? <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                                      {g.facturado_a || 'SIN FACTURA'}
+                                    </span>
+                                  : <select className="comp-facturado-select"
+                                      disabled={g.notas.some(n => facturadoSaving === n.name)}
+                                      value={g.facturado_a || 'SIN FACTURA'}
+                                      onClick={e => e.stopPropagation()}
+                                      onChange={e => handleFacturadoChangeGroup(g.notas, e.target.value)}>
+                                      <option value="SIN FACTURA">SIN FACTURA</option>
+                                      <option value="ALMA RODRIGUEZ">ALMA RODRIGUEZ</option>
+                                      <option value="LUIS TORRES">LUIS TORRES</option>
+                                    </select>}
                               </td>
                               <td className="cell-right">${fmt(g.total)}</td>
                               <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>

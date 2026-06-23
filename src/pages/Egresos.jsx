@@ -94,7 +94,7 @@ const FORM_INIT = {
   fecha: new Date().toISOString().split('T')[0],
   subcategoria: '', concepto: '', descripcion: '',
   monto: '', impuesto_key: 'tasa0', impuesto_tipo: '', monto_impuesto: '',
-  factura_key: 'SIN FACTURA',
+  factura_key: 'SIN FACTURA', no_factura: '',
   // Gas-specific
   gas_litros: '', gas_precio: '',
   aditivo_litros: '', aditivo_precio: '',
@@ -142,6 +142,11 @@ function GasForm({ form, setForm }) {
             ))}
           </select>
         </label>
+        {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
+          <label>No. Factura
+            <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
+          </label>
+        )}
       </div>
 
       <div className="gas-lineas">
@@ -266,7 +271,7 @@ function SubcatForm({ subcategoria, form, setForm }) {
 
       {montoBase > 0 && (
         <label>Total
-          <input type="text" readOnly value={fmtN(total)} className="gas-calc-field" style={{ fontWeight: 700, color: '#dc2626' }} />
+          <input type="text" readOnly value={fmtN(total)} className="gas-calc-field" style={{ fontWeight: 700, color: 'var(--tv-marca)' }} />
         </label>
       )}
 
@@ -277,6 +282,12 @@ function SubcatForm({ subcategoria, form, setForm }) {
           ))}
         </select>
       </label>
+
+      {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
+        <label>No. Factura
+          <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
+        </label>
+      )}
 
       <label className="egresos-form-full">Descripción / Justificación
         <textarea rows={2} placeholder="Nota adicional (opcional)" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
@@ -295,8 +306,21 @@ export default function Egresos() {
   const [form, setForm]                 = useState(FORM_INIT);
   const [guardando, setGuardando]       = useState(false);
   const [confirmDel, setConfirmDel]     = useState(null);
+  const [busqueda, setBusqueda]         = useState('');
 
   const cat = CATEGORIAS.find(c => c.key === categoriaKey);
+
+  const egresosFiltrados = (() => {
+    const t = busqueda.toLowerCase().trim();
+    if (!t) return egresos;
+    const tn = t.replace(/^#/, '');
+    return egresos.filter(e =>
+      (e.no_factura || '').toLowerCase().includes(t) ||
+      (e.concepto || '').toLowerCase().includes(t) ||
+      (e.subcategoria || '').toLowerCase().includes(t) ||
+      String(e.no_de_compra ?? '').includes(tn)
+    );
+  })();
 
   const cargar = useCallback(async (key) => {
     setLoading(true); setError('');
@@ -344,6 +368,7 @@ export default function Egresos() {
         monto: total.toFixed(2), impuesto_tipo: 'IVA', monto_impuesto: iva.toFixed(2),
         facturado_a: facturaOpt.facturado_a,
         con_factura: facturaOpt.con_factura ? 1 : 0,
+        no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
       };
     }
     const impKey   = form.impuesto_key || 'tasa0';
@@ -363,6 +388,7 @@ export default function Egresos() {
       monto_impuesto: impMonto > 0 ? impMonto.toFixed(2) : 0,
       facturado_a: facturaOpt.facturado_a,
       con_factura: facturaOpt.con_factura ? 1 : 0,
+      no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
     };
   };
 
@@ -398,14 +424,15 @@ export default function Egresos() {
       <Layout>
         <div className="egresos-page">
           <div className="panel-greeting"><h2>Egresos</h2><p>{fecha}</p></div>
-          <div className="panel-grid">
+          <div className="egresos-tiles">
             {CATEGORIAS.map(c => (
-              <button key={c.key} className="panel-module"
-                style={{ '--mod-color': c.color, '--mod-bg': c.bg }}
+              <button key={c.key} className="egresos-tile"
                 onClick={() => setCategoriaKey(c.key)}>
-                <div className="panel-module-icon">{c.icon}</div>
-                <span className="panel-module-name">{c.label}</span>
-                <span className="panel-module-sub">{c.sub}</span>
+                <div className="egresos-tile-icon">{c.icon}</div>
+                <div className="egresos-tile-text">
+                  <span className="egresos-tile-name">{c.label}</span>
+                  <span className="egresos-tile-sub">{c.sub}</span>
+                </div>
                 {c.esVista && <span className="egreso-vista-badge">vista</span>}
               </button>
             ))}
@@ -423,9 +450,12 @@ export default function Egresos() {
       <div className="egresos-page">
         <div className="egresos-list-header">
           <button className="egresos-back" onClick={() => { setCategoriaKey(null); setShowForm(false); setError(''); }}>← Egresos</button>
-          <div className="egresos-list-title" style={{ '--mod-color': cat?.color }}>{cat?.label}
+          <div className="egresos-list-title">{cat?.label}
             {cat?.esVista && <span className="egreso-vista-badge">vista</span>}
           </div>
+          <input className="egresos-buscar" type="search"
+            placeholder="Buscar factura, concepto, #compra…"
+            value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           {!cat?.esVista && (
             <button className="egresos-nuevo" onClick={() => initForm()}>+ Nuevo egreso</button>
           )}
@@ -435,38 +465,6 @@ export default function Egresos() {
           <div className="egresos-error-bar">
             <span>⚠ {error}</span>
             <button onClick={() => { setError(''); cargar(categoriaKey); }}>Reintentar</button>
-          </div>
-        )}
-
-        {showForm && (
-          <div className="egresos-form-card">
-            <div className="egresos-form-topbar">
-              <h3>Nuevo egreso — {cat?.label}</h3>
-              {subcats.length > 1 && (
-                <div className="egresos-subcat-tabs">
-                  {subcats.map(s => (
-                    <button key={s}
-                      className={'egresos-subcat-tab' + (form.subcategoria === s ? ' active' : '')}
-                      style={{ '--mod-color': cat?.color }}
-                      onClick={() => setForm(f => ({ ...FORM_INIT, subcategoria: s, fecha: f.fecha, factura_key: f.factura_key }))}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {form.subcategoria === 'Gas'
-              ? <GasForm form={form} setForm={setForm} />
-              : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} />
-            }
-
-            <div className="egresos-form-actions">
-              <button className="egresos-cancel" onClick={() => setShowForm(false)}>Cancelar</button>
-              <button className="egresos-guardar" style={{ '--mod-color': cat?.color }} onClick={handleGuardar} disabled={guardando}>
-                {guardando ? 'Guardando...' : 'Guardar egreso'}
-              </button>
-            </div>
           </div>
         )}
 
@@ -480,35 +478,40 @@ export default function Egresos() {
             <table className="egresos-tabla">
               <thead>
                 <tr>
-                  <th>Fecha</th><th>No. compra</th><th>Subcategoría</th><th>Concepto</th>
-                  <th>Monto</th><th>Impuesto</th><th>Factura</th><th></th>
+                  <th>No. compra</th><th>Fecha</th><th>Subcategoría</th><th>Concepto</th>
+                  <th className="cell-right">Monto</th><th>Impuesto</th><th>Factura</th><th></th>
                 </tr>
               </thead>
               <tbody>
-                {egresos.map(e => (
+                {egresosFiltrados.length === 0
+                  ? <tr><td colSpan={8} className="egresos-empty" style={{ padding: '32px' }}>Sin resultados para “{busqueda}”.</td></tr>
+                  : egresosFiltrados.map(e => (
                   <tr key={e.name}>
-                    <td>{e.fecha}</td>
                     <td className="egresos-nocompra">{e.no_de_compra ? `#${e.no_de_compra}` : <span className="text-muted">—</span>}</td>
+                    <td>{e.fecha}</td>
                     <td>{e.subcategoria || '—'}</td>
                     <td>{e.concepto || <span className="text-muted">{e.descripcion ? '(ver detalle)' : '—'}</span>}</td>
-                    <td className="egresos-monto">{fmtN(e.monto)}</td>
+                    <td className="egresos-monto cell-right">{fmtN(e.monto)}</td>
                     <td className="text-muted">{e.impuesto_tipo ? `${e.impuesto_tipo} ${fmtN(e.monto_impuesto)}` : '—'}</td>
                     <td>
-                      {e.facturado_a
+                      {e.facturado_a && e.facturado_a !== 'SIN FACTURA'
                         ? <span className="egresos-factura-badge">{e.facturado_a}</span>
                         : <span className="egresos-sinfactura-badge">Sin factura</span>}
+                      {e.no_factura && <div className="egresos-folio">{e.no_factura}</div>}
                     </td>
-                    <td>
-                      <button className="egresos-print" title="Imprimir ticket"
-                        style={{ marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }}
-                        onClick={() => handleImprimir(e)}>🖨</button>
+                    <td className="egresos-td-acciones">
+                      <button className="egresos-print" title="Imprimir ticket" onClick={() => handleImprimir(e)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      </button>
                       {confirmDel === e.name
                         ? <span className="egresos-confirm-del">
                             ¿Seguro?{' '}
                             <button className="egresos-del-si" onClick={() => handleEliminar(e.name)}>Sí</button>
                             <button className="egresos-del-no" onClick={() => setConfirmDel(null)}>No</button>
                           </span>
-                        : <button className="egresos-del" onClick={() => setConfirmDel(e.name)}>✕</button>
+                        : <button className="egresos-del" title="Eliminar" onClick={() => setConfirmDel(e.name)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
                       }
                     </td>
                   </tr>
@@ -518,6 +521,43 @@ export default function Egresos() {
           </div>
         )}
       </div>
+
+      {showForm && (
+        <div className="egresos-modal" onMouseDown={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
+          <div className="egresos-modal-card">
+            <div className="egresos-modal-header">
+              <h3>Nuevo egreso — {cat?.label}</h3>
+              <button className="egresos-modal-close" onClick={() => setShowForm(false)} title="Cerrar">✕</button>
+            </div>
+
+            <div className="egresos-modal-body">
+              {subcats.length > 1 && (
+                <div className="egresos-subcat-tabs">
+                  {subcats.map(s => (
+                    <button key={s}
+                      className={'egresos-subcat-tab' + (form.subcategoria === s ? ' active' : '')}
+                      onClick={() => setForm(f => ({ ...FORM_INIT, subcategoria: s, fecha: f.fecha, factura_key: f.factura_key }))}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {form.subcategoria === 'Gas'
+                ? <GasForm form={form} setForm={setForm} />
+                : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} />
+              }
+            </div>
+
+            <div className="egresos-form-actions">
+              <button className="egresos-cancel" onClick={() => setShowForm(false)}>Cancelar</button>
+              <button className="egresos-guardar" onClick={handleGuardar} disabled={guardando}>
+                {guardando ? 'Guardando...' : 'Guardar egreso'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

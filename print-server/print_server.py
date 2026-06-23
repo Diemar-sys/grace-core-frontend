@@ -309,6 +309,7 @@ def imprimir_egreso():
         concepto      = data.get('concepto', '') or ''
         facturado_a   = data.get('facturado_a', '') or '-'
         con_factura   = bool(data.get('con_factura', 0))
+        no_factura    = data.get('no_factura', '') or ''
         total         = float(data.get('monto', 0))
         impuesto_tipo = (data.get('impuesto_tipo', '') or '').upper()
         monto_impuesto = float(data.get('monto_impuesto', 0))
@@ -329,11 +330,16 @@ def imprimir_egreso():
             p.set(align='left', bold=False)
             p.text("-" * 32 + "\n")
 
-            # Datos
-            p.set(font='b', align='left')
-            p.text(f"NO. EGRESO  : {no_egreso}\n")
+            # Datos — el consecutivo de COMPRA es el ID protagonista (lo pide
+            # contabilidad); el folio interno del egreso queda como referencia.
             if no_de_compra:
-                p.text(f"NO. COMPRA  : {no_de_compra}\n")
+                p.set(font='a', align='center', bold=True)
+                p.text(f"COMPRA #{no_de_compra}\n")
+                p.set(font='b', align='left', bold=False)
+                p.text(f"Ref. egreso : {no_egreso}\n")
+            else:
+                p.set(font='b', align='left')
+                p.text(f"NO. EGRESO  : {no_egreso}\n")
             p.text(f"FECHA       : {fecha}  {hora}\n")
             p.text(f"CATEGORIA   : {categoria[:18]}\n")
             if subcategoria:
@@ -342,6 +348,8 @@ def imprimir_egreso():
                 p.text(f"CONCEPTO    : {concepto[:18]}\n")
             p.text(f"FACTURADO A : {facturado_a[:18]}\n")
             p.text(f"CON FACTURA : {'SI' if con_factura else 'NO'}\n")
+            if no_factura:
+                p.text(f"NO. FACTURA : {no_factura[:18]}\n")
             p.text("-" * 32 + "\n")
 
             # Desglose

@@ -136,6 +136,20 @@ export default function useCompras() {
     }
   };
 
+  const handleFacturadoChangeGroup = async (notas, value) => {
+    const names = new Set(notas.map(n => n.name));
+    setCompras(cs => cs.map(c => names.has(c.name) ? { ...c, custom_facturado_a: value } : c));
+    setFacturadoSaving(notas[0]?.name);
+    try {
+      await Promise.all(notas.map(n => comprasService.updateFacturadoA(n.name, value)));
+    } catch (err) {
+      cargar();
+      alert('No se pudo actualizar el responsable fiscal: ' + (err?.message || 'error'));
+    } finally {
+      setFacturadoSaving(null);
+    }
+  };
+
   const handleImprimir = async (name, modo) => {
     try {
       const doc = await comprasService.getCompraBorrador(name);
@@ -216,7 +230,7 @@ export default function useCompras() {
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar,
-    handleEditar, handleFacturadoChange, handleImprimir,
+    handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,
     handleConfirmarBorrador, handleModalSuccess, handleModalCancel,
     reimprimirConsolidado,
   };

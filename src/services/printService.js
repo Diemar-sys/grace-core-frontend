@@ -55,6 +55,7 @@ export async function imprimirEgresoTicket(egreso) {
     concepto: egreso.concepto || '',
     facturado_a: egreso.facturado_a || '',
     con_factura: egreso.con_factura ? 1 : 0,
+    no_factura: egreso.no_factura || '',
     monto: egreso.monto || 0,
     impuesto_tipo: egreso.impuesto_tipo || '',
     monto_impuesto: egreso.monto_impuesto || 0,
@@ -106,14 +107,16 @@ function _htmlEgreso(p, gas) {
 </style></head><body>
   <div class="c"><h1 class="b">GRACE</h1>Panaderia &amp; Reposteria</div>
   <hr/><div class="c b">** COMPROBANTE DE EGRESO **</div><hr/>
-  <div>No. Egreso : ${p.no_egreso}</div>
-  ${p.no_de_compra ? `<div>No. Compra : ${p.no_de_compra}</div>` : ''}
+  ${p.no_de_compra
+    ? `<div class="c b" style="font-size:15px">COMPRA #${p.no_de_compra}</div><div>Ref. egreso: ${p.no_egreso}</div>`
+    : `<div>No. Egreso : ${p.no_egreso}</div>`}
   <div>Fecha      : ${p.fecha}</div>
   <div>Categoria  : ${p.categoria}</div>
   ${p.subcategoria ? `<div>Subcat.    : ${p.subcategoria}</div>` : ''}
   ${p.concepto ? `<div>Concepto   : ${p.concepto}</div>` : ''}
   <div>Facturado  : ${p.facturado_a}</div>
   <div>Con factura: ${p.con_factura ? 'SI' : 'NO'}</div>
+  ${p.no_factura ? `<div>No. Factura : ${p.no_factura}</div>` : ''}
   <hr/>
   <table>${desglose}</table>
   <hr/>
