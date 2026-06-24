@@ -348,6 +348,10 @@ function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }
         )}
       </div>
 
+      <label className="egresos-form-full">Descripción / Justificación
+        <textarea rows={2} placeholder="Nota adicional (opcional)" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
+      </label>
+
       {!usaPartidas && (
         <label>Monto base
           <input type="number" min="0" step="0.01" placeholder="0.00" value={form.monto} onChange={e => set('monto', e.target.value)} />
@@ -398,10 +402,6 @@ function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }
           <div className="egresos-total-row final"><span>Total</span><span>{fmtN(ef.total)}</span></div>
         </div>
       )}
-
-      <label className="egresos-form-full">Descripción / Justificación
-        <textarea rows={2} placeholder="Nota adicional (opcional)" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
-      </label>
     </div>
   );
 }
@@ -422,13 +422,17 @@ export default function Egresos() {
 
   const egresosFiltrados = (() => {
     const t = busqueda.toLowerCase().trim();
-    if (!t) return egresos;
     const tn = t.replace(/^#/, '');
-    return egresos.filter(e =>
+    const base = !t ? egresos : egresos.filter(e =>
       (e.no_factura || '').toLowerCase().includes(t) ||
       (e.concepto || '').toLowerCase().includes(t) ||
       (e.subcategoria || '').toLowerCase().includes(t) ||
       String(e.no_de_compra ?? '').includes(tn)
+    );
+    // Ordena por No. de compra desc (los sin consecutivo van al final por fecha desc).
+    return [...base].sort((a, b) =>
+      (b.no_de_compra || 0) - (a.no_de_compra || 0) ||
+      (b.fecha || '').localeCompare(a.fecha || '')
     );
   })();
 

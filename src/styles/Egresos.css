@@ -152,7 +152,7 @@
   background: var(--tv-surface);
   border-radius: 16px;
   width: 100%;
-  max-width: 1240px;
+  max-width: 1340px;
   box-shadow: 0 20px 60px rgba(44,42,39,0.35);
   overflow: hidden;
   animation: egresos-modal-in .16s ease-out;
@@ -188,7 +188,7 @@
 /* ── Form grid ────────────────────────────────────────────────── */
 .egresos-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
   gap: 18px;
 }
 .egresos-form-grid label,

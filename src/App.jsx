@@ -17,6 +17,7 @@ import ConsultasInventario from './pages/ConsultasInventario';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
 import ReporteGastos from './pages/ReporteGastos';
 import ReporteCompras from './pages/ReporteCompras';
+import ReporteCuentasPorPagar from './pages/ReporteCuentasPorPagar';
 import Egresos from './pages/Egresos';
 import Cuentas from './pages/Cuentas';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -147,6 +148,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ReporteCompras />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/cuentas-por-pagar"
+          element={
+            <ProtectedRoute>
+              <ReporteCuentasPorPagar />
             </ProtectedRoute>
           }
         />

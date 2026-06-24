@@ -336,10 +336,12 @@ def imprimir_egreso():
                 p.set(font='a', align='center', bold=True)
                 p.text(f"COMPRA #{no_de_compra}\n")
                 p.set(font='b', align='left', bold=False)
-                p.text(f"Ref. egreso : {no_egreso}\n")
+                p.text(f"NO. EGRESO  : {no_egreso}\n")
             else:
                 p.set(font='b', align='left')
                 p.text(f"NO. EGRESO  : {no_egreso}\n")
+            if no_factura:
+                p.text(f"NO. FACTURA : {no_factura[:18]}\n")
             p.text(f"FECHA       : {fecha}  {hora}\n")
             p.text(f"CATEGORIA   : {categoria[:18]}\n")
             if subcategoria:
@@ -348,8 +350,6 @@ def imprimir_egreso():
                 p.text(f"CONCEPTO    : {concepto[:18]}\n")
             p.text(f"FACTURADO A : {facturado_a[:18]}\n")
             p.text(f"CON FACTURA : {'SI' if con_factura else 'NO'}\n")
-            if no_factura:
-                p.text(f"NO. FACTURA : {no_factura[:18]}\n")
             p.text("-" * 32 + "\n")
 
             # Desglose
@@ -375,9 +375,11 @@ def imprimir_egreso():
                 p.text(f"{'IVA 16%:':<18}{fmt(iva):>14}\n")
             else:
                 base = total - monto_impuesto
-                p.text(f"{'BASE:':<18}{fmt(base):>14}\n")
+                tasa = 'IVA 16%' if impuesto_tipo == 'IVA' else 'IEPS 8%' if impuesto_tipo == 'IEPS' else 'IVA  0%'
+                p.text(f"{'SUBTOTAL ' + tasa + ':':<18}{fmt(base):>14}\n")
+                p.text(f"{'SUBTOTAL:':<18}{fmt(base):>14}\n")
                 if monto_impuesto > 0:
-                    p.text(f"{impuesto_tipo + ':':<18}{fmt(monto_impuesto):>14}\n")
+                    p.text(f"{tasa + ':':<18}{fmt(monto_impuesto):>14}\n")
             p.text("-" * 32 + "\n")
 
             # Total

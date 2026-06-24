@@ -194,6 +194,7 @@ const IconReporte = () => (
 const MODULOS_REPORTES = [
   { key: "ventas_categoria", path: "/reportes/ventas-categoria", icon: <IconReporte />, nombre: "Ventas por Categoría", sub: "B2B agrupado por item_group", color: "#7c2d12", bg: "#fed7aa" },
   { key: "compras_reporte", path: "/reportes/compras", icon: <IconReporte />, nombre: "Compras", sub: "Resumen fiscal mensual por proveedor", color: "#1565c0", bg: "#e3f0ff" },
+  { key: "cxp_reporte", path: "/reportes/cuentas-por-pagar", icon: <IconReporte />, nombre: "Cuentas por Pagar", sub: "Saldo de egresos por proveedor", color: "#b45309", bg: "#fef3c7" },
 ];
 
 function ContenidoReportes() {

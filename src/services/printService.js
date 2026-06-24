@@ -90,9 +90,16 @@ function _htmlEgreso(p, gas) {
       ${Number(gas.descuento) > 0 ? `<tr><td>Descuento</td><td class="r">-$${_fmt2(gas.descuento)}</td></tr>` : ''}
       <tr><td>Base gravable</td><td class="r">$${_fmt2(gas.base)}</td></tr>
       <tr><td>IVA 16%</td><td class="r">$${_fmt2(gas.iva)}</td></tr>`
-    : `
-      <tr><td>Base</td><td class="r">$${_fmt2(total - Number(p.monto_impuesto || 0))}</td></tr>
-      ${Number(p.monto_impuesto) > 0 ? `<tr><td>${p.impuesto_tipo}</td><td class="r">$${_fmt2(p.monto_impuesto)}</td></tr>` : ''}`;
+    : (() => {
+        const imp  = Number(p.monto_impuesto || 0);
+        const base = total - imp;
+        const tasa = p.impuesto_tipo === 'IVA' ? 'IVA 16%'
+                   : p.impuesto_tipo === 'IEPS' ? 'IEPS 8%' : 'IVA 0%';
+        return `
+      <tr><td>SUBTOTAL ${tasa}</td><td class="r">$${_fmt2(base)}</td></tr>
+      <tr><td>SUBTOTAL</td><td class="r">$${_fmt2(base)}</td></tr>
+      ${imp > 0 ? `<tr><td>${tasa}</td><td class="r">$${_fmt2(imp)}</td></tr>` : ''}`;
+      })();
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <title>Egreso ${p.no_egreso}</title>
@@ -108,15 +115,15 @@ function _htmlEgreso(p, gas) {
   <div class="c"><h1 class="b">GRACE</h1>Panaderia &amp; Reposteria</div>
   <hr/><div class="c b">** COMPROBANTE DE EGRESO **</div><hr/>
   ${p.no_de_compra
-    ? `<div class="c b" style="font-size:15px">COMPRA #${p.no_de_compra}</div><div>Ref. egreso: ${p.no_egreso}</div>`
-    : `<div>No. Egreso : ${p.no_egreso}</div>`}
+    ? `<div class="c b" style="font-size:15px">COMPRA #${p.no_de_compra}</div><div>NO. EGRESO : ${p.no_egreso}</div>`
+    : `<div>NO. EGRESO : ${p.no_egreso}</div>`}
+  ${p.no_factura ? `<div>NO. FACTURA: ${p.no_factura}</div>` : ''}
   <div>Fecha      : ${p.fecha}</div>
   <div>Categoria  : ${p.categoria}</div>
   ${p.subcategoria ? `<div>Subcat.    : ${p.subcategoria}</div>` : ''}
   ${p.concepto ? `<div>Concepto   : ${p.concepto}</div>` : ''}
   <div>Facturado  : ${p.facturado_a}</div>
   <div>Con factura: ${p.con_factura ? 'SI' : 'NO'}</div>
-  ${p.no_factura ? `<div>No. Factura : ${p.no_factura}</div>` : ''}
   <hr/>
   <table>${desglose}</table>
   <hr/>
