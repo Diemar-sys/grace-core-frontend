@@ -501,6 +501,23 @@ class FrappeStockService extends FrappeBase {
    * @param {Array<{item_code, qty, uom}>} args.items - Materiales perdidos.
    * @param {string} [args.notas=""] - Comentario adicional.
    */
+  // Regalo de proveedor (free goods): Material Receipt a rate de mercado.
+  // El backend (api.regalos) arma el Stock Entry + cuenta de ingreso en especie.
+  async getRegaloDefaults(itemCode) {
+    const json = await this._fetch(
+      `/api/method/gestion_panaderia.api.regalos.get_regalo_defaults?item_code=${encodeURIComponent(itemCode)}`,
+    );
+    return json?.message || {};
+  }
+
+  async registrarRegalo({ item_code, qty, valuation_rate, warehouse }) {
+    const json = await this._fetch('/api/method/gestion_panaderia.api.regalos.registrar_regalo', {
+      method: 'POST',
+      body: JSON.stringify({ item_code, qty, valuation_rate, warehouse }),
+    });
+    return json?.message;
+  }
+
   async registrarMerma({ almacenOrigen, motivo, items, notas = "" }) {
     if (!almacenOrigen) throw new Error("Selecciona el almacen origen");
     if (!motivo) throw new Error("Indica el motivo de la merma");

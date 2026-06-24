@@ -326,3 +326,37 @@
   .rm-tabla th:nth-child(4), .rm-tabla td:nth-child(4) { display: none; }
   .rm-qty-input   { width: 70px; }
 }
+
+/* ── Regalo: captura por pieza (campos grandes + conversión + total) ── */
+.rr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 4px 0 12px; }
+.rr-field label {
+  display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: #6b7280; margin-bottom: 6px;
+}
+.rr-input-unit {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid #d1d5db; border-radius: 10px; padding: 0 12px;
+  background: #fff; transition: border-color .15s, box-shadow .15s;
+}
+.rr-input-unit:focus-within { border-color: #dc2626; box-shadow: 0 0 0 3px #fde8e8; }
+.rr-input-unit input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 22px; font-weight: 600; padding: 12px 0; color: #111; width: 100%;
+  font-family: 'Courier New', monospace;
+}
+.rr-unit { font-size: 14px; font-weight: 600; color: #6b7280; white-space: nowrap; }
+.rr-prefix { font-size: 20px; font-weight: 700; color: #6b7280; }
+.rr-conv {
+  font-size: 14px; color: #6b7280; text-align: center;
+  background: #f9fafb; border: 1px dashed #e5e7eb; border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 12px;
+}
+.rr-conv strong { color: #374151; }
+.rr-total-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(90deg, #fff7ed, #fef2f2);
+  border: 1px solid #fed7aa; border-radius: 12px;
+  padding: 14px 20px; margin-bottom: 16px;
+}
+.rr-total-card span { font-size: 14px; font-weight: 600; color: #9a3412; text-transform: uppercase; letter-spacing: .04em; }
+.rr-total-card strong { font-size: 26px; font-weight: 800; color: #b45309; font-family: 'Courier New', monospace; }

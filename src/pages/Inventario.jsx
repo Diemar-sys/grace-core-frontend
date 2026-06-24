@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import ConteoFisico from '../components/ConteoFisico';
 import RegistroSalida from '../components/RegistroSalida';
 import RegistroMerma from '../components/RegistroMerma';
+import RegistroRegalo from '../components/RegistroRegalo';
 import HistorialMovimientos from '../components/HistorialMovimientos';
 import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
@@ -47,6 +48,7 @@ function Inventario() {
   const [modalConteo, setModalConteo]   = useState(false);
   const [modalSalida, setModalSalida] = useState(false);
   const [modalMerma, setModalMerma] = useState(false);
+  const [modalRegalo, setModalRegalo] = useState(false);
 
   const [accionActiva, setAccionActiva] = useState(soloLectura ? 'consulta_menu' : 'menu');
   useEffect(() => { setAccionActiva(soloLectura ? 'consulta_menu' : 'menu'); }, [soloLectura]);
@@ -84,7 +86,7 @@ function Inventario() {
   useEffect(() => { loadItems(); }, [loadItems]);
 
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedWarehouse(""); setSelectedGroup(""); };
-  const handleMovimientoSuccess = () => { setModalEntrada(false); setModalSalida(false); setModalMerma(false); loadItems(); };
+  const handleMovimientoSuccess = () => { setModalSalida(false); setModalMerma(false); setModalRegalo(false); loadItems(); };
 
   const filtered = items.filter(item =>
     item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -177,6 +179,13 @@ function Inventario() {
               </div>
               <h3>Registrar Merma (-)</h3>
               <p>Pérdida permanente</p>
+            </button>
+            <button className="panel-module" onClick={() => setModalRegalo(true)}>
+              <div className="module-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M2 8h20M12 8S9 2 6.5 4 9 8 12 8zM12 8s3-6 5.5-4-1.5 4-5.5 4z"/></svg>
+              </div>
+              <h3>Registrar Regalo (+)</h3>
+              <p>Free goods de proveedor</p>
             </button>
           </div>
         ) : accionActiva === 'historial' ? (
@@ -277,6 +286,13 @@ function Inventario() {
         <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setModalMerma(false)}>
           <div className="edit-modal-wrapper">
             <RegistroMerma onSuccess={handleMovimientoSuccess} onCancel={() => setModalMerma(false)} />
+          </div>
+        </div>
+      )}
+      {modalRegalo && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setModalRegalo(false)}>
+          <div className="edit-modal-wrapper">
+            <RegistroRegalo onSuccess={handleMovimientoSuccess} onCancel={() => setModalRegalo(false)} />
           </div>
         </div>
       )}
