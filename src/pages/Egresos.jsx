@@ -4,6 +4,8 @@ import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
 import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../config/impuestos';
 import { calcularTotalesEfectivos } from '../components/compras/compraUtils';
+import BuscadorProveedor from '../components/compras/BuscadorProveedor';
+import '../styles/NuevaCompra.css';
 import '../styles/Egresos.css';
 
 // ── SVG Icons ────────────────────────────────────────────────────
@@ -111,6 +113,7 @@ export function calcTotalesPartidas(partidas, ajuste, ajusteManual) {
 // ── FORM_INIT ─────────────────────────────────────────────────────
 const FORM_INIT = {
   fecha: new Date().toISOString().split('T')[0],
+  proveedor: { name: '', label: '' },
   subcategoria: '', concepto: '', descripcion: '',
   partidas: [],
   ajuste: '', ajuste_manual: false,
@@ -123,7 +126,7 @@ const FORM_INIT = {
 };
 
 // ── Formulario Gas con cálculo automático ─────────────────────────
-function GasForm({ form, setForm, subcatField }) {
+function GasForm({ form, setForm, subcatField, proveedorField }) {
   const gasSubtotal    = n(form.gas_litros) * n(form.gas_precio);
   const aditivoSubtotal = n(form.aditivo_litros) * n(form.aditivo_precio);
   const subtotal       = gasSubtotal + aditivoSubtotal;
@@ -147,6 +150,7 @@ function GasForm({ form, setForm, subcatField }) {
   return (
     <div className="gas-form">
       <div className="gas-form-grid">
+        {proveedorField}
         {subcatField}
         <label>Sucursal
           <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
@@ -230,7 +234,7 @@ function GasForm({ form, setForm, subcatField }) {
 }
 
 // ── Formulario genérico por subcategoría ──────────────────────────
-function SubcatForm({ subcategoria, form, setForm, subcatField }) {
+function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // ── Partidas (desglose opcional) ──
@@ -276,6 +280,7 @@ function SubcatForm({ subcategoria, form, setForm, subcatField }) {
 
   return (
     <div className="egresos-form-grid">
+      {proveedorField}
       {subcatField}
       <label>Fecha
         <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
@@ -455,6 +460,7 @@ export default function Egresos() {
     const facturaOpt = FACTURA_OPTIONS.find(o => o.facturado_a === (form.factura_key || 'SIN FACTURA'))
                     || FACTURA_OPTIONS[0];
     const up = s => (s || '').toUpperCase();
+    const prov = form.proveedor?.name || '';  // pagado se marca en la lista, no al crear
 
     if (form.subcategoria === 'Gas') {
       const gasSubtotal     = n(form.gas_litros) * n(form.gas_precio);
@@ -465,7 +471,7 @@ export default function Egresos() {
       const iva             = baseGravable * IVA_RATE;
       const total           = baseGravable + iva;
       return {
-        fecha: form.fecha, categoria: 'GASTO', subcategoria: 'GAS',
+        fecha: form.fecha, proveedor: prov, categoria: 'GASTO', subcategoria: 'GAS',
         concepto: up(form.concepto),
         descripcion: JSON.stringify({ gas_litros: form.gas_litros, gas_precio: form.gas_precio, gas_subtotal: gasSubtotal,
           aditivo_litros: form.aditivo_litros, aditivo_precio: form.aditivo_precio, aditivo_subtotal: aditivoSubtotal,
@@ -490,7 +496,7 @@ export default function Egresos() {
       // por renglón vive en cada partida).
       const tipo = ef.iva > 0 ? 'IVA' : ef.ieps > 0 ? 'IEPS' : '';
       return {
-        fecha: form.fecha, categoria: catKey,
+        fecha: form.fecha, proveedor: prov, categoria: catKey,
         subcategoria: up(form.subcategoria), concepto: up(form.concepto),
         descripcion: up(form.descripcion), partidas,
         monto: ef.total.toFixed(2),
@@ -510,6 +516,7 @@ export default function Egresos() {
     const total    = base + impMonto;
     return {
       fecha: form.fecha,
+      proveedor: prov,
       categoria: catKey,
       subcategoria: up(form.subcategoria),
       concepto: up(form.concepto),
@@ -547,6 +554,13 @@ export default function Egresos() {
   const handleImprimir = async (egreso) => {
     try { await imprimirEgresoTicket(egreso); }
     catch (err) { setError(err?.message || 'Error al imprimir'); }
+  };
+
+  const handlePagado = async (e) => {
+    const nuevo = e.pagado ? 0 : 1;
+    setEgresos(prev => prev.map(x => x.name === e.name ? { ...x, pagado: nuevo } : x)); // optimista
+    try { await egresosService.marcarPagado(e.name, nuevo); }
+    catch { setError('Error al marcar pagado'); cargar(categoriaKey); }
   };
 
   // ── Tiles ─────────────────────────────────────────────────────
@@ -610,17 +624,18 @@ export default function Egresos() {
             <table className="egresos-tabla">
               <thead>
                 <tr>
-                  <th>No. compra</th><th>Fecha</th><th>Subcategoría</th><th>Concepto</th>
-                  <th className="cell-right">Monto</th><th>Impuesto</th><th>Factura</th><th></th>
+                  <th>No. compra</th><th>Fecha</th><th>Proveedor</th><th>Subcategoría</th><th>Concepto</th>
+                  <th className="cell-right">Monto</th><th>Impuesto</th><th>Factura</th><th>Pago</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {egresosFiltrados.length === 0
-                  ? <tr><td colSpan={8} className="egresos-empty" style={{ padding: '32px' }}>Sin resultados para “{busqueda}”.</td></tr>
+                  ? <tr><td colSpan={10} className="egresos-empty" style={{ padding: '32px' }}>Sin resultados para “{busqueda}”.</td></tr>
                   : egresosFiltrados.map(e => (
                   <tr key={e.name}>
                     <td className="egresos-nocompra">{e.no_de_compra ? `#${e.no_de_compra}` : <span className="text-muted">—</span>}</td>
                     <td>{e.fecha}</td>
+                    <td>{e.proveedor || <span className="text-muted">—</span>}</td>
                     <td>{e.subcategoria || '—'}</td>
                     <td>{e.concepto || <span className="text-muted">{e.descripcion ? '(ver detalle)' : '—'}</span>}</td>
                     <td className="egresos-monto cell-right">{fmtN(e.monto)}</td>
@@ -630,6 +645,13 @@ export default function Egresos() {
                         ? <span className="egresos-factura-badge">{e.facturado_a}</span>
                         : <span className="egresos-sinfactura-badge">Sin factura</span>}
                       {e.no_factura && <div className="egresos-folio">{e.no_factura}</div>}
+                    </td>
+                    <td>
+                      <button className={'egresos-pago-toggle' + (e.pagado ? ' pagado' : '')}
+                        onClick={() => handlePagado(e)}
+                        title={e.pagado ? 'Pagado — clic para revertir' : 'Marcar como pagado'}>
+                        {e.pagado ? '✓ Pagado' : 'Por pagar'}
+                      </button>
                     </td>
                     <td className="egresos-td-acciones">
                       <button className="egresos-print" title="Imprimir ticket" onClick={() => handleImprimir(e)}>
@@ -667,14 +689,20 @@ export default function Egresos() {
                 const subcatField = subcats.length > 1 ? (
                   <label className="egresos-subcat-field">Subcategoría
                     <select value={form.subcategoria}
-                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, fecha: f.fecha, factura_key: f.factura_key }))}>
+                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, fecha: f.fecha, factura_key: f.factura_key, proveedor: f.proveedor }))}>
                       {subcats.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </label>
                 ) : null;
+                const proveedorField = (
+                  <label className="egresos-prov-field">Proveedor
+                    <BuscadorProveedor value={form.proveedor}
+                      onChange={v => setForm(f => ({ ...f, proveedor: v }))} />
+                  </label>
+                );
                 return form.subcategoria === 'Gas'
-                  ? <GasForm form={form} setForm={setForm} subcatField={subcatField} />
-                  : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} />;
+                  ? <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />
+                  : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
               })()}
             </div>
 

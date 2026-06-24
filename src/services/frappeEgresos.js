@@ -23,6 +23,14 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message;
   }
 
+  async marcarPagado(name, pagado) {
+    const json = await this._fetch(METHOD('marcar_pagado'), {
+      method: 'POST',
+      body: JSON.stringify({ name, pagado: pagado ? 1 : 0 }),
+    });
+    return json?.message;
+  }
+
   async eliminarEgreso(name) {
     const json = await this._fetch(METHOD('eliminar_egreso'), {
       method: 'POST',

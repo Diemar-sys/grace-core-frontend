@@ -263,6 +263,21 @@
 /* ── Subcat: select dentro del grid, alineado con Fecha/Concepto ── */
 .egresos-subcat-field select { color: var(--tv-marca); font-weight: 600; cursor: pointer; }
 
+/* ── Proveedor: BuscadorProveedor (nc-*) dentro del grid de egresos ── */
+.egresos-prov-field .nc-buscar-input { width: 100%; }
+
+/* ── Toggle pagado en lista (cuentas por pagar) ── */
+.egresos-pago-toggle {
+  border: 1px solid var(--tv-hairline); border-radius: 999px;
+  padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  background: var(--tv-warn-bg, #fef3c7); color: var(--tv-warn, #b45309);
+  transition: all .15s; white-space: nowrap;
+}
+.egresos-pago-toggle:hover { filter: brightness(.97); }
+.egresos-pago-toggle.pagado {
+  background: var(--tv-ok-bg); color: var(--tv-ok); border-color: transparent;
+}
+
 /* ── Tabla (Talavera: thead carbón, números mono) ─────────────── */
 .egresos-tabla-wrap {
   background: var(--tv-surface);
