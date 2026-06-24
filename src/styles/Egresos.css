@@ -144,15 +144,15 @@
   position: fixed; inset: 0;
   background: rgba(44,42,39,0.55);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 40px 16px;
+  padding: 24px 24px 40px;
   z-index: 1000;
   overflow-y: auto;
 }
 .egresos-modal-card {
   background: var(--tv-surface);
-  border-radius: 14px;
+  border-radius: 16px;
   width: 100%;
-  max-width: 720px;
+  max-width: 1240px;
   box-shadow: 0 20px 60px rgba(44,42,39,0.35);
   overflow: hidden;
   animation: egresos-modal-in .16s ease-out;
@@ -164,12 +164,12 @@
 .egresos-modal-header {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--tv-carbon);
-  padding: 16px 22px;
+  padding: 20px 32px;
   border-bottom: 2px solid var(--tv-marca);
 }
 .egresos-modal-header h3 {
   font-family: var(--tv-display);
-  font-size: 17px; font-weight: 600;
+  font-size: 23px; font-weight: 600;
   color: var(--tv-cream);
   margin: 0;
 }
@@ -183,21 +183,21 @@
   transition: opacity .15s;
 }
 .egresos-modal-close:hover { opacity: 1; }
-.egresos-modal-body { padding: 22px 24px 4px; }
+.egresos-modal-body { padding: 28px 32px 6px; }
 
 /* ── Form grid ────────────────────────────────────────────────── */
 .egresos-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 18px;
 }
 .egresos-form-grid label,
 .gas-form-grid label,
 .gas-linea-grid label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -208,10 +208,10 @@
 .egresos-form-grid textarea,
 .gas-form-grid input,
 .gas-form-grid select {
-  padding: 9px 11px;
+  padding: 12px 14px;
   border: 1px solid var(--tv-hairline);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 9px;
+  font-size: 17px;
   background: var(--tv-masa);
   color: var(--tv-ink);
   transition: border-color .15s, box-shadow .15s;
@@ -233,16 +233,16 @@
 .egresos-form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 18px 24px 22px;
+  gap: 12px;
+  padding: 22px 32px 28px;
 }
 .egresos-cancel {
   background: none;
   border: 1px solid var(--tv-hairline);
-  border-radius: 8px;
-  padding: 9px 20px;
+  border-radius: 9px;
+  padding: 12px 26px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--tv-ink-soft);
 }
 .egresos-cancel:hover { background: var(--tv-sunk); }
@@ -250,9 +250,9 @@
   background: var(--tv-marca);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 9px 22px;
-  font-size: 14px;
+  border-radius: 9px;
+  padding: 12px 30px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: background .15s;
@@ -260,24 +260,8 @@
 .egresos-guardar:hover:not(:disabled) { background: var(--tv-marca-deep); }
 .egresos-guardar:disabled { opacity: 0.6; cursor: default; }
 
-/* ── Subcat tabs ──────────────────────────────────────────────── */
-.egresos-subcat-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
-.egresos-subcat-tab {
-  background: none;
-  border: 1px solid var(--tv-hairline);
-  border-radius: 20px;
-  padding: 5px 15px;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--tv-ink-soft);
-  transition: all .15s;
-}
-.egresos-subcat-tab:hover { border-color: var(--tv-marca); color: var(--tv-marca); }
-.egresos-subcat-tab.active {
-  background: var(--tv-marca);
-  border-color: var(--tv-marca);
-  color: #fff;
-}
+/* ── Subcat: select dentro del grid, alineado con Fecha/Concepto ── */
+.egresos-subcat-field select { color: var(--tv-marca); font-weight: 600; cursor: pointer; }
 
 /* ── Tabla (Talavera: thead carbón, números mono) ─────────────── */
 .egresos-tabla-wrap {
@@ -303,10 +287,11 @@
   border-bottom: 2px solid var(--tv-marca);
 }
 .egresos-tabla td {
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--tv-line);
   color: var(--tv-ink);
 }
+.egresos-tabla tbody tr:nth-child(even) td { background: var(--tv-masa); }
 .egresos-tabla tr:last-child td { border-bottom: none; }
 .egresos-tabla tbody tr:hover td { background: var(--tv-marca-wash); }
 .cell-right { text-align: right; }
@@ -432,3 +417,100 @@
   color: var(--tv-marca);
 }
 .gas-total-final span:last-child { font-family: var(--tv-mono); }
+
+/* ── Partidas (desglose por artículo) — tarjeta enmarcada como Gas ── */
+.egresos-partidas {
+  margin-top: 4px;
+  background: var(--tv-masa);
+  border: 1px solid var(--tv-hairline);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.egresos-partidas-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--tv-ink-soft); margin-bottom: 12px;
+}
+.egresos-partidas-head em { color: var(--tv-marca); font-style: normal; font-size: 12px; text-transform: none; letter-spacing: 0; }
+.egresos-partida-add {
+  border: 1px solid var(--tv-marca); color: var(--tv-marca);
+  background: var(--tv-surface); border-radius: 8px;
+  padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  text-transform: none; letter-spacing: 0; transition: all .15s;
+}
+.egresos-partida-add:hover { background: var(--tv-marca); color: var(--tv-cream); }
+.egresos-partidas-hint {
+  font-size: 14px; color: var(--tv-ink-soft); text-align: center;
+  padding: 8px 0 2px; font-style: italic;
+}
+.egresos-partidas-tabla { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0 6px; font-size: 16px; }
+.egresos-partidas-tabla th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--tv-ink-soft); padding: 0 10px 6px; font-weight: 700;
+}
+.egresos-partidas-tabla td { padding: 0 10px; vertical-align: middle; }
+/* encabezados numéricos a la derecha (cant, precio, importe) */
+.egresos-partidas-tabla th:nth-child(1),
+.egresos-partidas-tabla th:nth-child(3),
+.egresos-partidas-tabla th:nth-child(5) { text-align: right; }
+/* anchos por columna: concepto flexible, resto fijo — cols: 1 cant, 2 concepto, 3 precio, 4 impuesto, 5 importe, 6 ✕ */
+.egresos-partidas-tabla th:nth-child(1), .egresos-partidas-tabla td:nth-child(1) { width: 100px; }
+.egresos-partidas-tabla th:nth-child(3), .egresos-partidas-tabla td:nth-child(3) { width: 130px; }
+.egresos-partidas-tabla th:nth-child(4), .egresos-partidas-tabla td:nth-child(4) { width: 130px; }
+.egresos-partidas-tabla th:nth-child(5), .egresos-partidas-tabla td:nth-child(5) { width: 130px; }
+.egresos-partidas-tabla th:nth-child(6), .egresos-partidas-tabla td:nth-child(6) { width: 44px; }
+.egresos-partidas-tabla input,
+.egresos-partidas-tabla select {
+  width: 100%; border: 1px solid var(--tv-hairline); border-radius: 8px;
+  padding: 11px 12px; background: var(--tv-surface); color: var(--tv-ink); font-size: 16px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.egresos-partidas-tabla select { cursor: pointer; font-size: 14px; padding: 11px 8px; }
+.egresos-partidas-tabla input:focus,
+.egresos-partidas-tabla select:focus { border-color: var(--tv-marca); box-shadow: 0 0 0 2px var(--tv-marca-wash); outline: none; }
+.egresos-partida-num { font-family: var(--tv-mono); text-align: right; }
+.egresos-partida-imp { font-family: var(--tv-mono); white-space: nowrap; font-weight: 700; color: var(--tv-ink); font-size: 17px; }
+.egresos-partida-del {
+  border: none; background: transparent; color: var(--tv-ink-soft);
+  cursor: pointer; font-size: 19px; padding: 6px 8px; border-radius: 6px;
+  line-height: 1; transition: all .15s;
+}
+.egresos-partida-del:hover { background: var(--tv-stop-bg); color: var(--tv-stop); }
+.egresos-partidas-tabla tfoot td {
+  font-weight: 700; padding-top: 14px; font-size: 16px;
+}
+.egresos-partidas-tabla tfoot tr td { border-top: 2px solid var(--tv-carbon); }
+.egresos-partida-sub { font-family: var(--tv-mono); color: var(--tv-marca); font-size: 21px; }
+
+/* ── Desglose de totales (estilo Compras: full-width, valores a la derecha) ── */
+.egresos-totales {
+  display: flex; flex-direction: column; gap: 9px;
+  background: var(--tv-masa);
+  border: 1px solid var(--tv-hairline);
+  border-radius: 12px;
+  padding: 18px 22px;
+}
+.egresos-total-row {
+  display: flex; align-items: center; justify-content: flex-end; gap: 28px;
+  font-size: 16px; color: var(--tv-ink);
+}
+.egresos-total-row > span:first-child { text-align: right; }
+.egresos-total-row > span:last-child {
+  font-family: var(--tv-mono); min-width: 160px; text-align: right;
+}
+.egresos-total-row.muted { font-size: 14px; color: var(--tv-ink-soft); }
+.egresos-ajuste-row > span:first-child { font-size: 14px; color: var(--tv-ink-soft); }
+.egresos-ajuste-input {
+  width: 160px; text-align: right;
+  border: 1px solid var(--tv-hairline); border-radius: 7px;
+  padding: 8px 11px; font-size: 15px; font-family: var(--tv-mono);
+  background: var(--tv-surface); color: var(--tv-ink);
+}
+.egresos-ajuste-input:focus { outline: none; border-color: var(--tv-marca); box-shadow: 0 0 0 2px var(--tv-marca-wash); }
+.egresos-total-row.final {
+  border-top: 2px solid var(--tv-carbon);
+  padding-top: 14px; margin-top: 4px;
+  font-family: var(--tv-display); font-weight: 700; font-size: 23px;
+  color: var(--tv-marca);
+}
+.egresos-total-row.final > span:last-child { font-family: var(--tv-mono); }

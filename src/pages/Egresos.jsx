@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
 import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../config/impuestos';
+import { calcularTotalesEfectivos } from '../components/compras/compraUtils';
 import '../styles/Egresos.css';
 
 // ── SVG Icons ────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ const SUCURSALES_GAS = ['Paseos del Bosque', 'Puerta Real', 'Pirámides', 'Santu
 const TELEFONOS   = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque'];
 const TIPOS_MANT  = ['Maquinaria', 'Camioneta', 'Infraestructura', 'Cómputo'];
 const TIPOS_REFAC = ['Camioneta', 'Maquinaria', 'Otro'];
+const TIPOS_AGUA  = ['Agua para consumo humano', 'Pipa de agua'];
 
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
@@ -89,10 +91,29 @@ const IVA_RATE = 0.16;
 function fmtN(n) { return Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }); }
 function n(v)    { return parseFloat(v) || 0; }
 
+// Agrupa bases por tasa (estilo Compras) y deriva total + ajuste SAT vía la
+// misma función pura que usa Compras. ajusteManual sobrescribe el redondeo auto.
+export function calcTotalesPartidas(partidas, ajuste, ajusteManual) {
+  const calc = (partidas || []).reduce((a, p) => {
+    const base = n(p.cantidad) * n(p.precio);
+    const key  = p.impuesto_key || 'tasa0';
+    const rate = IMPUESTOS_MAP[key]?.rate || 0;
+    a.subtotal += base;
+    if (key === 'iva16')     { a.iva  += base * rate; a.subtotalIva16 += base; }
+    else if (key === 'ieps') { a.ieps += base * rate; a.subtotalIeps  += base; }
+    else                       a.subtotalTasa0 += base;
+    return a;
+  }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0 });
+  const ef = calcularTotalesEfectivos({ calc, manual: { ajuste: !!ajusteManual }, ajuste: ajuste || 0 });
+  return { calc, ef };
+}
+
 // ── FORM_INIT ─────────────────────────────────────────────────────
 const FORM_INIT = {
   fecha: new Date().toISOString().split('T')[0],
   subcategoria: '', concepto: '', descripcion: '',
+  partidas: [],
+  ajuste: '', ajuste_manual: false,
   monto: '', impuesto_key: 'tasa0', impuesto_tipo: '', monto_impuesto: '',
   factura_key: 'SIN FACTURA', no_factura: '',
   // Gas-specific
@@ -102,7 +123,7 @@ const FORM_INIT = {
 };
 
 // ── Formulario Gas con cálculo automático ─────────────────────────
-function GasForm({ form, setForm }) {
+function GasForm({ form, setForm, subcatField }) {
   const gasSubtotal    = n(form.gas_litros) * n(form.gas_precio);
   const aditivoSubtotal = n(form.aditivo_litros) * n(form.aditivo_precio);
   const subtotal       = gasSubtotal + aditivoSubtotal;
@@ -126,6 +147,7 @@ function GasForm({ form, setForm }) {
   return (
     <div className="gas-form">
       <div className="gas-form-grid">
+        {subcatField}
         <label>Sucursal
           <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
             <option value="">Seleccionar...</option>
@@ -208,23 +230,40 @@ function GasForm({ form, setForm }) {
 }
 
 // ── Formulario genérico por subcategoría ──────────────────────────
-function SubcatForm({ subcategoria, form, setForm }) {
+function SubcatForm({ subcategoria, form, setForm, subcatField }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const montoBase    = n(form.monto);
-  const impKey       = form.impuesto_key || 'tasa0';
-  const impEntry     = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
-  const montoImp     = montoBase * impEntry.rate;
-  const total        = montoBase + montoImp;
+  // ── Partidas (desglose opcional) ──
+  const partidas    = form.partidas || [];
+  const usaPartidas = partidas.length > 0;
+  const sumPartidas = partidas.reduce((s, p) => s + n(p.cantidad) * n(p.precio), 0);
+  const setPartida  = (i, k, v) => setForm(f => {
+    const arr = [...(f.partidas || [])];
+    arr[i] = { ...arr[i], [k]: v };
+    return { ...f, partidas: arr };
+  });
+  const addPartida = () => setForm(f => ({ ...f, partidas: [...(f.partidas || []), { concepto: '', cantidad: 1, precio: '', impuesto_key: 'tasa0' }] }));
+  const delPartida = i => setForm(f => ({ ...f, partidas: (f.partidas || []).filter((_, j) => j !== i) }));
 
-  // Sync calculated tax fields back to form
+  // Con partidas: desglose por tasa estilo Compras + ajuste global (cuadrar CFDI).
+  const { calc, ef } = calcTotalesPartidas(partidas, form.ajuste, form.ajuste_manual);
+  const ajusteShown  = form.ajuste_manual ? form.ajuste : (ef.ajusteSAT ? ef.ajusteSAT.toFixed(2) : '0.00');
+
+  // Ruta simple (sin partidas): un solo impuesto sobre el monto.
+  const impKey   = form.impuesto_key || 'tasa0';
+  const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
+  const montoImp = n(form.monto) * impEntry.rate;
+  const total    = n(form.monto) + montoImp;
+
+  // Sync impuesto calculado SOLO en ruta simple (con partidas lo arma buildPayload).
   useEffect(() => {
+    if (usaPartidas) return;
     setForm(f => ({
       ...f,
       monto_impuesto: montoImp > 0 ? montoImp.toFixed(2) : '',
       impuesto_tipo:  impKey === 'tasa0' ? '' : impEntry.label,
     }));
-  }, [form.monto, impKey]); // eslint-disable-line
+  }, [form.monto, usaPartidas, impKey]); // eslint-disable-line
 
   const conceptoSelect = (opciones, placeholder) => (
     <label>Concepto
@@ -237,6 +276,7 @@ function SubcatForm({ subcategoria, form, setForm }) {
 
   return (
     <div className="egresos-form-grid">
+      {subcatField}
       <label>Fecha
         <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
       </label>
@@ -245,33 +285,10 @@ function SubcatForm({ subcategoria, form, setForm }) {
       {subcategoria === 'Teléfono'     && conceptoSelect(TELEFONOS,   'Seleccionar persona...')}
       {subcategoria === 'Mantenimiento'&& conceptoSelect(TIPOS_MANT,  'Seleccionar tipo...')}
       {subcategoria === 'Refacciones'  && conceptoSelect(TIPOS_REFAC, 'Seleccionar tipo...')}
-      {!['Gasolina','Teléfono','Mantenimiento','Refacciones'].includes(subcategoria) && (
+      {subcategoria === 'Agua'         && conceptoSelect(TIPOS_AGUA,  'Seleccionar tipo...')}
+      {!['Gasolina','Teléfono','Mantenimiento','Refacciones','Agua'].includes(subcategoria) && (
         <label>Concepto
           <input type="text" placeholder="Descripción breve" value={form.concepto} onChange={e => set('concepto', e.target.value)} />
-        </label>
-      )}
-
-      <label>Monto base
-        <input type="number" min="0" step="0.01" placeholder="0.00" value={form.monto} onChange={e => set('monto', e.target.value)} />
-      </label>
-
-      <label>Impuesto
-        <select value={impKey} onChange={e => set('impuesto_key', e.target.value)}>
-          {IMPUESTOS_LIST.map(imp => (
-            <option key={imp.key} value={imp.key}>{imp.label}</option>
-          ))}
-        </select>
-      </label>
-
-      {montoImp > 0 && (
-        <label>Monto impuesto
-          <input type="text" readOnly value={fmtN(montoImp)} className="gas-calc-field" />
-        </label>
-      )}
-
-      {montoBase > 0 && (
-        <label>Total
-          <input type="text" readOnly value={fmtN(total)} className="gas-calc-field" style={{ fontWeight: 700, color: 'var(--tv-marca)' }} />
         </label>
       )}
 
@@ -287,6 +304,94 @@ function SubcatForm({ subcategoria, form, setForm }) {
         <label>No. Factura
           <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
         </label>
+      )}
+
+      {/* Desglose por partidas (opcional). Si hay partidas, el monto base = suma. */}
+      <div className="egresos-form-full egresos-partidas">
+        <div className="egresos-partidas-head">
+          <span>Desglose por artículo {usaPartidas && <em>(monto = suma de partidas)</em>}</span>
+          <button type="button" className="egresos-partida-add" onClick={addPartida}>+ Agregar partida</button>
+        </div>
+        {usaPartidas && (
+          <table className="egresos-partidas-tabla">
+            <thead>
+              <tr><th>Cant.</th><th>Concepto</th><th>Precio</th><th>Impuesto</th><th className="cell-right">Importe</th><th></th></tr>
+            </thead>
+            <tbody>
+              {partidas.map((p, i) => (
+                <tr key={i}>
+                  <td><input type="number" min="0" step="0.001" value={p.cantidad} onChange={e => setPartida(i, 'cantidad', e.target.value)} className="egresos-partida-num" /></td>
+                  <td><input type="text" placeholder="Artículo" value={p.concepto} onChange={e => setPartida(i, 'concepto', e.target.value)} /></td>
+                  <td><input type="number" min="0" step="0.01" placeholder="0.00" value={p.precio} onChange={e => setPartida(i, 'precio', e.target.value)} className="egresos-partida-num" /></td>
+                  <td>
+                    <select value={p.impuesto_key || 'tasa0'} onChange={e => setPartida(i, 'impuesto_key', e.target.value)}>
+                      {IMPUESTOS_LIST.map(imp => <option key={imp.key} value={imp.key}>{imp.label}</option>)}
+                    </select>
+                  </td>
+                  <td className="cell-right egresos-partida-imp">{fmtN(n(p.cantidad) * n(p.precio))}</td>
+                  <td><button type="button" className="egresos-partida-del" title="Quitar" onClick={() => delPartida(i)}>✕</button></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr><td colSpan={4} className="cell-right">Subtotal partidas</td><td className="cell-right egresos-partida-sub">{fmtN(sumPartidas)}</td><td></td></tr>
+            </tfoot>
+          </table>
+        )}
+        {!usaPartidas && (
+          <p className="egresos-partidas-hint">Sin partidas — captura el monto abajo, o agrega artículos uno por uno.</p>
+        )}
+      </div>
+
+      {!usaPartidas && (
+        <label>Monto base
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={form.monto} onChange={e => set('monto', e.target.value)} />
+        </label>
+      )}
+
+      {!usaPartidas && (
+        <label>Impuesto
+          <select value={impKey} onChange={e => set('impuesto_key', e.target.value)}>
+            {IMPUESTOS_LIST.map(imp => (
+              <option key={imp.key} value={imp.key}>{imp.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {!usaPartidas && montoImp > 0 && (
+        <label>Monto impuesto
+          <input type="text" readOnly value={fmtN(montoImp)} className="gas-calc-field" />
+        </label>
+      )}
+
+      {!usaPartidas && n(form.monto) > 0 && (
+        <label>Total
+          <input type="text" readOnly value={fmtN(total)} className="gas-calc-field" style={{ fontWeight: 700, color: 'var(--tv-marca)' }} />
+        </label>
+      )}
+
+      {usaPartidas && (
+        <div className="egresos-form-full egresos-totales">
+          {calc.subtotalIva16 > 0 && (
+            <div className="egresos-total-row muted"><span>Subtotal IVA 16%</span><span>{fmtN(calc.subtotalIva16)}</span></div>
+          )}
+          {calc.subtotalIeps > 0 && (
+            <div className="egresos-total-row muted"><span>Subtotal IEPS 8%</span><span>{fmtN(calc.subtotalIeps)}</span></div>
+          )}
+          {calc.subtotalTasa0 > 0 && (
+            <div className="egresos-total-row muted"><span>Subtotal Tasa 0</span><span>{fmtN(calc.subtotalTasa0)}</span></div>
+          )}
+          <div className="egresos-total-row"><span>Subtotal</span><span>{fmtN(ef.subtotalEfectivo)}</span></div>
+          {ef.iva  > 0 && <div className="egresos-total-row"><span>IVA 16%</span><span>{fmtN(ef.iva)}</span></div>}
+          {ef.ieps > 0 && <div className="egresos-total-row"><span>IEPS 8%</span><span>{fmtN(ef.ieps)}</span></div>}
+          <div className="egresos-total-row egresos-ajuste-row">
+            <span>Ajuste (cuadre CFDI)</span>
+            <input type="number" step="0.01" className="egresos-ajuste-input" value={ajusteShown}
+              onChange={e => setForm(f => ({ ...f, ajuste: e.target.value, ajuste_manual: true }))} />
+          </div>
+          <div className="egresos-total-row final"><span>Total</span><span>{fmtN(ef.total)}</span></div>
+        </div>
       )}
 
       <label className="egresos-form-full">Descripción / Justificación
@@ -371,18 +476,45 @@ export default function Egresos() {
         no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
       };
     }
+    const catKey   = categoriaKey === 'camioneta_view' ? 'GASTO' : up(categoriaKey);
+    const rawPart  = (form.partidas || []).filter(p => (p.concepto || '').trim() || n(p.precio));
+
+    // Ruta partidas: impuesto por renglón + desglose por tasa + ajuste global (estilo Compras).
+    if (rawPart.length) {
+      const { ef } = calcTotalesPartidas(rawPart, form.ajuste, form.ajuste_manual);
+      const partidas = rawPart.map(p => ({
+        concepto: up(p.concepto), cantidad: n(p.cantidad), precio: n(p.precio),
+        impuesto: (IMPUESTOS_MAP[p.impuesto_key || 'tasa0'] || {}).label || 'Tasa 0',
+      }));
+      // impuesto_tipo es Select acotado en el doctype → un solo valor válido (la verdad
+      // por renglón vive en cada partida).
+      const tipo = ef.iva > 0 ? 'IVA' : ef.ieps > 0 ? 'IEPS' : '';
+      return {
+        fecha: form.fecha, categoria: catKey,
+        subcategoria: up(form.subcategoria), concepto: up(form.concepto),
+        descripcion: up(form.descripcion), partidas,
+        monto: ef.total.toFixed(2),
+        impuesto_tipo: tipo,
+        monto_impuesto: (ef.iva + ef.ieps).toFixed(2),
+        facturado_a: facturaOpt.facturado_a,
+        con_factura: facturaOpt.con_factura ? 1 : 0,
+        no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
+      };
+    }
+
+    // Ruta simple: un solo impuesto sobre el monto.
     const impKey   = form.impuesto_key || 'tasa0';
     const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
     const base     = n(form.monto);
     const impMonto = base * impEntry.rate;
     const total    = base + impMonto;
-    const catKey   = categoriaKey === 'camioneta_view' ? 'GASTO' : up(categoriaKey);
     return {
       fecha: form.fecha,
       categoria: catKey,
       subcategoria: up(form.subcategoria),
       concepto: up(form.concepto),
       descripcion: up(form.descripcion),
+      partidas: [],
       monto: total.toFixed(2),
       impuesto_tipo: IMP_ERPNEXT[impKey] || '',
       monto_impuesto: impMonto > 0 ? impMonto.toFixed(2) : 0,
@@ -531,22 +663,19 @@ export default function Egresos() {
             </div>
 
             <div className="egresos-modal-body">
-              {subcats.length > 1 && (
-                <div className="egresos-subcat-tabs">
-                  {subcats.map(s => (
-                    <button key={s}
-                      className={'egresos-subcat-tab' + (form.subcategoria === s ? ' active' : '')}
-                      onClick={() => setForm(f => ({ ...FORM_INIT, subcategoria: s, fecha: f.fecha, factura_key: f.factura_key }))}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {form.subcategoria === 'Gas'
-                ? <GasForm form={form} setForm={setForm} />
-                : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} />
-              }
+              {(() => {
+                const subcatField = subcats.length > 1 ? (
+                  <label className="egresos-subcat-field">Subcategoría
+                    <select value={form.subcategoria}
+                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, fecha: f.fecha, factura_key: f.factura_key }))}>
+                      {subcats.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                ) : null;
+                return form.subcategoria === 'Gas'
+                  ? <GasForm form={form} setForm={setForm} subcatField={subcatField} />
+                  : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} />;
+              })()}
             </div>
 
             <div className="egresos-form-actions">
