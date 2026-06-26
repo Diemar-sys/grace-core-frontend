@@ -20,7 +20,8 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       ? { name: initialData.supplier, label: initialData.supplier_name || initialData.supplier }
       : { name: '', label: '' }
   );
-  const [fecha] = useState(initialData?.posting_date || new Date().toISOString().split('T')[0]);
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const [fecha, setFecha] = useState(initialData?.posting_date || hoyStr);
   const [billNo, setBillNo] = useState('');
   const [notaRemision, setNotaRemision] = useState('');
   const [tipoComprobante, setTipoComprobante] = useState('Nota');
@@ -400,7 +401,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
           </div>
           <div className="nc-field nc-fecha">
             <label>Fecha</label>
-            <input type="date" value={fecha} readOnly />
+            <input type="date" value={fecha} max={hoyStr} onChange={e => setFecha(e.target.value)} />
           </div>
         </div>
 
