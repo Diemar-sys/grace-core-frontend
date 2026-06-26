@@ -431,14 +431,16 @@ def imprimir_ticket_consolidado():
             p.text(f"PROVEEDOR : {str(proveedor)[:28]}\n")
             p.text(f"FACTURA   : {str(factura)[:28]}\n")
             p.text(f"FECHA     : {fecha}\n")
+            p.text(f"FACTURADO A : {str(data.get('facturado_a', '') or 'SIN FACTURA').upper()[:18]}\n")
             p.text("-" * 32 + "\n")
-            p.text(f"{'#COMPRA':<7}{'REMISION':<15}{'TOTAL':>10}\n")
+            # ponytail: 9+12+11=32 cols; trailing pad on header forces gap so "#COMPRA"/"REMISION" no se pegan
+            p.text(f"{'#COMPRA':<9}{'REMISION':<12}{'TOTAL':>11}\n")
             p.text("-" * 32 + "\n")
             for n in notas:
                 num = str(n.get('no_compra') or '-')
-                rem = str(n.get('remision') or '-')[:14]
+                rem = str(n.get('remision') or '-')[:11]
                 tot = fmt(float(n.get('total') or 0))
-                p.text(f"#{num:<6}{rem:<15}{tot:>10}\n")
+                p.text(f"{('#'+num):<9}{rem:<12}{tot:>11}\n")
             p.text("=" * 32 + "\n")
             p.set(font='a', bold=True)
             p.text(f"GRAN TOTAL:{fmt(gran_total):>11}\n")

@@ -58,6 +58,7 @@ export default function useCompras() {
   const sumaSel = seleccion.reduce((s, c) => s + parseFloat(c.grand_total || 0), 0);
   const esConsolidable = (c) => c.custom_tipo_comprobante === 'Nota';
   const [folioConsolidar, setFolioConsolidar] = useState('');
+  const [facturadoConsolidar, setFacturadoConsolidar] = useState('SIN FACTURA');
 
   const cargar = useCallback(async (signal) => {
     setLoading(true);
@@ -89,14 +90,17 @@ export default function useCompras() {
       const folio = folioConsolidar.trim();
       if (!folio) throw new Error('Captura el No. de Factura para agrupar.');
       await comprasService.consolidarCompras(sel.map(c => c.name), folio);
+      if (facturadoConsolidar) {
+        await Promise.all(sel.map(c => comprasService.updateFacturadoA(c.name, facturadoConsolidar)));
+      }
       const proveedor = sel[0].supplier_name || sel[0].supplier;
       const notas = sel.map(c => ({
         no_compra: c.custom_no_de_compra, remision: c.custom_nota_remision,
         fecha: c.posting_date, total: c.grand_total,
       }));
-      await imprimirTicketConsolidado(proveedor, folio, notas, sel[0].custom_facturado_a || '');
+      await imprimirTicketConsolidado(proveedor, folio, notas, facturadoConsolidar);
     },
-    { onSuccess: () => { setSeleccion([]); setFolioConsolidar(''); cargar(); } }
+    { onSuccess: () => { setSeleccion([]); setFolioConsolidar(''); setFacturadoConsolidar('SIN FACTURA'); cargar(); } }
   );
   const desagruparModal = useConfirmModal(
     (name) => comprasService.desconsolidarCompra(name),
@@ -225,6 +229,7 @@ export default function useCompras() {
     accionActiva, setAccionActiva,
     seleccion, toggleSel, sumaSel, esConsolidable,
     folioConsolidar, setFolioConsolidar,
+    facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos,
     filteredCompras, facturasAgrupadas, notasItems,
     deleteModal, cancelModal, pagoModal,

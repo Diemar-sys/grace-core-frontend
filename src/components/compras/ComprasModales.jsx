@@ -27,6 +27,7 @@ export default function ComprasModales({
   deleteModal, cancelModal, pagoModal,
   consolidarModal, desagruparModal, cancelConsolidadoModal,
   folioConsolidar, setFolioConsolidar,
+  facturadoConsolidar, setFacturadoConsolidar,
   detalleModal, setDetalleModal,
 }) {
   return (
@@ -125,6 +126,13 @@ export default function ComprasModales({
               placeholder="No. de Factura (ej: FAC-001)"
               value={folioConsolidar} onChange={e => setFolioConsolidar(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && folioConsolidar.trim() && !consolidarModal.loading) consolidarModal.confirm(); }} />
+            <label style={{ display: 'block', marginTop: 10, fontSize: 13 }}>Facturado a:</label>
+            <select className="comp-date-input" style={{ display: 'block', width: '100%', marginTop: 4 }}
+              value={facturadoConsolidar} onChange={e => setFacturadoConsolidar(e.target.value)}>
+              <option value="SIN FACTURA">SIN FACTURA</option>
+              <option value="ALMA RODRIGUEZ">ALMA RODRIGUEZ</option>
+              <option value="LUIS TORRES">LUIS TORRES</option>
+            </select>
           </>}
           subdescription="El folio se asigna a todas. Las notas quedarán BLOQUEADAS para no re-mezclarlas. Solo un Gerente puede desagrupar."
           icon={ICON_WARNING}

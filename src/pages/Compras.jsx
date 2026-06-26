@@ -23,6 +23,7 @@ function Compras() {
     accionActiva, setAccionActiva,
     seleccion, toggleSel, sumaSel, esConsolidable,
     folioConsolidar, setFolioConsolidar,
+    facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos, filteredCompras, facturasAgrupadas, notasItems,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
@@ -159,7 +160,7 @@ function Compras() {
                 </span>
                 <div className="comp-consol-actions">
                   <button className="comp-btn-editar" onClick={() => setSeleccion([])}>Limpiar</button>
-                  <button className="comp-btn-confirmar" onClick={() => { setFolioConsolidar(''); consolidarModal.open(seleccion); }}>Agrupar e imprimir</button>
+                  <button className="comp-btn-confirmar" onClick={() => { setFolioConsolidar(''); setFacturadoConsolidar('SIN FACTURA'); consolidarModal.open(seleccion); }}>Agrupar e imprimir</button>
                 </div>
               </div>
             )}
@@ -454,6 +455,8 @@ function Compras() {
         cancelConsolidadoModal={cancelConsolidadoModal}
         folioConsolidar={folioConsolidar}
         setFolioConsolidar={setFolioConsolidar}
+        facturadoConsolidar={facturadoConsolidar}
+        setFacturadoConsolidar={setFacturadoConsolidar}
         detalleModal={detalleModal}
         setDetalleModal={setDetalleModal}
       />
