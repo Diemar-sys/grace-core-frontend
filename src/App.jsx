@@ -14,6 +14,7 @@ import Produccion from './pages/Produccion';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
 import ConsultasInventario from './pages/ConsultasInventario';
+import Kardex from './pages/Kardex';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
 import ReporteGastos from './pages/ReporteGastos';
 import ReporteCompras from './pages/ReporteCompras';
@@ -124,6 +125,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ConsultasInventario />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/consultas/kardex"
+          element={
+            <ProtectedRoute>
+              <Kardex />
             </ProtectedRoute>
           }
         />

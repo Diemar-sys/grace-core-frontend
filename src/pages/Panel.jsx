@@ -173,6 +173,7 @@ function ContenidoOperaciones({ modulosPermitidos }) {
 const MODULOS_CONSULTAS = [
   { key: "catalogo",    path: "/catalogo?modo=consulta",    icon: <IconCatalogo />,    nombre: "Catálogo",       sub: "Ver registros",      color: "#d08700",   bg: "#fff8e6" },
   { key: "inventario",  path: "/inventario?modo=consulta",  icon: <IconInventario />,  nombre: "Inventario",     sub: "Ver registros",      color: "#2e7d32",   bg: "#e8f5e9" },
+  { key: "inventario",  path: "/consultas/kardex",          icon: <IconInventario />,  nombre: "Kardex",         sub: "Movimientos por producto", color: "#0f766e", bg: "#ccfbf1" },
   { key: "compras",     path: "/compras?modo=consulta",     icon: <IconCompras />,     nombre: "Compras",        sub: "Ver registros",      color: "#1565c0",   bg: "#e3f0ff" },
   { key: "venta_b2b",   path: "/venta-b2b?modo=consulta",   icon: <IconVentaB2B />,    nombre: "Venta B2B",      sub: "Historial de ventas", color: "#388e3c",   bg: "#e8f5e9" },
   { key: "envio_sucursal", path: "/envio-sucursal?modo=consulta", icon: <IconEnvioSucursal />, nombre: "Envío a Sucursal", sub: "Ver registros", color: "#0891b2", bg: "#cffafe" },

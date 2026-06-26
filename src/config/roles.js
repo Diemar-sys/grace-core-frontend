@@ -16,6 +16,7 @@ function rutasDe(modulos, { reportes = false, cuentas = false } = {}) {
     '/panel',
     ...modulos.map(k => ROUTE[k]),
     ...(modulos.includes('pos') ? ['/consultas/pos'] : []),
+    ...(modulos.includes('inventario') ? ['/consultas/kardex'] : []),
     ...(reportes ? RUTAS_REPORTES : []),
     ...(cuentas ? ['/cuentas'] : []),
   ];

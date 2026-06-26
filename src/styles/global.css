@@ -837,4 +837,23 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   font-size: 16px;
   color: var(--tv-ink);
 }
+/* Kardex: forzar headers carbón + crema (incl. los cell-right, que heredaban
+   color/ fondo claro y se veían en blanco). */
+.kardex-table thead th,
+.kardex-table thead th.cell-right {
+  background: var(--tv-carbon);
+  color: var(--tv-cream);
+}
+
+/* Buscador de producto (combobox) en Kardex */
+.kardex-combo { position: relative; }
+.kardex-combo-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  max-height: 280px; overflow-y: auto; margin-top: 2px;
+  background: #fff; border: 1px solid var(--tv-line, #e7e1d6);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.kardex-combo-item { padding: 9px 12px; cursor: pointer; font-size: 14px; }
+.kardex-combo-item:hover,
+.kardex-combo-item.active { background: var(--tv-marca-wash, #fbeee9); }
 .sys-table .cell-bold { font-weight: 700; font-size: 17px; }
