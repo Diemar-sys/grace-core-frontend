@@ -203,8 +203,10 @@ export default function useCompras() {
     const supName  = (c.supplier_name || '').toLowerCase();
     const supId    = (c.supplier || '').toLowerCase();
     const noCompra = String(c.custom_no_de_compra ?? '').toLowerCase();
+    const factura  = (c.supplier_delivery_note || '').toLowerCase();
     const termNum  = term.replace(/^#/, '');
-    return supName.includes(term) || supId.includes(term) || noCompra.includes(termNum);
+    return supName.includes(term) || supId.includes(term)
+      || noCompra.includes(termNum) || factura.includes(term);
   });
 
   const facturasAgrupadas = agruparFacturas(filteredCompras);
