@@ -21,7 +21,7 @@ function Compras() {
     proveedorFiltro, setProveedorFiltro,
     vista, setVista, expandido, toggleExpand,
     accionActiva, setAccionActiva,
-    seleccion, toggleSel, sumaSel, esConsolidable,
+    seleccion, setSeleccion, toggleSel, sumaSel, esConsolidable,
     folioConsolidar, setFolioConsolidar,
     facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos, filteredCompras, facturasAgrupadas, notasItems,
@@ -292,6 +292,7 @@ function Compras() {
                               <input type="checkbox" className="comp-sel"
                                 checked={seleccion.some(x => x.name === c.name)}
                                 onChange={() => toggleSel(c)}
+                                onClick={e => e.stopPropagation()}
                                 title="Seleccionar para ticket consolidado" />
                             ) : null}
                             {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}

@@ -227,7 +227,7 @@ export default function useCompras() {
     vista, setVista,
     expandido, toggleExpand,
     accionActiva, setAccionActiva,
-    seleccion, toggleSel, sumaSel, esConsolidable,
+    seleccion, setSeleccion, toggleSel, sumaSel, esConsolidable,
     folioConsolidar, setFolioConsolidar,
     facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos,
