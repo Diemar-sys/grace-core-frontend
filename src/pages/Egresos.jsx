@@ -68,7 +68,18 @@ const SUCURSALES_GAS = ['Paseos del Bosque', 'Puerta Real', 'Pirámides', 'Santu
 const TELEFONOS   = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque'];
 const TIPOS_MANT  = ['Maquinaria', 'Camioneta', 'Infraestructura', 'Cómputo'];
 const TIPOS_REFAC = ['Camioneta', 'Maquinaria', 'Otro'];
-const TIPOS_AGUA  = ['Agua para consumo humano', 'Pipa de agua'];
+const TIPOS_AGUA  = ['Agua para consumo humano', 'Pipa de agua', 'Agua de uso diario - CEA'];
+
+// Proveedor (supplier_name) → autocompleta Agua. Match por substring, sin acentos/caso.
+const AUTO_AGUA = [
+  { match: 'bonafont',          concepto: 'Agua para consumo humano' },
+  { match: 'pipa de agua',      concepto: 'Pipa de agua' },
+];
+export function autoAgua(label) {
+  const t = (label || '').toLowerCase();
+  const hit = AUTO_AGUA.find(a => t.includes(a.match));
+  return hit ? { subcategoria: 'Agua', concepto: hit.concepto } : null;
+}
 
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
@@ -701,7 +712,10 @@ export default function Egresos() {
                 const proveedorField = (
                   <label className="egresos-prov-field">Proveedor
                     <BuscadorProveedor value={form.proveedor}
-                      onChange={v => setForm(f => ({ ...f, proveedor: v }))} />
+                      onChange={v => setForm(f => {
+                        const auto = categoriaKey === 'Gasto' ? autoAgua(v.label) : null;
+                        return { ...f, proveedor: v, ...(auto || {}) };
+                      })} />
                   </label>
                 );
                 return form.subcategoria === 'Gas'

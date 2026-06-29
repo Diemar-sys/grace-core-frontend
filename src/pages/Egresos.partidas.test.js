@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { calcTotalesPartidas } from './Egresos';
+import { calcTotalesPartidas, autoAgua } from './Egresos';
+
+describe('autoAgua — proveedor autocompleta Agua', () => {
+  it('Bonafont → consumo humano', () => {
+    expect(autoAgua('Bonafont')).toEqual({ subcategoria: 'Agua', concepto: 'Agua para consumo humano' });
+  });
+  it('Pipa (cualquier caso/sufijo) → Pipa de agua', () => {
+    expect(autoAgua('Pipa de agua - Abraham Martinez')).toEqual({ subcategoria: 'Agua', concepto: 'Pipa de agua' });
+  });
+  it('proveedor desconocido → null', () => {
+    expect(autoAgua('Telmex')).toBeNull();
+    expect(autoAgua('')).toBeNull();
+  });
+});
 
 // Único check del agrupamiento por tasa (la suma/ajuste vive en calcularTotalesEfectivos, ya testeado).
 describe('calcTotalesPartidas — agrupa bases por tasa', () => {
