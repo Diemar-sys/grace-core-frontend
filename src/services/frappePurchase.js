@@ -116,10 +116,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Array<Object>} items - Lista de ítems de la compra.
    * @returns {Array<Object>} Arreglo de impuestos agrupados por tipo (IVA, IEPS, etc.)
    */
-  _calcularImpuestos(items, taxOverrides = {}, cuentas = null) {
+  _calcularImpuestos(items, taxOverrides = {}, cuentas = null, descuento = 0) {
     const round2 = (n) => Math.round(n * 100) / 100;
     const cfg = cuentas || getAppConfigSync().cuentas;
     const grupos = {};
+    let sumBase = 0;
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
       const key = item.impuesto_key || "tasa0";
@@ -127,11 +128,19 @@ class FrappeComprasService extends FrappeBase {
       // Sin redondeo por línea — suma con precisión completa, redondea solo al final.
       // ERPNext con Currency Precision = 6 hace lo mismo server-side.
       const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
+      sumBase += base;
       const monto = base * rate;
       if (!grupos[key]) grupos[key] = { label, rate, monto: 0 };
       grupos[key].monto += monto;
     });
-    // Aplica overrides manuales (para cuadrar con CFDI del proveedor)
+    // Descuento sobre subtotal (antes de IVA): el impuesto va sobre la base descontada.
+    // Espejo de calcularTotalesEfectivos; ERPNext aplica el descuento vía discount_amount.
+    const desc = parseFloat(descuento || 0);
+    if (desc > 0 && sumBase > 0) {
+      const factorNet = (sumBase - desc) / sumBase;
+      Object.values(grupos).forEach(g => { g.monto *= factorNet; });
+    }
+    // Aplica overrides manuales (para cuadrar con CFDI del proveedor) — absolutos, post-descuento
     Object.entries(taxOverrides).forEach(([key, amount]) => {
       if (grupos[key]) grupos[key].monto = amount;
     });
@@ -161,8 +170,9 @@ class FrappeComprasService extends FrappeBase {
    * @param {number|null} [data.noCompra=null] - Número de compra interno para el documento.
    * @returns {Object} Payload final para enviar a Frappe.
    */
-  _buildPayload({ supplier, fecha, billNo = "", notaRemision = "", tipoComprobante = "Nota", items, notas = "", ajuste = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
-    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides);
+  _buildPayload({ supplier, fecha, billNo = "", notaRemision = "", tipoComprobante = "Nota", items, notas = "", ajuste = 0, descuento = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
+    const descuentoNum = parseFloat(descuento || 0);
+    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, null, descuentoNum);
     const ajusteNum = parseFloat(ajuste || 0);
 
     if (ajusteNum !== 0) {
@@ -211,6 +221,9 @@ class FrappeComprasService extends FrappeBase {
         };
       }),
       taxes: resumenImpuestos,
+      // Descuento comercial sobre el subtotal: ERPNext lo reparte entre los renglones
+      // (apply_discount_on Net Total) → baja net_rate/valuación = costo neto (Opción A).
+      ...(descuentoNum > 0 ? { apply_discount_on: "Net Total", discount_amount: descuentoNum } : {}),
       disable_rounded_total: 1,
       rounding_adjustment: 0,
     };
@@ -223,11 +236,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento creado en ERPNext.
    */
-  async guardarBorrador({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async guardarBorrador({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -243,11 +256,11 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Datos de la compra provenientes del formulario.
    * @returns {Promise<Object>} Datos del documento final.
    */
-  async registrarCompra({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async registrarCompra({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const noCompra = await this.getSiguienteNumero();
-    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const created = await this._fetch("/api/resource/Purchase Receipt", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -280,12 +293,12 @@ class FrappeComprasService extends FrappeBase {
    * @param {Object} data - Nuevos datos.
    * @returns {Promise<Object>} Datos actualizados.
    */
-  async actualizarBorrador(name, { supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
+  async actualizarBorrador(name, { supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, facturadoA, taxOverrides = {}, subtotalOverrides = {} }) {
     if (!supplier) throw new Error("Selecciona un proveedor");
     if (!items?.length) throw new Error("Agrega al menos un producto");
     const doc = await this.getCompraBorrador(name);
     const noCompra = doc.custom_no_de_compra || null;
-    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, noCompra, facturadoA, taxOverrides, subtotalOverrides });
+    const payload = this._buildPayload({ supplier, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste, descuento, noCompra, facturadoA, taxOverrides, subtotalOverrides });
     const updated = await this._fetch(
       "/api/resource/Purchase Receipt/" + encodeURIComponent(name),
       { method: "PUT", body: JSON.stringify(payload) }
@@ -445,13 +458,19 @@ class FrappeComprasService extends FrappeBase {
       if (!doc) continue;
       const mes = doc.posting_date.slice(0, 7);
       if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0,
-        pagado: 0, pendiente: 0, porFacturado: { alma: 0, luis: 0, sinFactura: 0 } };
+        pagado: 0, pendiente: 0, porFacturado: {
+          alma:       { pagado: 0, pendiente: 0 },
+          luis:       { pagado: 0, pendiente: 0 },
+          sinFactura: { pagado: 0, pendiente: 0 },
+        } };
       const m = meses[mes];
       m.compras++;
       const gt = parseFloat(doc.grand_total || 0);
       m.total += gt;
-      if (doc.custom_pagado) m.pagado += gt; else m.pendiente += gt;
-      m.porFacturado[facturadoKey(doc.custom_facturado_a)] += gt;
+      // pagado vs pendiente, global y por responsable fiscal (suman al total de cada quien)
+      const fk = facturadoKey(doc.custom_facturado_a);
+      if (doc.custom_pagado) { m.pagado += gt; m.porFacturado[fk].pagado += gt; }
+      else                   { m.pendiente += gt; m.porFacturado[fk].pendiente += gt; }
 
       // IVA e IEPS desde tax entries — son los valores ajustados manualmente para cuadrar con CFDI
       let docIva = 0, docIeps = 0;

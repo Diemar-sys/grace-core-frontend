@@ -153,7 +153,7 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
  * @param {number} [datos.ajuste=0] - Ajuste por redondeo.
  * @param {boolean} [datos.esBorrador=false] - Si es precompra.
  */
-export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, facturadoA, pagado, fecha, hora, totales, ajuste = 0, esBorrador = false }) {
+export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, facturadoA, pagado, fecha, hora, totales, ajuste = 0, descuento = 0, esBorrador = false }) {
   const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
   const titulo = esBorrador ? '** PRECOMPRA **' : '** TICKET DE COMPRA **';
 
@@ -207,6 +207,7 @@ export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, factur
   ${(totales.subtotalIeps || 0) > 0 ? `<div class="info-row base-row"><span>SUBTOTAL IEPS 8%:</span><span>${fmtVal(totales.subtotalIeps)}</span></div>` : ''}
   ${(totales.subtotalTasa0 || 0) > 0 ? `<div class="info-row base-row"><span>SUBTOTAL IVA 0%:</span><span>${fmtVal(totales.subtotalTasa0)}</span></div>` : ''}
   <div class="info-row"><span>SUBTOTAL:</span><span>${fmtVal(totales.subtotal)}</span></div>
+  ${(descuento || 0) > 0 ? `<div class="info-row"><span>DESCUENTO:</span><span>−${fmtVal(descuento)}</span></div>` : ''}
   ${totales.iva > 0 ? `<div class="info-row"><span>IVA 16%:</span><span>${fmtVal(totales.iva)}</span></div>` : ''}
   ${totales.ieps > 0 ? `<div class="info-row"><span>IEPS 8%:</span><span>${fmtVal(totales.ieps)}</span></div>` : ''}
   ${Math.abs(ajuste) > 10 ? `<div class="info-row"><span>AJUSTE:</span><span>${fmtVal(ajuste)}</span></div>` : ''}

@@ -81,6 +81,7 @@ export function docToDatosImpresion(doc) {
     filas,
     totales,
     ajuste,
+    descuento: parseFloat(doc.discount_amount || 0),
     esBorrador: doc.docstatus === 0,
   };
 }
@@ -105,6 +106,7 @@ export async function imprimirCompraTicket(datos) {
     iva: datos.totales?.iva || 0,
     ieps: datos.totales?.ieps || 0,
     ajuste: datos.ajuste || 0,
+    descuento: datos.descuento || 0,
     total: datos.totales?.total || 0,
     es_borrador: !!datos.esBorrador,
   };
@@ -131,7 +133,7 @@ export async function imprimirCompraTicket(datos) {
  * Imprime PDF detallado con tabla de items, impuestos por línea y totales.
  */
 export function imprimirCompraPDF(datos) {
-  const { noCompra, noFactura, fecha, hora, proveedor, facturadoA, pagado, filas, totales, ajuste, esBorrador } = datos;
+  const { noCompra, noFactura, fecha, hora, proveedor, facturadoA, pagado, filas, totales, ajuste, descuento, esBorrador } = datos;
   const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
 
   const win = window.open('', '_blank', 'width=750,height=700');
@@ -225,6 +227,7 @@ export function imprimirCompraPDF(datos) {
       ${(totales.subtotalIeps || 0) > 0 ? `<tr class="base-row"><td>Subtotal IEPS 8%</td><td style="text-align:right">$${fmt2(totales.subtotalIeps)}</td></tr>` : ''}
       ${(totales.subtotalTasa0 || 0) > 0 ? `<tr class="base-row"><td>Subtotal IVA 0%</td><td style="text-align:right">$${fmt2(totales.subtotalTasa0)}</td></tr>` : ''}
       <tr><td>Subtotal</td><td style="text-align:right">$${fmt2(totales.subtotal)}</td></tr>
+      ${(descuento || 0) > 0 ? `<tr><td>Descuento</td><td style="text-align:right">−$${fmt2(descuento)}</td></tr>` : ''}
       ${impuestosRows}
       <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$${fmt2(totales.total)}</td></tr>
     </tbody>

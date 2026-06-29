@@ -107,6 +107,29 @@ describe('compraUtils — calcularTotalesEfectivos (grand_total a ERPNext)', () 
   it('defensivo: sin overrides/manual no lanza', () => {
     expect(() => calcularTotalesEfectivos({ calc: calcBase })).not.toThrow();
   });
+
+  it('descuento tasa 0 (caso real): subtotal 50160 − 13680 = 36480', () => {
+    const calc = { subtotal: 50160, iva: 0, ieps: 0,
+                   subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 50160 };
+    const r = calcularTotalesEfectivos({ calc, descuento: 13680 });
+    expect(r.baseGravable).toBeCloseTo(36480, 6);
+    expect(r.total).toBeCloseTo(36480, 6);
+  });
+
+  it('descuento antes de IVA escala el IVA a la base descontada', () => {
+    // 1000 base, IVA 160. Descuento 100 → base 900, IVA 144, total 1044.
+    const r = calcularTotalesEfectivos({ calc: calcBase, descuento: 100 });
+    expect(r.baseGravable).toBeCloseTo(900, 6);
+    expect(r.iva).toBeCloseTo(144, 6);
+    expect(r.total).toBeCloseTo(1044, 6);
+  });
+
+  it('descuento 0 = idéntico a sin descuento (retrocompat)', () => {
+    const a = calcularTotalesEfectivos({ calc: calcBase });
+    const b = calcularTotalesEfectivos({ calc: calcBase, descuento: 0 });
+    expect(b.total).toBe(a.total);
+    expect(b.iva).toBe(a.iva);
+  });
 });
 
 describe('compraUtils — calcVariacion (precio vs catálogo)', () => {

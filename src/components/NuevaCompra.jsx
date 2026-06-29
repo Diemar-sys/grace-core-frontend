@@ -30,6 +30,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const [notas, setNotas] = useState(initialData?.remarks || '');
   const [ajuste, setAjuste] = useState(String(initialData?.rounding_adjustment || ''));
   const [ajusteManual, setAjusteManual] = useState(false);
+  const [descuento, setDescuento] = useState(String(initialData?.discount_amount || ''));
   const [ivaOverride, setIvaOverride] = useState('');
   const [ivaManual, setIvaManual] = useState(false);
   const [iepsOverride, setIepsOverride] = useState('');
@@ -66,6 +67,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         if (doc.custom_tipo_comprobante) setTipoComprobante(doc.custom_tipo_comprobante);
         if (doc.custom_facturado_a) setFacturadoA(doc.custom_facturado_a);
         if (doc.remarks) setNotas(doc.remarks);
+        if (doc.discount_amount) setDescuento(String(doc.discount_amount));
 
         if (doc.taxes?.length) {
           const redondeo = doc.taxes.find(t =>
@@ -189,6 +191,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       ajuste:        ajusteManual,
     },
     ajuste,
+    descuento,
   });
 
   const ajusteEfectivo = efectivos.ajusteEfectivo;
@@ -237,16 +240,16 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     try {
       let docNoCompra = null;
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess('BORRADOR ACTUALIZADO');
         docNoCompra = initialData.custom_no_de_compra ?? null;
       } else {
-        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
         docNoCompra = doc?.custom_no_de_compra ?? null;
       }
       const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-      setPdfData({ noCompra: docNoCompra, noFactura: billNo, fecha, hora, proveedor: proveedor.label, facturadoA, pagado: false, filas: items, totales, ajuste: ajusteEfectivo, esBorrador: true });
+      setPdfData({ noCompra: docNoCompra, noFactura: billNo, fecha, hora, proveedor: proveedor.label, facturadoA, pagado: false, filas: items, totales, ajuste: ajusteEfectivo, descuento: efectivos.descuento, esBorrador: true });
     } catch (err) { setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }); }
     finally { setLoading(false); }
   };
@@ -286,10 +289,10 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setLoading(true);
     try {
       if (esEdicion) {
-        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
         await comprasService.confirmarBorrador(initialData.name);
       } else {
-        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, facturadoA, taxOverrides, subtotalOverrides });
+        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
       const conCambio = items.filter(f => calcVariacion(f)?.cambio);
@@ -498,6 +501,22 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
             <span>Subtotal</span>
             <span className="monto">${fmt(totales.subtotal)}</span>
           </div>
+          <div className="nc-resumen-fila">
+            <span>Descuento</span>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {parseFloat(descuento || 0) > 0 && (
+                <button className="nc-btn-reset-ajuste" onClick={() => setDescuento('')} title="Quitar descuento">↺</button>
+              )}
+              <input type="number" className="nc-input-ajuste" placeholder="0.00"
+                value={descuento} onChange={e => setDescuento(e.target.value)} step="0.01" min="0" />
+            </div>
+          </div>
+          {parseFloat(descuento || 0) > 0 && (
+            <div className="nc-resumen-fila">
+              <span>Base gravable</span>
+              <span className="monto">${fmt(efectivos.baseGravable)}</span>
+            </div>
+          )}
           {totales.iva > 0 && (
             <div className="nc-resumen-fila">
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

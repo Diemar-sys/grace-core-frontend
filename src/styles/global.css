@@ -837,13 +837,9 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   font-size: 16px;
   color: var(--tv-ink);
 }
-/* Kardex: forzar headers carbón + crema (incl. los cell-right, que heredaban
-   color/ fondo claro y se veían en blanco). */
-.kardex-table thead th,
-.kardex-table thead th.cell-right {
-  background: var(--tv-carbon);
-  color: var(--tv-cream);
-}
+/* El color ink de .cell-right (arriba) gana por especificidad sobre el thead
+   carbón → th derechos invisibles. Forzar crema en TODO thead derecho. */
+.sys-table thead th.cell-right { color: var(--tv-cream); }
 
 /* Buscador de producto (combobox) en Kardex */
 .kardex-combo { position: relative; }

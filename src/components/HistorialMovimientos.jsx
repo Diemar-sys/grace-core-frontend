@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
-import '../styles/Compras.css'; // look carbón: thead, inputs, card (scoped .comprasv2)
 
 function hoyISO() { return new Date().toISOString().split('T')[0]; }
 function hace7ISO() {
@@ -85,25 +84,25 @@ function HistorialMovimientos({ almacenes }) {
   }, [filtrados]);
 
   return (
-    <div className="comprasv2" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div className="filtros-section" style={{ flexWrap: 'wrap' }}>
-        <div className="filtro-group filtro-sm">
+        <div className="filtro-group">
           <label>Almacén</label>
-          <select className="comp-date-input" value={warehouse} onChange={e => setWarehouse(e.target.value)}>
+          <select value={warehouse} onChange={e => setWarehouse(e.target.value)}>
             {almacenesUnicos.map(a => <option key={a.name} value={a.name}>{a.label}</option>)}
           </select>
         </div>
-        <div className="filtro-group filtro-sm">
+        <div className="filtro-group">
           <label>Desde</label>
-          <input type="date" className="comp-date-input" value={desde} onChange={e => setDesde(e.target.value)} />
+          <input type="date" value={desde} onChange={e => setDesde(e.target.value)} />
         </div>
-        <div className="filtro-group filtro-sm">
+        <div className="filtro-group">
           <label>Hasta</label>
-          <input type="date" className="comp-date-input" value={hasta} onChange={e => setHasta(e.target.value)} />
+          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} />
         </div>
-        <div className="filtro-group filtro-sm">
+        <div className="filtro-group">
           <label>Tipo</label>
-          <select className="comp-date-input" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
+          <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(TIPO_LABEL).map(([k, v]) => (
               <option key={k} value={k}>{v.txt}</option>
@@ -111,7 +110,7 @@ function HistorialMovimientos({ almacenes }) {
           </select>
         </div>
         <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'flex-end', paddingBottom: 4 }}>
-          <button className="btn-refresh btn-compacto" onClick={() => cargar()} disabled={loading}>
+          <button className="btn-refresh" onClick={() => cargar()} disabled={loading}>
             {loading ? 'Cargando...' : 'Actualizar'}
           </button>
         </div>

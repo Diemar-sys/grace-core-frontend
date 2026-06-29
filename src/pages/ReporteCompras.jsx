@@ -39,10 +39,14 @@ function ReporteCompras() {
     total: a.total + r.total,
     pagado: a.pagado + (r.pagado || 0),
     pendiente: a.pendiente + (r.pendiente || 0),
-    alma:       a.alma       + (r.porFacturado?.alma || 0),
-    luis:       a.luis       + (r.porFacturado?.luis || 0),
-    sinFactura: a.sinFactura + (r.porFacturado?.sinFactura || 0),
-  }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0, pagado:0, pendiente:0, alma:0, luis:0, sinFactura:0 }), [data]);
+    almaPag:  a.almaPag  + (r.porFacturado?.alma?.pagado || 0),
+    almaDebe: a.almaDebe + (r.porFacturado?.alma?.pendiente || 0),
+    luisPag:  a.luisPag  + (r.porFacturado?.luis?.pagado || 0),
+    luisDebe: a.luisDebe + (r.porFacturado?.luis?.pendiente || 0),
+    sfPag:    a.sfPag    + (r.porFacturado?.sinFactura?.pagado || 0),
+    sfDebe:   a.sfDebe   + (r.porFacturado?.sinFactura?.pendiente || 0),
+  }), { compras:0, subtotalIva16:0, subtotalIeps:0, subtotalTasa0:0, subtotal:0, iva:0, ieps:0, total:0, pagado:0, pendiente:0,
+        almaPag:0, almaDebe:0, luisPag:0, luisDebe:0, sfPag:0, sfDebe:0 }), [data]);
 
   return (
     <Layout>
@@ -102,25 +106,30 @@ function ReporteCompras() {
             <table className="sys-table report-compact">
               <thead>
                 <tr>
-                  <th>Mes</th>
-                  <th className="cell-right"># Compras</th>
-                  <th className="cell-right">Subtotal IVA 16%</th>
-                  <th className="cell-right">Subtotal IEPS 8%</th>
-                  <th className="cell-right">Subtotal IVA 0%</th>
-                  <th className="cell-right">Subtotal</th>
-                  <th className="cell-right">IVA 16%</th>
-                  <th className="cell-right">IEPS 8%</th>
-                  <th className="cell-right">Total</th>
-                  <th className="cell-right">Pagado</th>
-                  <th className="cell-right">Se debe</th>
-                  <th className="cell-right">Alma</th>
-                  <th className="cell-right">Luis</th>
-                  <th className="cell-right">S/F</th>
+                  <th rowSpan={2}>Mes</th>
+                  <th className="cell-right" rowSpan={2}># Compras</th>
+                  <th className="cell-right" rowSpan={2}>Subtotal IVA 16%</th>
+                  <th className="cell-right" rowSpan={2}>Subtotal IEPS 8%</th>
+                  <th className="cell-right" rowSpan={2}>Subtotal IVA 0%</th>
+                  <th className="cell-right" rowSpan={2}>Subtotal</th>
+                  <th className="cell-right" rowSpan={2}>IVA 16%</th>
+                  <th className="cell-right" rowSpan={2}>IEPS 8%</th>
+                  <th className="cell-right" rowSpan={2}>Total</th>
+                  <th className="cell-right" rowSpan={2}>Pagado</th>
+                  <th className="cell-right" rowSpan={2}>Se debe</th>
+                  <th className="cell-right" colSpan={2}>Alma</th>
+                  <th className="cell-right" colSpan={2}>Luis</th>
+                  <th className="cell-right" colSpan={2}>S/F</th>
+                </tr>
+                <tr>
+                  <th className="cell-right">Pagado</th><th className="cell-right">Debe</th>
+                  <th className="cell-right">Pagado</th><th className="cell-right">Debe</th>
+                  <th className="cell-right">Pagado</th><th className="cell-right">Debe</th>
                 </tr>
               </thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={14} className="no-data">Sin compras confirmadas en {año}</td></tr>
+                  <tr><td colSpan={17} className="no-data">Sin compras confirmadas en {año}</td></tr>
                 ) : data.map(r => (
                   <tr key={r.mes}>
                     <td className="cell-name">{new Date(r.mes + '-02').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</td>
@@ -134,9 +143,12 @@ function ReporteCompras() {
                     <td className="cell-right cell-bold">${fmt(r.total)}</td>
                     <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.pagado)}</td>
                     <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.pendiente)}</td>
-                    <td className="cell-right">${fmt(r.porFacturado?.alma || 0)}</td>
-                    <td className="cell-right">${fmt(r.porFacturado?.luis || 0)}</td>
-                    <td className="cell-right">${fmt(r.porFacturado?.sinFactura || 0)}</td>
+                    <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.porFacturado?.alma?.pagado || 0)}</td>
+                    <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.porFacturado?.alma?.pendiente || 0)}</td>
+                    <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.porFacturado?.luis?.pagado || 0)}</td>
+                    <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.porFacturado?.luis?.pendiente || 0)}</td>
+                    <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.porFacturado?.sinFactura?.pagado || 0)}</td>
+                    <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.porFacturado?.sinFactura?.pendiente || 0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,9 +166,12 @@ function ReporteCompras() {
                     <td className="cell-right">${fmt(tot.total)}</td>
                     <td className="cell-right">${fmt(tot.pagado)}</td>
                     <td className="cell-right">${fmt(tot.pendiente)}</td>
-                    <td className="cell-right">${fmt(tot.alma)}</td>
-                    <td className="cell-right">${fmt(tot.luis)}</td>
-                    <td className="cell-right">${fmt(tot.sinFactura)}</td>
+                    <td className="cell-right">${fmt(tot.almaPag)}</td>
+                    <td className="cell-right">${fmt(tot.almaDebe)}</td>
+                    <td className="cell-right">${fmt(tot.luisPag)}</td>
+                    <td className="cell-right">${fmt(tot.luisDebe)}</td>
+                    <td className="cell-right">${fmt(tot.sfPag)}</td>
+                    <td className="cell-right">${fmt(tot.sfDebe)}</td>
                   </tr>
                 </tfoot>
               )}

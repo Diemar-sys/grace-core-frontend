@@ -1,6 +1,6 @@
 import { IMPUESTOS_MAP } from '../../config/impuestos';
 
-export const MARGEN_DEFAULT = 100;
+export const MARGEN_DEFAULT = 10;
 
 export const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -52,11 +52,8 @@ export const totalFila    = (f) => subtotalFila(f) + impuestoFila(f);
  * @param {string|number} [p.ajuste] - Ajuste manual de balance.
  * @returns {object} Totales efectivos + ajusteSAT/ajusteParaErp + total.
  */
-export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, ajuste = 0 }) => {
+export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, ajuste = 0, descuento = 0 }) => {
   const num = (v) => parseFloat(v || 0);
-
-  const iva  = (manual.iva  && calc.iva  > 0) ? num(overrides.iva)  : calc.iva;
-  const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps;
 
   const subtotalIva16 = manual.subtotalIva16 ? num(overrides.subtotalIva16) : calc.subtotalIva16;
   const subtotalIeps  = manual.subtotalIeps  ? num(overrides.subtotalIeps)  : calc.subtotalIeps;
@@ -65,7 +62,20 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   const subtotalEfectivo = subtotalIva16 + subtotalIeps + subtotalTasa0;
   const subtotalDiff     = subtotalEfectivo - calc.subtotal;
 
-  const rawTotal       = subtotalEfectivo + iva + ieps;
+  // Descuento comercial sobre el subtotal (antes de IVA): baja la base gravable y
+  // el IVA/IEPS proporcional. En ERPNext = apply_discount_on "Net Total" → baja la
+  // valuación del inventario (el costo neto), no es ingreso.
+  const descuentoNum = num(descuento);
+  const baseGravable = subtotalEfectivo - descuentoNum;
+  const factorNet    = subtotalEfectivo > 0 ? baseGravable / subtotalEfectivo : 1;
+
+  // IVA/IEPS sobre la base ya descontada. El override manual (cuadre CFDI) se respeta
+  // tal cual: se asume que el CFDI ya trae el impuesto post-descuento.
+  // ponytail: override + descuento a la vez = raro; no se re-escala el override.
+  const iva  = (manual.iva  && calc.iva  > 0) ? num(overrides.iva)  : calc.iva  * factorNet;
+  const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps * factorNet;
+
+  const rawTotal       = baseGravable + iva + ieps;
   // Ajuste SAT: lleva el total a 2 decimales exactos sin redondeo intermedio (precisión 6).
   const ajusteSAT      = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
   const ajusteEfectivo = manual.ajuste ? num(ajuste) : ajusteSAT;
@@ -74,6 +84,7 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   return {
     iva, ieps, subtotalIva16, subtotalIeps, subtotalTasa0,
     subtotalEfectivo, subtotalDiff, rawTotal,
+    descuento: descuentoNum, baseGravable, factorNet,
     ajusteSAT, ajusteEfectivo, ajusteParaErp,
     total: rawTotal + ajusteEfectivo,
   };
