@@ -390,6 +390,9 @@ class FrappeStockService extends FrappeBase {
           item_code: it.item_code,
           warehouse: warehouse || BODEGA_CENTRAL,
           qty: parseFloat(it.qty),
+          // Item sin costo (nunca comprado) → ERPNext exige valuation_rate al subir stock
+          // y truena con 417. Permitir 0: entra al costo real en la primera compra.
+          allow_zero_valuation_rate: 1,
         })),
       }),
     });

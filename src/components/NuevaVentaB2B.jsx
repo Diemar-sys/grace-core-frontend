@@ -118,7 +118,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
           const resultados = await Promise.allSettled(
             filasRehidratadas.map(async (f) => {
               const bin = await stockService.getStockBin(f.item_code, BODEGA_CENTRAL);
-              const stockEnUnidad = parseFloat(bin?.actual_stock || 0) * f.cantidad_por_presentacion;
+              const stockEnUnidad = parseFloat(bin?.actual_qty || 0); // Bin ya en unidad base (igual que alta)
               return { id: f._id, stock: stockEnUnidad };
             })
           );
