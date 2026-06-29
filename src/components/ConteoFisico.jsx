@@ -5,6 +5,16 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import '../styles/NuevaCompra.css';
 
+// Factor presentación→base (Bulto de 25kg → 25). 1 si el item no tiene presentación
+// (o factor <=1): esos ya están en base y NO se deben multiplicar.
+export const presFactor = it => {
+  const f = parseFloat(it?.custom_cantidad_por_presentación);
+  return f > 1 ? f : 1;
+};
+// Unidad en la que se captura/muestra: presentación si la tiene, si no la base.
+export const presUnit = it =>
+  presFactor(it) > 1 && it?.custom_presentación ? it.custom_presentación : (it?.stock_uom || 'Kg');
+
 function ConteoFisico({ onSuccess, onCancel }) {
   const [items, setItems]     = useState([]);
   const [conteo, setConteo]   = useState({});
@@ -33,9 +43,13 @@ function ConteoFisico({ onSuccess, onCancel }) {
   );
 
   const handleSubmit = async () => {
+    // Stock Reconciliation guarda qty en stock_uom (base): convierto presentación→base aquí.
     const lineas = Object.entries(conteo)
       .filter(([, v]) => v !== '')
-      .map(([item_code, qty]) => ({ item_code, qty }));
+      .map(([item_code, qty]) => {
+        const it = items.find(i => i.item_code === item_code);
+        return { item_code, qty: parseFloat(qty) * presFactor(it) };
+      });
     if (!lineas.length) return;
     setSending(true);
     try {
@@ -85,7 +99,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left' }}>Item</th>
-                <th style={{ textAlign: 'center', width: 60 }}>UOM</th>
+                <th style={{ textAlign: 'center', width: 80 }}>UOM</th>
                 <th style={{ textAlign: 'right', width: 90 }}>Stock ERP</th>
                 <th style={{ textAlign: 'center', width: 110 }}>Conteo físico</th>
                 <th style={{ textAlign: 'right', width: 80 }}>Diferencia</th>
@@ -93,7 +107,9 @@ function ConteoFisico({ onSuccess, onCancel }) {
             </thead>
             <tbody>
               {filtrados.map(it => {
-                const erpQty    = parseFloat(it.actual_qty) || 0;
+                const factor    = presFactor(it);
+                const unit      = presUnit(it);
+                const erpQty    = (parseFloat(it.actual_qty) || 0) / factor; // base → presentación
                 const rawVal    = conteo[it.item_code] ?? '';
                 const fisicoQty = rawVal !== '' ? parseFloat(rawVal) : null;
                 const diff      = fisicoQty !== null ? fisicoQty - erpQty : null;
@@ -108,7 +124,12 @@ function ConteoFisico({ onSuccess, onCancel }) {
                       <div style={{ fontSize: 12, color: 'var(--tv-ink-soft)' }}>{it.item_code}</div>
                     </td>
                     <td style={{ textAlign: 'center', color: 'var(--tv-ink-soft)', fontWeight: 500 }}>
-                      {it.stock_uom || 'Kg'}
+                      {unit}
+                      {factor > 1 && (
+                        <div style={{ fontSize: 11, color: 'var(--tv-ink-soft)' }}>
+                          ×{factor} {it.stock_uom || 'Kg'}
+                        </div>
+                      )}
                     </td>
                     <td style={{ textAlign: 'right', color: 'var(--tv-ink)', fontVariantNumeric: 'tabular-nums' }}>
                       {erpQty.toFixed(2)}

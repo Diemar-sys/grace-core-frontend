@@ -8,11 +8,41 @@ function fmt(n) {
   return (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+export const FACTURADOS = ['ALMA RODRIGUEZ', 'LUIS TORRES', 'SIN FACTURA'];
+const FACT_LABEL = { 'ALMA RODRIGUEZ': 'Alma Rodríguez', 'LUIS TORRES': 'Luis Torres', 'SIN FACTURA': 'Sin factura' };
+
+// Saldo pendiente por facturado_a — siempre los 3 buckets (aunque vengan en 0).
+export function pendientePorFacturado(rows) {
+  const acc = Object.fromEntries(FACTURADOS.map(f => [f, 0]));
+  for (const r of rows || []) {
+    const k = FACTURADOS.includes(r.facturado_a) ? r.facturado_a : 'SIN FACTURA';
+    acc[k] += parseFloat(r.pendiente) || 0;
+  }
+  return acc;
+}
+
+// Filas por proveedor para la tabla. 'todas' re-agrega los facturado_a (= reporte original).
+export function filasCxP(rows, facturadoFiltro) {
+  rows = rows || [];
+  if (facturadoFiltro !== 'todas') return rows.filter(r => r.facturado_a === facturadoFiltro);
+  const map = new Map();
+  for (const r of rows) {
+    const cur = map.get(r.proveedor) || { proveedor: r.proveedor, n: 0, total: 0, pagado: 0, pendiente: 0 };
+    cur.n        += r.n || 0;
+    cur.total    += parseFloat(r.total) || 0;
+    cur.pagado   += parseFloat(r.pagado) || 0;
+    cur.pendiente += parseFloat(r.pendiente) || 0;
+    map.set(r.proveedor, cur);
+  }
+  return [...map.values()].sort((a, b) => b.pendiente - a.pendiente);
+}
+
 function ReporteCuentasPorPagar() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [soloSaldo, setSoloSaldo] = useState(true);
+  const [facturado, setFacturado] = useState('todas');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -23,10 +53,13 @@ function ReporteCuentasPorPagar() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const filas = useMemo(
-    () => soloSaldo ? data.filter(r => (parseFloat(r.pendiente) || 0) > 0.005) : data,
-    [data, soloSaldo],
-  );
+  // Strip: siempre sobre TODO el dato, no afectado por el dropdown.
+  const strip = useMemo(() => pendientePorFacturado(data), [data]);
+
+  const filas = useMemo(() => {
+    const base = filasCxP(data, facturado);
+    return soloSaldo ? base.filter(r => (parseFloat(r.pendiente) || 0) > 0.005) : base;
+  }, [data, facturado, soloSaldo]);
 
   const tot = useMemo(() => filas.reduce((a, r) => ({
     n: a.n + (r.n || 0),
@@ -50,26 +83,31 @@ function ReporteCuentasPorPagar() {
           <button className="btn-refresh" onClick={() => navigate('/panel?seccion=reportes')}>← Volver</button>
         </div>
 
-        <div className="stats-cards" style={{ marginBottom: 16 }}>
-          <div className="stat-card">
-            <span className="stat-number">{filas.length}</span>
-            <span className="stat-label">Proveedores</span>
-          </div>
-          <div className="stat-card warning">
-            <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(tot.pendiente)}</span>
-            <span className="stat-label">Se debe</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number comp-stat-total" style={{ color: '#16a34a' }}>${fmt(tot.pagado)}</span>
-            <span className="stat-label">Pagado</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number comp-stat-total">${fmt(tot.total)}</span>
-            <span className="stat-label">Total</span>
-          </div>
+        {/* Strip: se debe por facturado_a — siempre visible, los 3 */}
+        <div className="cxp-strip" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+          {FACTURADOS.map(f => (
+            <button key={f} type="button"
+              onClick={() => setFacturado(facturado === f ? 'todas' : f)}
+              className="stat-card"
+              style={{
+                flex: '1 1 180px', textAlign: 'left', cursor: 'pointer',
+                border: facturado === f ? '2px solid var(--tv-marca)' : '1px solid var(--tv-hairline)',
+                background: facturado === f ? 'var(--tv-marca-wash)' : undefined,
+              }}>
+              <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(strip[f])}</span>
+              <span className="stat-label">{FACT_LABEL[f]} · se debe</span>
+            </button>
+          ))}
         </div>
 
         <div className="filtros-section" style={{ alignItems: 'center' }}>
+          <div className="filtro-group filtro-sm">
+            <label>Facturado a</label>
+            <select value={facturado} onChange={e => setFacturado(e.target.value)}>
+              <option value="todas">Todas</option>
+              {FACTURADOS.map(f => <option key={f} value={f}>{FACT_LABEL[f]}</option>)}
+            </select>
+          </div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
             <input type="checkbox" checked={soloSaldo} onChange={e => setSoloSaldo(e.target.checked)} />
             Solo con saldo pendiente
