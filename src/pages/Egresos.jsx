@@ -81,10 +81,14 @@ export function autoAgua(label) {
   return hit ? { subcategoria: 'Agua', concepto: hit.concepto } : null;
 }
 
+// Subcategorías que por defecto llevan IVA 16% (servicios facturables).
+const SUBCAT_IVA = ['Control de plagas'];
+const impuestoDefault = (subcat) => SUBCAT_IVA.includes(subcat) ? 'iva16' : 'tasa0';
+
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
   { key: 'Gasto',        label: 'Gastos',      sub: 'Operativos',       icon: <IconGasto />,      color: '#dc2626', bg: '#fee2e2',
-    subcategorias: ['Gasolina','Gas','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones'] },
+    subcategorias: ['Gasolina','Gas','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas'] },
   { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago camioneta'] },
   { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo'] },
@@ -467,7 +471,8 @@ export default function Egresos() {
   useEffect(() => { if (categoriaKey) cargar(categoriaKey); }, [categoriaKey, cargar]);
 
   const initForm = (subcat) => {
-    setForm({ ...FORM_INIT, subcategoria: subcat || cat?.subcategorias?.[0] || '' });
+    const sc = subcat || cat?.subcategorias?.[0] || '';
+    setForm({ ...FORM_INIT, subcategoria: sc, impuesto_key: impuestoDefault(sc) });
     setShowForm(true);
   };
 
@@ -704,7 +709,7 @@ export default function Egresos() {
                 const subcatField = subcats.length > 1 ? (
                   <label className="egresos-subcat-field">Subcategoría
                     <select value={form.subcategoria}
-                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, fecha: f.fecha, factura_key: f.factura_key, proveedor: f.proveedor }))}>
+                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, impuesto_key: impuestoDefault(e.target.value), fecha: f.fecha, factura_key: f.factura_key, proveedor: f.proveedor }))}>
                       {subcats.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </label>
