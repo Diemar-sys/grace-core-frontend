@@ -95,6 +95,7 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
 export function agruparFacturas(filteredCompras) {
   const grupos = new Map();
   for (const c of filteredCompras) {
+    if (c.docstatus === 2) continue; // ponytail: cancelado no suma al total de la factura
     const esConsolidada = !!(c.custom_consolidado && c.custom_tipo_comprobante === 'Nota');
     const esFactura = c.custom_tipo_comprobante === 'Factura';
     if (!esConsolidada && !esFactura) continue;
