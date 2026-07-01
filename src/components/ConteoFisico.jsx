@@ -5,15 +5,15 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import '../styles/NuevaCompra.css';
 
-// Factor presentación→base (Bulto de 25kg → 25). 1 si el item no tiene presentación
-// (o factor <=1): esos ya están en base y NO se deben multiplicar.
+// Factor presentación→base (Bulto de 25kg → 25; Caja de 0.86kg → 0.86).
+// 1 solo si no hay presentación o factor inválido: ese ya está en base, no se multiplica.
 export const presFactor = it => {
   const f = parseFloat(it?.custom_cantidad_por_presentación);
-  return f > 1 ? f : 1;
+  return f > 0 && f !== 1 ? f : 1;
 };
 // Unidad en la que se captura/muestra: presentación si la tiene, si no la base.
 export const presUnit = it =>
-  presFactor(it) > 1 && it?.custom_presentación ? it.custom_presentación : (it?.stock_uom || 'Kg');
+  presFactor(it) !== 1 && it?.custom_presentación ? it.custom_presentación : (it?.stock_uom || 'Kg');
 
 function ConteoFisico({ onSuccess, onCancel }) {
   const [items, setItems]     = useState([]);
@@ -125,7 +125,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
                     </td>
                     <td style={{ textAlign: 'center', color: 'var(--tv-ink-soft)', fontWeight: 500 }}>
                       {unit}
-                      {factor > 1 && (
+                      {factor !== 1 && (
                         <div style={{ fontSize: 11, color: 'var(--tv-ink-soft)' }}>
                           ×{factor} {it.stock_uom || 'Kg'}
                         </div>
