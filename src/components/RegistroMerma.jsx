@@ -1,5 +1,5 @@
 // src/components/RegistroMerma.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
 import { sanitizar } from '../utils/security';
 import { BODEGA_CENTRAL } from '../config/constants';

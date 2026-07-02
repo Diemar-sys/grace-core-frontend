@@ -1,5 +1,5 @@
 // src/components/RegistroEntrada.jsx
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { stockService } from "../services/frappeStock";
 import { sanitizar } from '../utils/security';
 import { parseErrorFrappe } from '../utils/errorFrappe';
@@ -45,11 +45,6 @@ function RegistroEntrada({ onSuccess, onCancel }) {
       .catch(err => console.error('No pude cargar almacenes:', err));
     return () => { cancel = true; };
   }, []);
-
-  const warehouseLabel = useMemo(
-    () => warehouses.find(w => w.name === warehouse)?.label || warehouse,
-    [warehouse, warehouses]
-  );
 
   const agregarFila  = () => setFilas(f => [...f, FILA_VACIA()]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };

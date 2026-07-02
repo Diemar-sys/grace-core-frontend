@@ -1,4 +1,3 @@
-import React from 'react';
 import { fmt, fmtModoPago } from './posUtils';
 import { TENANT } from '../../config/tenant';
 

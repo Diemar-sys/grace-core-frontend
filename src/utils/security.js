@@ -158,6 +158,6 @@ export const validar = {
   /** Número positivo (precio, cantidad) */
   numero: (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
 
-  /** Nombre de usuario: alfanumérico, puntos y arroba. Sin espacios raros. */
-  usuario: (v) => typeof v === 'string' && /^[\w.\-@]{3,80}$/.test(v),
+  /** Nombre de usuario: alfanumérico, puntos, arroba y + (subdirecciones de email). */
+  usuario: (v) => typeof v === 'string' && /^[\w.\-@+]{3,80}$/.test(v),
 };

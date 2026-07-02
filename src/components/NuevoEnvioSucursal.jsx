@@ -1,5 +1,5 @@
 // src/components/NuevoEnvioSucursal.jsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { stockService } from '../services/frappeStock';
 import { fmtUom } from '../utils/uom';
 import { BODEGA_CENTRAL } from '../config/constants';

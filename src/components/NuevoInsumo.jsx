@@ -1,4 +1,3 @@
-import React from 'react';
 import ModalError from './modals/ModalError';
 import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoInsumo.css';

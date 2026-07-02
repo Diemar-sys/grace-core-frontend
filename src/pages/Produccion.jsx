@@ -1,6 +1,6 @@
 // src/pages/Produccion.jsx
 // Módulo de Producción: Recetas + Registro de producción
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevaReceta from '../components/NuevaReceta';

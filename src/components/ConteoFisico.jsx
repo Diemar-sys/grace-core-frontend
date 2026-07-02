@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
 import { parseErrorFrappe } from '../utils/errorFrappe';

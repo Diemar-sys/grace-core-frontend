@@ -181,45 +181,6 @@ class FrappeInventoryService extends FrappeBase {
     }));
   }
 
-  async #injectPricingData(items) {
-    if (!items || items.length === 0) return items;
-    try {
-      const chunkedItems = [];
-      const chunkSize = 200;
-      for (let i = 0; i < items.length; i += chunkSize) {
-        chunkedItems.push(items.slice(i, i + chunkSize));
-      }
-
-      const extraMap = {};
-      for (const chunk of chunkedItems) {
-        const itemCodes = chunk.map(i => i.item_code);
-        const urlParams = new URLSearchParams({
-          fields: JSON.stringify(["item_code", "custom_precio_final", "custom_precio_de_compra", "custom_impuesto"]),
-          filters: JSON.stringify([["item_code", "in", itemCodes]]),
-          limit_page_length: chunkSize
-        });
-        const resp = await this._fetch(`/api/resource/Item?${urlParams}`);
-        (resp.data || []).forEach(e => { extraMap[e.item_code] = e; });
-      }
-
-      return items.map(item => {
-        const extra = extraMap[item.item_code] || {};
-        const compra = parseFloat(extra.custom_precio_de_compra) || 0;
-        const tasa = getTasa(extra.custom_impuesto);
-        const totalConImpuesto = compra > 0 ? compra * (1 + tasa) : null;
-
-        return {
-          ...item,
-          custom_total_presentacion: totalConImpuesto,
-          custom_precio_final: extra.custom_precio_final ?? null,
-        };
-      });
-    } catch (e) {
-      console.warn("Fallo inyectando precios:", e);
-      return items;
-    }
-  }
-
   /**
    * Obtiene todos los artículos registrados. Se muestra su estado base 
    * omitiendo cálculos de saldo (útil para administración del catálogo maestro).

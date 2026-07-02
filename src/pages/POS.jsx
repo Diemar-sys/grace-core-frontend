@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Layout from '../components/Layout';
-import { posService } from '../services/frappePOS';
 import POSCatalogo from '../components/pos/POSCatalogo';
 import POSTicket from '../components/pos/POSTicket';
 import POSModalCobro from '../components/pos/POSModalCobro';
@@ -21,10 +20,6 @@ import { DEFAULT_CUSTOMER } from '../config/constants';
 
 const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
 
-// Fuera del componente — no se recrea en cada render
-function hoyISO() {
-  return new Date().toISOString().split('T')[0];
-}
 
 function POS() {
   // ── Catálogo ──────────────────────────────────

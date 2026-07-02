@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';

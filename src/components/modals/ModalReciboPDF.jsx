@@ -1,7 +1,6 @@
 // src/components/ModalReciboPDF.jsx
 // Preview + impresión PDF de venta B2B (preventa o registrada).
 // Espera datos: { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador }
-import React from 'react';
 import { TENANT } from '../../config/tenant';
 import { fmtUom } from '../../utils/uom';
 

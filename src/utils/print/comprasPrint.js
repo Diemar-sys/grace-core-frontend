@@ -1,9 +1,6 @@
 import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from './ticketTemplate';
-
-const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[c]));
+import { escHTML } from './escHTML';
 
 const fmt2 = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

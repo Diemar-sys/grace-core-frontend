@@ -1,4 +1,5 @@
 import { TENANT } from '../../config/tenant';
+import { escHTML } from './escHTML';
 
 /**
  * Datos de la empresa leídos desde tenant.js → variables de entorno (.env).
@@ -40,7 +41,7 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
       return `
       <tr>
         <td style="padding:3px 4px;font-size:11px;border-bottom:1px dashed #e5e5e5">
-          ${i.item_name}<br/>
+          ${escHTML(i.item_name)}<br/>
           <span style="color:#888;font-size:10px">${i.qty} × ${fmtVal(i.precio)}</span>
         </td>
         <td style="padding:3px 4px;font-size:11px;text-align:right;border-bottom:1px dashed #e5e5e5;white-space:nowrap">
@@ -106,7 +107,7 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
   <div class="div-eq"></div>
   <div class="info-row"><span>FECHA:</span><span>${fmtFecha()}</span></div>
   <div class="info-row"><span>HORA:</span><span>${fmtHora()}</span></div>
-  <div class="info-row"><span>CLIENTE:</span><span>${cliente || 'Público en General'}</span></div>
+  <span>${escHTML(cliente || 'Público en General')}</span>
   <div class="div-eq"></div>
   <div class="section-title">** TICKET DE VENTA **</div>
   <div class="div-dash"></div>

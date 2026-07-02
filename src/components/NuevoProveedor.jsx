@@ -1,5 +1,5 @@
 // src/components/NuevoProveedor.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { proveedores } from '../services/frappeSupplier';
 import ModalError from './modals/ModalError';
 import { sanitizarObjeto } from '../utils/security';

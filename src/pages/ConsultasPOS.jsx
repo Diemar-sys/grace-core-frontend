@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import POSHistorial from '../components/pos/POSHistorial';
 import POSModalCorte from '../components/pos/POSModalCorte';
@@ -73,7 +72,6 @@ function ConsultasPOS() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [errorModal,   setErrorModal]   = useState(null);
 
-  const navigate = useNavigate();
   // puedeCancel se mantiene como derivado de la sesión actual para el render de botones
   const puedeCancel = auth.getUser()?.role === 'Gerente';
 

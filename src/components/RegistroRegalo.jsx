@@ -1,5 +1,5 @@
 // src/components/RegistroRegalo.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
 import { fmtUom } from '../utils/uom';

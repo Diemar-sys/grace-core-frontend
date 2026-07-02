@@ -1,5 +1,5 @@
 // src/components/RegistroSalida.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { stockService } from '../services/frappeStock';
 import { sanitizar } from '../utils/security';
 import { getSucursalesDestino } from '../config/clientesB2B';

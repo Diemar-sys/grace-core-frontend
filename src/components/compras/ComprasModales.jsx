@@ -1,4 +1,3 @@
-import React from 'react';
 import NuevaCompra from '../NuevaCompra';
 import ConfirmModal from '../modals/ConfirmModal';
 

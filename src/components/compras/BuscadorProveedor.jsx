@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { comprasService } from '../../services/frappePurchase';
 
 function BuscadorProveedor({ value, onChange, grande = false }) {

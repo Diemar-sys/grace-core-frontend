@@ -1,6 +1,6 @@
 // src/components/NuevaReceta.jsx
 // Formulario para crear/editar recetas (BOM) en ERPNext
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { produccionService } from '../services/frappeProduccion';
 import { stockService } from '../services/frappeStock';
 import ModalError from './modals/ModalError';
@@ -30,7 +30,6 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
     : [FILA_VACIA()]
   );
   const [productoSugs, setProductoSugs] = useState([]);
-  const [productoBuscando, setProductoBuscando] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [departamentos, setDepartamentos] = useState([]);
@@ -62,13 +61,8 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
   // Buscar producto final (meta.item)
   const buscarProductoFinal = useCallback(async (texto) => {
     if (texto.length < 2) { setProductoSugs([]); return; }
-    setProductoBuscando(true);
-    try {
-      const items = await produccionService.buscarProductosTerminados(texto);
-      setProductoSugs(items);
-    } finally {
-      setProductoBuscando(false);
-    }
+    const items = await produccionService.buscarProductosTerminados(texto);
+    setProductoSugs(items);
   }, []);
 
   const handleMetaChange = (e) => {

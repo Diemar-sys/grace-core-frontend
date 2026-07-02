@@ -1,4 +1,3 @@
-import React from 'react';
 import { fmt, horaActual } from './posUtils';
 
 const METODOS = [

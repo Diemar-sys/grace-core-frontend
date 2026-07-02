@@ -24,7 +24,7 @@ function Compras() {
     seleccion, setSeleccion, toggleSel, sumaSel, esConsolidable,
     folioConsolidar, setFolioConsolidar,
     facturadoConsolidar, setFacturadoConsolidar,
-    proveedoresUnicos, filteredCompras, facturasAgrupadas, notasItems,
+    proveedoresUnicos, facturasAgrupadas, notasItems,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar, handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,

@@ -29,6 +29,8 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       'react/jsx-no-target-blank': 'off',
+      // ponytail: sin PropTypes en este proyecto; si algún día hay tipos, el camino es TypeScript
+      'react/prop-types': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

@@ -16,28 +16,6 @@ class FrappeProveedoresService extends FrappeBase {
     return data;
   }
 
-  // ── Campos custom que se leen/escriben directamente en Supplier ──
-  #CAMPOS = [
-    "name",
-    "supplier_name",
-    "supplier_group",
-    "disabled",
-    "custom_no_de_proveedor",
-    "custom_alias",
-    "custom_razon_social",
-    "custom_direccion",
-    "custom_puesto_encargado",
-    "custom_teléfono",
-    "custom_correo",
-    "custom_tipo",
-    "custom_contacto_1_nombre",
-    "custom_contacto_1_teléfono",
-    "custom_contacto_1_puesto",
-    "custom_contacto_2_nombre",
-    "custom_contacto_2_teléfono",
-    "custom_contacto_2_puesto",
-  ];
-
   // ─────────────────────────────────────────────
   // LISTADOS
   // ─────────────────────────────────────────────

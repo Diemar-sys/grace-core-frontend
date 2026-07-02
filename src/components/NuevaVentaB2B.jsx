@@ -1,5 +1,5 @@
 // src/components/NuevaVentaB2B.jsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ventasService } from '../services/frappeSales';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
@@ -165,14 +165,6 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     }
   }, [filas.length]);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
-  const moverFila = (id, dir) => setFilas(f => {
-    const i = f.findIndex(r => r._id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= f.length) return f;
-    const copia = [...f];
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-    return copia;
-  });
   const updateFila = (id, campos) =>
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
   const handleImpuesto = (id, key) => {
@@ -454,7 +446,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, impuestos, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, onAddRow, soloUna, bloqueaMP, inputRef, onFocusNext }) {
+function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, soloUna, bloqueaMP, onFocusNext }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);

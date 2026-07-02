@@ -1,5 +1,4 @@
 // src/components/ModalHojaEntrega.jsx
-import React from 'react';
 import { TENANT } from '../../config/tenant';
 
 const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({

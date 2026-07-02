@@ -1,5 +1,7 @@
 // Ruta relativa: el nginx del frontend proxya /print → print-server del host (torre).
 // Mismo origen → sin CORS, sin IP hardcodeada. En dev, vite.config proxya /print a localhost:6789.
+import { escHTML } from '../utils/print/escHTML';
+
 const PRINT_SERVER = '/print';
 
 export async function imprimirTicketTermico({ items, cliente, pagos, total, cambio = 0 }) {
@@ -117,12 +119,12 @@ function _htmlEgreso(p, gas) {
   ${p.no_de_compra
     ? `<div class="c b" style="font-size:15px">COMPRA #${p.no_de_compra}</div><div>NO. EGRESO : ${p.no_egreso}</div>`
     : `<div>NO. EGRESO : ${p.no_egreso}</div>`}
-  ${p.no_factura ? `<div>NO. FACTURA: ${p.no_factura}</div>` : ''}
+  ${p.no_factura ? `<div>NO. FACTURA: ${escHTML(p.no_factura)}</div>` : ''}
   <div>Fecha      : ${p.fecha}</div>
   <div>Categoria  : ${p.categoria}</div>
-  ${p.subcategoria ? `<div>Subcat.    : ${p.subcategoria}</div>` : ''}
-  ${p.concepto ? `<div>Concepto   : ${p.concepto}</div>` : ''}
-  <div>Facturado  : ${p.facturado_a}</div>
+  ${p.subcategoria ? `<div>Subcat.    : ${escHTML(p.subcategoria)}</div>` : ''}
+  ${p.concepto ? `<div>Concepto   : ${escHTML(p.concepto)}</div>` : ''}
+  <div>Facturado  : ${escHTML(p.facturado_a)}</div>
   <div>Con factura: ${p.con_factura ? 'SI' : 'NO'}</div>
   <hr/>
   <table>${desglose}</table>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { calcVariacion, fmt } from './compraUtils';
 
 function ModalSugerenciaPrecios({ cambios, onAceptar, onOmitir }) {

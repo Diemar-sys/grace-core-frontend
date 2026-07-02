@@ -14,8 +14,8 @@ function ProtectedRoute({ children }) {
   // Pre-cargar configs si session activa (cubre refresh página sin pasar por login).
   useEffect(() => {
     if (!user) return;
-    Promise.all([loadAppConfig(), loadSucursalesConfig()]).catch(() => {});
-  }, [user]);
+    Promise.all([loadAppConfig(), loadSucursalesConfig()]).catch(() => { });
+  }, [user?.email]);   // primitivo estable: solo re-corre si cambia la sesión
 
   if (!user) return <Navigate to="/login" replace />;
 

@@ -23,10 +23,14 @@ class FrappeBase {
       cache: 'no-store',
       ...options,
     };
-    const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-
     // Sin conexión — retornar null de forma controlada
-    if (response.status === 0) return null;
+    let response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
+    } catch (e) {
+      if (e instanceof TypeError) return null; // network error (offline, CORS, DNS, etc.)
+      throw e; // rethrow other errors
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));

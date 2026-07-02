@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { comprasService } from '../../services/frappePurchase';
 import { fmtUom } from '../../utils/uom';
 import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion } from './compraUtils';

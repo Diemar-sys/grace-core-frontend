@@ -1,4 +1,3 @@
-import React from 'react';
 import { fmtUom } from '../../utils/uom';
 import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from '../../utils/print/ticketTemplate';

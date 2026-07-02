@@ -1,5 +1,5 @@
 // src/pages/Catalogo.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';

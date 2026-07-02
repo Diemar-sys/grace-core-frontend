@@ -1,5 +1,4 @@
 // src/App.jsx
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Panel from './pages/Panel';
@@ -13,7 +12,6 @@ import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
-import ConsultasInventario from './pages/ConsultasInventario';
 import Kardex from './pages/Kardex';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
 import ReporteGastos from './pages/ReporteGastos';
@@ -117,14 +115,6 @@ function App() {
           element={
             <ProtectedRoute>
               <ConsultasPOS />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/consultas/inventario"
-          element={
-            <ProtectedRoute>
-              <ConsultasInventario />
             </ProtectedRoute>
           }
         />

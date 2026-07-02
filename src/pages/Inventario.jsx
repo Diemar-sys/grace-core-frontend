@@ -1,5 +1,5 @@
 // src/pages/Inventario.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ConteoFisico from '../components/ConteoFisico';

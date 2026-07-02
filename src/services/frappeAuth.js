@@ -151,6 +151,15 @@ class FrappeAuthService extends FrappeBase {
     stockService.clearCache();
     clearAppConfigCache();
     clearSucursalesConfigCache();
+    // Limpiar IndexedDB: catálogo y stock son caché por sesión.
+    // El outbox NO se toca: puede tener ventas sin sincronizar (son del negocio,
+    // no del usuario) — borrarlas sería pérdida contable.
+    try {
+      const { db } = await import('../db/db');
+      await Promise.all([db.catalogo.clear(), db.stock.clear()]);
+    } catch {
+      // best-effort: un fallo de IndexedDB no debe frenar el logout
+    }
   }
 
   // ─────────────────────────────────────────────

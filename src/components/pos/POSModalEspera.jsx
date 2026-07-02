@@ -1,4 +1,3 @@
-import React from 'react';
 import { fmt } from './posUtils';
 
 function POSModalEspera({ pendientes, onRetomar, onEliminar, onCerrar }) {

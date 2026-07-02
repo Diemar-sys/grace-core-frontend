@@ -65,7 +65,7 @@ function Login() {
     // Por qué: Aunque Frappe valida en el backend, limpiar aquí evita
     // enviar basura a la red y previene XSS si el error se muestra en el DOM.
     const usuarioLimpio = sanitizar(formData.usuario);
-    const contraLimpia  = sanitizar(formData.contrasena);
+    const contraLimpia  = formData.contrasena;
 
     // ── Validar formato básico ────────────────────────────────────────────
     // Por qué: Bloquea entradas absurdamente largas o con caracteres extraños

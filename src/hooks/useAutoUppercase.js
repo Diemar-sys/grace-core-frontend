@@ -26,7 +26,7 @@ export function useAutoUppercase() {
       const start = t.selectionStart;
       const end = t.selectionEnd;
       setNativeValue(t, upper);
-      try { t.setSelectionRange(start, end); } catch (_) { /* readonly inputs */ }
+      try { t.setSelectionRange(start, end); } catch { /* readonly inputs */ }
       t.dispatchEvent(new Event('input', { bubbles: true }));
     };
     document.addEventListener('input', handler, true);

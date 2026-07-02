@@ -1,5 +1,5 @@
 // src/pages/Proveedores.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoProveedor from '../components/NuevoProveedor';

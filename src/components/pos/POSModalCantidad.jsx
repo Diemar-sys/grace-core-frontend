@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function POSModalCantidad({ itemName, qtyActual, onConfirmar, onCerrar }) {
   const [valor, setValor] = useState(String(qtyActual));
