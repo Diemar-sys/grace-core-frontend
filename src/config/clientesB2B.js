@@ -41,14 +41,15 @@ export function getSucursalesDestino() {
  * Para ellos la materia prima se oculta del buscador de productos en Venta B2B
  * (pan y abarrotes sí se les venden; la MP va por el módulo Envío a Sucursal).
  *
- * Hoy solo PUERTA REAL (sucursal del hermano del dueño). Si en el futuro
- * hay otro cliente con el mismo trato, agregar su nombre aquí.
+ * Hoy solo ALEJANDRO TORRES (antes "PUERTA REAL", Customer renombrado
+ * 2026-07-03; sucursal del hermano del dueño). Si en el futuro hay otro
+ * cliente con el mismo trato, agregar su nombre aquí.
  *
  * Nota: esto es una guía de UX, no una barrera de seguridad. El bloqueo
- * real (que la MP no entre a un Sales Invoice de PUERTA) debe vivir en un
- * hook de backend, igual que las validaciones P0.
+ * real (que la MP no entre a un Sales Invoice de este cliente) debe vivir
+ * en un hook de backend, igual que las validaciones P0.
  */
-const CLIENTES_MP_POR_TRANSFERENCIA = ['PUERTA REAL'];
+const CLIENTES_MP_POR_TRANSFERENCIA = ['ALEJANDRO TORRES'];
 
 /** ¿A este cliente se le oculta la materia prima en el buscador de Venta B2B? */
 export function ocultaMateriaPrima(customerName) {

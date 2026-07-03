@@ -136,6 +136,42 @@ class FrappePOSService extends FrappeBase {
     return data.data;
   }
 
+  /**
+   * Empuja una venta del outbox al endpoint idempotente del backend.
+   * Reenviar el mismo uuid NO duplica: el server devuelve la factura original.
+   * @param {Object} venta - Fila del outbox {uuid, items, cliente, pagos, total, created_at}.
+   * @returns {Promise<Object|null>} {name, duplicada} o null si no hay red.
+   */
+  async crearVentaOffline(venta) {
+    const payments = (venta.pagos || [])
+      .filter(p => p.monto > 0)
+      .map(p => ({
+        mode_of_payment: FORMAS_PAGO_MAP[p.metodo] || 'Cash',
+        amount: p.monto,
+      }));
+    if (payments.length === 0) {
+      payments.push({ mode_of_payment: 'Cash', amount: venta.total });
+    }
+
+    const json = await this._fetch(POS_METHOD('registrar_venta_pos'), {
+      method: 'POST',
+      body: JSON.stringify({
+        uuid:         venta.uuid,
+        customer:     venta.cliente || DEFAULT_CUSTOMER,
+        // La venta conserva SU fecha aunque se drene días después
+        posting_date: (venta.created_at || '').split('T')[0] || undefined,
+        items: venta.items.map(i => ({
+          item_code: i.item_code,
+          qty:       i.qty,
+          rate:      parseFloat(i.precio) || 0,
+          uom:       i.stock_uom || 'Nos',
+        })),
+        payments,
+      }),
+    });
+    return json === null ? null : json?.message;
+  }
+
   // ─────────────────────────────────────────────────
   // CORTE DE CAJA Y REPORTES (endpoints Python)
   // ─────────────────────────────────────────────────

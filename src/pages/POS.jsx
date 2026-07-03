@@ -14,7 +14,7 @@ import '../styles/pos/POS.css';
 import '../styles/pos/POSModals.css';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { seedCatalogo, seedStock } from '../db/sync';
+import { seedCatalogo, seedStock, drainOutbox } from '../db/sync';
 import { generateUUID } from '../db/uuid';
 import { DEFAULT_CUSTOMER } from '../config/constants';
 
@@ -85,6 +85,17 @@ function POS() {
   }, []);
 
   useEffect(() => { cargarProductos(); }, [cargarProductos]);
+
+  // Drain del outbox: al montar (por si quedaron ventas offline de una sesión
+  // anterior) y cada vez que vuelve la red. El tercer trigger es post-venta,
+  // dentro de confirmarVenta. Wrapper: el listener recibe un Event y
+  // drainOutbox espera un objeto de deps.
+  useEffect(() => {
+    drainOutbox();
+    const onOnline = () => drainOutbox();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
 
   // ─────────────────────────────────────────────
   // FILTRADO EN CLIENTE
@@ -250,11 +261,6 @@ function POS() {
       .map(([metodo, v]) => ({ metodo, monto: parseFloat(v) }));
 
     try {
-      // ponytail: outbox se escribe pero NADIE lo drena → ventas no llegan al backend.
-      // Pendiente (cuando POS entre a producción): listener online → leer outbox →
-      // crearVenta por uuid → borrar de outbox. Requiere idempotencia server-side
-      // (campo custom_uuid_offline + índice unique + endpoint atómico create+submit)
-      // o hay doble cobro. NO activar el POS en prod sin esto.
       // 1) Armar el objeto venta que vivirá en el outbox
       const venta = {
         uuid: generateUUID(),
@@ -275,7 +281,11 @@ function POS() {
         }
       });
 
-      // 3) Esto ya NO toca red — queda igual que hoy
+      // 3) Empujar a ERPNext en segundo plano; la UI no espera la red.
+      //    Sin red el drain aborta solo y la venta queda 'pendiente' en outbox.
+      drainOutbox();
+
+      // 4) Impresión — no toca red
       try {
         await imprimirTicketTermico({ items: ticket, cliente, pagos: pagosArray, total, cambio });
       } catch {
