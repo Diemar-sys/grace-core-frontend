@@ -15,6 +15,7 @@ export interface Sucursal { name: string; }
 
 export interface Corrida {
   name: string;
+  nomina_de: string;
   fecha_pago: string;
   docstatus: number;
   total_declarado?: number;
@@ -53,6 +54,7 @@ export interface NuevoEmpleado {
 
 export interface NuevaCorrida {
   fecha_pago: string;
+  nomina_de: string;
   renglones: RenglonInput[];
   semana_del?: string | null;
   semana_al?: string | null;

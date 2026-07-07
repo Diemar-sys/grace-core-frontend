@@ -77,6 +77,7 @@ export default function Nomina() {
 
 // ─────────────────────────────────────────────── Corrida semanal
 function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) {
+  const [nominaDe, setNominaDe] = useState('');
   const [fechaPago, setFechaPago] = useState<string>(proximoMiercoles);
   const [semanaDel, setSemanaDel] = useState('');
   const [semanaAl, setSemanaAl] = useState('');
@@ -111,12 +112,14 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 
   const guardar = async (submit: boolean) => {
     const renglones = filas.filter(f => f.empleado);
+    if (!nominaDe) { flash('error', 'Elige de quién es la nómina (Alma / Luis)'); return; }
     if (!renglones.length) { flash('error', 'Agrega al menos un empleado'); return; }
     if (submit && !window.confirm('Confirmar la corrida generará el gasto de nómina. ¿Continuar?')) return;
     setGuardando(true);
     try {
       const res = await nominaService.crearCorrida({
-        fecha_pago: fechaPago, semana_del: semanaDel || null, semana_al: semanaAl || null,
+        fecha_pago: fechaPago, nomina_de: nominaDe,
+        semana_del: semanaDel || null, semana_al: semanaAl || null,
         renglones, submit: submit ? 1 : 0,
       });
       flash('ok', `Corrida ${res.name} ${submit ? 'confirmada' : 'guardada en borrador'}`);
@@ -129,6 +132,13 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   return (
     <div className="nomina-corrida">
       <div className="nomina-cabecera">
+        <label>Nómina de
+          <select value={nominaDe} onChange={e => setNominaDe(e.target.value)}>
+            <option value="">— elegir —</option>
+            <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
+            <option value="LUIS TORRES">Luis Torres</option>
+          </select>
+        </label>
         <label>Fecha de pago<input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)} /></label>
         <label>Semana del<input type="date" value={semanaDel} onChange={e => setSemanaDel(e.target.value)} /></label>
         <label>al<input type="date" value={semanaAl} onChange={e => setSemanaAl(e.target.value)} /></label>
@@ -187,12 +197,13 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       <h2>Corridas recientes</h2>
       <table className="nomina-lista">
         <thead>
-          <tr><th>Folio</th><th>Pago</th><th>Estado</th><th>Neto</th><th>Costo patrón</th><th>Gasto</th></tr>
+          <tr><th>Folio</th><th>Nómina de</th><th>Pago</th><th>Estado</th><th>Neto</th><th>Costo patrón</th><th>Gasto</th></tr>
         </thead>
         <tbody>
           {corridas.map(c => (
             <tr key={c.name}>
               <td>{c.name}</td>
+              <td>{c.nomina_de}</td>
               <td>{c.fecha_pago}</td>
               <td>{c.docstatus === 1 ? 'Confirmada' : c.docstatus === 2 ? 'Cancelada' : 'Borrador'}</td>
               <td>{money(c.total_neto)}</td>
@@ -200,7 +211,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
               <td>{c.egreso_generado || '—'}</td>
             </tr>
           ))}
-          {!corridas.length && <tr><td colSpan={6} className="vacio">Sin corridas aún</td></tr>}
+          {!corridas.length && <tr><td colSpan={7} className="vacio">Sin corridas aún</td></tr>}
         </tbody>
       </table>
     </div>
