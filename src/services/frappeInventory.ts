@@ -11,22 +11,32 @@
 import FrappeBase from './FrappeBase';
 import { getTasa, buildTaxes } from '../config/impuestos';
 
-const FRAPPE_METHOD = (fn) =>
+const FRAPPE_METHOD = (fn: string) =>
   `/api/method/gestion_panaderia.api.inventory_api.${fn}`;
 
 const GRUPOS_PARA_VENTA = ["ABARROTES"];
 
-class FrappeInventoryService extends FrappeBase {
-  #cache = {};
+interface InventoryFiltros {
+  warehouse?: string;
+  itemGroup?: string;
+  search?: string;
+  departamento?: string;
+  tipoItem?: string;
+  minStock?: number;
+}
+type ItemForm = Record<string, any>; // dict del formulario NuevoInsumo (muchos custom_*)
 
-  async #cachedFetch(key, fetchFn) {
+class FrappeInventoryService extends FrappeBase {
+  #cache: Record<string, any> = {};
+
+  async #cachedFetch(key: string, fetchFn: () => Promise<any>): Promise<any> {
     if (this.#cache[key]) return this.#cache[key];
     const result = await fetchFn();
     this.#cache[key] = result;
     return result;
   }
 
-  async #callMethod(methodName, params = {}, signal) {
+  async #callMethod(methodName: string, params: Record<string, any> = {}, signal?: AbortSignal): Promise<any[]> {
     const queryString = Object.entries(params)
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
@@ -89,8 +99,8 @@ class FrappeInventoryService extends FrappeBase {
     try {
       const warehouses = await this.getWarehouses();
       const depts = warehouses
-        .filter(w => w.name && w.name.includes('ALMACEN -'))
-        .map(w => {
+        .filter((w: any) => w.name && w.name.includes('ALMACEN -'))
+        .map((w: any) => {
           const parts = w.name.split('-');
           return { name: parts.length >= 2 ? parts[1].trim() : w.name };
         });
@@ -122,7 +132,7 @@ class FrappeInventoryService extends FrappeBase {
       try {
         const data = await this._fetch('/api/resource/Custom%20Field?filters=[["dt","=","Item"],["fieldname","=","custom_presentación"]]&fields=["options"]');
         if (data.data?.[0]?.options) {
-          return data.data[0].options.split('\n').map(opt => ({ name: opt.trim() })).filter(opt => opt.name);
+          return data.data[0].options.split('\n').map((opt: string) => ({ name: opt.trim() })).filter((opt: { name: string }) => opt.name);
         }
       } catch (e) {
         console.warn("Error cargando presentaciones desde ERPNext", e);
@@ -136,7 +146,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} itemGroup - El grupo del artículo.
    * @returns {boolean} True si es para venta, False si es consumo interno.
    */
-  esProductoParaVenta(itemGroup) { return GRUPOS_PARA_VENTA.includes(itemGroup); }
+  esProductoParaVenta(itemGroup: string) { return GRUPOS_PARA_VENTA.includes(itemGroup); }
 
   // ─────────────────────────────────────────────
   // OBTENER ÍTEM COMPLETO PARA EDICIÓN
@@ -147,7 +157,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} itemCode - `item_code` identificador en Frappe.
    * @returns {Promise<Object>} Definición exhaustiva del Item.
    */
-  async getItemCompleto(itemCode) {
+  async getItemCompleto(itemCode: string) {
     const fields = [
       "item_code", "item_name", "item_group", "stock_uom", "disabled", "description",
       "custom_código_interno", "custom_tipo_item", "custom_departamento",
@@ -172,7 +182,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string|null} itemGroup - Grupo a prefiltrar
    * @returns {Promise<Array<Object>>} Lista de existencias
    */
-  async getStock(warehouse = null, itemGroup = null) {
+  async getStock(warehouse: string | null = null, itemGroup: string | null = null) {
     const items = await this.#callMethod("get_items_con_stock", { warehouse, item_group: itemGroup });
     return items.map((item) => ({
       ...item,
@@ -187,7 +197,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - Filtros como `itemGroup`, `search`.
    * @returns {Promise<Array<Object>>} Lista cruda de items registrados.
    */
-  async getProductosRegistrados(filtros = {}, signal) {
+  async getProductosRegistrados(filtros: InventoryFiltros = {}, signal?: AbortSignal) {
     const { itemGroup, search, departamento, tipoItem } = filtros;
     let items = await this.#callMethod("get_inventory_view", {
       vista: "registrado", item_group: itemGroup, departamento, search, tipo_item: tipoItem,
@@ -213,7 +223,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - `warehouse`, `itemGroup`, `minStock`.
    * @returns {Promise<Array<Object>>} Lista con disponibilidad positiva.
    */
-  async getProductosConStock(filtros = {}) {
+  async getProductosConStock(filtros: InventoryFiltros = {}) {
     const { warehouse, itemGroup, minStock = 0, departamento } = filtros;
     const items = await this.#callMethod("get_items_con_stock", {
       warehouse, item_group: itemGroup, min_stock: minStock, departamento,
@@ -226,7 +236,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - Opciones de filtrado (grupo, texto).
    * @returns {Promise<Array<Object>>} Lista de items inactivos.
    */
-  async getProductosDeshabilitados(filtros = {}, signal) {
+  async getProductosDeshabilitados(filtros: InventoryFiltros = {}, signal?: AbortSignal) {
     const { itemGroup, search, tipoItem } = filtros;
     let items = await this.#callMethod("get_inventory_view", {
       vista: "deshabilitado", item_group: itemGroup, search, tipo_item: tipoItem,
@@ -250,7 +260,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} filtros - Bodega y Grupo específico.
    * @returns {Promise<Array<Object>>} Lista de productos agotados.
    */
-  async getProductosAgotados(filtros = {}) {
+  async getProductosAgotados(filtros: InventoryFiltros = {}) {
     const { warehouse, itemGroup, departamento } = filtros;
     const items = await this.#callMethod("get_items_sin_stock", {
       warehouse, item_group: itemGroup, departamento,
@@ -268,7 +278,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} formData - Objeto con valores del formulario NuevoInsumo.
    * @returns {Promise<Object>} Datos creados por el ERP.
    */
-  async createItem(formData) {
+  async createItem(formData: ItemForm) {
     const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
     const payload = {
       doctype: "Item",
@@ -315,7 +325,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {Object} formData - Objetos modificados desde el Front.
    * @returns {Promise<Object>} Datos actualizados.
    */
-  async updateItem(itemCode, formData) {
+  async updateItem(itemCode: string, formData: ItemForm) {
     const esProductoTerminado = formData.custom_tipo_item === 'PRODUCTO TERMINADO';
     const payload = {
       item_name: formData.item_name?.trim(),
@@ -361,7 +371,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} newCode - Nuevo `item_code` deseado.
    * @returns {Promise<string>} El nuevo nombre asignado por Frappe.
    */
-  async renameItem(oldCode, newCode) {
+  async renameItem(oldCode: string, newCode: string) {
     const json = await this._fetch('/api/method/frappe.client.rename_doc', {
       method: 'POST',
       body: JSON.stringify({
@@ -379,7 +389,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} itemCode 
    * @returns {Promise<void>}
    */
-  async deleteItem(itemCode) {
+  async deleteItem(itemCode: string) {
     // ERPNext rechaza el DELETE si el item tiene transacciones vinculadas
     await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
@@ -392,7 +402,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} itemCode 
    * @returns {Promise<Object>}
    */
-  async disableItem(itemCode) {
+  async disableItem(itemCode: string) {
     const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "PUT", body: JSON.stringify({ disabled: 1 }) }
@@ -405,7 +415,7 @@ class FrappeInventoryService extends FrappeBase {
    * @param {string} itemCode 
    * @returns {Promise<Object>}
    */
-  async enableItem(itemCode) {
+  async enableItem(itemCode: string) {
     const data = await this._fetch(
       `/api/resource/Item/${encodeURIComponent(itemCode)}`,
       { method: "PUT", body: JSON.stringify({ disabled: 0 }) }

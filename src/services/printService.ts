@@ -4,7 +4,17 @@ import { escHTML } from '../utils/print/escHTML';
 
 const PRINT_SERVER = '/print';
 
-export async function imprimirTicketTermico({ items, cliente, pagos, total, cambio = 0 }) {
+// Payloads de impresión = frontera de serialización al print-server. Los shapes
+// (items, pagos, desgloses) varían por flujo → tipos laxos a propósito; el print
+// server valida su propio contrato. Ponytail: tipar cada campo aquí es low-value.
+interface TicketData { items: any[]; cliente: any; pagos: any; total: number; cambio?: number; }
+interface CorteData {
+  rango_inicio: any; rango_fin: any; num_transacciones: any;
+  por_forma_pago: any; por_departamento: any; total_ventas: any;
+}
+type EgresoRow = Record<string, any>;
+
+export async function imprimirTicketTermico({ items, cliente, pagos, total, cambio = 0 }: TicketData) {
   const res = await fetch(`${PRINT_SERVER}/imprimir`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -15,7 +25,7 @@ export async function imprimirTicketTermico({ items, cliente, pagos, total, camb
   return data;
 }
 
-export async function imprimirCorteTermico({ rango_inicio, rango_fin, num_transacciones, por_forma_pago, por_departamento, total_ventas }) {
+export async function imprimirCorteTermico({ rango_inicio, rango_fin, num_transacciones, por_forma_pago, por_departamento, total_ventas }: CorteData) {
   const res = await fetch(`${PRINT_SERVER}/imprimir-corte`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -26,7 +36,7 @@ export async function imprimirCorteTermico({ rango_inicio, rango_fin, num_transa
   return data;
 }
 
-const _fmt2 = (n) =>
+const _fmt2 = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**
@@ -35,7 +45,7 @@ const _fmt2 = (n) =>
  *   Para subcategoría GAS, `descripcion` es un JSON con el desglose (litros, aditivo, IVA…).
  * Intenta la térmica en :6789; si no responde, cae a window.print().
  */
-export async function imprimirEgresoTicket(egreso) {
+export async function imprimirEgresoTicket(egreso: EgresoRow) {
   let gas = null;
   if ((egreso.subcategoria || '').toUpperCase() === 'GAS' && egreso.descripcion) {
     try {
@@ -75,14 +85,15 @@ export async function imprimirEgresoTicket(egreso) {
     if (!json.ok) throw new Error(json.error || 'Error térmica');
     return;
   } catch (err) {
-    console.warn('Térmica no disponible, fallback navegador:', err.message);
+    console.warn('Térmica no disponible, fallback navegador:', (err as Error).message);
     const win = window.open('', '_blank', 'width=420,height=700');
+    if (!win) return; // popup bloqueado → no hay dónde imprimir
     win.document.write(_htmlEgreso(payload, gas) + '<script>window.onload=function(){window.print();}</script>');
     win.document.close();
   }
 }
 
-function _htmlEgreso(p, gas) {
+function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null) {
   const total = Number(p.monto || 0);
   const desglose = gas
     ? `

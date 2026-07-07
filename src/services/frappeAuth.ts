@@ -25,7 +25,7 @@ class FrappeAuthService extends FrappeBase {
    * @returns {Object} Respuesta completa del servidor
    */
 
-  async login(usuario, contrasena) {
+  async login(usuario: string, contrasena: string) {
     const response = await fetch(`/api/method/login`, {
       method: 'POST',
       headers: {
@@ -205,7 +205,7 @@ class FrappeAuthService extends FrappeBase {
    * @param {Array<string>} [fields=['name']] - Arreglo de columnas a retornar
    * @returns {Promise<Object>} Respuesta JSON con el arreglo de datos en la propiedad .data
    */
-  async getList(doctype, filters = {}, fields = ['name']) {
+  async getList(doctype: string, filters: Record<string, any> = {}, fields: string[] = ['name']) {
     const params = new URLSearchParams({
       filters: JSON.stringify(filters),
       fields: JSON.stringify(fields),

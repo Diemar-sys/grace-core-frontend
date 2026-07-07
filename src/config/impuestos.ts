@@ -33,7 +33,7 @@ import { getAppConfigSync } from '../services/appConfig';
  * @param {string} claveImpuesto - 'tasa0' | 'ieps' | 'iva16'
  * @returns {Array} Child table de Item Tax
  */
-export function buildTaxes(claveImpuesto) {
+export function buildTaxes(claveImpuesto: string) {
   const cfg = getAppConfigSync();
   const tmpl = cfg.item_tax_templates?.[claveImpuesto];
   if (!tmpl) return [];
@@ -41,6 +41,6 @@ export function buildTaxes(claveImpuesto) {
 }
 
 /** Tasa numérica por clave. Default 0 si no existe. */
-export function getTasa(clave) {
-  return IMPUESTOS_TASAS[clave] ?? 0;
+export function getTasa(clave: string) {
+  return IMPUESTOS_TASAS[clave as keyof typeof IMPUESTOS_TASAS] ?? 0;
 }

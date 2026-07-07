@@ -10,9 +10,14 @@
  *     return { 'cuentas': {...}, 'item_tax_templates': {...}, ... }
  */
 
+export interface AppConfig {
+  cuentas: Record<string, string | null>;
+  item_tax_templates: Record<string, string | null>;
+}
+
 // Fallback alineado con backend `gestion_panaderia.api.config.get_app_config`.
 // Si endpoint falla, estos valores corresponden a COA real (verificado 2026-05-12).
-const FALLBACK = Object.freeze({
+const FALLBACK: AppConfig = Object.freeze({
   cuentas: {
     receivable:       'OTRAS CUENTAS POR COBRAR - PG',
     caja:             'CAJA PRINCIPAL - PG',
@@ -28,13 +33,12 @@ const FALLBACK = Object.freeze({
   },
 });
 
-let _cache = null;
+let _cache: AppConfig | null = null;
 
 /**
  * Carga config desde backend; si falla, usa FALLBACK. Idempotente (cache).
- * @returns {Promise<Object>}
  */
-export async function loadAppConfig() {
+export async function loadAppConfig(): Promise<AppConfig> {
   if (_cache) return _cache;
   try {
     const res = await fetch(
@@ -53,7 +57,7 @@ export async function loadAppConfig() {
       }
     }
   } catch (e) {
-    console.warn('AppConfig: endpoint no disponible, usando fallback:', e?.message);
+    console.warn('AppConfig: endpoint no disponible, usando fallback:', (e as Error)?.message);
   }
   _cache = FALLBACK;
   return _cache;
@@ -63,7 +67,7 @@ export async function loadAppConfig() {
  * Acceso síncrono. Devuelve cache o fallback. Llamar `loadAppConfig()` antes
  * para garantizar valores actualizados.
  */
-export function getAppConfigSync() {
+export function getAppConfigSync(): AppConfig {
   return _cache || FALLBACK;
 }
 

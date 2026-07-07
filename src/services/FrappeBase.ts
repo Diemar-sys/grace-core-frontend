@@ -4,11 +4,13 @@
  * Centraliza headers, CSRF token y parsing de errores Frappe.
  */
 class FrappeBase {
+  baseUrl: string;
+
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
   }
 
-  getHeaders() {
+  getHeaders(): Record<string, string> {
     return {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -16,8 +18,9 @@ class FrappeBase {
     };
   }
 
-  async _fetch(path, options = {}) {
-    const fetchOptions = {
+  // Respuestas Frappe heterogéneas → any deliberado; cada servicio tipa su superficie.
+  async _fetch(path: string, options: RequestInit = {}): Promise<any> {
+    const fetchOptions: RequestInit = {
       credentials: 'include',
       headers: this.getHeaders(),
       cache: 'no-store',

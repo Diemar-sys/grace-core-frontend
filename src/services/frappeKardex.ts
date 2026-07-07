@@ -1,10 +1,13 @@
 import FrappeBase from './FrappeBase';
 
-const METHOD = name => `/api/method/gestion_panaderia.api.kardex_api.${name}`;
+const METHOD = (name: string) => `/api/method/gestion_panaderia.api.kardex_api.${name}`;
 
 class FrappeKardexService extends FrappeBase {
   /** Kardex de un item en un almacén, en un rango. Devuelve {filas, totales} o null. */
-  async getKardex({ itemCode, warehouse, desde, hasta }, signal) {
+  async getKardex(
+    { itemCode, warehouse, desde, hasta }: { itemCode: string; warehouse: string; desde: string; hasta: string },
+    signal?: AbortSignal,
+  ): Promise<any> {
     const params = new URLSearchParams({
       item_code: itemCode, warehouse, fecha_desde: desde, fecha_hasta: hasta,
     });
@@ -13,7 +16,7 @@ class FrappeKardexService extends FrappeBase {
   }
 
   /** Items activos para el selector (name = item_code). */
-  async getItems(signal) {
+  async getItems(signal?: AbortSignal): Promise<any[]> {
     const json = await this._fetch(
       '/api/resource/Item?fields=["name","item_name"]&filters=[["disabled","=",0]]&limit_page_length=0&order_by=item_name asc',
       { signal },

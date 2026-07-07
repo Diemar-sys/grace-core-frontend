@@ -12,24 +12,30 @@
 // Modelo 2026-05-18: PUERTA REAL es Customer B2B normal (se le vende
 // pan + abarrotes vía Sales Invoice). Solo materia prima va por
 // transferencia. Por eso ya NO es sucursal interna.
-const FALLBACK = Object.freeze({
-  sucursales_internas: [],
+export interface SucursalDestino { label: string; warehouse: string; }
+export interface SucursalesConfig {
+  sucursales_internas: string[];
+  sucursales_destino: SucursalDestino[];
+}
+
+const FALLBACK: SucursalesConfig = Object.freeze({
+  sucursales_internas: [] as string[],
   sucursales_destino: [
     { label: 'PUERTA REAL', warehouse: 'MP PUERTA - PG' },
   ],
 });
 
-let _cache = null;
-const _listeners = new Set();
+let _cache: SucursalesConfig | null = null;
+const _listeners = new Set<(c: SucursalesConfig | null) => void>();
 
 /**
  * Suscribirse a cambios de cache. Útil para hooks React que necesitan
  * re-renderizar cuando llega la config remota.
  * @returns {() => void} unsubscribe fn
  */
-export function subscribeSucursalesConfig(fn) {
+export function subscribeSucursalesConfig(fn: (c: SucursalesConfig | null) => void): () => void {
   _listeners.add(fn);
-  return () => _listeners.delete(fn);
+  return () => { _listeners.delete(fn); };
 }
 
 function _notify() {
@@ -38,9 +44,8 @@ function _notify() {
 
 /**
  * Carga config desde backend; si falla, usa FALLBACK. Idempotente.
- * @returns {Promise<{sucursales_internas: string[], sucursales_destino: Array<{label, warehouse}>}>}
  */
-export async function loadSucursalesConfig() {
+export async function loadSucursalesConfig(): Promise<SucursalesConfig> {
   if (_cache) return _cache;
   try {
     const res = await fetch(
@@ -64,7 +69,7 @@ export async function loadSucursalesConfig() {
       }
     }
   } catch (e) {
-    console.warn('sucursalesConfig: endpoint no disponible, usando fallback:', e?.message);
+    console.warn('sucursalesConfig: endpoint no disponible, usando fallback:', (e as Error)?.message);
   }
   _cache = FALLBACK;
   _notify();
@@ -72,7 +77,7 @@ export async function loadSucursalesConfig() {
 }
 
 /** Acceso síncrono. Devuelve cache o fallback. */
-export function getSucursalesConfigSync() {
+export function getSucursalesConfigSync(): SucursalesConfig {
   return _cache || FALLBACK;
 }
 

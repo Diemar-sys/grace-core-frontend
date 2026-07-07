@@ -11,13 +11,14 @@
 import FrappeBase from './FrappeBase';
 import { COMPANY, DEFAULT_CUSTOMER } from '../config/constants';
 import { TENANT } from '../config/tenant';
+import type { OutboxVenta } from '../db/db';
 
 /** Ruta base de los métodos whitelisted del POS */
-const POS_METHOD = (fn) =>
+const POS_METHOD = (fn: string) =>
   `/api/method/${TENANT.frappeApp}.api.pos_api.${fn}`;
 
 /** Mapa de forma de pago (etiqueta UI → nombre exacto en ERPNext) */
-const FORMAS_PAGO_MAP = {
+const FORMAS_PAGO_MAP: Record<string, string> = {
   'Efectivo':      'Cash',
   'Tarjeta':       'Bank Draft',
   'Transferencia': 'Wire Transfer',
@@ -26,7 +27,19 @@ const FORMAS_PAGO_MAP = {
 /** POS Profile de respaldo si el usuario no tiene uno asignado */
 const DEFAULT_POS_PROFILE = TENANT.posProfileDefault;
 
+interface PosProfileData { name: string; warehouse: string | null; }
+interface PagoInput { metodo: string; monto: number; }
+interface ItemInput {
+  item_code: string;
+  item_name?: string;
+  qty: number;
+  precio: number | string;
+  stock_uom?: string;
+}
+interface CrearVentaArgs { items: ItemInput[]; customer?: string; pagos?: PagoInput[]; }
+
 class FrappePOSService extends FrappeBase {
+  _posProfileData: PosProfileData | null = null;
 
   /**
    * Fetch + caché del POS Profile del usuario activo.
@@ -35,21 +48,21 @@ class FrappePOSService extends FrappeBase {
    * @private
    * @returns {Promise<{name: string, warehouse: string|null}>}
    */
-  async _getProfileData() {
+  async _getProfileData(): Promise<PosProfileData> {
     if (this._posProfileData) return this._posProfileData;
     const json = await this._fetch(POS_METHOD('get_pos_profile_usuario'));
     this._posProfileData = json?.message || { name: DEFAULT_POS_PROFILE, warehouse: null };
-    return this._posProfileData;
+    return this._posProfileData!;
   }
 
   /** Nombre del POS Profile del usuario activo (string). */
-  async getPOSProfile() {
+  async getPOSProfile(): Promise<string> {
     const { name } = await this._getProfileData();
     return name;
   }
 
   /** Warehouse del POS Profile del usuario activo (de dónde vende su sucursal). */
-  async getWarehouse() {
+  async getWarehouse(): Promise<string | null> {
     const { warehouse } = await this._getProfileData();
     return warehouse;
   }
@@ -69,7 +82,7 @@ class FrappePOSService extends FrappeBase {
    * El filtrado por búsqueda y departamento se hace en el cliente.
    * @returns {Promise<Array>} Lista completa de productos con precio de venta.
    */
-  async buscarProductos() {
+  async buscarProductos(): Promise<any[]> {
     const json = await this._fetch(POS_METHOD('get_productos_venta'));
     return json?.message || [];
   }
@@ -86,7 +99,7 @@ class FrappePOSService extends FrappeBase {
    * @param {Array}  args.pagos  - [{metodo: 'Efectivo'|'Tarjeta'|'Transferencia', monto: number}]
    * @returns {Promise<Object>} Documento Sales Invoice creado.
    */
-  async crearVenta({ items, customer = DEFAULT_CUSTOMER, pagos = [] }) {
+  async crearVenta({ items, customer = DEFAULT_CUSTOMER, pagos = [] }: CrearVentaArgs) {
     const today = new Date().toISOString().split('T')[0];
     const posProfile = await this.getPOSProfile();
 
@@ -99,7 +112,7 @@ class FrappePOSService extends FrappeBase {
 
     // Si no se especificó ningún pago, usar efectivo por el total
     if (payments.length === 0) {
-      const total = items.reduce((s, i) => s + i.qty * parseFloat(i.precio || 0), 0);
+      const total = items.reduce((s, i) => s + i.qty * (parseFloat(String(i.precio)) || 0), 0);
       payments.push({ mode_of_payment: 'Cash', amount: total });
     }
 
@@ -114,7 +127,7 @@ class FrappePOSService extends FrappeBase {
         item_code: i.item_code,
         item_name: i.item_name,
         qty:       i.qty,
-        rate:      parseFloat(i.precio) || 0,
+        rate:      parseFloat(String(i.precio)) || 0,
         uom:       i.stock_uom || 'Nos',
       })),
       payments,
@@ -142,15 +155,18 @@ class FrappePOSService extends FrappeBase {
    * @param {Object} venta - Fila del outbox {uuid, items, cliente, pagos, total, created_at}.
    * @returns {Promise<Object|null>} {name, duplicada} o null si no hay red.
    */
-  async crearVentaOffline(venta) {
-    const payments = (venta.pagos || [])
+  async crearVentaOffline(venta: OutboxVenta) {
+    // OutboxVenta es un bag laxo ([k]: unknown); cast honesto en la frontera.
+    const pagos = (venta.pagos as PagoInput[] | undefined) || [];
+    const items = (venta.items as ItemInput[] | undefined) || [];
+    const payments = pagos
       .filter(p => p.monto > 0)
       .map(p => ({
         mode_of_payment: FORMAS_PAGO_MAP[p.metodo] || 'Cash',
         amount: p.monto,
       }));
     if (payments.length === 0) {
-      payments.push({ mode_of_payment: 'Cash', amount: venta.total });
+      payments.push({ mode_of_payment: 'Cash', amount: Number(venta.total) || 0 });
     }
 
     const json = await this._fetch(POS_METHOD('registrar_venta_pos'), {
@@ -160,10 +176,10 @@ class FrappePOSService extends FrappeBase {
         customer:     venta.cliente || DEFAULT_CUSTOMER,
         // La venta conserva SU fecha aunque se drene días después
         posting_date: (venta.created_at || '').split('T')[0] || undefined,
-        items: venta.items.map(i => ({
+        items: items.map(i => ({
           item_code: i.item_code,
           qty:       i.qty,
-          rate:      parseFloat(i.precio) || 0,
+          rate:      parseFloat(String(i.precio)) || 0,
           uom:       i.stock_uom || 'Nos',
         })),
         payments,
@@ -182,7 +198,7 @@ class FrappePOSService extends FrappeBase {
    * @param {string} [fechaFin]  - Fecha fin ISO. Default: igual a fechaInicio.
    * @returns {Promise<Object>} Datos del corte de caja.
    */
-  async getCorteCaja(fechaInicio, fechaFin = null) {
+  async getCorteCaja(fechaInicio: string, fechaFin: string | null = null) {
     const fin = fechaFin || fechaInicio;
     const posProfile = await this.getPOSProfile();
     const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fin, pos_profile: posProfile });
@@ -196,7 +212,7 @@ class FrappePOSService extends FrappeBase {
    * @param {string} fechaFin    - Fecha fin ISO YYYY-MM-DD.
    * @returns {Promise<Object>} Datos del reporte.
    */
-  async getReporteVentas(fechaInicio, fechaFin) {
+  async getReporteVentas(fechaInicio: string, fechaFin: string) {
     const posProfile = await this.getPOSProfile();
     const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, pos_profile: posProfile });
     const json = await this._fetch(`${POS_METHOD('get_reporte_ventas')}?${params}`);
@@ -212,7 +228,7 @@ class FrappePOSService extends FrappeBase {
    * @param {string|null} [fecha] - Fecha ISO YYYY-MM-DD.
    * @returns {Promise<Array>} Lista de Sales Invoices.
    */
-  async getVentasDelDia(fechaInicio = null, fechaFin = null) {
+  async getVentasDelDia(fechaInicio: string | null = null, fechaFin: string | null = null): Promise<any[]> {
     const hoy = new Date().toISOString().split('T')[0];
     const desde = fechaInicio || hoy;
     const hasta = fechaFin || desde;
@@ -227,7 +243,7 @@ class FrappePOSService extends FrappeBase {
    * @param {string} name - ID del documento (Ej: "ACC-SINV-2026-00001").
    * @returns {Promise<void>}
    */
-  async cancelarVenta(name) {
+  async cancelarVenta(name: string) {
     await this._fetch(`/api/resource/Sales Invoice/${encodeURIComponent(name)}`, {
       method: 'PUT',
       body:   JSON.stringify({ docstatus: 2 }),

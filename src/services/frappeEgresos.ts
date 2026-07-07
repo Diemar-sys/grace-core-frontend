@@ -1,10 +1,17 @@
 import FrappeBase from './FrappeBase';
 
-const METHOD = name => `/api/method/gestion_panaderia.api.egresos_api.${name}`;
+const METHOD = (name: string) => `/api/method/gestion_panaderia.api.egresos_api.${name}`;
+
+interface EgresoFiltros {
+  categoria?: string;
+  facturado_a?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}
 
 class FrappeEgresosService extends FrappeBase {
 
-  async getEgresos({ categoria, facturado_a, fecha_desde, fecha_hasta } = {}) {
+  async getEgresos({ categoria, facturado_a, fecha_desde, fecha_hasta }: EgresoFiltros = {}): Promise<any[]> {
     const params = new URLSearchParams();
     if (categoria)    params.set('categoria',    categoria);
     if (facturado_a)  params.set('facturado_a',  facturado_a);
@@ -15,7 +22,7 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message || [];
   }
 
-  async crearEgreso(data) {
+  async crearEgreso(data: unknown): Promise<any> {
     const json = await this._fetch(METHOD('crear_egreso'), {
       method: 'POST',
       body: JSON.stringify(data),
@@ -23,12 +30,12 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message;
   }
 
-  async getCuentasPorPagar() {
+  async getCuentasPorPagar(): Promise<any[]> {
     const json = await this._fetch(METHOD('reporte_cuentas_por_pagar'));
     return json?.message || [];
   }
 
-  async marcarPagado(name, pagado) {
+  async marcarPagado(name: string, pagado: boolean | number): Promise<any> {
     const json = await this._fetch(METHOD('marcar_pagado'), {
       method: 'POST',
       body: JSON.stringify({ name, pagado: pagado ? 1 : 0 }),
@@ -36,7 +43,7 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message;
   }
 
-  async eliminarEgreso(name) {
+  async eliminarEgreso(name: string): Promise<any> {
     const json = await this._fetch(METHOD('eliminar_egreso'), {
       method: 'POST',
       body: JSON.stringify({ name }),

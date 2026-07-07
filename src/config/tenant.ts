@@ -44,6 +44,6 @@ export const TENANT = {
   // ── Sucursales ────────────────────────────────────────────────────────────
   /** Lista de sucursales separadas por coma en la variable de entorno */
   sucursales: env.VITE_SUCURSALES
-    ? env.VITE_SUCURSALES.split(',').map(s => s.trim()).filter(Boolean)
+    ? env.VITE_SUCURSALES.split(',').map((s: string) => s.trim()).filter(Boolean)
     : ['Santuarios', 'Pirámides', 'Puerta Real', 'Paseos del Bosque'],
 };

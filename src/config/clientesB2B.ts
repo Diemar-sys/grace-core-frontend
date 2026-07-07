@@ -20,7 +20,7 @@
 import { getSucursalesConfigSync } from '../services/sucursalesConfig';
 
 /** ¿El customer es sucursal interna (no debe usarse en B2B sales)? */
-export function esSucursalInterna(customerName) {
+export function esSucursalInterna(customerName?: string) {
   if (!customerName) return false;
   const { sucursales_internas } = getSucursalesConfigSync();
   return sucursales_internas.includes(customerName);
@@ -52,6 +52,6 @@ export function getSucursalesDestino() {
 const CLIENTES_MP_POR_TRANSFERENCIA = ['ALEJANDRO TORRES'];
 
 /** ¿A este cliente se le oculta la materia prima en el buscador de Venta B2B? */
-export function ocultaMateriaPrima(customerName) {
+export function ocultaMateriaPrima(customerName?: string) {
   return !!customerName && CLIENTES_MP_POR_TRANSFERENCIA.includes(customerName);
 }

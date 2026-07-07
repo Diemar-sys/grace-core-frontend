@@ -9,6 +9,20 @@ import FrappeBase from './FrappeBase';
 import { stockService } from './frappeStock';
 import { COMPANY } from '../config/constants';
 
+interface BOMItemInput {
+  item_code: string;
+  qty: number | string;
+  uom: string;
+  item_name?: string;
+}
+interface BOMPayload {
+  item: string;
+  quantity: number | string;
+  uom: string;
+  items: BOMItemInput[];
+  custom_departamento?: string;
+}
+
 class FrappeProduccionService extends FrappeBase {
 
   // ─────────────────────────────────────────────
@@ -21,7 +35,7 @@ class FrappeProduccionService extends FrappeBase {
    * @returns {Promise<Array>} Lista de BOMs.
    */
   async getBOMs(search = '') {
-    const filters = [['docstatus', '!=', 2]];
+    const filters: (string | number)[][] = [['docstatus', '!=', 2]];
     if (search) filters.push(['item', 'like', `%${search}%`]);
     const params = new URLSearchParams({
       fields: JSON.stringify(['name', 'item', 'item_name', 'quantity', 'uom', 'docstatus', 'is_active', 'is_default', 'creation', 'custom_departamento']),
@@ -30,7 +44,7 @@ class FrappeProduccionService extends FrappeBase {
       // ocultar las versiones submitted-inactivas que deja el auto-versionado como histórico.
       or_filters: JSON.stringify([['docstatus', '=', 0], ['is_active', '=', 1]]),
       order_by: 'creation desc',
-      limit_page_length: 200,
+      limit_page_length: '200',
     });
     const data = await this._fetch(`/api/resource/BOM?${params}`);
     return data.data || [];
@@ -41,7 +55,7 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} bomName - ID del BOM.
    * @returns {Promise<Object>} Definición completa del BOM.
    */
-  async getBOMDetalle(bomName) {
+  async getBOMDetalle(bomName: string) {
     const data = await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`);
     return data.data;
   }
@@ -56,19 +70,19 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} [payload.custom_departamento] - Departamento asociado.
    * @returns {Promise<Object>} Datos del BOM creado.
    */
-  async crearBOM({ item, quantity, uom, items, custom_departamento = '' }) {
+  async crearBOM({ item, quantity, uom, items, custom_departamento = '' }: BOMPayload) {
     const data = await this._fetch('/api/resource/BOM', {
       method: 'POST',
       body: JSON.stringify({
         doctype: 'BOM',
         item,
-        quantity: parseFloat(quantity) || 1,
+        quantity: parseFloat(String(quantity)) || 1,
         uom,
         company: COMPANY,
         custom_departamento,
         items: items.map(i => ({
           item_code: i.item_code,
-          qty: parseFloat(i.qty),
+          qty: parseFloat(String(i.qty)),
           uom: i.uom,
           stock_uom: i.uom,
           description: i.item_name || '',
@@ -93,7 +107,7 @@ class FrappeProduccionService extends FrappeBase {
    * @param {Object} payload - Datos de la receta.
    * @returns {Promise<Object>} BOM resultante (el mismo si era borrador; uno nuevo si estaba activo).
    */
-  async actualizarBOM(bomName, { item, quantity, uom, items, custom_departamento = '' }) {
+  async actualizarBOM(bomName: string, { item, quantity, uom, items, custom_departamento = '' }: BOMPayload) {
     const actual = await this.getBOMDetalle(bomName);
 
     // Receta activa → desactivar la vigente y crear una versión nueva (borrador).
@@ -110,12 +124,12 @@ class FrappeProduccionService extends FrappeBase {
       method: 'PUT',
       body: JSON.stringify({
         item,
-        quantity: parseFloat(quantity) || 1,
+        quantity: parseFloat(String(quantity)) || 1,
         uom,
         custom_departamento,
         items: items.map(i => ({
           item_code: i.item_code,
-          qty: parseFloat(i.qty),
+          qty: parseFloat(String(i.qty)),
           uom: i.uom,
           stock_uom: i.uom,
           description: i.item_name || '',
@@ -129,7 +143,7 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} bomName - ID del BOM.
    * @returns {Promise<Object>} BOM actualizado.
    */
-  async activarBOM(bomName) {
+  async activarBOM(bomName: string) {
     // Primero submiteamos (docstatus 0 → 1)
     await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
       method: 'PUT',
@@ -151,7 +165,7 @@ class FrappeProduccionService extends FrappeBase {
    * caso usar desactivarBOM como alternativa.
    * @param {string} bomName - ID del BOM.
    */
-  async eliminarBOM(bomName) {
+  async eliminarBOM(bomName: string) {
     const detalle = await this.getBOMDetalle(bomName);
     if (detalle.docstatus === 1) {
       await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
@@ -172,7 +186,7 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} bomName - ID del BOM.
    * @returns {Promise<Object>} BOM actualizado.
    */
-  async desactivarBOM(bomName) {
+  async desactivarBOM(bomName: string) {
     const data = await this._fetch(`/api/resource/BOM/${encodeURIComponent(bomName)}`, {
       method: 'PUT',
       body: JSON.stringify({ is_active: 0, is_default: 0 }),
@@ -204,7 +218,7 @@ class FrappeProduccionService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify(['item_code', 'item_name', 'stock_uom', 'custom_precio_de_venta']),
       filters: JSON.stringify(filters),
-      limit_page_length: 20,
+      limit_page_length: '20',
     });
     const data = await this._fetch(`/api/resource/Item?${params}`);
     return data.data || [];
@@ -216,16 +230,16 @@ class FrappeProduccionService extends FrappeBase {
    * @param {Array<string>} itemCodes - Lista de item_code de los ingredientes.
    * @returns {Promise<Object>} Mapa { item_code: precio_por_unidad }
    */
-  async getPreciosIngredientes(itemCodes) {
+  async getPreciosIngredientes(itemCodes: string[]) {
     if (!itemCodes.length) return {};
     const params = new URLSearchParams({
       fields: JSON.stringify(['item_code', 'custom_precio_por_kg']),
       filters: JSON.stringify([['item_code', 'in', itemCodes]]),
-      limit_page_length: 500,
+      limit_page_length: '500',
     });
     const data = await this._fetch(`/api/resource/Item?${params}`);
-    const mapa = {};
-    (data.data || []).forEach(item => {
+    const mapa: Record<string, number> = {};
+    (data.data || []).forEach((item: any) => {
       mapa[item.item_code] = parseFloat(item.custom_precio_por_kg) || 0;
     });
     return mapa;
@@ -242,16 +256,16 @@ class FrappeProduccionService extends FrappeBase {
    * @param {Array<string>} itemCodes
    * @returns {Promise<Object>} Mapa { item_code: { precio_final, precio_por_kg } }
    */
-  async getPreciosCosteo(itemCodes) {
+  async getPreciosCosteo(itemCodes: string[]) {
     if (!itemCodes.length) return {};
     const params = new URLSearchParams({
       fields: JSON.stringify(['item_code', 'custom_precio_final', 'custom_precio_por_kg']),
       filters: JSON.stringify([['item_code', 'in', itemCodes]]),
-      limit_page_length: 500,
+      limit_page_length: '500',
     });
     const data = await this._fetch(`/api/resource/Item?${params}`);
-    const mapa = {};
-    (data.data || []).forEach(item => {
+    const mapa: Record<string, { precio_final: number; precio_por_kg: number }> = {};
+    (data.data || []).forEach((item: any) => {
       mapa[item.item_code] = {
         precio_final: parseFloat(item.custom_precio_final) || 0,
         precio_por_kg: parseFloat(item.custom_precio_por_kg) || 0,
@@ -268,7 +282,7 @@ class FrappeProduccionService extends FrappeBase {
    *   cantidadProducida, uom, ingredientes:[{item_code, item_name, qty,
    *   precio_final, costo}] } o null si no hay BOM activa.
    */
-  async calcularCostoBOM(itemCode) {
+  async calcularCostoBOM(itemCode: string) {
     const params = new URLSearchParams({
       fields: JSON.stringify(['name', 'item', 'quantity', 'uom']),
       filters: JSON.stringify([
@@ -277,21 +291,21 @@ class FrappeProduccionService extends FrappeBase {
         ['is_default', '=', 1],
         ['docstatus', '=', 1],
       ]),
-      limit_page_length: 1,
+      limit_page_length: '1',
     });
     const bomList = await this._fetch(`/api/resource/BOM?${params}`);
     const bomMeta = (bomList.data || [])[0];
     if (!bomMeta) return null;
 
     const bom = await this.getBOMDetalle(bomMeta.name);
-    const items = bom.items || [];
+    const items: any[] = bom.items || [];
     if (!items.length) return null;
 
-    const codes = [...new Set(items.map(i => i.item_code))];
+    const codes: string[] = [...new Set(items.map((i: any) => String(i.item_code)))];
     const precios = await this.getPreciosCosteo(codes);
 
     let costoTotal = 0;
-    const ingredientes = items.map(i => {
+    const ingredientes = items.map((i: any) => {
       const precioFinal = precios[i.item_code]?.precio_final || 0;
       const qty = parseFloat(i.qty) || 0;
       const costo = precioFinal * qty;
@@ -322,12 +336,12 @@ class FrappeProduccionService extends FrappeBase {
    * @param {Array<string>} itemCodes
    * @returns {Promise<Object>} Mapa { item_code: resultado_calcularCostoBOM | null }
    */
-  async calcularCostosBOMBatch(itemCodes) {
+  async calcularCostosBOMBatch(itemCodes: string[]) {
     if (!itemCodes.length) return {};
     const resultados = await Promise.all(
       itemCodes.map(code => this.calcularCostoBOM(code).catch(() => null))
     );
-    const mapa = {};
+    const mapa: Record<string, any> = {};
     itemCodes.forEach((code, i) => { mapa[code] = resultados[i]; });
     return mapa;
   }
@@ -339,11 +353,11 @@ class FrappeProduccionService extends FrappeBase {
    * @param {number} cantidadProducida - Cuántas unidades produce la receta.
    * @returns {Promise<Object>} { costoTotal, costoPorUnidad, detalle:[{item_code, qty, precio_final, costo}] }
    */
-  async calcularCostoEnVivo(ingredientes, cantidadProducida) {
+  async calcularCostoEnVivo(ingredientes: any[], cantidadProducida: number | string) {
     const validos = ingredientes.filter(i => i.item_code && parseFloat(i.qty) > 0);
     if (!validos.length) return { costoTotal: 0, costoPorUnidad: 0, detalle: [] };
 
-    const codes = [...new Set(validos.map(i => i.item_code))];
+    const codes: string[] = [...new Set(validos.map(i => i.item_code))];
     const precios = await this.getPreciosCosteo(codes);
 
     let costoTotal = 0;
@@ -355,7 +369,7 @@ class FrappeProduccionService extends FrappeBase {
       return { item_code: i.item_code, qty, precio_final: precioFinal, costo };
     });
 
-    const cant = parseFloat(cantidadProducida) || 1;
+    const cant = parseFloat(String(cantidadProducida)) || 1;
     return { costoTotal, costoPorUnidad: costoTotal / cant, detalle };
   }
 
@@ -372,11 +386,14 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} args.almacenOrigen - Almacén del departamento donde se consumen los insumos.
    * @returns {Promise<Object>} Stock Entry generado.
    */
-  async registrarProduccion({ bomName, cantidadProducida, almacenOrigen }) {
+  async registrarProduccion(
+    { bomName, cantidadProducida, almacenOrigen }:
+      { bomName: string; cantidadProducida: number | string; almacenOrigen: string },
+  ) {
     const bom = await this.getBOMDetalle(bomName);
-    const factorProduccion = parseFloat(cantidadProducida) / (parseFloat(bom.quantity) || 1);
+    const factorProduccion = parseFloat(String(cantidadProducida)) / (parseFloat(bom.quantity) || 1);
 
-    const ingredientes = (bom.items || []).map(i => ({
+    const ingredientes = (bom.items || []).map((i: any) => ({
       item_code: i.item_code,
       item_name: i.item_name,
       cantidad: (parseFloat(i.qty) * factorProduccion),
@@ -408,7 +425,7 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} warehouse - ID del almacén a consultar.
    * @returns {Promise<Array>} Lista de ítems con stock bajo.
    */
-  async getStockBajoMinimo(warehouse) {
+  async getStockBajoMinimo(warehouse: string) {
     const res = await this._fetch(
       `/api/method/gestion_panaderia.api.produccion_api.get_stock_bajo_minimo?warehouse=${encodeURIComponent(warehouse)}`
     );

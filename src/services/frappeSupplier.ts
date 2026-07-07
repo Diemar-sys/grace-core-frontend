@@ -6,10 +6,18 @@
 
 import FrappeBase from './FrappeBase';
 
-class FrappeProveedoresService extends FrappeBase {
-  #cache = {};
+interface ProveedorFiltros {
+  grupo?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+type ProveedorForm = Record<string, any>; // dict del formulario (muchos custom_*); tipar campo a campo = low-value
 
-  async #cachedFetch(key, fetcher) {
+class FrappeProveedoresService extends FrappeBase {
+  #cache: Record<string, any> = {};
+
+  async #cachedFetch(key: string, fetcher: () => Promise<any>): Promise<any> {
     if (this.#cache[key]) return this.#cache[key];
     const data = await fetcher();
     this.#cache[key] = data;
@@ -25,9 +33,9 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} [filtros={}] - Posible filtro de "grupo" (Supplier Group).
    * @returns {Promise<Array<Object>>} Lista de objetos proveedor.
    */
-  async getProveedores(filtros = {}, signal) {
+  async getProveedores(filtros: ProveedorFiltros = {}, signal?: AbortSignal) {
     const { grupo, search, page = 1, pageSize = 20 } = filtros;
-    const params = new URLSearchParams({ page, page_size: pageSize, disabled: 0 });
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), disabled: '0' });
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
@@ -43,9 +51,9 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} [filtros={}] - Posible filtro de grupo.
    * @returns {Promise<Array<Object>>} Lista de proveedores inactivos.
    */
-  async getProveedoresDeshabilitados(filtros = {}, signal) {
+  async getProveedoresDeshabilitados(filtros: ProveedorFiltros = {}, signal?: AbortSignal) {
     const { grupo, search, page = 1, pageSize = 20 } = filtros;
-    const params = new URLSearchParams({ page, page_size: pageSize, disabled: 1 });
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), disabled: '1' });
     if (grupo) params.append('grupo', grupo);
     if (search) params.append('search', search);
 
@@ -66,7 +74,7 @@ class FrappeProveedoresService extends FrappeBase {
    * @returns {Promise<Object>} Datos detallados incluyendo sus customs hooks.
    * @throws {Error} Si el proveedor no es encontrado.
    */
-  async getProveedorCompleto(supplierName) {
+  async getProveedorCompleto(supplierName: string) {
     const res = await this._fetch(
       `/api/resource/Supplier/${encodeURIComponent(supplierName)}`
     );
@@ -90,7 +98,7 @@ class FrappeProveedoresService extends FrappeBase {
       `/api/resource/Supplier?fields=${encodeURIComponent(JSON.stringify(["custom_no_de_proveedor"]))}&limit_page_length=500`
     );
     const lista = res.data || [];
-    const max = lista.reduce((m, s) => Math.max(m, s.custom_no_de_proveedor || 0), 0);
+    const max = lista.reduce((m: number, s: any) => Math.max(m, s.custom_no_de_proveedor || 0), 0);
     return max + 1;
   }
 
@@ -103,7 +111,7 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} formData - Diccionario extraído del formulario "NuevoProveedor".
    * @returns {Promise<Object>} Documento final registrado en el backend.
    */
-  async createProveedor(formData) {
+  async createProveedor(formData: ProveedorForm) {
     const numero = await this.#getSiguienteNumero();
 
     const res = await this._fetch("/api/resource/Supplier", {
@@ -144,7 +152,7 @@ class FrappeProveedoresService extends FrappeBase {
    * @param {Object} formData - Data mutada del frontend.
    * @returns {Promise<Object>} Registro actualizado.
    */
-  async updateProveedor(supplierName, formData) {
+  async updateProveedor(supplierName: string, formData: ProveedorForm) {
     const res = await this._fetch(
       `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
       {
@@ -178,7 +186,7 @@ class FrappeProveedoresService extends FrappeBase {
   // ELIMINAR
   // ─────────────────────────────────────────────
 
-  async eliminarProveedor(supplierName) {
+  async eliminarProveedor(supplierName: string) {
     await this._fetch(
       `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
       { method: "DELETE" }

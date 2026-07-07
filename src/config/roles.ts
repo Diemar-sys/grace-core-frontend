@@ -2,7 +2,14 @@
 // Cada nivel define qué MÓDULOS ve (tiles/rutas) y si ve Reportes.
 // El gating de módulos es frontend; los roles Frappe dan acceso API grueso.
 
-const ROUTE = {
+export interface RoleConfig {
+  modulosPanel: string[];
+  reportes: boolean;
+  rutas: string[];
+  inicio: string;
+}
+
+const ROUTE: Record<string, string> = {
   catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
   venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
   pos: '/pos', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
@@ -11,7 +18,7 @@ const ROUTE = {
 const RUTAS_REPORTES = ['/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar'];
 
 // Construye la lista de rutas permitidas a partir de los módulos del nivel.
-function rutasDe(modulos, { reportes = false, cuentas = false } = {}) {
+function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { reportes?: boolean; cuentas?: boolean } = {}): string[] {
   return [
     '/panel',
     ...modulos.map(k => ROUTE[k]),
@@ -26,7 +33,7 @@ const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'eg
 const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'egresos'];
 const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos', 'nomina'];
 
-export const ROLES = {
+export const ROLES: Record<string, RoleConfig> = {
   Vendedor: {
     modulosPanel: ['pos'],
     reportes: false,
@@ -58,6 +65,6 @@ export const ROLES = {
 export const NIVELES_VALIDOS = Object.keys(ROLES);
 
 // Fail-closed: nivel desconocido → Vendedor (mínimo privilegio).
-export function getRoleConfig(role) {
+export function getRoleConfig(role: string): RoleConfig {
   return ROLES[role] || ROLES.Vendedor;
 }

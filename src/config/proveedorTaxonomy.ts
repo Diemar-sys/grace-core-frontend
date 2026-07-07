@@ -29,7 +29,7 @@ export const TAXONOMY = {
 };
 
 /** Derivar tipo (COSTO/GASTO) a partir del supplier_group almacenado */
-export function getTipoDeGrupo(grupo) {
+export function getTipoDeGrupo(grupo?: string) {
   if (!grupo) return '';
   for (const [tipo, subtipos] of Object.entries(TAXONOMY)) {
     if (subtipos.includes(grupo)) return tipo;
