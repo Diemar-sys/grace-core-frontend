@@ -1,0 +1,44 @@
+/* Nómina — reutiliza la paleta general; estilos mínimos propios. */
+.nomina { padding: 1rem 1.5rem; max-width: 1100px; margin: 0 auto; }
+.nomina-head { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; }
+.nomina-head h1 { margin: 0; }
+.nomina-tabs { display: flex; gap: .5rem; }
+.nomina-tab { padding: .4rem .9rem; border: 1px solid #ccc; background: #f7f7f7; border-radius: 6px; cursor: pointer; }
+.nomina-tab.active { background: #2d6cdf; color: #fff; border-color: #2d6cdf; }
+
+.nomina-msg { margin: .75rem 0; padding: .6rem .9rem; border-radius: 6px; }
+.nomina-msg.ok { background: #e7f6ec; color: #1a7f37; }
+.nomina-msg.error { background: #fdecea; color: #c0392b; }
+
+.nomina-cabecera { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+.nomina-cabecera label, .nomina-form label { display: flex; flex-direction: column; font-size: .85rem; gap: .25rem; }
+
+.nomina-tabla, .nomina-lista { width: 100%; border-collapse: collapse; margin: .5rem 0; font-size: .9rem; }
+.nomina-tabla th, .nomina-tabla td, .nomina-lista th, .nomina-lista td {
+  border: 1px solid #e2e2e2; padding: .35rem .5rem; text-align: left;
+}
+.nomina-tabla input, .nomina-tabla select { width: 100%; box-sizing: border-box; padding: .3rem; }
+.nomina-tabla td.ro { text-align: right; background: #fafafa; font-variant-numeric: tabular-nums; }
+.nomina-tabla tfoot th { text-align: right; background: #f0f4fb; }
+.nomina-tabla tfoot th:first-child { text-align: left; }
+.nomina-del { border: none; background: none; color: #c0392b; font-size: 1.2rem; cursor: pointer; }
+
+.nomina-acciones { display: flex; gap: .5rem; align-items: center; margin: .75rem 0 1.5rem; }
+.nomina-acciones .spacer { flex: 1; }
+.nomina button.primary { background: #2d6cdf; color: #fff; border: none; }
+.nomina button { padding: .5rem .9rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+.nomina button:disabled { opacity: .5; cursor: default; }
+
+.nomina-empleados { display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start; }
+.nomina-form { display: flex; flex-direction: column; gap: .75rem; }
+.nomina-form input, .nomina-form select { padding: .4rem; }
+.nomina-suc-nueva { display: flex; gap: .5rem; margin-top: 1rem; border-top: 1px dashed #ddd; padding-top: 1rem; }
+.nomina-suc-nueva input { flex: 1; padding: .4rem; }
+
+.nomina-lista tfoot th { text-align: right; background: #f0f4fb; }
+.vacio { text-align: center; color: #888; font-style: italic; }
+
+@media (max-width: 720px) {
+  .nomina-empleados { grid-template-columns: 1fr; }
+  .nomina-tabla { display: block; overflow-x: auto; }
+}

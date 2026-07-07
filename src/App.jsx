@@ -18,6 +18,7 @@ import ReporteGastos from './pages/ReporteGastos';
 import ReporteCompras from './pages/ReporteCompras';
 import ReporteCuentasPorPagar from './pages/ReporteCuentasPorPagar';
 import Egresos from './pages/Egresos';
+import Nomina from './pages/Nomina';
 import Cuentas from './pages/Cuentas';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -163,6 +164,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Egresos />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/nomina"
+          element={
+            <ProtectedRoute>
+              <Nomina />
             </ProtectedRoute>
           }
         />

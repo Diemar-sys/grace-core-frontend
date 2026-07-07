@@ -5,7 +5,7 @@
 const ROUTE = {
   catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
   venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
-  pos: '/pos', produccion: '/produccion', egresos: '/egresos',
+  pos: '/pos', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
 };
 
 const RUTAS_REPORTES = ['/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar'];
@@ -24,7 +24,7 @@ function rutasDe(modulos, { reportes = false, cuentas = false } = {}) {
 
 const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'egresos'];
 const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'egresos'];
-const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos'];
+const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos', 'nomina'];
 
 export const ROLES = {
   Vendedor: {
