@@ -267,8 +267,10 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna 
 
     try {
       const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
-      const qtyNaturalBin = parseFloat(bin?.actual_qty || 0);
-      const stockEnUnidad = qtyNaturalBin * cantPres;
+      // Bin ya está en unidad base (stock_uom) tras la migración UOM. NO multiplicar
+      // por cantidad_por_presentación: eso inflaba ×factor (ej. Santa Clara ×12).
+      // cantPres solo sirve para el guion "= N cajas" al capturar (más abajo).
+      const stockEnUnidad = parseFloat(bin?.actual_qty || 0);
       onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
     } catch (err) {
       console.error('Error fetch stock:', err);
