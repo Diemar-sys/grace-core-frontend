@@ -9,7 +9,7 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     setupFiles: './src/test/setup.js',
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
   },
   build: {
     // assets de React a /static → evita colisión con /assets de ERPNext (proxy)

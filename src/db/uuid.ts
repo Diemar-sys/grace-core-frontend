@@ -1,6 +1,6 @@
 // crypto.randomUUID() requires secure context (HTTPS/localhost).
 // getRandomValues() works on HTTP+LAN — safe for all deployment targets.
-export function generateUUID() {
+export function generateUUID(): string {
   const b = new Uint8Array(16);
   crypto.getRandomValues(b);
   b[6] = (b[6] & 0x0f) | 0x40; // version 4
