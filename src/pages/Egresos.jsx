@@ -559,9 +559,13 @@ export default function Egresos() {
     setError('');
     setGuardando(true);
     try {
-      await egresosService.crearEgreso(payload);
+      const creado = await egresosService.crearEgreso(payload);
       setShowForm(false); setForm(FORM_INIT);
       cargar(categoriaKey);
+      // Auto-imprime el ticket térmico al guardar (la reimpresión queda en Consultas).
+      // ponytail: fire-and-forget; crearEgreso devuelve {name, no_de_compra}, el resto sale del payload.
+      imprimirEgresoTicket({ ...payload, name: creado?.name, no_de_compra: creado?.no_de_compra })
+        .catch(err => console.error('Auto-print egreso:', err));
     } catch(e) { setError(e?.message || 'Error al guardar'); }
     finally  { setGuardando(false); }
   };

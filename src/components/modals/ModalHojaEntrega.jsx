@@ -1,5 +1,6 @@
 // src/components/ModalHojaEntrega.jsx
 import { TENANT } from '../../config/tenant';
+import { imprimirTraspasoTermico } from '../../services/printService';
 
 const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -22,6 +23,14 @@ const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
  */
 function ModalHojaEntrega({ datos, onClose }) {
   const { fecha, hora, sucursalLabel, warehouseDestino, filas, notas, docName } = datos;
+
+  const imprimirTermico = async () => {
+    try {
+      await imprimirTraspasoTermico({ sucursalLabel, warehouseDestino, docName, fecha, hora, filas });
+    } catch (e) {
+      alert(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF" (tamaño carta).`);
+    }
+  };
 
   const imprimir = () => {
     const win = window.open('', '_blank', 'width=750,height=700');
@@ -63,6 +72,7 @@ function ModalHojaEntrega({ datos, onClose }) {
     .firma-line { border-top: 1px solid #111; margin: 0 20px 6px; padding-top: 6px; font-size: 12px; }
     .notas { margin-top: 12px; font-size: 12px; color: #555; font-style: italic; }
     .footer { margin-top: 28px; text-align: center; font-size: 11px; color: #888; }
+    .nota-final { margin-top: 24px; font-size: 12px; font-weight: bold; color: #111; }
     @media print { body { padding: 16px; } }
   </style>
 </head>
@@ -93,13 +103,14 @@ function ModalHojaEntrega({ datos, onClose }) {
   ${notas ? `<div class="notas"><strong>Notas:</strong> ${escHTML(notas)}</div>` : ''}
   <div class="firmas">
     <div class="firma-box">
-      <div class="firma-line">Entrega (matriz)</div>
+      <div class="firma-line">Firma de quien entrega</div>
     </div>
     <div class="firma-box">
-      <div class="firma-line">Recibe (encargado sucursal)</div>
+      <div class="firma-line">Firma de quien recibe</div>
     </div>
   </div>
   <div class="footer">Documento generado el ${escHTML(fecha)} a las ${escHTML(hora)}</div>
+  <div class="nota-final">Nota.</div>
   <script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>`;
@@ -165,14 +176,24 @@ function ModalHojaEntrega({ datos, onClose }) {
                 <strong>Notas:</strong> {notas}
               </div>
             )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginTop: 48 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ borderTop: '1px solid #111', margin: '0 20px 6px', paddingTop: 6, fontSize: 12 }}>Firma de quien entrega</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ borderTop: '1px solid #111', margin: '0 20px 6px', paddingTop: 6, fontSize: 12 }}>Firma de quien recibe</div>
+              </div>
+            </div>
             <div className="nc-recibo-footer">
               Documento generado el {fecha} a las {hora}
             </div>
+            <div style={{ marginTop: 24, fontSize: 12, fontWeight: 'bold' }}>Nota.</div>
           </div>
         </div>
         <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
           <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
-          <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
+          <button className="nc-btn-secondary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
+          <button className="nc-btn-primary" onClick={imprimirTermico}>🧾 Ticket térmico (SICAR)</button>
         </div>
       </div>
     </div>

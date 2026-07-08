@@ -6,6 +6,7 @@ import { BODEGA_CENTRAL } from '../config/constants';
 import useSucursales from '../hooks/useSucursales';
 import ModalError from './modals/ModalError';
 import ModalHojaEntrega from './modals/ModalHojaEntrega';
+import { imprimirTraspasoTermico } from '../services/printService';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import '../styles/NuevaCompra.css';
 
@@ -107,6 +108,10 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         fecha, hora, sucursalLabel, warehouseDestino,
         filas: items, notas, docName: doc.name,
       });
+      // Auto-imprime el ticket térmico al confirmar (la reimpresión queda en Consultas).
+      // ponytail: fire-and-forget; si la térmica falla no debe tumbar el envío ya registrado.
+      imprimirTraspasoTermico({ fecha, hora, sucursalLabel, warehouseDestino, filas: items, docName: doc.name })
+        .catch(err => console.error('Auto-print traspaso:', err));
     } catch (err) {
       setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
     } finally { setLoading(false); }

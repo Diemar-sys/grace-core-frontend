@@ -3,6 +3,7 @@
 // Espera datos: { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador }
 import { TENANT } from '../../config/tenant';
 import { fmtUom } from '../../utils/uom';
+import { imprimirVentaB2BTermico } from '../../services/printService';
 
 const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -14,6 +15,14 @@ const fmt2 = (n) =>
 function ModalReciboPDF({ datos, onClose }) {
   const { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador } = datos;
   const numStr = noVenta != null ? String(noVenta).padStart(4, '0') : '----';
+
+  const imprimirTermico = async () => {
+    try {
+      await imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, filas, totales, ajuste, esBorrador });
+    } catch (e) {
+      alert(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF".`);
+    }
+  };
 
   const imprimir = () => {
     const win = window.open('', '_blank', 'width=750,height=700');
@@ -225,7 +234,8 @@ function ModalReciboPDF({ datos, onClose }) {
 
         <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
           <button className="nc-btn-secondary" onClick={onClose}>Cerrar</button>
-          <button className="nc-btn-primary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
+          <button className="nc-btn-secondary" onClick={imprimir}>🖨️ Imprimir / Guardar PDF</button>
+          <button className="nc-btn-primary" onClick={imprimirTermico}>🧾 Ticket térmico (SICAR)</button>
         </div>
       </div>
     </div>

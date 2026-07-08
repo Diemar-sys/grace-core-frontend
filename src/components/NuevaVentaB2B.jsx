@@ -8,6 +8,7 @@ import { BODEGA_CENTRAL } from '../config/constants';
 import ModalError from './modals/ModalError';
 import BuscadorCliente from './BuscadorCliente';
 import ModalReciboPDF from './modals/ModalReciboPDF';
+import { imprimirVentaB2BTermico } from '../services/printService';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
@@ -281,13 +282,21 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     const items = validar(); if (!items) return;
     setLoading(true);
     try {
+      let noVenta = null;
       if (esEdicion) {
         await ventasService.actualizarBorrador(initialData.name, buildPayloadCommon(items));
         await ventasService.confirmarBorrador(initialData.name);
+        noVenta = initialData.custom_no_de_venta ?? null;
       } else {
-        await ventasService.registrarVenta(buildPayloadCommon(items));
+        const doc = await ventasService.registrarVenta(buildPayloadCommon(items));
+        noVenta = doc?.custom_no_de_venta ?? null;
       }
       setSuccess(`✅ Venta confirmada. Total: $${fmt(totales.total)}`);
+      // Auto-imprime el ticket térmico B2B al confirmar (la reimpresión queda en Consultas).
+      // ponytail: fire-and-forget; si la térmica falla no debe tumbar la venta ya registrada.
+      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      imprimirVentaB2BTermico({ noVenta, cliente: cliente?.label, fecha, hora, filas: items, totales, ajuste: ajusteSAT })
+        .catch(err => console.error('Auto-print venta B2B:', err));
       onSuccess?.();
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }

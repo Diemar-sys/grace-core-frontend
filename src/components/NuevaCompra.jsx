@@ -4,6 +4,7 @@ import ModalError from './modals/ModalError';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalSugerenciaPrecios from './compras/ModalSugerenciaPrecios';
 import ModalReciboPDF from './compras/ModalReciboPDF';
+import { docToDatosImpresion, imprimirCompraTicket } from '../utils/print/comprasPrint';
 import BuscadorProveedor from './compras/BuscadorProveedor';
 import FilaProducto from './compras/FilaProducto';
 import {
@@ -288,13 +289,23 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
     setLoading(true);
     try {
+      let compraName;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
         await comprasService.confirmarBorrador(initialData.name);
+        compraName = initialData.name;
       } else {
-        await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
+        const doc = await comprasService.registrarCompra({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
+        compraName = doc?.name;
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
+      // Auto-imprime el ticket térmico de la compra confirmada (la reimpresión queda en Consultas).
+      // ponytail: fire-and-forget; refetch del doc = idéntico a la reimpresión, sin duplicar formato.
+      if (compraName) {
+        comprasService.getCompraBorrador(compraName)
+          .then(full => imprimirCompraTicket(docToDatosImpresion(full)))
+          .catch(err => console.error('Auto-print compra:', err));
+      }
       const conCambio = items.filter(f => calcVariacion(f)?.cambio);
       if (conCambio.length > 0) { setCambiosPendientes(conCambio); } else { onSuccess?.(); }
     } catch (err) { setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }); }

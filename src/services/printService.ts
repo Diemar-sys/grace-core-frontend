@@ -36,6 +36,68 @@ export async function imprimirCorteTermico({ rango_inicio, rango_fin, num_transa
   return data;
 }
 
+interface TraspasoData {
+  sucursalLabel?: string; warehouseDestino?: string; docName?: string;
+  fecha?: string; hora?: string; origen?: string; filas: any[];
+}
+
+/** Ticket térmico de traspaso a sucursal (misma impresora SICAR que ventas). */
+export async function imprimirTraspasoTermico({ sucursalLabel, warehouseDestino, docName, fecha, hora, origen, filas }: TraspasoData) {
+  const items = (filas || []).map(f => ({
+    item_name: f.item_name || f.item_code || '',
+    qty: f.qty,
+    uom: f.uom || '',
+    cantidad_por_presentacion: f.cantidad_por_presentacion,
+    presentacion: f.presentacion || '',
+  }));
+  const res = await fetch(`${PRINT_SERVER}/imprimir-traspaso`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sucursal: sucursalLabel, warehouse_destino: warehouseDestino,
+      no_envio: docName, fecha, hora, origen, items,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Error al imprimir traspaso');
+  return data;
+}
+
+interface VentaB2BData {
+  noVenta?: any; cliente?: string; fecha?: string; hora?: string;
+  filas: any[]; totales?: any; ajuste?: number; esBorrador?: boolean;
+}
+
+/** Ticket térmico de venta B2B (mismo formato que el PDF de ventas, en chico). */
+export async function imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, filas, totales, ajuste = 0, esBorrador = false }: VentaB2BData) {
+  const items = (filas || []).map(f => ({
+    item_name: f.item_name || f.item_code || '',
+    qty: f.qty, uom: f.uom || '', rate: f.rate,
+    impuesto_rate: f.impuesto_rate || 0,
+    impuesto_label: f.impuesto_label || '',
+    cantidad_por_presentacion: f.cantidad_por_presentacion,
+    presentacion: f.presentacion || '',
+  }));
+  const t = totales || {};
+  const res = await fetch(`${PRINT_SERVER}/imprimir-venta-b2b`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      no_venta: noVenta, cliente, fecha, hora, items,
+      subtotal: t.subtotal || 0,
+      subtotal_iva16: t.subtotalIva16 || 0,
+      subtotal_ieps: t.subtotalIeps || 0,
+      subtotal_tasa0: t.subtotalTasa0 || 0,
+      iva: t.iva || 0, ieps: t.ieps || 0,
+      ajuste, total: t.total || 0,
+      es_borrador: esBorrador ? 1 : 0,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Error al imprimir venta B2B');
+  return data;
+}
+
 const _fmt2 = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
