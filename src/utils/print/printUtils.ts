@@ -7,7 +7,7 @@
  * @param {number} w      - Ancho de la ventana (px)
  * @param {number} h      - Alto de la ventana (px)
  */
-export function imprimirHTML(html, w = 500, h = 700) {
+export function imprimirHTML(html: string, w = 500, h = 700) {
   const win = window.open('', '_blank', `width=${w},height=${h}`);
   if (!win) {
     console.warn('[imprimirHTML] El popup fue bloqueado por el navegador.');

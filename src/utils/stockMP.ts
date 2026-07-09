@@ -6,6 +6,18 @@
 
 import { inventory as defaultInventory } from '../services/frappeInventory';
 
+interface StockRowMP {
+  item_code?: string;
+  actual_qty?: number | string;
+  custom_cantidad_por_presentación?: number | string;
+  custom_presentación?: string;
+  stock_uom?: string;
+}
+interface StockInfoMP {
+  actual: number; cantPres: number; presentacion: string;
+  uom: string; stockKg: number; presentaciones: number;
+}
+
 /**
  * Transforma filas de stock crudas a un mapa por item_code. `actual_qty` ya está en
  * unidad base (stock_uom); `stockKg` es esa cantidad base y `presentaciones` su
@@ -14,12 +26,12 @@ import { inventory as defaultInventory } from '../services/frappeInventory';
  * @param {Array<Object>} items - Filas de stock de ERPNext.
  * @returns {Object<string, {actual:number, cantPres:number, presentacion:string, uom:string, stockKg:number, presentaciones:number}>}
  */
-export function buildStockMapKg(items = []) {
-  const map = {};
+export function buildStockMapKg(items: StockRowMP[] = []): Record<string, StockInfoMP> {
+  const map: Record<string, StockInfoMP> = {};
   items.forEach(it => {
-    const actual = parseFloat(it.actual_qty) || 0;
-    const cantPres = parseFloat(it.custom_cantidad_por_presentación) || 1;
-    map[it.item_code] = {
+    const actual = parseFloat(String(it.actual_qty ?? '')) || 0;
+    const cantPres = parseFloat(String(it.custom_cantidad_por_presentación ?? '')) || 1;
+    map[it.item_code ?? ''] = {
       actual,
       cantPres,
       presentacion: it.custom_presentación || '',
@@ -37,7 +49,7 @@ export function buildStockMapKg(items = []) {
  * @param {{inventory?: object}} [deps] - Inyección de dependencias (default: singleton real).
  * @returns {Promise<Object<string, object>>}
  */
-export async function fetchStockMapKg(warehouse, { inventory = defaultInventory } = {}) {
+export async function fetchStockMapKg(warehouse: string, { inventory = defaultInventory }: { inventory?: any } = {}) {
   const items = await inventory.getProductosConStock({ warehouse });
   return buildStockMapKg(items);
 }

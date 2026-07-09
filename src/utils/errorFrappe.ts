@@ -2,7 +2,7 @@
 // Convierte errores crudos de Frappe/ERPNext en mensajes claros para el usuario final.
 // Frappe suele devolver HTML con stack y enlaces internos; aquí lo traducimos.
 
-const stripHTML = (s) =>
+const stripHTML = (s: unknown) =>
   String(s ?? '')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/g, ' ')
@@ -22,7 +22,7 @@ const ITEM_CODE_RE = /art[íi]culo\s+([A-Z0-9-]{6,})/i;
  * @param {string} contexto - Dónde ocurrió (ej. 'Stock origen', 'Almacenes').
  * @param {unknown} err
  */
-export function logError(contexto, err) {
+export function logError(contexto: string, err: unknown) {
   console.error(`[${contexto}]`, err);
 }
 
@@ -31,8 +31,8 @@ export function logError(contexto, err) {
  * @param {Error|string} err
  * @returns {{ title: string, message: string }}
  */
-export function parseErrorFrappe(err) {
-  const raw = err?.message ?? String(err ?? '');
+export function parseErrorFrappe(err: unknown) {
+  const raw = (err as { message?: string })?.message ?? String(err ?? '');
   const txt = stripHTML(raw);
 
   // Tasa de valoración faltante → item sin stock real ni costeo en el almacén
