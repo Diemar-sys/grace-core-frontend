@@ -258,6 +258,122 @@ def render_traspaso_image(data):
     return render_lines_image(rows)
 
 
+def render_venta_pos_image(data):
+    """Ticket de venta de mostrador (POS): items, pagos, cambio. Imagen chica."""
+    body = 22
+    small = 18
+    cols = _cols(body)
+    money = fmt
+    now = datetime.now()
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': small, 'align': 'c'},
+        {'text': 'AV. SANTUARIO DEL MILAGRO', 'size': small, 'align': 'c'},
+        {'text': 'TEL. 4425991147', 'size': small, 'align': 'c'},
+        {'rule': True},
+        {'text': 'TICKET DE VENTA', 'size': 22, 'align': 'c'},
+        {'rule': True},
+        {'text': f"Fecha:   {now.strftime('%d/%m/%Y')}", 'size': body},
+        {'text': f"Hora:    {now.strftime('%H:%M')}", 'size': body},
+        {'text': f"Cliente: {str(data['cliente'])[:cols - 9]}", 'size': body},
+        {'rule': True},
+        {'lr': ('PRODUCTO', 'TOTAL'), 'size': body},
+        {'rule': True},
+    ]
+    total_qty = 0
+    for it in data['items']:
+        nombre = str(it.get('item_name') or '')
+        qty = float(it.get('qty', 1) or 0)
+        precio = float(it.get('precio', 0) or 0)
+        total_qty += qty
+        rows.append({'text': nombre[:cols], 'size': body})
+        rows.append({'lr': (f"  {_qty(qty)} x {money(precio)}", money(qty * precio)), 'size': body})
+    rows.append({'rule': True})
+    rows.append({'text': f"Articulos: {_qty(total_qty)}", 'size': body})
+    rows.append({'rule': True})
+    rows.append({'lr': ('TOTAL:', money(data['total'])), 'size': 30})
+    rows.append({'rule': True})
+    for pago in data['pagos']:
+        monto = float(pago.get('monto', 0) or 0)
+        if monto > 0:
+            metodo = str(pago.get('metodo', '') or '').upper()
+            rows.append({'lr': (metodo, money(monto)), 'size': body})
+    if float(data.get('cambio', 0) or 0) > 0:
+        rows.append({'lr': ('CAMBIO', money(data['cambio'])), 'size': body})
+    rows.append({'rule': True})
+    rows.append({'text': 'GRACIAS POR SU COMPRA', 'size': small, 'align': 'c'})
+    rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
+    return render_lines_image(rows)
+
+
+def render_egreso_image(data):
+    """Comprobante de egreso (con desglose GAS opcional). Imagen chica."""
+    body = 22
+    small = 18
+    cols = _cols(body)
+    money = fmt
+    no_de_compra = data.get('no_de_compra')
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': small, 'align': 'c'},
+        {'rule': True},
+        {'text': 'COMPROBANTE DE EGRESO', 'size': 22, 'align': 'c'},
+        {'rule': True},
+    ]
+    # El consecutivo de COMPRA es el ID protagonista (lo pide contabilidad);
+    # el folio interno del egreso queda como referencia.
+    if no_de_compra:
+        rows.append({'text': f"COMPRA #{no_de_compra}", 'size': 26, 'align': 'c'})
+    rows.append({'text': f"No. Egreso:   {data['no_egreso']}", 'size': body})
+    if data.get('no_factura'):
+        rows.append({'text': f"No. Factura:  {str(data['no_factura'])[:cols - 14]}", 'size': body})
+    rows.append({'text': f"Fecha:        {data['fecha']}  {data['hora']}", 'size': body})
+    rows.append({'text': f"Categoria:    {str(data['categoria'])[:cols - 14]}", 'size': body})
+    if data.get('subcategoria'):
+        rows.append({'text': f"Subcategoria: {str(data['subcategoria'])[:cols - 14]}", 'size': body})
+    if data.get('concepto'):
+        rows.append({'text': f"Concepto:     {str(data['concepto'])[:cols - 14]}", 'size': body})
+    rows.append({'text': f"Facturado a:  {str(data['facturado_a'])[:cols - 14]}", 'size': body})
+    rows.append({'text': f"Con factura:  {'SI' if data['con_factura'] else 'NO'}", 'size': body})
+    rows.append({'rule': True})
+
+    gas = data.get('gas')
+    if gas:
+        g_lit = float(gas.get('litros', 0)); g_pre = float(gas.get('precio', 0))
+        g_sub = float(gas.get('subtotal_gas', g_lit * g_pre))
+        a_lit = float(gas.get('aditivo_litros', 0)); a_pre = float(gas.get('aditivo_precio', 0))
+        a_sub = float(gas.get('aditivo_subtotal', a_lit * a_pre))
+        subtotal = float(gas.get('subtotal', g_sub + a_sub))
+        descuento = float(gas.get('descuento', 0))
+        base = float(gas.get('base', subtotal - descuento))
+        iva = float(gas.get('iva', data['monto_impuesto']))
+        rows.append({'text': 'GAS', 'size': body})
+        rows.append({'lr': (f"  {g_lit:.2f} L x {money(g_pre)}", money(g_sub)), 'size': body})
+        if a_lit > 0:
+            rows.append({'text': 'ADITIVO', 'size': body})
+            rows.append({'lr': (f"  {a_lit:.2f} L x {money(a_pre)}", money(a_sub)), 'size': body})
+        rows.append({'rule': True})
+        rows.append({'lr': ('Subtotal', money(subtotal)), 'size': body})
+        if descuento > 0:
+            rows.append({'lr': ('Descuento', money(-descuento)), 'size': body})
+        rows.append({'lr': ('Base gravable', money(base)), 'size': body})
+        rows.append({'lr': ('IVA 16%', money(iva)), 'size': body})
+    else:
+        total = float(data['total'])
+        monto_impuesto = float(data['monto_impuesto'])
+        base = total - monto_impuesto
+        imp = data.get('impuesto_tipo', '')
+        tasa = 'IVA 16%' if imp == 'IVA' else 'IEPS 8%' if imp == 'IEPS' else 'IVA  0%'
+        rows.append({'lr': (f"Subtotal {tasa}", money(base)), 'size': body})
+        if monto_impuesto > 0:
+            rows.append({'lr': (tasa, money(monto_impuesto)), 'size': body})
+    rows.append({'rule': True})
+    rows.append({'lr': ('TOTAL:', money(data['total'])), 'size': 30})
+    rows.append({'rule': True})
+    rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
+    return render_lines_image(rows)
+
+
 @app.route('/imprimir', methods=['POST', 'OPTIONS'])
 def imprimir():
     if request.method == 'OPTIONS':
@@ -266,70 +382,16 @@ def imprimir():
         data = request.get_json(force=False, silent=True)
         if not data:
             return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
-        items   = data.get('items', [])
-        cliente = data.get('cliente', 'Publico en General')
-        pagos   = data.get('pagos', [])
-        total   = float(data.get('total', 0))
-        cambio  = float(data.get('cambio', 0))
-
+        img = render_venta_pos_image({
+            'items':   data.get('items', []),
+            'cliente': data.get('cliente', 'Publico en General'),
+            'pagos':   data.get('pagos', []),
+            'total':   float(data.get('total', 0)),
+            'cambio':  float(data.get('cambio', 0)),
+        })
         p = get_printer()
         try:
-            # Encabezado
-            p.set(font ='b', align='center', bold=True, double_height=True, double_width=True)
-            p.text("GRACE\n")
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text("Panaderia & Reposteria\n")
-            p.text("AV. SANTUARIO DEL MILAGRO\n")
-            p.text("TEL. 4425991147\n")
-            p.text("-" * 24 + "\n")
-
-            # Info venta
-            now = datetime.now()
-            p.set(align='left')
-            p.text(f"FECHA : {now.strftime('%d/%m/%Y')}\n")
-            p.text(f"HORA  : {now.strftime('%H:%M')}\n")
-            p.text(f"CLIENTE: {cliente}\n")
-            p.text("=" * 24 + "\n")
-            p.set(align='center', bold=True)
-            p.text("** TICKET DE VENTA **\n")
-            p.set(align='left', bold=False)
-            p.text("-" * 24 + "\n")
-
-            # Items
-            total_qty = 0
-            for item in items:
-                qty      = item.get('qty', 1)
-                nombre   = item.get('item_name', '')[:20]
-                precio   = float(item.get('precio', 0))
-                subtotal = qty * precio
-                total_qty += qty
-                p.text(f"{nombre}\n")
-                p.text(f"  {qty} x {fmt(precio):>10}  {fmt(subtotal):>10}\n")
-
-            p.text("-" * 24 + "\n")
-            p.text(f"ARTICULOS: {total_qty}\n")
-            p.text("=" * 24 + "\n")
-
-            # Total
-            p.set(bold=True, double_height=True)
-            p.text(f"TOTAL: {fmt(total):>18}\n")
-            p.set(bold=False, double_height=False)
-            p.text("=" * 24 + "\n")
-
-            # Pagos
-            for pago in pagos:
-                if float(pago.get('monto', 0)) > 0:
-                    metodo = pago.get('metodo', '').upper()
-                    monto  = float(pago.get('monto', 0))
-                    p.text(f"{metodo:<16}{fmt(monto):>16}\n")
-            if cambio > 0:
-                p.text(f"{'CAMBIO':<16}{fmt(cambio):>16}\n")
-
-            # Pie
-            p.text("-" * 24 + "\n")
-            p.set(align='center')
-            p.text("GRACIAS POR SU COMPRA\n")
-            p.text("www.panaderiasgrace.mx\n")
+            p.image(img)
             p.text("\n\n")
             p.cut()
         finally:
@@ -504,78 +566,18 @@ def imprimir_egreso():
 
         hora = datetime.now().strftime('%H:%M')
 
+        img = render_egreso_image({
+            'no_egreso': no_egreso, 'no_de_compra': no_de_compra,
+            'fecha': fecha, 'hora': hora, 'categoria': categoria,
+            'subcategoria': subcategoria, 'concepto': concepto,
+            'facturado_a': facturado_a, 'con_factura': con_factura,
+            'no_factura': no_factura, 'total': total,
+            'impuesto_tipo': impuesto_tipo, 'monto_impuesto': monto_impuesto,
+            'gas': gas,
+        })
         p = get_printer()
         try:
-            # Header
-            p.set(font='b', align='center', bold=True, double_height=True, double_width=True)
-            p.text("GRACE\n")
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text("Panaderia & Reposteria\n")
-            p.text("-" * 32 + "\n")
-            p.set(align='center', bold=True)
-            p.text("** COMPROBANTE DE EGRESO **\n")
-            p.set(align='left', bold=False)
-            p.text("-" * 32 + "\n")
-
-            # Datos — el consecutivo de COMPRA es el ID protagonista (lo pide
-            # contabilidad); el folio interno del egreso queda como referencia.
-            if no_de_compra:
-                p.set(font='a', align='center', bold=True)
-                p.text(f"COMPRA #{no_de_compra}\n")
-                p.set(font='b', align='left', bold=False)
-                p.text(f"NO. EGRESO  : {no_egreso}\n")
-            else:
-                p.set(font='b', align='left')
-                p.text(f"NO. EGRESO  : {no_egreso}\n")
-            if no_factura:
-                p.text(f"NO. FACTURA : {no_factura[:18]}\n")
-            p.text(f"FECHA       : {fecha}  {hora}\n")
-            p.text(f"CATEGORIA   : {categoria[:18]}\n")
-            if subcategoria:
-                p.text(f"SUBCATEGORIA: {subcategoria[:18]}\n")
-            if concepto:
-                p.text(f"CONCEPTO    : {concepto[:18]}\n")
-            p.text(f"FACTURADO A : {facturado_a[:18]}\n")
-            p.text(f"CON FACTURA : {'SI' if con_factura else 'NO'}\n")
-            p.text("-" * 32 + "\n")
-
-            # Desglose
-            if gas:
-                g_lit = float(gas.get('litros', 0)); g_pre = float(gas.get('precio', 0))
-                g_sub = float(gas.get('subtotal_gas', g_lit * g_pre))
-                a_lit = float(gas.get('aditivo_litros', 0)); a_pre = float(gas.get('aditivo_precio', 0))
-                a_sub = float(gas.get('aditivo_subtotal', a_lit * a_pre))
-                subtotal  = float(gas.get('subtotal', g_sub + a_sub))
-                descuento = float(gas.get('descuento', 0))
-                base      = float(gas.get('base', subtotal - descuento))
-                iva       = float(gas.get('iva', monto_impuesto))
-                p.text("GAS\n")
-                p.text(f"  {g_lit:.2f} L x {fmt(g_pre)}{fmt(g_sub):>12}\n")
-                if a_lit > 0:
-                    p.text("ADITIVO\n")
-                    p.text(f"  {a_lit:.2f} L x {fmt(a_pre)}{fmt(a_sub):>12}\n")
-                p.text("-" * 32 + "\n")
-                p.text(f"{'SUBTOTAL:':<18}{fmt(subtotal):>14}\n")
-                if descuento > 0:
-                    p.text(f"{'DESCUENTO:':<18}{fmt(-descuento):>14}\n")
-                p.text(f"{'BASE GRAVABLE:':<18}{fmt(base):>14}\n")
-                p.text(f"{'IVA 16%:':<18}{fmt(iva):>14}\n")
-            else:
-                base = total - monto_impuesto
-                tasa = 'IVA 16%' if impuesto_tipo == 'IVA' else 'IEPS 8%' if impuesto_tipo == 'IEPS' else 'IVA  0%'
-                p.text(f"{'SUBTOTAL ' + tasa + ':':<18}{fmt(base):>14}\n")
-                p.text(f"{'SUBTOTAL:':<18}{fmt(base):>14}\n")
-                if monto_impuesto > 0:
-                    p.text(f"{tasa + ':':<18}{fmt(monto_impuesto):>14}\n")
-            p.text("-" * 32 + "\n")
-
-            # Total
-            p.set(font='a', bold=True)
-            p.text(f"TOTAL: {fmt(total):>16}\n")
-            p.set(font='b', bold=False, align='center')
-            p.text("-" * 32 + "\n")
-            p.text(f"Generado {fecha} {hora}\n")
-            p.text("www.panaderiasgrace.mx\n")
+            p.image(img)
             p.text("\n\n")
             p.cut()
         finally:
