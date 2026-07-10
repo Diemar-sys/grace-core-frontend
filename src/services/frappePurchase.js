@@ -116,11 +116,10 @@ class FrappeComprasService extends FrappeBase {
    * @param {Array<Object>} items - Lista de ítems de la compra.
    * @returns {Array<Object>} Arreglo de impuestos agrupados por tipo (IVA, IEPS, etc.)
    */
-  _calcularImpuestos(items, taxOverrides = {}, cuentas = null, descuento = 0) {
+  _calcularImpuestos(items, taxOverrides = {}, cuentas = null) {
     const round2 = (n) => Math.round(n * 100) / 100;
     const cfg = cuentas || getAppConfigSync().cuentas;
     const grupos = {};
-    let sumBase = 0;
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
       const key = item.impuesto_key || "tasa0";
@@ -128,19 +127,13 @@ class FrappeComprasService extends FrappeBase {
       // Sin redondeo por línea — suma con precisión completa, redondea solo al final.
       // ERPNext con Currency Precision = 6 hace lo mismo server-side.
       const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
-      sumBase += base;
       const monto = base * rate;
       if (!grupos[key]) grupos[key] = { label, rate, monto: 0 };
       grupos[key].monto += monto;
     });
-    // Descuento sobre subtotal (antes de IVA): el impuesto va sobre la base descontada.
-    // Espejo de calcularTotalesEfectivos; ERPNext aplica el descuento vía discount_amount.
-    const desc = parseFloat(descuento || 0);
-    if (desc > 0 && sumBase > 0) {
-      const factorNet = (sumBase - desc) / sumBase;
-      Object.values(grupos).forEach(g => { g.monto *= factorNet; });
-    }
-    // Aplica overrides manuales (para cuadrar con CFDI del proveedor) — absolutos, post-descuento
+    // IVA/IEPS sobre el valor COMPLETO del producto — el descuento NO baja la base
+    // gravable ni la valuación (Opción B): va como deducción post-impuestos en _buildPayload.
+    // Aplica overrides manuales (para cuadrar con CFDI del proveedor).
     Object.entries(taxOverrides).forEach(([key, amount]) => {
       if (grupos[key]) grupos[key].monto = amount;
     });
@@ -172,16 +165,30 @@ class FrappeComprasService extends FrappeBase {
    */
   _buildPayload({ supplier, fecha, billNo = "", notaRemision = "", tipoComprobante = "Nota", items, notas = "", ajuste = 0, descuento = 0, noCompra = null, facturadoA = "SIN FACTURA", taxOverrides = {}, subtotalOverrides = {} }) {
     const descuentoNum = parseFloat(descuento || 0);
-    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, null, descuentoNum);
+    const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, null);
     const ajusteNum = parseFloat(ajuste || 0);
+    const cuentasCfg = getAppConfigSync().cuentas;
 
     if (ajusteNum !== 0) {
-      const cfg = getAppConfigSync().cuentas;
       resumenImpuestos.push({
         charge_type: "Actual",
         description: "Ajuste por Redondeo",
         tax_amount: ajusteNum,
-        account_head: cfg.ajuste,
+        account_head: cuentasCfg.ajuste,
+      });
+    }
+
+    // Descuento comercial (Opción B): deducción categoría "Total" → baja el total a
+    // pagar (grand_total) pero NO toca el valuation_rate. El producto entra al inventario
+    // a su costo completo. Se descuenta DESPUÉS de IVA/IEPS.
+    if (descuentoNum > 0) {
+      resumenImpuestos.push({
+        charge_type: "Actual",
+        add_deduct_tax: "Deduct",
+        category: "Total",
+        description: "Descuento comercial",
+        tax_amount: descuentoNum,
+        account_head: cuentasCfg.descuento_compra,
       });
     }
 
@@ -221,9 +228,10 @@ class FrappeComprasService extends FrappeBase {
         };
       }),
       taxes: resumenImpuestos,
-      // Descuento comercial sobre el subtotal: ERPNext lo reparte entre los renglones
-      // (apply_discount_on Net Total) → baja net_rate/valuación = costo neto (Opción A).
-      ...(descuentoNum > 0 ? { apply_discount_on: "Net Total", discount_amount: descuentoNum } : {}),
+      // Neutraliza el descuento legacy (Opción A): al re-guardar un doc viejo, Frappe
+      // conserva los campos padre que no se mandan → sin esto quedaría doble descuento.
+      discount_amount: 0,
+      additional_discount_percentage: 0,
       disable_rounded_total: 1,
       rounding_adjustment: 0,
     };

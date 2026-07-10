@@ -1,6 +1,7 @@
 import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from './ticketTemplate';
 import { escHTML } from './escHTML';
+import { horaFrappe, horaLocal } from '../hora';
 
 const fmt2 = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -18,8 +19,12 @@ const parseImpuestoDesc = (description = '') => {
 export function docToDatosImpresion(doc) {
   const totales = { subtotal: doc.total || 0, iva: 0, ieps: 0, total: doc.grand_total || 0 };
   let ajuste = 0;
+  let descuento = 0;
   (doc.taxes || []).forEach(t => {
-    if (t.account_head?.includes('IVA')) totales.iva += parseFloat(t.tax_amount || 0);
+    if (t.description?.includes('Descuento') || t.account_head?.includes('DESCUENTO')) {
+      descuento += Math.abs(parseFloat(t.tax_amount || 0));
+    }
+    else if (t.account_head?.includes('IVA')) totales.iva += parseFloat(t.tax_amount || 0);
     else if (t.account_head?.includes('IEPS')) totales.ieps += parseFloat(t.tax_amount || 0);
     else if (t.account_head?.includes('AJUSTE') || t.description?.toLowerCase().includes('redondeo')) {
       ajuste += parseFloat(t.tax_amount || 0);
@@ -63,9 +68,7 @@ export function docToDatosImpresion(doc) {
 
   const fechaSrc = doc.posting_date ? new Date(doc.posting_date) : new Date();
   const fecha = fechaSrc.toISOString().split('T')[0];
-  const hora = doc.posting_time
-    ? doc.posting_time.slice(0, 5)
-    : new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const hora = horaFrappe(doc.posting_time) || horaLocal();
 
   return {
     noCompra: doc.custom_no_de_compra ?? null,
@@ -78,7 +81,7 @@ export function docToDatosImpresion(doc) {
     filas,
     totales,
     ajuste,
-    descuento: parseFloat(doc.discount_amount || 0),
+    descuento,
     esBorrador: doc.docstatus === 0,
   };
 }

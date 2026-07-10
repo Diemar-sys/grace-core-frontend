@@ -12,17 +12,43 @@ import { IMPUESTOS_LIST } from '../config/impuestos';
 import { loadAppConfig, getAppConfigSync } from './appConfig';
 import { getSucursalesInternas } from '../config/clientesB2B';
 
+// Respuestas Frappe heterogéneas → any deliberado (mismo criterio que FrappeBase).
+type Cuentas = any;
+
+// Payload de venta/actualización compartido por guardar/registrar/actualizar.
+interface VentaInput {
+  customer: string;
+  fecha?: string;
+  items: any[];
+  notas?: string;
+  ajuste?: number | string;
+  noVenta?: number | null;
+  taxOverrides?: Record<string, number>;
+  subtotalOverrides?: { iva16?: number; tasa0?: number };
+  cuentas?: Cuentas;
+}
+
+interface PagoInput {
+  customer: string;
+  facturas: any[];
+  monto: number;
+  fecha?: string | null;
+  cuentaCaja?: string | null;
+}
+
 // Fallback emergencia (también vive en appConfig.js como source of truth).
 // Aquí solo si appConfig falla completo.
-const FALLBACK_CUENTAS = getAppConfigSync().cuentas;
+const FALLBACK_CUENTAS: Cuentas = getAppConfigSync().cuentas;
 
-const cuentaPorImpuesto = (cfg) => ({
+const cuentaPorImpuesto = (cfg: Cuentas) => ({
   iva16: cfg.iva_trasladado,
   ieps:  cfg.ieps,
 });
 
 class FrappeSalesService extends FrappeBase {
-  #cuentasCache = null;
+  #cuentasCache: Cuentas | null = null;
+  _abortCliente?: AbortController;
+  _abortItems?: AbortController;
 
   getImpuestos() { return IMPUESTOS_LIST; }
 
@@ -48,7 +74,7 @@ class FrappeSalesService extends FrappeBase {
       fields: JSON.stringify(['custom_no_de_venta']),
       filters: JSON.stringify([['docstatus', 'in', [0, 1]]]),
       order_by: 'custom_no_de_venta desc',
-      limit_page_length: 1,
+      limit_page_length: '1',
     });
     const data = await this._fetch('/api/resource/Sales Invoice?' + params);
     const ultimo = data.data?.[0]?.custom_no_de_venta || 0;
@@ -72,14 +98,14 @@ class FrappeSalesService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify(['name', 'customer_name', 'customer_group']),
       filters: JSON.stringify(filters),
-      limit_page_length: 20,
+      limit_page_length: '20',
     });
     try {
       const data = await this._fetch('/api/resource/Customer?' + params, {
         signal: this._abortCliente.signal,
       });
       return data?.data || [];
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === 'AbortError') return [];
       throw err;
     }
@@ -104,7 +130,7 @@ class FrappeSalesService extends FrappeBase {
         'valuation_rate', 'custom_vendible_b2b',
       ]),
       filters: JSON.stringify(filters),
-      limit_page_length: 20,
+      limit_page_length: '20',
     });
     try {
       const data = await this._fetch('/api/resource/Item?' + params, {
@@ -114,7 +140,7 @@ class FrappeSalesService extends FrappeBase {
       // vende a clientes externos (DELI, ZAKIA). El filtro de MP es por
       // cliente (solo PUERTA REAL) y se aplica en NuevaVentaB2B, no aquí.
       return data?.data || [];
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === 'AbortError') return [];
       throw err;
     }
@@ -124,10 +150,10 @@ class FrappeSalesService extends FrappeBase {
    * Calcula y agrupa impuestos para venta.
    * Solo IVA + Tasa 0 (B2B panadería no causa IEPS típicamente).
    */
-  _calcularImpuestos(items, taxOverrides = {}, cuentas = FALLBACK_CUENTAS) {
-    const round2 = (n) => Math.round(n * 100) / 100;
+  _calcularImpuestos(items: any[], taxOverrides: Record<string, number> = {}, cuentas: Cuentas = FALLBACK_CUENTAS) {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const grupos: Record<string, { key: string; label: string; rate: number; monto: number }> = {};
     const map = cuentaPorImpuesto(cuentas);
-    const grupos = {};
     items.forEach(item => {
       const rate = parseFloat(item.impuesto_rate || 0);
       const key = item.impuesto_key || 'tasa0';
@@ -146,13 +172,13 @@ class FrappeSalesService extends FrappeBase {
         charge_type: 'Actual',
         description: g.label,
         tax_amount: round2(g.monto),
-        account_head: map[g.key] || cuentas.iva_trasladado,
+        account_head: (map as Record<string, any>)[g.key] || cuentas.iva_trasladado,
       }));
   }
 
-  _buildPayload({ customer, fecha, items, notas = '', ajuste = 0, noVenta = null, taxOverrides = {}, subtotalOverrides = {}, cuentas = FALLBACK_CUENTAS }) {
+  _buildPayload({ customer, fecha, items, notas = '', ajuste = 0, noVenta = null, taxOverrides = {}, subtotalOverrides = {}, cuentas = FALLBACK_CUENTAS }: VentaInput) {
     const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, cuentas);
-    const ajusteNum = parseFloat(ajuste || 0);
+    const ajusteNum = parseFloat(String(ajuste || 0));
 
     if (ajusteNum !== 0) {
       resumenImpuestos.push({
@@ -195,7 +221,7 @@ class FrappeSalesService extends FrappeBase {
    * Guarda venta como borrador (docstatus 0). Stock NO se mueve aún.
    * Stock siempre baja de BODEGA_CENTRAL (clientes B2B externos).
    */
-  async guardarBorrador({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async guardarBorrador({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [noVenta, cuentas] = await Promise.all([
@@ -213,7 +239,7 @@ class FrappeSalesService extends FrappeBase {
   /**
    * Crea + submitea venta (docstatus 1). Genera movimiento stock.
    */
-  async registrarVenta({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async registrarVenta({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [noVenta, cuentas] = await Promise.all([
@@ -232,12 +258,12 @@ class FrappeSalesService extends FrappeBase {
     return created.data;
   }
 
-  async getVentaBorrador(name) {
+  async getVentaBorrador(name: string) {
     const data = await this._fetch('/api/resource/Sales Invoice/' + encodeURIComponent(name));
     return data.data;
   }
 
-  async actualizarBorrador(name, { customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }) {
+  async actualizarBorrador(name: string, { customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [doc, cuentas] = await Promise.all([
@@ -253,7 +279,7 @@ class FrappeSalesService extends FrappeBase {
     return updated.data;
   }
 
-  async confirmarBorrador(name) {
+  async confirmarBorrador(name: string) {
     const updated = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
       { method: 'PUT', body: JSON.stringify({ docstatus: 1 }) }
@@ -261,7 +287,7 @@ class FrappeSalesService extends FrappeBase {
     return updated.data;
   }
 
-  async cancelarVenta(name) {
+  async cancelarVenta(name: string) {
     const data = await this._fetch(
       '/api/method/frappe.client.cancel',
       { method: 'POST', body: JSON.stringify({ doctype: 'Sales Invoice', name }) }
@@ -269,7 +295,7 @@ class FrappeSalesService extends FrappeBase {
     return data.message;
   }
 
-  async eliminarBorrador(name) {
+  async eliminarBorrador(name: string) {
     const result = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
       { method: 'DELETE' }
@@ -281,7 +307,7 @@ class FrappeSalesService extends FrappeBase {
    * Lista ventas B2B con filtros.
    * Excluye Sales Invoice de POS (is_pos=1).
    */
-  async getVentas({ desde = null, hasta = null, customer = null } = {}, signal) {
+  async getVentas({ desde = null, hasta = null, customer = null }: { desde?: string | null; hasta?: string | null; customer?: string | null } = {}, signal?: AbortSignal) {
     const filters = [
       ['docstatus', 'in', [0, 1, 2]],
       ['is_pos', '=', 0],
@@ -297,7 +323,7 @@ class FrappeSalesService extends FrappeBase {
       ]),
       filters: JSON.stringify(filters),
       order_by: 'custom_no_de_venta desc',
-      limit_page_length: 100,
+      limit_page_length: '100',
     });
     const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
     return data?.data || [];
@@ -307,7 +333,7 @@ class FrappeSalesService extends FrappeBase {
    * Lista facturas pendientes de cobro (outstanding > 0) opcionalmente por cliente.
    * Excluye POS. Solo submitted.
    */
-  async getFacturasPendientes({ customer = null } = {}, signal) {
+  async getFacturasPendientes({ customer = null }: { customer?: string | null } = {}, signal?: AbortSignal) {
     const filters = [
       ['docstatus', '=', 1],
       ['is_pos', '=', 0],
@@ -321,7 +347,7 @@ class FrappeSalesService extends FrappeBase {
       ]),
       filters: JSON.stringify(filters),
       order_by: 'posting_date asc, custom_no_de_venta asc',
-      limit_page_length: 500,
+      limit_page_length: '500',
     });
     const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
     return data?.data || [];
@@ -331,10 +357,10 @@ class FrappeSalesService extends FrappeBase {
    * Agrupa deuda pendiente por cliente.
    * Retorna [{ customer, customer_name, totalDeuda, facturas: [{name, fecha, #, total, outstanding}] }]
    */
-  async getDeudaPorCliente(signal) {
+  async getDeudaPorCliente(signal?: AbortSignal) {
     const facturas = await this.getFacturasPendientes({}, signal);
-    const grupos = {};
-    facturas.forEach(f => {
+    const grupos: Record<string, any> = {};
+    facturas.forEach((f: any) => {
       const k = f.customer;
       if (!grupos[k]) {
         grupos[k] = {
@@ -356,7 +382,7 @@ class FrappeSalesService extends FrappeBase {
    * @param {string} name - Sales Invoice name
    * @returns {Promise<Array<{item_code, item_name, qty, uom, rate, amount}>>}
    */
-  async getFacturaItems(name, signal) {
+  async getFacturaItems(name: string, signal?: AbortSignal) {
     if (!name) return [];
     const data = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
@@ -367,8 +393,8 @@ class FrappeSalesService extends FrappeBase {
 
     // El doc guarda qty y rate en unidad base → se leen directo. cantPres solo sirve
     // para mostrar el equivalente en presentación (base / cantPres).
-    const codes = [...new Set(itemsRaw.map(i => i.item_code).filter(Boolean))];
-    let dict = {};
+    const codes = [...new Set(itemsRaw.map((i: any) => i.item_code).filter(Boolean))];
+    let dict: Record<string, any> = {};
     if (codes.length) {
       try {
         const params = new URLSearchParams({
@@ -376,16 +402,16 @@ class FrappeSalesService extends FrappeBase {
             'item_code', 'stock_uom', 'custom_cantidad_por_presentación', 'custom_presentación',
           ]),
           filters: JSON.stringify([['name', 'in', codes]]),
-          limit_page_length: 200,
+          limit_page_length: '200',
         });
         const cat = await this._fetch('/api/resource/Item?' + params, { signal });
-        (cat?.data || []).forEach(it => { dict[it.item_code] = it; });
-      } catch (e) {
+        (cat?.data || []).forEach((it: any) => { dict[it.item_code] = it; });
+      } catch (e: any) {
         if (e.name !== 'AbortError') console.warn('Catálogo no disponible:', e);
       }
     }
 
-    return itemsRaw.map(it => {
+    return itemsRaw.map((it: any) => {
       const m = dict[it.item_code] || {};
       const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
       return {
@@ -418,7 +444,7 @@ class FrappeSalesService extends FrappeBase {
    * Estructura: [{ item_group, qtyTotal, montoTotal, items: [{ item_code, item_name, qty, monto, uom, ventas }] }]
    * @param {{desde:string, hasta:string}} rango - Fechas ISO YYYY-MM-DD inclusivas.
    */
-  async getVentasB2BPorCategoria({ desde, hasta } = {}, signal) {
+  async getVentasB2BPorCategoria({ desde, hasta }: { desde?: string; hasta?: string } = {}, signal?: AbortSignal) {
     if (!desde || !hasta) throw new Error('Rango de fechas requerido');
 
     // 1) Sales Invoice submitted B2B en rango.
@@ -430,10 +456,10 @@ class FrappeSalesService extends FrappeBase {
         ['posting_date', '>=', desde],
         ['posting_date', '<=', hasta],
       ]),
-      limit_page_length: 5000,
+      limit_page_length: '5000',
     });
     const invData = await this._fetch('/api/resource/Sales Invoice?' + invParams, { signal });
-    const invoiceNames = (invData?.data || []).map(d => d.name);
+    const invoiceNames = (invData?.data || []).map((d: any) => d.name);
     if (!invoiceNames.length) return [];
 
     // 2) Fetch cada Sales Invoice completo (items embebidos).
@@ -444,7 +470,7 @@ class FrappeSalesService extends FrappeBase {
     for (let i = 0; i < invoiceNames.length; i += BATCH) {
       const batch = invoiceNames.slice(i, i + BATCH);
       const docs = await Promise.all(
-        batch.map(name =>
+        batch.map((name: any) =>
           this._fetch('/api/resource/Sales Invoice/' + encodeURIComponent(name), { signal })
             .catch(() => null)
         )
@@ -468,8 +494,8 @@ class FrappeSalesService extends FrappeBase {
     if (!itemsRaw.length) return [];
 
     // 3) Convertir qty natural → display (qty × cantidad_por_presentación).
-    const codes = [...new Set(itemsRaw.map(i => i.item_code).filter(Boolean))];
-    let dict = {};
+    const codes = [...new Set(itemsRaw.map((i: any) => i.item_code).filter(Boolean))];
+    let dict: Record<string, any> = {};
     if (codes.length) {
       // Chunk codes también.
       const codeChunks = [];
@@ -478,15 +504,15 @@ class FrappeSalesService extends FrappeBase {
         const params = new URLSearchParams({
           fields: JSON.stringify(['item_code', 'stock_uom', 'custom_cantidad_por_presentación']),
           filters: JSON.stringify([['name', 'in', cc]]),
-          limit_page_length: 500,
+          limit_page_length: '500',
         });
         const cat = await this._fetch('/api/resource/Item?' + params, { signal });
-        (cat?.data || []).forEach(it => { dict[it.item_code] = it; });
+        (cat?.data || []).forEach((it: any) => { dict[it.item_code] = it; });
       }
     }
 
     // 4) Agrupar por item_group → por item_code.
-    const grupos = {};
+    const grupos: Record<string, any> = {};
     for (const it of itemsRaw) {
       const grp = it.item_group || '(sin categoría)';
       if (!grupos[grp]) grupos[grp] = { item_group: grp, qtyTotal: 0, montoTotal: 0, _items: {} };
@@ -519,18 +545,18 @@ class FrappeSalesService extends FrappeBase {
         qtyTotal: g.qtyTotal,
         montoTotal: g.montoTotal,
         items: Object.values(g._items)
-          .map(i => ({ ...i, ventas: i.ventas.size }))
+          .map((i: any) => ({ ...i, ventas: i.ventas.size }))
           .sort((a, b) => b.monto - a.monto),
       }))
       .sort((a, b) => b.montoTotal - a.montoTotal);
   }
 
-  async registrarPago({ customer, facturas, monto, fecha = null, cuentaCaja = null }) {
+  async registrarPago({ customer, facturas, monto, fecha = null, cuentaCaja = null }: PagoInput) {
     if (!customer) throw new Error('Cliente requerido');
     if (!facturas?.length) throw new Error('Selecciona al menos una factura');
     if (!monto || monto <= 0) throw new Error('Monto inválido');
 
-    const round2 = (n) => Math.round(n * 100) / 100;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
     const references = facturas
       .filter(f => parseFloat(f.allocated) > 0)
       .map(f => ({
@@ -550,8 +576,8 @@ class FrappeSalesService extends FrappeBase {
       party: customer,
       paid_from: cuentas.receivable,
       paid_to: cuentaCaja || cuentas.caja,
-      paid_amount: round2(parseFloat(monto)),
-      received_amount: round2(parseFloat(monto)),
+      paid_amount: round2(monto),
+      received_amount: round2(monto),
       references,
       mode_of_payment: 'Cash',
     };

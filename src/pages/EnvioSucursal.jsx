@@ -8,6 +8,7 @@ import ConfirmModal from "../components/modals/ConfirmModal";
 import useConfirmModal from "../hooks/useConfirmModal";
 import { stockService } from "../services/frappeStock";
 import useSucursales from "../hooks/useSucursales";
+import { horaFrappe, horaLocal } from "../utils/hora";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
@@ -96,7 +97,7 @@ function EnvioSucursal() {
   const handleReimprimir = async (envio) => {
     try {
       const doc = await stockService.getTransferenciaDoc(envio.name);
-      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const hora = horaFrappe(doc?.posting_time) || horaLocal();
       // Rehidratar presentación desde catálogo para mostrar conversión Kg ↔ Bulto.
       const codes = [...new Set((doc?.items || []).map(i => i.item_code).filter(Boolean))];
       let dict = {};

@@ -62,21 +62,19 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   const subtotalEfectivo = subtotalIva16 + subtotalIeps + subtotalTasa0;
   const subtotalDiff     = subtotalEfectivo - calc.subtotal;
 
-  // Descuento comercial sobre el subtotal (antes de IVA): baja la base gravable y
-  // el IVA/IEPS proporcional. En ERPNext = apply_discount_on "Net Total" → baja la
-  // valuación del inventario (el costo neto), no es ingreso.
+  // Descuento comercial (Opción B): NO baja la base gravable ni la valuación.
+  // IVA/IEPS se calculan sobre el valor COMPLETO; el descuento se resta al final
+  // (después de impuestos). En ERPNext = deducción categoría "Total" → baja el
+  // grand_total a pagar pero deja el valuation_rate del inventario intacto.
   const descuentoNum = num(descuento);
-  const baseGravable = subtotalEfectivo - descuentoNum;
-  const factorNet    = subtotalEfectivo > 0 ? baseGravable / subtotalEfectivo : 1;
+  const baseGravable = subtotalEfectivo;
 
-  // IVA/IEPS sobre la base ya descontada. El override manual (cuadre CFDI) se respeta
-  // tal cual: se asume que el CFDI ya trae el impuesto post-descuento.
-  // ponytail: override + descuento a la vez = raro; no se re-escala el override.
-  const iva  = (manual.iva  && calc.iva  > 0) ? num(overrides.iva)  : calc.iva  * factorNet;
-  const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps * factorNet;
+  // IVA/IEPS sobre el subtotal completo. El override manual (cuadre CFDI) se respeta.
+  const iva  = (manual.iva  && calc.iva  > 0) ? num(overrides.iva)  : calc.iva;
+  const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps;
 
   const rawTotal       = baseGravable + iva + ieps;
-  // Ajuste SAT: lleva el total a 2 decimales exactos sin redondeo intermedio (precisión 6).
+  // Ajuste SAT: lleva el total (pre-descuento) a 2 decimales exactos sin redondeo intermedio.
   const ajusteSAT      = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
   const ajusteEfectivo = manual.ajuste ? num(ajuste) : ajusteSAT;
   const ajusteParaErp  = ajusteEfectivo + subtotalDiff;
@@ -84,9 +82,9 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   return {
     iva, ieps, subtotalIva16, subtotalIeps, subtotalTasa0,
     subtotalEfectivo, subtotalDiff, rawTotal,
-    descuento: descuentoNum, baseGravable, factorNet,
+    descuento: descuentoNum, baseGravable, factorNet: 1,
     ajusteSAT, ajusteEfectivo, ajusteParaErp,
-    total: rawTotal + ajusteEfectivo,
+    total: rawTotal + ajusteEfectivo - descuentoNum,
   };
 };
 

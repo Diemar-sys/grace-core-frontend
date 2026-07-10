@@ -6,6 +6,7 @@
 
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
+import { horaFrappe } from '../utils/hora';
 
 // Tipos de Warehouse esperados en ERPNext (Doctype "Warehouse Type").
 // Si el tipo no coincide se cataloga como "Otros" y aparece al final del select.
@@ -485,7 +486,7 @@ class FrappeStockService extends FrappeBase {
         return {
           name: e.name,
           fecha: e.posting_date,
-          hora: e.posting_time,
+          hora: horaFrappe(e.posting_time),
           tipo: e.stock_entry_type,
           rol,
           origen: e.from_warehouse || null,
