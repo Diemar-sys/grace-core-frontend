@@ -32,9 +32,11 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const [ajuste, setAjuste] = useState(String(initialData?.rounding_adjustment || ''));
   const [ajusteManual, setAjusteManual] = useState(false);
   // Opción B: el descuento vive como fila de impuesto categoría "Total", no en discount_amount.
-  const descuentoInicial = (initialData?.taxes || [])
+  // Fallback a discount_amount para docs viejos (Opción A) → se migran al re-guardar.
+  const descuentoFilaImp = (initialData?.taxes || [])
     .filter(t => t.description?.includes('Descuento') || (t.account_head || '').includes('DESCUENTO'))
     .reduce((s, t) => s + Math.abs(parseFloat(t.tax_amount || 0)), 0);
+  const descuentoInicial = descuentoFilaImp || parseFloat(initialData?.discount_amount || 0);
   const [descuento, setDescuento] = useState(descuentoInicial ? String(descuentoInicial) : '');
   const [ivaOverride, setIvaOverride] = useState('');
   const [ivaManual, setIvaManual] = useState(false);

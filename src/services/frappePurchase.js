@@ -228,6 +228,10 @@ class FrappeComprasService extends FrappeBase {
         };
       }),
       taxes: resumenImpuestos,
+      // Neutraliza el descuento legacy (Opción A): al re-guardar un doc viejo, Frappe
+      // conserva los campos padre que no se mandan → sin esto quedaría doble descuento.
+      discount_amount: 0,
+      additional_discount_percentage: 0,
       disable_rounded_total: 1,
       rounding_adjustment: 0,
     };
