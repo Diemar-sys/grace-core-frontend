@@ -31,7 +31,11 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const [notas, setNotas] = useState(initialData?.remarks || '');
   const [ajuste, setAjuste] = useState(String(initialData?.rounding_adjustment || ''));
   const [ajusteManual, setAjusteManual] = useState(false);
-  const [descuento, setDescuento] = useState(String(initialData?.discount_amount || ''));
+  // Opción B: el descuento vive como fila de impuesto categoría "Total", no en discount_amount.
+  const descuentoInicial = (initialData?.taxes || [])
+    .filter(t => t.description?.includes('Descuento') || (t.account_head || '').includes('DESCUENTO'))
+    .reduce((s, t) => s + Math.abs(parseFloat(t.tax_amount || 0)), 0);
+  const [descuento, setDescuento] = useState(descuentoInicial ? String(descuentoInicial) : '');
   const [ivaOverride, setIvaOverride] = useState('');
   const [ivaManual, setIvaManual] = useState(false);
   const [iepsOverride, setIepsOverride] = useState('');

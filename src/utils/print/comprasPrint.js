@@ -19,8 +19,12 @@ const parseImpuestoDesc = (description = '') => {
 export function docToDatosImpresion(doc) {
   const totales = { subtotal: doc.total || 0, iva: 0, ieps: 0, total: doc.grand_total || 0 };
   let ajuste = 0;
+  let descuento = 0;
   (doc.taxes || []).forEach(t => {
-    if (t.account_head?.includes('IVA')) totales.iva += parseFloat(t.tax_amount || 0);
+    if (t.description?.includes('Descuento') || t.account_head?.includes('DESCUENTO')) {
+      descuento += Math.abs(parseFloat(t.tax_amount || 0));
+    }
+    else if (t.account_head?.includes('IVA')) totales.iva += parseFloat(t.tax_amount || 0);
     else if (t.account_head?.includes('IEPS')) totales.ieps += parseFloat(t.tax_amount || 0);
     else if (t.account_head?.includes('AJUSTE') || t.description?.toLowerCase().includes('redondeo')) {
       ajuste += parseFloat(t.tax_amount || 0);
@@ -77,7 +81,7 @@ export function docToDatosImpresion(doc) {
     filas,
     totales,
     ajuste,
-    descuento: parseFloat(doc.discount_amount || 0),
+    descuento,
     esBorrador: doc.docstatus === 0,
   };
 }

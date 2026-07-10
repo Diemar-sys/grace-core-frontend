@@ -25,6 +25,7 @@ const FALLBACK: AppConfig = Object.freeze({
     iva_acreditable:  'IVA ACREDITABLE O PAGADO A PROVEEDORES - PG',
     ieps:             'IEPS - PG - PG',
     ajuste:           'AJUSTE POR REDONDEO - PG',
+    descuento_compra: 'DESCUENTOS SOBRE COMPRAS - PG',
   },
   item_tax_templates: {
     iva16: 'Mexico Tax - PG',
