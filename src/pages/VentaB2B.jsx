@@ -9,6 +9,7 @@ import Libreta from "../components/Libreta";
 import ModalReciboPDF from "../components/modals/ModalReciboPDF";
 import { ventasService } from "../services/frappeSales";
 import { IMPUESTOS_MAP } from "../config/impuestos";
+import { horaFrappe } from "../utils/hora";
 import useConfirmModal from "../hooks/useConfirmModal";
 import { fmtUom } from "../utils/uom";
 import "../styles/global.css";
@@ -161,9 +162,7 @@ function VentaB2B() {
       const subtotal = parseFloat(doc.total || 0);
       const total = parseFloat(doc.grand_total || 0);
       const fecha = doc.posting_date;
-      const horaRaw = doc.posting_time || '';
-      const hora = horaRaw ? new Date('1970-01-01T' + horaRaw)
-        .toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '';
+      const hora = horaFrappe(doc.posting_time);
       setPdfData({
         noVenta: doc.custom_no_de_venta,
         fecha, hora,

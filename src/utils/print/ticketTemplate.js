@@ -1,5 +1,6 @@
 import { TENANT } from '../../config/tenant';
 import { escHTML } from './escHTML';
+import { horaLocal } from '../hora';
 
 /**
  * Datos de la empresa leídos desde tenant.js → variables de entorno (.env).
@@ -22,8 +23,7 @@ const fmtFecha = () =>
     day: '2-digit', month: 'long', year: 'numeric',
   });
 
-const fmtHora = () =>
-  new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+const fmtHora = horaLocal;
 
 /**
  * Genera el HTML completo del ticket de venta individual.

@@ -1,6 +1,7 @@
 import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from './ticketTemplate';
 import { escHTML } from './escHTML';
+import { horaFrappe, horaLocal } from '../hora';
 
 const fmt2 = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,9 +64,7 @@ export function docToDatosImpresion(doc) {
 
   const fechaSrc = doc.posting_date ? new Date(doc.posting_date) : new Date();
   const fecha = fechaSrc.toISOString().split('T')[0];
-  const hora = doc.posting_time
-    ? doc.posting_time.slice(0, 5)
-    : new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const hora = horaFrappe(doc.posting_time) || horaLocal();
 
   return {
     noCompra: doc.custom_no_de_compra ?? null,

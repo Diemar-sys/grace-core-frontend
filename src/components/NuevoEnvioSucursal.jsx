@@ -8,6 +8,7 @@ import ModalError from './modals/ModalError';
 import ModalHojaEntrega from './modals/ModalHojaEntrega';
 import { imprimirTraspasoTermico } from '../services/printService';
 import { parseErrorFrappe } from '../utils/errorFrappe';
+import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
 
 const FILA_VACIA = () => ({
@@ -103,7 +104,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         asBorrador: false,
       });
       setSuccess(`✅ Envío registrado: ${doc.name}`);
-      const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const hora = horaLocal();
       setHojaData({
         fecha, hora, sucursalLabel, warehouseDestino,
         filas: items, notas, docName: doc.name,
