@@ -45,6 +45,25 @@ const cuentaPorImpuesto = (cfg: Cuentas) => ({
   ieps:  cfg.ieps,
 });
 
+/**
+ * Agrega Sales Invoices en filas por cliente para el reporte de cuentas por cobrar.
+ * pagado = grand_total - outstanding_amount. Ordena por deuda pendiente desc.
+ */
+export function agruparCuentasPorCobrar(rows: any[]) {
+  const map: Record<string, any> = {};
+  for (const si of rows || []) {
+    const k = si.customer;
+    if (!map[k]) map[k] = { customer: si.customer, customer_name: si.customer_name || si.customer, n: 0, total: 0, pagado: 0, pendiente: 0 };
+    const gt = parseFloat(si.grand_total || 0);
+    const out = parseFloat(si.outstanding_amount || 0);
+    map[k].n++;
+    map[k].total += gt;
+    map[k].pendiente += out;
+    map[k].pagado += gt - out;
+  }
+  return Object.values(map).sort((a: any, b: any) => b.pendiente - a.pendiente);
+}
+
 class FrappeSalesService extends FrappeBase {
   #cuentasCache: Cuentas | null = null;
   _abortCliente?: AbortController;
@@ -374,6 +393,21 @@ class FrappeSalesService extends FrappeBase {
       grupos[k].facturas.push(f);
     });
     return Object.values(grupos).sort((a, b) => b.totalDeuda - a.totalDeuda);
+  }
+
+  /**
+   * Cuentas por cobrar agregadas por cliente (reporte).
+   * Sobre Sales Invoice submitted B2B (is_pos=0). pagado = grand_total - outstanding_amount.
+   * Retorna [{ customer, customer_name, n, total, pagado, pendiente }] ordenado por deuda desc.
+   */
+  async getCuentasPorCobrar(signal?: AbortSignal) {
+    const params = new URLSearchParams({
+      fields: JSON.stringify(['customer', 'customer_name', 'grand_total', 'outstanding_amount']),
+      filters: JSON.stringify([['docstatus', '=', 1], ['is_pos', '=', 0]]),
+      limit_page_length: '0', // todas
+    });
+    const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
+    return agruparCuentasPorCobrar(data?.data || []);
   }
 
   /**

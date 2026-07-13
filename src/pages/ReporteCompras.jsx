@@ -8,10 +8,13 @@ function fmt(n) {
   return (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 function ReporteCompras() {
   const navigate = useNavigate();
   const añoActual = new Date().getFullYear();
   const [año, setAño] = useState(añoActual);
+  const [mes, setMes] = useState(new Date().getMonth() + 1); // 1-12, default mes actual
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +30,9 @@ function ReporteCompras() {
   }, [año]);
 
   useEffect(() => { cargar(año); }, [cargar, año]);
+
+  const mesKey = `${año}-${String(mes).padStart(2, '0')}`;
+  const filtrada = useMemo(() => data.filter(r => r.mes === mesKey), [data, mesKey]);
 
   const tot = useMemo(() => data.reduce((a, r) => ({
     compras: a.compras + r.compras,
@@ -65,8 +71,8 @@ function ReporteCompras() {
           </div>
         </div>
 
-        {/* Resumen del año (lo que antes vivía en la vista de Compras) */}
-        <div className="stats-cards" style={{ marginBottom: 16 }}>
+        {/* Resumen del año + controles (mes / año / actualizar) en una sola fila */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'stretch', marginBottom: 16 }}>
           <div className="stat-card">
             <span className="stat-number">{tot.compras}</span>
             <span className="stat-label">Confirmadas</span>
@@ -83,16 +89,25 @@ function ReporteCompras() {
             <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(tot.pendiente)}</span>
             <span className="stat-label">Se debe</span>
           </div>
-        </div>
 
-        <div className="filtros-section" style={{ alignItems: 'center' }}>
-          <div className="filtro-group filtro-sm">
-            <label>Año</label>
-            <select value={año} onChange={e => setAño(Number(e.target.value))} className="comp-date-input">
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div className="header-actions" style={{ marginLeft: 'auto' }}>
+          {/* Controles: mismo alto que las tarjetas, alineado a la derecha */}
+          <div style={{
+            marginLeft: 'auto', display: 'flex', gap: 16, alignItems: 'flex-end',
+            padding: '14px 20px', background: 'var(--tv-surface, #fff)',
+            border: '1px solid var(--tv-hairline, #e5e7eb)', borderRadius: 12,
+          }}>
+            <div className="filtro-group filtro-sm">
+              <label>Mes</label>
+              <select value={mes} onChange={e => setMes(Number(e.target.value))} className="comp-date-input">
+                {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              </select>
+            </div>
+            <div className="filtro-group filtro-sm">
+              <label>Año</label>
+              <select value={año} onChange={e => setAño(Number(e.target.value))} className="comp-date-input">
+                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
             <button className="btn-refresh btn-compacto" onClick={() => cargar(año)} disabled={loading}>
               {loading ? 'Cargando...' : 'Actualizar'}
             </button>
@@ -106,7 +121,6 @@ function ReporteCompras() {
             <table className="sys-table report-compact">
               <thead>
                 <tr>
-                  <th rowSpan={2}>Mes</th>
                   <th className="cell-right" rowSpan={2}># Compras</th>
                   <th className="cell-right" rowSpan={2}>Subtotal IVA 16%</th>
                   <th className="cell-right" rowSpan={2}>Subtotal IEPS 8%</th>
@@ -128,11 +142,10 @@ function ReporteCompras() {
                 </tr>
               </thead>
               <tbody>
-                {data.length === 0 ? (
-                  <tr><td colSpan={17} className="no-data">Sin compras confirmadas en {año}</td></tr>
-                ) : data.map(r => (
+                {filtrada.length === 0 ? (
+                  <tr><td colSpan={16} className="no-data">Sin compras confirmadas en {MESES[mes - 1]} {año}</td></tr>
+                ) : filtrada.map(r => (
                   <tr key={r.mes}>
-                    <td className="cell-name">{new Date(r.mes + '-02').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</td>
                     <td className="cell-right">{r.compras}</td>
                     <td className="cell-right">${fmt(r.subtotalIva16)}</td>
                     <td className="cell-right">${fmt(r.subtotalIeps)}</td>
@@ -152,29 +165,6 @@ function ReporteCompras() {
                   </tr>
                 ))}
               </tbody>
-              {data.length > 1 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700, borderTop: '2px solid #374151', background: '#f9fafb' }}>
-                    <td>TOTAL {año}</td>
-                    <td className="cell-right">{tot.compras}</td>
-                    <td className="cell-right">${fmt(tot.subtotalIva16)}</td>
-                    <td className="cell-right">${fmt(tot.subtotalIeps)}</td>
-                    <td className="cell-right">${fmt(tot.subtotalTasa0)}</td>
-                    <td className="cell-right">${fmt(tot.subtotal)}</td>
-                    <td className="cell-right">${fmt(tot.iva)}</td>
-                    <td className="cell-right">${fmt(tot.ieps)}</td>
-                    <td className="cell-right">${fmt(tot.total)}</td>
-                    <td className="cell-right">${fmt(tot.pagado)}</td>
-                    <td className="cell-right">${fmt(tot.pendiente)}</td>
-                    <td className="cell-right">${fmt(tot.almaPag)}</td>
-                    <td className="cell-right">${fmt(tot.almaDebe)}</td>
-                    <td className="cell-right">${fmt(tot.luisPag)}</td>
-                    <td className="cell-right">${fmt(tot.luisDebe)}</td>
-                    <td className="cell-right">${fmt(tot.sfPag)}</td>
-                    <td className="cell-right">${fmt(tot.sfDebe)}</td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         )}

@@ -3,9 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import NuevaVentaB2B from "../components/NuevaVentaB2B";
-import ModalRegistrarPago from "../components/modals/ModalRegistrarPago";
 import ConfirmModal from "../components/modals/ConfirmModal";
-import Libreta from "../components/Libreta";
+import TablaCuentasPorCobrar from "../components/TablaCuentasPorCobrar";
 import ModalReciboPDF from "../components/modals/ModalReciboPDF";
 import { ventasService } from "../services/frappeSales";
 import { IMPUESTOS_MAP } from "../config/impuestos";
@@ -72,15 +71,8 @@ function VentaB2B() {
     }
   };
 
-  // Modal cobro — Payment Entry contra facturas seleccionadas
-  const [pagoModal, setPagoModal] = useState(null); // grupo cliente con deuda
   const [pdfData, setPdfData] = useState(null);
   const libretaRef = useRef(null);
-
-  const handlePagoSuccess = () => {
-    setPagoModal(null);
-    libretaRef.current?.recargar();
-  };
 
   const cargar = useCallback(async (signal) => {
     setLoading(true);
@@ -302,7 +294,7 @@ function VentaB2B() {
               </div>
             </div>
 
-            <Libreta ref={libretaRef} readOnly={soloLectura} onCobrar={setPagoModal} />
+            <TablaCuentasPorCobrar ref={libretaRef} readOnly={soloLectura} />
           </>
         ) : (
           <>
@@ -528,14 +520,6 @@ function VentaB2B() {
             />
           </div>
         </div>
-      )}
-
-      {pagoModal && (
-        <ModalRegistrarPago
-          grupo={pagoModal}
-          onSuccess={handlePagoSuccess}
-          onCancel={() => setPagoModal(null)}
-        />
       )}
 
       {pdfData && (

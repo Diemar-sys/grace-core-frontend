@@ -15,7 +15,7 @@ const ROUTE: Record<string, string> = {
   pos: '/pos', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
 };
 
-const RUTAS_REPORTES = ['/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar'];
+const RUTAS_REPORTES = ['/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar', '/reportes/cuentas-por-cobrar'];
 
 // Construye la lista de rutas permitidas a partir de los módulos del nivel.
 function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { reportes?: boolean; cuentas?: boolean } = {}): string[] {
