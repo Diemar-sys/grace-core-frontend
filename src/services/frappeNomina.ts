@@ -9,6 +9,7 @@ export interface Empleado {
   designation?: string;
   status?: string;
   date_of_joining?: string;
+  custom_nomina_de?: string;
 }
 
 export interface Sucursal { name: string; }
@@ -50,6 +51,7 @@ export interface NuevoEmpleado {
   fecha_nacimiento?: string;
   genero: string;
   sucursal?: string | null;
+  nomina_de?: string | null;
 }
 
 export interface NuevaCorrida {
@@ -106,6 +108,14 @@ class FrappeNominaService extends FrappeBase {
     const json = await this._fetch(METHOD('crear_corrida'), {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+    return json?.message;
+  }
+
+  async cancelarCorrida(name: string): Promise<{ name: string; docstatus: number }> {
+    const json = await this._fetch(METHOD('cancelar_corrida'), {
+      method: 'POST',
+      body: JSON.stringify({ name }),
     });
     return json?.message;
   }

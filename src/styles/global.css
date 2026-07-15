@@ -24,8 +24,11 @@
   --radius-card:        14px;
   --radius-input:       9px;
   --radius-pill:        999px;
+  --radius-bento:       22px;  /* tarjetas flotantes estilo Bento (iOS/Stripe) */
   --shadow-card:        0 2px 8px rgba(107,50,9,0.08);
   --shadow-btn:         0 8px 20px rgba(107,50,9,0.18);
+  --shadow-bento:       0 8px 30px rgba(0,0,0,0.04);        /* flotante en reposo */
+  --shadow-bento-hover: 0 12px 36px rgba(0,0,0,0.07);       /* flotante en hover */
 
   /* Escala de espaciado (Refactoring UI: ritmo consistente, no números al azar) */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
@@ -853,3 +856,36 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
 .kardex-combo-item:hover,
 .kardex-combo-item.active { background: var(--tv-marca-wash, #fbeee9); }
 .sys-table .cell-bold { font-weight: 700; font-size: 17px; }
+
+/* ══ ANIMACIONES GLOBALES (Bento) ═══════════════════════════════════════════
+   Keyframes + utilidades definidos UNA vez y reusados por todas las vistas.
+   No dupliques @keyframes en los CSS de página: usa estas clases o los nombres
+   anim-* directamente. Entrada estándar = fade-up. */
+@keyframes anim-fade-up  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes anim-slide-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes anim-pop      { 0% { opacity: 0; transform: scale(.9); } 60% { transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes anim-fade     { from { opacity: 0; } to { opacity: 1; } }
+
+/* Utilidades opt-in */
+.anim-fade-up  { animation: anim-fade-up  .32s ease both; }
+.anim-slide-in { animation: anim-slide-in .25s ease both; }
+.anim-pop      { animation: anim-pop      .3s  ease both; }
+
+/* Aplicación app-wide vía clases estructurales compartidas (Layout + dashboards).
+   Cada página hereda la entrada sin tocar su CSS ni su JSX.
+   NOTA: .panel-module NO se toca aquí — Panel.css ya lo anima (moduleReveal + stagger). */
+/* Wrapper de página: SOLO opacidad. Un translateY aquí empuja todo el contenido
+   y dispara un scrollbar vertical transitorio al cargar. */
+.main-content { animation: anim-fade .3s ease both; }
+.stat-card    { animation: anim-fade-up .35s ease both; }
+
+/* Accesibilidad: respeta a quien pide menos movimiento en su sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-slide-in, .anim-pop,
+  .main-content, .stat-card, .panel-module,
+  .nomina-corrida, .nomina-empleados, .nomina-reporte,
+  .nomina-msg, .nomina-lista tbody tr, .nomina-badge {
+    animation: none !important;
+  }
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}

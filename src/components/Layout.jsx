@@ -119,14 +119,6 @@ function Layout({ children }) {
               Egresos
             </Link>
           )}
-          {roleConfig.rutas.includes('/nomina') && (
-            <Link
-              to="/nomina"
-              className={"layout-menu-btn" + (location.pathname.startsWith('/nomina') ? " active" : "")}
-            >
-              Nómina
-            </Link>
-          )}
           <span className="layout-menu-btn disabled">Configuración</span>
         </nav>
       )}

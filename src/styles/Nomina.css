@@ -1,42 +1,166 @@
-/* Nómina — reutiliza la paleta general; estilos mínimos propios. */
-.nomina { padding: 1rem 1.5rem; max-width: 1100px; margin: 0 auto; }
-.nomina-head { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; }
-.nomina-head h1 { margin: 0; }
-.nomina-tabs { display: flex; gap: .5rem; }
-.nomina-tab { padding: .4rem .9rem; border: 1px solid #ccc; background: #f7f7f7; border-radius: 6px; cursor: pointer; }
-.nomina-tab.active { background: #2d6cdf; color: #fff; border-color: #2d6cdf; }
+/* Nómina — estilo Light Bento Grid (iOS/Stripe): tarjetas blancas flotando sobre harina,
+   esquinas pronunciadas, sombras difuminadas, píldoras y badges pastel. Tokens en global.css. */
+.nomina { padding: 2rem; max-width: 1500px; margin: 0 auto; color: var(--color-text); }
 
-.nomina-msg { margin: .75rem 0; padding: .6rem .9rem; border-radius: 6px; }
-.nomina-msg.ok { background: #e7f6ec; color: #1a7f37; }
-.nomina-msg.error { background: #fdecea; color: #c0392b; }
+/* Animaciones: keyframes anim-* viven en global.css (DRY). Aquí solo se aplican.
+   El guard prefers-reduced-motion también está global. */
+.nomina-corrida, .nomina-empleados, .nomina-reporte { animation: anim-fade-up .32s ease both; }
+.nomina-msg { animation: anim-slide-in .25s ease both; }
+.nomina-lista tbody tr { animation: anim-fade-up .28s ease both; }
+.nomina-badge { animation: anim-pop .3s ease both; }
 
-.nomina-cabecera { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-.nomina-cabecera label, .nomina-form label { display: flex; flex-direction: column; font-size: .85rem; gap: .25rem; }
-
-.nomina-tabla, .nomina-lista { width: 100%; border-collapse: collapse; margin: .5rem 0; font-size: .9rem; }
-.nomina-tabla th, .nomina-tabla td, .nomina-lista th, .nomina-lista td {
-  border: 1px solid #e2e2e2; padding: .35rem .5rem; text-align: left;
+/* Encabezado + tabs tipo segmented control (píldoras) */
+.nomina-head { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.75rem; }
+.nomina-head h1 { margin: 0; font-family: var(--font-display); font-size: 2rem; letter-spacing: -.02em; }
+.nomina-tabs { display: flex; gap: .35rem; background: var(--color-surface-sunk); padding: .3rem; border-radius: var(--radius-pill); }
+.nomina-tab {
+  padding: .5rem 1.15rem; border: none; background: transparent; border-radius: var(--radius-pill);
+  cursor: pointer; font: inherit; font-size: .9rem; font-weight: 500; color: var(--color-text-muted);
+  transition: all .2s ease;
 }
-.nomina-tabla input, .nomina-tabla select { width: 100%; box-sizing: border-box; padding: .3rem; }
-.nomina-tabla td.ro { text-align: right; background: #fafafa; font-variant-numeric: tabular-nums; }
-.nomina-tabla tfoot th { text-align: right; background: #f0f4fb; }
-.nomina-tabla tfoot th:first-child { text-align: left; }
-.nomina-del { border: none; background: none; color: #c0392b; font-size: 1.2rem; cursor: pointer; }
+.nomina-tab:hover { color: var(--color-text); }
+.nomina-tab.active {
+  /* Activo relleno (estilo referencia): píldora sólida de marca, texto blanco. */
+  background: var(--color-brand); color: #fff;
+  box-shadow: 0 4px 12px rgba(200,80,60,.25); font-weight: 600;
+}
 
-.nomina-acciones { display: flex; gap: .5rem; align-items: center; margin: .75rem 0 1.5rem; }
+/* Mensajes flash */
+.nomina-msg { margin: 1rem 0; padding: .8rem 1.1rem; border-radius: var(--radius-input); font-size: .9rem; }
+.nomina-msg.ok { background: var(--color-success-bg); color: var(--color-success); }
+.nomina-msg.error { background: var(--color-danger-bg); color: var(--color-danger); }
+
+/* Tarjetas Bento: blanco puro flotando, esquinas 22px, sombra difusa, mucho aire */
+.nomina-corrida, .nomina-empleados, .nomina-reporte {
+  background: var(--color-surface); border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento); padding: 1.75rem;
+}
+
+/* Cabecera de filtros */
+.nomina-cabecera { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.nomina-cabecera label, .nomina-form label {
+  display: flex; flex-direction: column; font-size: .78rem; gap: .35rem;
+  color: var(--color-text-muted); font-weight: 500;
+}
+
+/* Inputs / selects: suaves, fondo casi blanco, halo de focus elegante */
+.nomina input, .nomina select {
+  border: 1px solid var(--color-border-input); border-radius: 12px;
+  padding: .6rem .75rem; font: inherit; font-size: .9rem; color: var(--color-text);
+  background: #fdfdfd; transition: all .2s ease;
+}
+.nomina input:hover, .nomina select:hover { border-color: #c9bfae; }
+.nomina input:focus, .nomina select:focus {
+  outline: none; background: #fff; border-color: var(--color-brand);
+  box-shadow: 0 0 0 4px rgba(200,80,60,.12);
+}
+
+/* Tablas: limpias dentro de la tarjeta, sin rejilla dura */
+.nomina-tabla, .nomina-lista {
+  width: 100%; border-collapse: separate; border-spacing: 0; margin: .25rem 0;
+  font-size: .9rem; font-variant-numeric: tabular-nums;
+}
+/* Layout fijo: un nombre de empleado largo NO debe reflowar las columnas.
+   El <select> trunca dentro de su celda de ancho fijo en vez de estirar la tabla. */
+.nomina-tabla { table-layout: fixed; }
+.nomina-tabla th:nth-child(1) { width: 20%; }           /* Empleado */
+.nomina-tabla th:nth-child(5), .nomina-tabla th:nth-child(6) { width: 9%; }  /* Neto, Costo patrón */
+.nomina-tabla th:nth-child(7) { width: 56px; }          /* acción × */
+.nomina-tabla select { text-overflow: ellipsis; }
+.nomina-tabla thead th, .nomina-lista thead th {
+  text-align: left; font-weight: 600; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--color-text-muted);
+  padding: .6rem .7rem; border-bottom: 1px solid var(--color-border);
+}
+.nomina-tabla td, .nomina-lista td {
+  padding: .65rem .7rem; border-bottom: 1px solid var(--color-hairline); text-align: left;
+}
+.nomina-tabla tbody tr:last-child td, .nomina-lista tbody tr:last-child td { border-bottom: none; }
+.nomina-lista tbody tr { transition: background .15s; }
+.nomina-lista tbody tr:hover { background: var(--color-brand-bg); }
+.nomina-tabla input, .nomina-tabla select { width: 100%; box-sizing: border-box; }
+.nomina-tabla td.ro { text-align: right; font-weight: 600; color: var(--color-text); }
+
+/* Columnas numéricas — scopeadas por tabla (cada lista tiene columnas distintas) */
+.nomina-corrida .nomina-lista td:nth-child(5),
+.nomina-corrida .nomina-lista td:nth-child(6) { text-align: right; font-weight: 600; }
+.nomina-reporte .nomina-lista td:nth-child(n+3),
+.nomina-reporte .nomina-lista th:nth-child(n+3) { text-align: right; }
+.nomina-reporte .nomina-lista td:nth-child(7) { font-weight: 600; }
+
+/* Totales (tfoot) con wash sutil */
+.nomina-tabla tfoot th, .nomina-lista tfoot th {
+  text-align: right; background: var(--color-brand-bg); padding: .7rem;
+  font-weight: 700; border-top: 1px solid var(--color-border);
+}
+.nomina-tabla tfoot th:first-child, .nomina-lista tfoot th[colspan] { text-align: left; }
+.nomina-lista tfoot tr th:first-child { border-bottom-left-radius: 14px; }
+.nomina-lista tfoot tr th:last-child { border-bottom-right-radius: 14px; }
+
+/* Badges de estado pastel (texto oscuro del mismo tono) */
+.nomina-badge {
+  display: inline-block; padding: .2rem .7rem; border-radius: var(--radius-pill);
+  font-size: .78rem; font-weight: 600; line-height: 1.5;
+}
+.nomina-badge.confirmada { background: #dcfce7; color: #166534; }
+.nomina-badge.cancelada  { background: #fee2e2; color: #991b1b; }
+.nomina-badge.borrador   { background: #ffedd5; color: #9a3412; }
+
+/* Acción destructiva = botón-icono circular (estilo referencia). Ghost en reposo,
+   se rellena de rojo suave y se eleva en hover. */
+.nomina-del {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  color: var(--color-danger); font-size: 1.05rem; line-height: 1; cursor: pointer;
+  transition: all .2s ease;
+}
+.nomina-del:hover {
+  background: var(--color-danger-bg); border-color: var(--color-danger-bg);
+  transform: translateY(-1px); box-shadow: 0 4px 12px rgba(192,57,43,.18);
+}
+
+/* Botones: píldoras. Primario = marca sólida con lift en hover */
+.nomina-acciones { display: flex; gap: .7rem; align-items: center; margin-top: 1.5rem; }
 .nomina-acciones .spacer { flex: 1; }
-.nomina button.primary { background: #2d6cdf; color: #fff; border: none; }
-.nomina button { padding: .5rem .9rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
-.nomina button:disabled { opacity: .5; cursor: default; }
+.nomina button {
+  padding: .6rem 1.25rem; border: none; border-radius: var(--radius-pill);
+  background: var(--color-surface-sunk); cursor: pointer; font: inherit; font-size: .9rem;
+  font-weight: 600; color: var(--color-text); transition: all .2s ease;
+}
+.nomina button:hover { background: #ece7dd; transform: translateY(-1px); }
+.nomina button.primary {
+  background: var(--color-brand); color: #fff; border-color: var(--color-brand);
+  box-shadow: 0 4px 12px rgba(200,80,60,.25); font-weight: 600;
+}
+.nomina button.primary:hover {
+  background: var(--color-brand-mid); transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(200,80,60,.35);
+}
+.nomina button:active { transform: translateY(0); }
+.nomina button:disabled { opacity: .5; cursor: default; box-shadow: none; transform: none; }
 
-.nomina-empleados { display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start; }
-.nomina-form { display: flex; flex-direction: column; gap: .75rem; }
-.nomina-form input, .nomina-form select { padding: .4rem; }
-.nomina-suc-nueva { display: flex; gap: .5rem; margin-top: 1rem; border-top: 1px dashed #ddd; padding-top: 1rem; }
-.nomina-suc-nueva input { flex: 1; padding: .4rem; }
+/* Lista: encabezado con filtro */
+.nomina-lista-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap; margin: 2rem 0 .75rem;
+}
+.nomina-lista-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; letter-spacing: -.01em; }
+.nomina-lista-head label {
+  display: flex; align-items: center; gap: .5rem; font-size: .8rem;
+  color: var(--color-text-muted); font-weight: 500;
+}
+.nomina-lista thead th { padding-top: .75rem; padding-bottom: .75rem; }
+.vacio { text-align: center; color: var(--color-text-muted); font-style: italic; padding: 1.75rem !important; }
 
-.nomina-lista tfoot th { text-align: right; background: #f0f4fb; }
-.vacio { text-align: center; color: #888; font-style: italic; }
+/* Empleados */
+.nomina-empleados { display: grid; grid-template-columns: 320px 1fr; gap: 2.5rem; align-items: start; }
+.nomina-form { display: flex; flex-direction: column; gap: .85rem; }
+.nomina-suc-nueva {
+  display: flex; gap: .5rem; margin-top: 1.25rem;
+  border-top: 1px dashed var(--color-border); padding-top: 1.25rem;
+}
+.nomina-suc-nueva input { flex: 1; }
 
 @media (max-width: 720px) {
   .nomina-empleados { grid-template-columns: 1fr; }

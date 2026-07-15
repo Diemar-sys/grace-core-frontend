@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { auth } from '../services/frappeAuth';
+import { getRoleConfig } from '../config/roles';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
@@ -423,6 +426,8 @@ function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }
 
 // ── Página principal ──────────────────────────────────────────────
 export default function Egresos() {
+  const navigate = useNavigate();
+  const puedeNomina = getRoleConfig(auth.getUser()?.role).rutas.includes('/nomina');
   const [categoriaKey, setCategoriaKey] = useState(null);
   const [egresos, setEgresos]           = useState([]);
   const [loading, setLoading]           = useState(false);
@@ -595,9 +600,9 @@ export default function Egresos() {
         <div className="egresos-page">
           <div className="panel-greeting"><h2>Egresos</h2><p>{fecha}</p></div>
           <div className="egresos-tiles">
-            {CATEGORIAS.map(c => (
+            {CATEGORIAS.filter(c => c.key !== 'Nómina' || puedeNomina).map(c => (
               <button key={c.key} className="egresos-tile"
-                onClick={() => setCategoriaKey(c.key)}>
+                onClick={() => c.key === 'Nómina' ? navigate('/nomina') : setCategoriaKey(c.key)}>
                 <div className="egresos-tile-icon">{c.icon}</div>
                 <div className="egresos-tile-text">
                   <span className="egresos-tile-name">{c.label}</span>
