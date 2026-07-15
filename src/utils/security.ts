@@ -30,6 +30,11 @@ const MAX_INTENTOS   = 5;           // intentos antes de bloqueo
 const BLOQUEO_MS     = 5 * 60 * 1000;  // 5 minutos en milisegundos
 const STORAGE_KEY    = 'grace_login_attempts';
 
+interface LoginAttempts {
+  intentos: number;
+  bloqueadoHasta: number | null;
+}
+
 export const rateLimiter = {
   /**
    * Verifica si el usuario puede intentar un nuevo login.
@@ -78,9 +83,10 @@ export const rateLimiter = {
     this._reiniciar();
   },
 
-  _leer() {
+  _leer(): LoginAttempts {
     try {
-      return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) || { intentos: 0, bloqueadoHasta: null };
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      return (raw ? JSON.parse(raw) : null) || { intentos: 0, bloqueadoHasta: null };
     } catch {
       return { intentos: 0, bloqueadoHasta: null };
     }
@@ -108,7 +114,7 @@ export const rateLimiter = {
  * @param {string} valor - El texto ingresado por el usuario.
  * @returns {string}     - El texto limpio.
  */
-export function sanitizar(valor) {
+export function sanitizar(valor: string): string {
   if (typeof valor !== 'string') return valor;
 
   return valor
@@ -126,7 +132,7 @@ export function sanitizar(valor) {
  * @param {Object} obj - Objeto con los campos del formulario.
  * @returns {Object}   - Copia del objeto con todos los strings sanitizados.
  */
-export function sanitizarObjeto(obj) {
+export function sanitizarObjeto(obj: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
     Object.entries(obj).map(([k, v]) => [k, typeof v === 'string' ? sanitizar(v) : v])
   );
@@ -145,7 +151,7 @@ export function sanitizarObjeto(obj) {
  *   - La validación de formato (correo, números) asegura que los datos
  *     tienen sentido antes de gastar un request de red.
  */
-export const validar = {
+export const validar: Record<string, (v: any) => boolean> = {
   /** Correo electrónico válido y longitud razonable */
   correo: (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length <= 120,
 

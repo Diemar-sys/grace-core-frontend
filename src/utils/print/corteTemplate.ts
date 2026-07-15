@@ -1,35 +1,35 @@
 import { TENANT } from '../../config/tenant';
 
-const fmtVal = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
+const fmtVal = (n: any) => `$${parseFloat(n || 0).toFixed(2)}`;
 
-const FORMA_PAGO_LABEL = {
+const FORMA_PAGO_LABEL: Record<string, string> = {
   'Bank Draft':    'Tarjeta',
   'Wire Transfer': 'Transferencia',
   'Cash':          'Efectivo',
 };
-const fmtFormaPago = (fp) =>
+const fmtFormaPago = (fp: string) =>
   (FORMA_PAGO_LABEL[fp] || fp).toUpperCase();
 
-const fmtFecha = (iso) =>
+const fmtFecha = (iso: string) =>
   new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
 
 /**
  * Genera el HTML completo del ticket de corte de caja.
- * @param {object} datosCorte   - Datos del corte (num_transacciones, por_forma_pago, por_departamento, total_ventas)
- * @param {string} rangoInicio  - Fecha ISO inicio
- * @param {string} rangoFin     - Fecha ISO fin
- * @returns {string} HTML completo listo para imprimir
+ * @param datosCorte  Datos del corte (num_transacciones, por_forma_pago, por_departamento, total_ventas)
+ * @param rangoInicio Fecha ISO inicio
+ * @param rangoFin    Fecha ISO fin
+ * @returns HTML completo listo para imprimir
  */
-export function generarHTMLCorte(datosCorte, rangoInicio, rangoFin) {
+export function generarHTMLCorte(datosCorte: any, rangoInicio: string, rangoFin: string): string {
   const esRango = rangoInicio !== rangoFin;
   const periodoStr = esRango
     ? `${fmtFecha(rangoInicio)} al ${fmtFecha(rangoFin)}`
     : fmtFecha(rangoInicio);
 
   const filasPago = datosCorte.por_forma_pago
-    .map(fp => `
+    .map((fp: any) => `
       <tr>
         <td>${fmtFormaPago(fp.forma_pago)}</td>
         <td style="text-align:right">${fmtVal(fp.total)}</td>
@@ -38,7 +38,7 @@ export function generarHTMLCorte(datosCorte, rangoInicio, rangoFin) {
     `<tr><td colspan="2" style="text-align:center;color:#888">Sin movimientos</td></tr>`;
 
   const filasDept = datosCorte.por_departamento
-    .map(dep => `
+    .map((dep: any) => `
       <tr>
         <td>${dep.departamento}</td>
         <td style="text-align:center">${dep.cantidad}</td>

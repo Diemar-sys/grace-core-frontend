@@ -215,6 +215,53 @@ def render_compra_image(data):
     return render_lines_image(rows)
 
 
+def render_consolidado_image(data):
+    """Ticket consolidado (varias notas -> una factura), en imagen chica.
+
+    Reemplaza el render ESC/POS fuente A/B, que se cortaba con remisiones/totales
+    largos. Monospace (DejaVuSansMono) mantiene las 3 columnas alineadas.
+    """
+    body = 22
+    small = 18
+    money = fmt
+    cols = _cols(body)
+    proveedor = str(data.get('proveedor', '') or '-')
+    factura = str(data.get('factura', '') or '-')
+    fecha = data.get('fecha', '') or datetime.now().strftime('%d/%m/%Y')
+    facturado = str(data.get('facturado_a', '') or 'SIN FACTURA').upper()
+    notas = data.get('notas', []) or []
+    gran_total = sum(float(n.get('total') or 0) for n in notas)
+    # Columnas monospace: total a la derecha (11), #compra izq (9), remision el resto.
+    c_tot, c_num = 11, 9
+    c_rem = max(6, cols - c_num - c_tot)
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': 18, 'align': 'c'},
+        {'rule': True},
+        {'text': 'TICKET CONSOLIDADO', 'size': 22, 'align': 'c'},
+        {'rule': True},
+        {'text': f"Proveedor:   {proveedor[:cols - 13]}", 'size': body},
+        {'text': f"Factura:     {factura[:cols - 13]}", 'size': body},
+        {'text': f"Fecha:       {fecha}", 'size': body},
+        {'text': f"Facturado a: {facturado[:cols - 13]}", 'size': body},
+        {'rule': True},
+        {'text': f"{'#COMPRA':<{c_num}}{'REMISION':<{c_rem}}{'TOTAL':>{c_tot}}", 'size': body},
+        {'rule': True},
+    ]
+    for n in notas:
+        num = ('#' + str(n.get('no_compra') or '-'))[:c_num]
+        rem = str(n.get('remision') or '-')[:c_rem]
+        tot = money(float(n.get('total') or 0))
+        rows.append({'text': f"{num:<{c_num}}{rem:<{c_rem}}{tot:>{c_tot}}", 'size': body})
+    rows.append({'rule': True})
+    rows.append({'lr': ('GRAN TOTAL:', money(gran_total)), 'size': 30})
+    rows.append({'rule': True})
+    rows.append({'text': f"{len(notas)} nota(s)", 'size': small, 'align': 'c'})
+    rows.append({'text': f"Generado {fecha}", 'size': small, 'align': 'c'})
+    rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
+    return render_lines_image(rows)
+
+
 def render_traspaso_image(data):
     """Ticket de traspaso a sucursal (productos + cantidad, firmas, Nota.), imagen."""
     body = 22
@@ -598,45 +645,10 @@ def imprimir_ticket_consolidado():
         if not data:
             return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
 
-        proveedor = (data.get('proveedor', '') or '-')
-        factura   = (data.get('factura', '') or '-')
-        fecha     = data.get('fecha', '') or datetime.now().strftime('%d/%m/%Y')
-        notas     = data.get('notas', []) or []
-        gran_total = sum(float(n.get('total') or 0) for n in notas)
-
+        img = render_consolidado_image(data)
         p = get_printer()
         try:
-            p.set(font='b', align='center', bold=True, double_height=True, double_width=True)
-            p.text("GRACE\n")
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text("Panaderia & Reposteria\n")
-            p.text("-" * 32 + "\n")
-            p.set(align='center', bold=True)
-            p.text("** TICKET CONSOLIDADO **\n")
-            p.set(align='left', bold=False)
-            p.text("-" * 32 + "\n")
-
-            p.set(font='b', align='left')
-            p.text(f"PROVEEDOR : {str(proveedor)[:28]}\n")
-            p.text(f"FACTURA   : {str(factura)[:28]}\n")
-            p.text(f"FECHA     : {fecha}\n")
-            p.text(f"FACTURADO A : {str(data.get('facturado_a', '') or 'SIN FACTURA').upper()[:18]}\n")
-            p.text("-" * 32 + "\n")
-            # ponytail: 9+12+11=32 cols; trailing pad on header forces gap so "#COMPRA"/"REMISION" no se pegan
-            p.text(f"{'#COMPRA':<9}{'REMISION':<12}{'TOTAL':>11}\n")
-            p.text("-" * 32 + "\n")
-            for n in notas:
-                num = str(n.get('no_compra') or '-')
-                rem = str(n.get('remision') or '-')[:11]
-                tot = fmt(float(n.get('total') or 0))
-                p.text(f"{('#'+num):<9}{rem:<12}{tot:>11}\n")
-            p.text("=" * 32 + "\n")
-            p.set(font='a', bold=True)
-            p.text(f"GRAN TOTAL:{fmt(gran_total):>11}\n")
-            p.set(font='b', bold=False, align='center')
-            p.text(f"{len(notas)} nota(s)\n")
-            p.text(f"Generado {fecha}\n")
-            p.text("www.panaderiasgrace.mx\n")
+            p.image(img)
             p.text("\n\n")
             p.cut()
         finally:

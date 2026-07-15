@@ -16,7 +16,7 @@ const EMPRESA = {
 };
 
 
-const fmtVal = (n) => `$${Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtVal = (n: any) => `$${Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const fmtFecha = () =>
   new Date().toLocaleDateString('es-MX', {
@@ -27,14 +27,14 @@ const fmtHora = horaLocal;
 
 /**
  * Genera el HTML completo del ticket de venta individual.
- * @param {Array}  items     - Artículos [{item_name, qty, precio}]
- * @param {string} cliente   - Nombre del cliente
- * @param {Array}  pagos     - [{metodo: string, monto: number}]
- * @param {number} total     - Total de la venta
- * @param {number} [cambio]  - Cambio entregado (solo si hay efectivo)
- * @returns {string} HTML completo listo para imprimir
+ * @param items     Artículos [{item_name, qty, precio}]
+ * @param cliente   Nombre del cliente
+ * @param pagos     [{metodo: string, monto: number}]
+ * @param total     Total de la venta
+ * @param cambio    Cambio entregado (solo si hay efectivo)
+ * @returns HTML completo listo para imprimir
  */
-export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0) {
+export function generarHTMLTicket(items: any[], cliente: string, pagos: any[] = [], total: number, cambio = 0): string {
   const filasItems = items
     .map(i => {
       const subtotal = i.qty * i.precio;
@@ -154,7 +154,10 @@ export function generarHTMLTicket(items, cliente, pagos = [], total, cambio = 0)
  * @param {number} [datos.ajuste=0] - Ajuste por redondeo.
  * @param {boolean} [datos.esBorrador=false] - Si es precompra.
  */
-export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, facturadoA, pagado, fecha, hora, totales, ajuste = 0, descuento = 0, esBorrador = false }) {
+export function generarHTMLTicketCompra({ noCompra, noFactura, proveedor, facturadoA, pagado, fecha, hora, totales, ajuste = 0, descuento = 0, esBorrador = false }: {
+  noCompra?: any; noFactura?: any; proveedor?: any; facturadoA?: any; pagado?: any;
+  fecha?: any; hora?: any; totales: any; ajuste?: any; descuento?: any; esBorrador?: any;
+}): string {
   const numStr = noCompra != null ? String(noCompra).padStart(4, '0') : '----';
   const titulo = esBorrador ? '** PRECOMPRA **' : '** TICKET DE COMPRA **';
 

@@ -3,17 +3,16 @@ import {
   loadSucursalesConfig,
   getSucursalesConfigSync,
   subscribeSucursalesConfig,
+  type SucursalesConfig,
 } from '../services/sucursalesConfig';
 
 /**
  * Hook React que reacciona a cambios del cache de sucursales config.
  * Útil cuando el componente se monta antes que termine la carga async
  * (refresh página sin pasar por login).
- *
- * @returns {{ sucursales_internas: string[], sucursales_destino: Array<{label, warehouse}> }}
  */
-export default function useSucursales() {
-  const [cfg, setCfg] = useState(getSucursalesConfigSync());
+export default function useSucursales(): SucursalesConfig {
+  const [cfg, setCfg] = useState<SucursalesConfig>(getSucursalesConfigSync());
 
   useEffect(() => {
     let cancel = false;
