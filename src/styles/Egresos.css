@@ -144,17 +144,20 @@
   position: fixed; inset: 0;
   background: rgba(44,42,39,0.55);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 24px 24px 40px;
+  /* ponytail: homologado con .edit-overlay (navbar 68 + 24 aire; centrado) */
+  padding: 92px 24px 24px;
   z-index: 1000;
   overflow-y: auto;
 }
+.egresos-modal > * { margin: auto; }
 .egresos-modal-card {
   background: var(--tv-surface);
   border-radius: 16px;
   width: 100%;
   max-width: 1340px;
+  max-height: var(--modal-max-h);
   box-shadow: 0 20px 60px rgba(44,42,39,0.35);
-  overflow: hidden;
+  overflow: hidden auto;
   animation: egresos-modal-in .16s ease-out;
 }
 @keyframes egresos-modal-in {

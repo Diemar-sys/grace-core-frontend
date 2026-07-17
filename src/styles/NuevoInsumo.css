@@ -5,7 +5,9 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 8px 0 32px;
+  /* ponytail: sin padding extra; el .edit-overlay ya da el aire y así el
+     container (var --modal-max-h) cabe en el hueco y margin:auto lo centra. */
+  padding: 0;
 }
 
 .nuevo-insumo-container {
@@ -19,7 +21,7 @@
   box-sizing: border-box;
 
   /* Scroll interno cuando el contenido excede la pantalla */
-  max-height: calc(100vh - 80px);
+  max-height: var(--modal-max-h);
   overflow-y: auto;
   scroll-behavior: smooth;
 
@@ -328,7 +330,7 @@
     box-shadow: none;
     border-left: none;
     border-right: none;
-    max-height: calc(100vh - 60px);
+    max-height: var(--modal-max-h);
   }
 
   .nuevo-insumo-container .form-section {

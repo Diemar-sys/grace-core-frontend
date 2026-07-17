@@ -17,7 +17,7 @@
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 28px 36px 0;
   box-sizing: border-box;
-  max-height: calc(100vh - 80px);
+  max-height: var(--modal-max-h);
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;
@@ -309,7 +309,7 @@
 .rm-container.salida  { border-color: #fdba74; }
 
 @media (max-width: 768px) {
-  .rm-container { border-radius: 0; max-height: calc(100vh - 60px); padding: 16px 16px 0; }
+  .rm-container { border-radius: 0; max-height: var(--modal-max-h); padding: 16px 16px 0; }
   .rm-tabla th:nth-child(3), .rm-tabla td:nth-child(3) { display: none; }
 }
 

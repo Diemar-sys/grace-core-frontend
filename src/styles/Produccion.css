@@ -84,15 +84,19 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 32px 16px;
+  /* ponytail: homologado con .edit-overlay (navbar 68 + 24 aire; centrado) */
+  padding: 92px 16px 24px;
   overflow-y: auto;
 }
+.receta-overlay > * { margin: auto; }
 .receta-modal {
   background: #fffbf6;
   border-radius: 18px;
   border: 1px solid #f3ede2;
   width: 100%;
   max-width: 1200px;
+  max-height: var(--modal-max-h);
+  overflow-y: auto;
   box-shadow: 0 20px 60px rgba(122, 63, 10, 0.18);
   animation: slideDown 0.2s ease;
 }

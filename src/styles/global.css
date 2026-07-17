@@ -29,6 +29,10 @@
   --shadow-btn:         0 8px 20px rgba(107,50,9,0.18);
   --shadow-bento:       0 8px 30px rgba(0,0,0,0.04);        /* flotante en reposo */
   --shadow-bento-hover: 0 12px 36px rgba(0,0,0,0.07);       /* flotante en hover */
+  /* ponytail: alto máx del contenedor de modal. Reserva navbar (68px) + 24px
+     de aire arriba/abajo (= padding del .edit-overlay) para que el container
+     interno sea el ÚNICO scroller y quepa sin doble-scroll. Tunear aquí. */
+  --modal-max-h:        calc(100vh - 120px);
 
   /* Escala de espaciado (Refactoring UI: ritmo consistente, no números al azar) */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
@@ -622,7 +626,13 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 32px 8px;
+  /* ponytail: padding-top = navbar sticky (68px) + 24px de aire, para que el
+     título nazca debajo de la barra con la MISMA separación que abajo (24px).
+     Global a todo modal. */
+  padding: 92px 8px 24px;
+  /* ponytail: con el container capado a var(--modal-max-h) el overlay no
+     necesita scrollear en modales con cap (evita doble-scroll), y 'auto' deja
+     que modales sin cap interno scrolleen si son altos (no los clipa). */
   overflow-y: auto;
 }
 .edit-modal-wrapper {
@@ -633,6 +643,10 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
 .edit-modal-wrapper:has(.nc-modal) {
   max-width: none;
 }
+/* ponytail: centra el modal en el hueco bajo el navbar. margin:auto = simétrico
+   arriba/abajo cuando cabe; si el modal es más alto que el hueco, los márgenes
+   colapsan a 0 y se alinea arriba (título nunca se corta) + overlay scrollea. */
+.edit-overlay > * { margin: auto; }
 @keyframes slideDown {
   from { opacity:0; transform:translateY(-14px); }
   to   { opacity:1; transform:translateY(0); }
@@ -654,7 +668,9 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   /* tabla no llena toda la pantalla → fondo del card visible */
   .table-container      { flex: none; max-height: 58vh; }
   /* modal confirmar centrado + botones con target táctil cómodo */
-  .edit-overlay         { align-items: center; }
+  /* ponytail: solo el modalito de confirmar se centra; los modales altos
+     (formularios) quedan en flex-start para no recortar el título arriba */
+  .edit-overlay:has(.del-modal) { align-items: center; }
   .del-btn-confirm,
   .del-btn-cancel,
   .del-btn-disable      { padding: 13px 28px; font-size: 16px; min-height: 48px; }
@@ -669,7 +685,7 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   .filtro-group input   { min-width:100%; }
   .vistas-tabs          { gap:6px; }
   .vista-tab            { padding:7px 12px; font-size:12px; }
-  .edit-overlay         { padding:16px 8px; }
+  .edit-overlay         { padding:84px 8px 16px; }
   .inv-btn-entrada span,
   .inv-btn-salida  span { display:none; }
 }

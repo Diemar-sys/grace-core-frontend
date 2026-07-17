@@ -5,7 +5,9 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 8px 0 32px;
+  /* ponytail: sin padding extra; el .edit-overlay ya da el aire y así el
+     container (var --modal-max-h) cabe en el hueco y margin:auto lo centra. */
+  padding: 0;
 }
 
 .np-container {
@@ -17,7 +19,7 @@
   box-shadow: 0 18px 40px rgba(122, 63, 10, 0.16);
   padding: 24px 28px 0;
   box-sizing: border-box;
-  max-height: calc(100vh - 80px);
+  max-height: var(--modal-max-h);
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;
@@ -201,7 +203,7 @@
 @media (max-width: 768px) {
   .np-container {
     border-radius: 0;
-    max-height: calc(100vh - 60px);
+    max-height: var(--modal-max-h);
     padding: 16px 16px 0;
   }
 

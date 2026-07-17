@@ -104,6 +104,21 @@ function Kardex() {
   // spec cliente "ajuste dice 50 → existencia 50": pintar existencia = resultado.
   const existenciaDe = (f) => f.voucher_type === 'Stock Reconciliation' ? f.resultado : f.entrada;
 
+  // Resumen de conciliación: parte del ÚLTIMO ajuste (Stock Reconciliation) como
+  // verdad ("había X") y suma lo comprado/salido DESPUÉS. queda = había+comprado-salió.
+  const resumenAjuste = (() => {
+    let idx = -1;
+    for (let i = 0; i < filas.length; i++) if (filas[i].voucher_type === 'Stock Reconciliation') idx = i;
+    if (idx < 0) return null;
+    const habia = parseFloat(filas[idx].resultado) || 0;
+    let comprado = 0, salio = 0;
+    for (let i = idx + 1; i < filas.length; i++) {
+      comprado += parseFloat(filas[i].entrada) || 0;
+      salio += parseFloat(filas[i].salida) || 0;
+    }
+    return { fecha: filas[idx].fecha, habia, comprado, salio, queda: habia + comprado - salio };
+  })();
+
   return (
     <Layout>
       <div className="page-container">
@@ -214,6 +229,36 @@ function Kardex() {
                   </tr>
                 ))}
               </tbody>
+              {resumenAjuste && (
+                <tfoot className="kardex-resumen-foot">
+                  <tr className="kardex-foot-titulo">
+                    <td colSpan={5} style={{ paddingTop: 14, borderTop: '2px solid #eadfce', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#9a6a3a' }}>
+                      Conciliación desde el ajuste ({resumenAjuste.fecha})
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={2}>Había al ajuste</td>
+                    <td className="cell-right" /><td className="cell-right" />
+                    <td className="cell-right cell-bold">{qty(conv(resumenAjuste.habia))}{u}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={2}>Comprado desde el ajuste</td>
+                    <td className="cell-right" style={{ color: '#16a34a' }}>+ {qty(conv(resumenAjuste.comprado))}{u}</td>
+                    <td className="cell-right" /><td className="cell-right" />
+                  </tr>
+                  <tr>
+                    <td colSpan={2}>Vendido / salió desde el ajuste</td>
+                    <td className="cell-right" />
+                    <td className="cell-right" style={{ color: '#dc2626' }}>− {qty(conv(resumenAjuste.salio))}{u}</td>
+                    <td className="cell-right" />
+                  </tr>
+                  <tr className="kardex-foot-total" style={{ fontWeight: 700 }}>
+                    <td colSpan={2}>Diferencia (debería quedar)</td>
+                    <td className="cell-right" /><td className="cell-right" />
+                    <td className="cell-right cell-bold">= {qty(conv(resumenAjuste.queda))}{u}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
