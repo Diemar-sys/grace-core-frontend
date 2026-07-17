@@ -97,6 +97,13 @@
 .nomina-lista tfoot tr th:first-child { border-bottom-left-radius: 14px; }
 .nomina-lista tfoot tr th:last-child { border-bottom-right-radius: 14px; }
 
+/* Select inline (asignar nómina en la lista de empleados) */
+.nomina-inline-select { font-size: .82rem; padding: .3rem .5rem; }
+.nomina-inline-select.sin-asignar {
+  background: var(--color-warning-bg); color: var(--color-warning);
+  border-color: var(--color-warning); font-weight: 600;
+}
+
 /* Badges de estado pastel (texto oscuro del mismo tono) */
 .nomina-badge {
   display: inline-block; padding: .2rem .7rem; border-radius: var(--radius-pill);

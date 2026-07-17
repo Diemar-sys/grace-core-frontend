@@ -305,6 +305,14 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
     catch (e) { flash('error', (e as Error).message); }
   };
 
+  const asignarNomina = async (name: string, nomina_de: string) => {
+    try {
+      await nominaService.editarEmpleado(name, { nomina_de });
+      recargar();
+      if (nomina_de) flash('ok', 'Nómina asignada');
+    } catch (e) { flash('error', (e as Error).message); }
+  };
+
   return (
     <div className="nomina-empleados">
       <div className="nomina-form">
@@ -348,7 +356,17 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
               <tr key={e.name}>
                 <td>{e.employee_name}</td>
                 <td>{e.branch || '—'}</td>
-                <td>{e.custom_nomina_de || <span className="nomina-badge borrador">sin asignar</span>}</td>
+                <td>
+                  <select
+                    className={'nomina-inline-select' + (e.custom_nomina_de ? '' : ' sin-asignar')}
+                    value={e.custom_nomina_de || ''}
+                    onChange={ev => asignarNomina(e.name, ev.target.value)}
+                  >
+                    <option value="">— sin asignar —</option>
+                    <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
+                    <option value="LUIS TORRES">Luis Torres</option>
+                  </select>
+                </td>
                 <td>{e.date_of_joining}</td>
               </tr>
             ))}

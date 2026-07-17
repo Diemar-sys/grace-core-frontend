@@ -112,6 +112,14 @@ class FrappeNominaService extends FrappeBase {
     return json?.message;
   }
 
+  async editarEmpleado(name: string, cambios: { nomina_de?: string; sucursal?: string | null }): Promise<Empleado> {
+    const json = await this._fetch(METHOD('editar_empleado'), {
+      method: 'POST',
+      body: JSON.stringify({ name, ...cambios }),
+    });
+    return json?.message;
+  }
+
   async cancelarCorrida(name: string): Promise<{ name: string; docstatus: number }> {
     const json = await this._fetch(METHOD('cancelar_corrida'), {
       method: 'POST',
