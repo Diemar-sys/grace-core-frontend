@@ -25,8 +25,12 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
     const next = {};
     grupo.facturas.forEach(f => {
       if (restante <= 0) { next[f.name] = '0'; return; }
-      const aplicar = Math.min(restante, parseFloat(f.outstanding_amount || 0));
-      next[f.name] = aplicar.toFixed(2);
+      const out = parseFloat(f.outstanding_amount || 0);
+      const aplicar = Math.min(restante, out);
+      // ponytail: si cubre el saldo COMPLETO, asignar el outstanding EXACTO (con
+      // sus decimales), no toFixed(2) que redondea ARRIBA y Frappe rechaza
+      // "allocated > outstanding". Pago parcial: 2 decimales normales.
+      next[f.name] = aplicar >= out ? String(out) : aplicar.toFixed(2);
       restante = round2(restante - aplicar);
     });
     setAlloc(next);

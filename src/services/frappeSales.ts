@@ -590,15 +590,20 @@ class FrappeSalesService extends FrappeBase {
     if (!facturas?.length) throw new Error('Selecciona al menos una factura');
     if (!monto || monto <= 0) throw new Error('Monto inválido');
 
-    const round2 = (n: number) => Math.round(n * 100) / 100;
+    // ponytail: NO redondear allocated a 2dp. Los outstanding B2B traen sub-centavo
+    // (ej. 786.055904); round2 lo sube a 786.06 > outstanding → Frappe rechaza
+    // "allocated > outstanding". Se manda el valor exacto que armó el modal.
     const references = facturas
       .filter(f => parseFloat(f.allocated) > 0)
       .map(f => ({
         reference_doctype: 'Sales Invoice',
         reference_name: f.name,
-        allocated_amount: round2(parseFloat(f.allocated)),
+        allocated_amount: parseFloat(f.allocated),
       }));
     if (!references.length) throw new Error('Asigna monto a alguna factura');
+    // paid = suma real de lo asignado (no el monto redondeado del usuario), para
+    // que Frappe no vea descuadre paid_amount vs total asignado.
+    const totalAlloc = references.reduce((s, r) => s + r.allocated_amount, 0);
 
     const cuentas = await this.getCuentas();
     const payload = {
@@ -610,8 +615,8 @@ class FrappeSalesService extends FrappeBase {
       party: customer,
       paid_from: cuentas.receivable,
       paid_to: cuentaCaja || cuentas.caja,
-      paid_amount: round2(monto),
-      received_amount: round2(monto),
+      paid_amount: totalAlloc,
+      received_amount: totalAlloc,
       references,
       mode_of_payment: 'Cash',
     };

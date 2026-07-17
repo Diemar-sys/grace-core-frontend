@@ -43,15 +43,30 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   // Abre el modal de cobro: trae las SI pendientes del cliente y arma el grupo FIFO.
   const abrirCobro = async (fila) => {
     try {
-      const facturas = await ventasService.getFacturasPendientes({ customer: fila.customer });
-      if (!facturas.length) { await cargar(); return; }
+      const facturasBrutas = await ventasService.getFacturasPendientes({ customer: fila.customer });
+
+      // EL FILTRO ANTICOBRO
+      // Limpiamos la basurilla decimal de Frappe y solo dejamos las que deban 1 centavo o más
+      const facturasReales = facturasBrutas.filter(f => {
+        const saldoReal = Math.round(parseFloat(f.outstanding_amount || 0) * 100) / 100;
+        return saldoReal >= 0.01;
+      });
+
+      if (!facturasReales.length) {
+        alert(`Al parecer las facturas de ${fila.customer_name} ya estaban saldadas.`);
+        await cargar();
+        return;
+      }
+
       setPagoModal({
         customer: fila.customer,
         customer_name: fila.customer_name,
-        totalDeuda: facturas.reduce((s, f) => s + parseFloat(f.outstanding_amount || 0), 0),
-        facturas,
+        totalDeuda: facturasReales.reduce((s, f) => s + parseFloat(f.outstanding_amount || 0), 0),
+        facturas: facturasReales, // ← Aquí le pasamos solo las facturas limpias
       });
-    } catch (err) { console.error('Error abriendo cobro:', err); }
+    } catch (err) {
+      console.error('Error abriendo cobro:', err);
+    }
   };
 
   const nCols = readOnly ? 5 : 6;
