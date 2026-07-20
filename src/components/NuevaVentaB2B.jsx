@@ -1,6 +1,6 @@
 // src/components/NuevaVentaB2B.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ventasService } from '../services/frappeSales';
+import { ventasService, calcularTotalesVenta } from '../services/frappeSales';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
 import { inventory } from '../services/frappeInventory';
@@ -189,10 +189,16 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     return acc;
   }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0 });
 
-  // AjusteSAT auto = redondeo a 2 decimales (matemática, no fiscal)
-  const rawTotal = totales.subtotal + totales.iva + totales.ieps;
-  const ajusteSAT = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
-  totales.total = rawTotal + ajusteSAT;
+  // AjusteSAT auto = redondeo a 2 decimales (matemática, no fiscal).
+  // Todo sale de calcularTotalesVenta (la misma función que arma el payload) para
+  // que lo mostrado aquí sea idéntico al grand_total que guarda ERPNext. Los
+  // impuestos se pintan redondeados porque así viajan en las filas `Actual`.
+  const calcVenta = calcularTotalesVenta(filas);
+  const ajusteSAT = calcVenta.ajusteSAT;
+  const round2 = (n) => Math.round(n * 100) / 100;
+  totales.iva = round2(totales.iva);
+  totales.ieps = round2(totales.ieps);
+  totales.total = calcVenta.total;
 
   // ── Validaciones ────────────────────────────────────────────────────────
   const validar = () => {
@@ -236,7 +242,9 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     fecha,
     items: itemsPayload(items),
     notas,
-    ajuste: ajusteSAT,
+    // ponytail: el ajuste NO se manda — frappeSales lo deriva de los impuestos ya
+    // redondeados. Mandarlo desde aquí fue justo lo que dejó saldos de fracciones
+    // de centavo en cuentas por cobrar.
     taxOverrides: {},
     subtotalOverrides: {
       iva16: totales.subtotalIva16,

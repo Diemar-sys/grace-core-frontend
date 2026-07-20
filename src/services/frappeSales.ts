@@ -21,7 +21,6 @@ interface VentaInput {
   fecha?: string;
   items: any[];
   notas?: string;
-  ajuste?: number | string;
   noVenta?: number | null;
   taxOverrides?: Record<string, number>;
   subtotalOverrides?: { iva16?: number; tasa0?: number };
@@ -44,6 +43,49 @@ const cuentaPorImpuesto = (cfg: Cuentas) => ({
   iva16: cfg.iva_trasladado,
   ieps:  cfg.ieps,
 });
+
+/**
+ * Agrupa los impuestos de una venta por tasa y los redondea a 2 decimales.
+ * El monto redondeado es EXACTAMENTE el que viaja a ERPNext como fila `Actual`,
+ * así que cualquier total derivado debe partir de aquí y no del monto crudo.
+ */
+export function agruparImpuestosVenta(items: any[], taxOverrides: Record<string, number> = {}) {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const grupos: Record<string, { key: string; label: string; rate: number; monto: number }> = {};
+  (items || []).forEach(item => {
+    const rate = parseFloat(item.impuesto_rate || 0);
+    const key = item.impuesto_key || 'tasa0';
+    const label = item.impuesto_label || 'Tasa 0';
+    const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
+    if (!grupos[key]) grupos[key] = { key, label, rate, monto: 0 };
+    grupos[key].monto += base * rate;
+  });
+  Object.entries(taxOverrides).forEach(([key, amount]) => {
+    if (grupos[key]) grupos[key].monto = amount;
+  });
+  return Object.values(grupos)
+    .filter(g => g.monto > 0)
+    .map(g => ({ ...g, montoRedondeado: round2(g.monto) }));
+}
+
+/**
+ * Totales efectivos de una venta + ajuste SAT (espejo de compraUtils.calcularTotalesEfectivos).
+ * Función PURA — es la única fuente del grand_total que termina en ERPNext.
+ *
+ * El ajuste SAT se deriva de los impuestos YA REDONDEADOS. Calcularlo sobre el
+ * impuesto crudo dejaba un residuo de `round2(iva) - iva` en el grand_total: la
+ * factura nacía con 6 decimales, el cliente pagaba 2, y quedaba saldo pendiente
+ * de fracciones de centavo que ensuciaban cuentas por cobrar.
+ */
+export function calcularTotalesVenta(items: any[], taxOverrides: Record<string, number> = {}) {
+  const subtotal = (items || []).reduce(
+    (s: number, it: any) => s + parseFloat(it.qty || 0) * parseFloat(it.rate || 0), 0);
+  const grupos = agruparImpuestosVenta(items, taxOverrides);
+  const impuestos = grupos.reduce((s, g) => s + g.montoRedondeado, 0);
+  const rawTotal = subtotal + impuestos;
+  const ajusteSAT = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
+  return { subtotal, grupos, impuestos, rawTotal, ajusteSAT, total: rawTotal + ajusteSAT };
+}
 
 /**
  * Agrega Sales Invoices en filas por cliente para el reporte de cuentas por cobrar.
@@ -170,40 +212,26 @@ class FrappeSalesService extends FrappeBase {
    * Solo IVA + Tasa 0 (B2B panadería no causa IEPS típicamente).
    */
   _calcularImpuestos(items: any[], taxOverrides: Record<string, number> = {}, cuentas: Cuentas = FALLBACK_CUENTAS) {
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    const grupos: Record<string, { key: string; label: string; rate: number; monto: number }> = {};
     const map = cuentaPorImpuesto(cuentas);
-    items.forEach(item => {
-      const rate = parseFloat(item.impuesto_rate || 0);
-      const key = item.impuesto_key || 'tasa0';
-      const label = item.impuesto_label || 'Tasa 0';
-      const base = parseFloat(item.qty || 0) * parseFloat(item.rate || 0);
-      const monto = base * rate;
-      if (!grupos[key]) grupos[key] = { key, label, rate, monto: 0 };
-      grupos[key].monto += monto;
-    });
-    Object.entries(taxOverrides).forEach(([key, amount]) => {
-      if (grupos[key]) grupos[key].monto = amount;
-    });
-    return Object.values(grupos)
-      .filter(g => g.monto > 0)
-      .map(g => ({
-        charge_type: 'Actual',
-        description: g.label,
-        tax_amount: round2(g.monto),
-        account_head: (map as Record<string, any>)[g.key] || cuentas.iva_trasladado,
-      }));
+    return agruparImpuestosVenta(items, taxOverrides).map(g => ({
+      charge_type: 'Actual',
+      description: g.label,
+      tax_amount: g.montoRedondeado,
+      account_head: (map as Record<string, any>)[g.key] || cuentas.iva_trasladado,
+    }));
   }
 
-  _buildPayload({ customer, fecha, items, notas = '', ajuste = 0, noVenta = null, taxOverrides = {}, subtotalOverrides = {}, cuentas = FALLBACK_CUENTAS }: VentaInput) {
+  _buildPayload({ customer, fecha, items, notas = '', noVenta = null, taxOverrides = {}, subtotalOverrides = {}, cuentas = FALLBACK_CUENTAS }: VentaInput) {
     const resumenImpuestos = this._calcularImpuestos(items, taxOverrides, cuentas);
-    const ajusteNum = parseFloat(String(ajuste || 0));
+    // El ajuste se deriva SIEMPRE aquí, nunca del caller: debe calcularse sobre los
+    // mismos impuestos redondeados que van en resumenImpuestos (ver calcularTotalesVenta).
+    const { ajusteSAT } = calcularTotalesVenta(items, taxOverrides);
 
-    if (ajusteNum !== 0) {
+    if (ajusteSAT !== 0) {
       resumenImpuestos.push({
         charge_type: 'Actual',
         description: 'Ajuste por Redondeo',
-        tax_amount: ajusteNum,
+        tax_amount: ajusteSAT,
         account_head: cuentas.ajuste,
       });
     }
@@ -240,14 +268,14 @@ class FrappeSalesService extends FrappeBase {
    * Guarda venta como borrador (docstatus 0). Stock NO se mueve aún.
    * Stock siempre baja de BODEGA_CENTRAL (clientes B2B externos).
    */
-  async guardarBorrador({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
+  async guardarBorrador({ customer, fecha, items, notas, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [noVenta, cuentas] = await Promise.all([
       this.getSiguienteNumero(),
       this.getCuentas(),
     ]);
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
+    const payload = this._buildPayload({ customer, fecha, items, notas, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const created = await this._fetch('/api/resource/Sales Invoice', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -258,14 +286,14 @@ class FrappeSalesService extends FrappeBase {
   /**
    * Crea + submitea venta (docstatus 1). Genera movimiento stock.
    */
-  async registrarVenta({ customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
+  async registrarVenta({ customer, fecha, items, notas, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [noVenta, cuentas] = await Promise.all([
       this.getSiguienteNumero(),
       this.getCuentas(),
     ]);
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
+    const payload = this._buildPayload({ customer, fecha, items, notas, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const created = await this._fetch('/api/resource/Sales Invoice', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -282,7 +310,7 @@ class FrappeSalesService extends FrappeBase {
     return data.data;
   }
 
-  async actualizarBorrador(name: string, { customer, fecha, items, notas, ajuste, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
+  async actualizarBorrador(name: string, { customer, fecha, items, notas, taxOverrides = {}, subtotalOverrides = {} }: VentaInput) {
     if (!customer) throw new Error('Selecciona un cliente');
     if (!items?.length) throw new Error('Agrega al menos un producto');
     const [doc, cuentas] = await Promise.all([
@@ -290,7 +318,7 @@ class FrappeSalesService extends FrappeBase {
       this.getCuentas(),
     ]);
     const noVenta = doc.custom_no_de_venta || null;
-    const payload = this._buildPayload({ customer, fecha, items, notas, ajuste, noVenta, taxOverrides, subtotalOverrides, cuentas });
+    const payload = this._buildPayload({ customer, fecha, items, notas, noVenta, taxOverrides, subtotalOverrides, cuentas });
     const updated = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
       { method: 'PUT', body: JSON.stringify(payload) }
