@@ -88,8 +88,23 @@ export function calcularTotalesVenta(items: any[], taxOverrides: Record<string, 
 }
 
 /**
+ * Saldo REAL cobrable de una factura: lo que el cliente puede pagar en pesos.
+ * Una factura que redondea a $0.00 está saldada aunque ERPNext le vea milésimas.
+ *
+ * Único criterio de "esto es cero" en toda la app: si el reporte y el modal de
+ * cobro usan umbrales distintos, el reporte pinta deuda que el cobrador no puede
+ * cobrar (pasó con DULCE CARAMELO: 3 facturas de ~0.002 c/u sumaban 0.006 →
+ * el total mostraba $0.01 y Cobrar respondía "ya estaban saldadas").
+ */
+export function saldoCobrable(outstanding: any) {
+  const v = Math.round((parseFloat(outstanding) || 0) * 100) / 100;
+  return v >= 0.01 ? parseFloat(outstanding) : 0;
+}
+
+/**
  * Agrega Sales Invoices en filas por cliente para el reporte de cuentas por cobrar.
  * pagado = grand_total - outstanding_amount. Ordena por deuda pendiente desc.
+ * El pendiente se acumula por factura YA saneada con saldoCobrable().
  */
 export function agruparCuentasPorCobrar(rows: any[]) {
   const map: Record<string, any> = {};
@@ -97,7 +112,7 @@ export function agruparCuentasPorCobrar(rows: any[]) {
     const k = si.customer;
     if (!map[k]) map[k] = { customer: si.customer, customer_name: si.customer_name || si.customer, n: 0, total: 0, pagado: 0, pendiente: 0 };
     const gt = parseFloat(si.grand_total || 0);
-    const out = parseFloat(si.outstanding_amount || 0);
+    const out = saldoCobrable(si.outstanding_amount);
     map[k].n++;
     map[k].total += gt;
     map[k].pendiente += out;
@@ -611,6 +626,58 @@ class FrappeSalesService extends FrappeBase {
           .sort((a, b) => b.monto - a.monto),
       }))
       .sort((a, b) => b.montoTotal - a.montoTotal);
+  }
+
+  /**
+   * Historial de abonos (Payment Entry) de un cliente, más reciente primero.
+   * Payment Entry no tiene `posting_time`, así que la hora sale de `creation`
+   * (cuándo se capturó); `posting_date` es la fecha contable que eligió el usuario.
+   * Devuelve las facturas cubiertas por cada abono para poder desglosarlo.
+   */
+  async getAbonos({ customer }: { customer: string }) {
+    if (!customer) return [];
+    const pagos = await this._fetch('/api/resource/Payment Entry?' + new URLSearchParams({
+      filters: JSON.stringify([
+        ['docstatus', '=', 1],
+        ['payment_type', '=', 'Receive'],
+        ['party_type', '=', 'Customer'],
+        ['party', '=', customer],
+      ]),
+      fields: JSON.stringify(['name', 'posting_date', 'creation', 'paid_amount', 'mode_of_payment', 'reference_no']),
+      order_by: 'creation desc',
+      limit_page_length: '100',
+    }));
+    const lista = pagos?.data || [];
+    if (!lista.length) return [];
+
+    // Un solo round-trip para todas las referencias en vez de N.
+    const refs = await this._fetch('/api/resource/Payment Entry Reference?' + new URLSearchParams({
+      filters: JSON.stringify([['parent', 'in', lista.map((p: any) => p.name)]]),
+      fields: JSON.stringify(['parent', 'reference_name', 'allocated_amount']),
+      parent: 'Payment Entry',
+      limit_page_length: '500',
+    }));
+    const filas = refs?.data || [];
+
+    // Las referencias traen el name de ERPNext (ACC-SINV-...). Se cambia por el
+    // numero de venta que usa la panaderia; el name interno no se muestra nunca.
+    const nombres = [...new Set(filas.map((r: any) => r.reference_name))];
+    const noVenta: Record<string, any> = {};
+    if (nombres.length) {
+      const inv = await this._fetch('/api/resource/Sales Invoice?' + new URLSearchParams({
+        filters: JSON.stringify([['name', 'in', nombres]]),
+        fields: JSON.stringify(['name', 'custom_no_de_venta']),
+        limit_page_length: '500',
+      }));
+      for (const si of inv?.data || []) noVenta[si.name] = si.custom_no_de_venta;
+    }
+
+    const porPago: Record<string, any[]> = {};
+    for (const r of filas) {
+      (porPago[r.parent] ||= []).push({ ...r, no_venta: noVenta[r.reference_name] || null });
+    }
+
+    return lista.map((p: any) => ({ ...p, facturas: porPago[p.name] || [] }));
   }
 
   async registrarPago({ customer, facturas, monto, fecha = null, cuentaCaja = null }: PagoInput) {

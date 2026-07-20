@@ -905,3 +905,141 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   }
   *, *::before, *::after { transition-duration: .01ms !important; }
 }
+
+/* ── Cuentas por cobrar: barra unificada (filtros + resumen) ──────────────── */
+/* Una sola tarjeta bento: filtros a la izquierda, resumen de cartera a la
+   derecha. Basada en la vista de Ventas; sin franja aparte para botones. */
+.cxc-barra {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 18px 22px;
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+}
+.cxc-barra-filtros {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+/* El resumen: tres cifras separadas por hairline, sin cajas — más limpio que
+   tres tarjetas cuando viven al lado de los filtros. */
+.cxc-stats {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+.cxc-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 22px;
+  text-align: right;
+  border-left: 1px solid var(--color-hairline);
+}
+.cxc-stat:first-child { border-left: 0; }
+.cxc-stat-num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--color-warning);         /* Total = ámbar, como "Total periodo" */
+  font-variant-numeric: tabular-nums;
+}
+.cxc-stat.cobrado .cxc-stat-num { color: var(--color-success); }
+.cxc-stat.debe    .cxc-stat-num { color: var(--color-danger); }
+.cxc-stat-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* Flecha "Volver" discreta junto al título (breadcrumb, no botón de franja). */
+.btn-volver-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-brand);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.btn-volver-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: var(--color-brand-hover);
+}
+
+@media (max-width: 900px) {
+  .cxc-barra { flex-direction: column; align-items: stretch; }
+  .cxc-stats { justify-content: flex-start; }
+  .cxc-stat:first-child { padding-left: 0; }
+  .cxc-stat { text-align: left; }
+}
+
+/* ── Cuentas por cobrar: historial de abonos desplegable ──────────────────── */
+.cxc-toggle {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; padding: 0;
+  font: inherit; color: inherit; cursor: pointer; text-align: left;
+}
+.cxc-toggle:hover { color: var(--color-brand); }
+.cxc-caret {
+  display: inline-block; transition: transform .18s ease;
+  color: var(--color-text-muted); font-size: .85em;
+}
+.cxc-caret.abierto { transform: rotate(90deg); color: var(--color-brand); }
+
+.cxc-abonos-fila > td { padding: 0 !important; background: var(--color-surface-sunk); }
+.cxc-abonos { padding: 14px 18px 18px; }
+.cxc-abonos-vacio {
+  padding: 14px 18px; color: var(--color-text-muted); font-size: .9rem;
+}
+.cxc-abonos-titulo {
+  font-weight: 600; font-size: .82rem; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 10px;
+}
+.cxc-abonos-tabla {
+  width: 100%; border-collapse: collapse;
+  background: var(--color-surface); border-radius: var(--radius-card);
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.cxc-abonos-tabla th {
+  text-align: left; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--color-text-muted); font-weight: 600;
+  padding: 9px 12px; border-bottom: 1px solid var(--color-hairline);
+}
+.cxc-abonos-tabla td {
+  padding: 9px 12px; font-size: .9rem;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.cxc-abonos-tabla tbody tr:last-child td { border-bottom: 0; }
+.cxc-abonos-tabla tfoot td {
+  background: var(--color-surface-2); font-weight: 600;
+  border-top: 1px solid var(--color-hairline); border-bottom: 0;
+}
+.cxc-abonos-facturas { display: flex; flex-wrap: wrap; gap: 6px; }
+.cxc-chip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-hover); color: var(--color-brand-mid);
+  font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.cxc-chip b { font-weight: 600; color: var(--color-text); }
+
+@media (max-width: 768px) {
+  .cxc-abonos { padding: 10px 12px 14px; }
+  .cxc-abonos-tabla th, .cxc-abonos-tabla td { padding: 7px 8px; font-size: .84rem; }
+}
