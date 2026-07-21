@@ -21,6 +21,7 @@ import ReporteCuentasPorCobrar from './pages/ReporteCuentasPorCobrar';
 import Egresos from './pages/Egresos';
 import Nomina from './pages/Nomina';
 import Cuentas from './pages/Cuentas';
+import Auditoria from './pages/Auditoria';
 import ErrorBoundary from './components/ErrorBoundary';
 
 /**
@@ -189,6 +190,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Cuentas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/auditoria"
+          element={
+            <ProtectedRoute>
+              <Auditoria />
             </ProtectedRoute>
           }
         />

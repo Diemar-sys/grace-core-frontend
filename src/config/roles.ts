@@ -25,7 +25,7 @@ function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { rep
     ...(modulos.includes('pos') ? ['/consultas/pos'] : []),
     ...(modulos.includes('inventario') ? ['/consultas/kardex'] : []),
     ...(reportes ? RUTAS_REPORTES : []),
-    ...(cuentas ? ['/cuentas'] : []),
+    ...(cuentas ? ['/cuentas', '/auditoria'] : []),
   ];
 }
 
