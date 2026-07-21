@@ -621,6 +621,7 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
   position: fixed;
   inset: 0;
   background: rgba(60,30,5,0.45);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   z-index: 1000;
   display: flex;
@@ -892,7 +893,12 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
    NOTA: .panel-module NO se toca aquí — Panel.css ya lo anima (moduleReveal + stagger). */
 /* Wrapper de página: SOLO opacidad. Un translateY aquí empuja todo el contenido
    y dispara un scrollbar vertical transitorio al cargar. */
-.main-content { animation: anim-fade .3s ease both; }
+/* ponytail: SIN fill-mode `both`. En Firefox un `both` deja la animación
+   "filling" para siempre → .main-content queda como stacking context
+   permanente y atrapa el z-index de cualquier modal fixed que nazca dentro
+   (el overlay pinta debajo del navbar sticky). Sin fill, tras 0.3s vuelve a
+   idle y los modales z-1000+ ganan al navbar. El fade se ve igual. */
+.main-content { animation: anim-fade .3s ease; }
 .stat-card    { animation: anim-fade-up .35s ease both; }
 
 /* Accesibilidad: respeta a quien pide menos movimiento en su sistema. */
