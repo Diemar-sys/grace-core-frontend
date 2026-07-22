@@ -258,6 +258,29 @@ describe('agruparFacturas — vista Facturas', () => {
     expect(grupos[0].pagadas).toBe(1);
     expect(grupos[0].notas).toHaveLength(2);
   });
+
+  it('factura totalmente cancelada → VISIBLE con total 0 y flag cancelada', () => {
+    const grupos = agruparFacturas([
+      mkCompra({ supplier_delivery_note: 'FAC-CANC', docstatus: 2, total: '500', grand_total: '580' }),
+    ]);
+    expect(grupos).toHaveLength(1);       // ya NO desaparece (bug)
+    expect(grupos[0].cancelada).toBe(true);
+    expect(grupos[0].total).toBe(0);      // cancelado no suma
+    expect(grupos[0].activas).toBe(0);
+  });
+
+  it('grupo mixto (activa + cancelada) → visible, total solo de la activa', () => {
+    const base = { supplier: 'SUP-A', custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-Z' };
+    const grupos = agruparFacturas([
+      mkCompra({ ...base, name: 'PR-001', total: '100', grand_total: '116' }),
+      mkCompra({ ...base, name: 'PR-002', docstatus: 2, total: '200', grand_total: '232' }),
+    ]);
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].cancelada).toBe(false);
+    expect(grupos[0].activas).toBe(1);
+    expect(grupos[0].notas).toHaveLength(2);       // la cancelada sigue en el detalle
+    expect(grupos[0].grand_total).toBeCloseTo(116, 2);
+  });
 });
 
 describe('listarNotas — vista Notas', () => {

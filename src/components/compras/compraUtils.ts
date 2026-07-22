@@ -103,7 +103,6 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
 export function agruparFacturas(filteredCompras: any[]): any[] {
   const grupos = new Map<string, any>();
   for (const c of filteredCompras) {
-    if (c.docstatus === 2) continue; // ponytail: cancelado no suma al total de la factura
     const esConsolidada = !!(c.custom_consolidado && c.custom_tipo_comprobante === 'Nota');
     const esFactura = c.custom_tipo_comprobante === 'Factura';
     if (!esConsolidada && !esFactura) continue;
@@ -113,17 +112,23 @@ export function agruparFacturas(filteredCompras: any[]): any[] {
     const g = grupos.get(key) || {
       key, supplier: c.supplier, supplier_name: c.supplier_name, folio,
       facturado_a: c.custom_facturado_a, total: 0, grand_total: 0,
-      posting_date: c.posting_date, pagadas: 0, notas: [], esConsolidacion: false,
+      posting_date: c.posting_date, pagadas: 0, activas: 0, notas: [], esConsolidacion: false,
     };
-    g.total      += parseFloat(c.total || 0);
-    g.grand_total += parseFloat(c.grand_total || 0);
+    // ponytail: cancelado (docstatus 2) entra al grupo pa que sea VISIBLE, pero no suma a total/pago
+    if (c.docstatus !== 2) {
+      g.total      += parseFloat(c.total || 0);
+      g.grand_total += parseFloat(c.grand_total || 0);
+      if (c.custom_pagado) g.pagadas += 1;
+      g.activas += 1;
+    }
     if ((c.posting_date || '') > (g.posting_date || '')) g.posting_date = c.posting_date;
-    if (c.custom_pagado) g.pagadas += 1;
     g.esConsolidacion = g.esConsolidacion || esConsolidada;
     g.notas.push(c);
     grupos.set(key, g);
   }
-  return [...grupos.values()].sort((a, b) => (b.posting_date || '').localeCompare(a.posting_date || ''));
+  return [...grupos.values()]
+    .map(g => ({ ...g, cancelada: g.activas === 0 })) // todas las notas canceladas
+    .sort((a, b) => (b.posting_date || '').localeCompare(a.posting_date || ''));
 }
 
 // ── Lista de notas (vista Notas) ─────────────────────────────────────────────

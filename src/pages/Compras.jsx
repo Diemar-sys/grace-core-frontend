@@ -203,7 +203,7 @@ function Compras() {
                                 <td>{g.posting_date}</td>
                                 <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
                                 <td>
-                                  {g.notas.every(n => n.custom_pagado)
+                                  {(g.cancelada || g.notas.every(n => n.custom_pagado))
                                     ? <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}
                                         title="Pagada — facturado bloqueado">
                                         {g.facturado_a || 'SIN FACTURA'}
@@ -222,18 +222,20 @@ function Compras() {
                                 <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
                                 <td style={{ textAlign: 'center' }}>{g.esConsolidacion ? g.notas.length : '—'}</td>
                                 <td style={{ textAlign: 'center' }}>
-                                  {(!g.esConsolidacion && !g.notas[0]?.custom_pagado) ? (
+                                  {g.cancelada ? (
+                                    <span className="status-badge status-cancelled">Cancelada</span>
+                                  ) : (!g.esConsolidacion && !g.notas[0]?.custom_pagado) ? (
                                     <span
                                       className="status-badge status-low"
                                       style={{ cursor: 'pointer', userSelect: 'none' }}
                                       title="Marcar como pagada"
                                       onClick={e => { e.stopPropagation(); pagoModal.open({ name: g.notas[0].name, value: 1, compra: g.notas[0] }); }}
                                     >
-                                      {`${g.pagadas}/${g.notas.length}`}
+                                      {`${g.pagadas}/${g.activas}`}
                                     </span>
                                   ) : (
-                                    <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
-                                      {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
+                                    <span className={`status-badge ${g.pagadas === g.activas ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
+                                      {g.pagadas === g.activas ? 'Pagada' : `${g.pagadas}/${g.activas}`}
                                     </span>
                                   )}
                                 </td>
