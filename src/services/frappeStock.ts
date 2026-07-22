@@ -363,32 +363,20 @@ class FrappeStockService extends FrappeBase {
     });
   }
 
-  async crearConteoFisico({ items, warehouse, remarks = 'Conteo físico de inventario' }: { items: any[]; warehouse?: string; remarks?: string }) {
+  // El ajuste va por endpoint whitelisted (no REST directo): el backend valida rol Gerente
+  // + la contraseña propia del usuario antes de crear/submitear el Stock Reconciliation.
+  async crearConteoFisico({ items, password, warehouse, remarks = 'Conteo físico de inventario' }: { items: any[]; password: string; warehouse?: string; remarks?: string }) {
     if (!items?.length) throw new Error('Sin ítems para ajustar');
-    const today = new Date().toISOString().split('T')[0];
-    const created = await this._fetch('/api/resource/Stock Reconciliation', {
+    const res = await this._fetch('/api/method/gestion_panaderia.api.inventory_api.crear_ajuste_inventario', {
       method: 'POST',
       body: JSON.stringify({
-        doctype: 'Stock Reconciliation',
-        purpose: 'Stock Reconciliation',
-        posting_date: today,
-        company: COMPANY,
+        items: JSON.stringify(items),
+        password,
+        warehouse: warehouse || BODEGA_CENTRAL,
         remarks,
-        items: items.map(it => ({
-          item_code: it.item_code,
-          warehouse: warehouse || BODEGA_CENTRAL,
-          qty: parseFloat(it.qty),
-          // Item sin costo (nunca comprado) → ERPNext exige valuation_rate al subir stock
-          // y truena con 417. Permitir 0: entra al costo real en la primera compra.
-          allow_zero_valuation_rate: 1,
-        })),
       }),
     });
-    const submitted = await this._fetch(
-      `/api/resource/Stock Reconciliation/${encodeURIComponent(created.data.name)}`,
-      { method: 'PUT', body: JSON.stringify({ docstatus: 1 }) }
-    );
-    return submitted.data;
+    return res.message;
   }
 
   /**

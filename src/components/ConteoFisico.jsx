@@ -15,6 +15,22 @@ export const presFactor = it => {
 export const presUnit = it =>
   presFactor(it) !== 1 && it?.custom_presentación ? it.custom_presentación : (it?.stock_uom || 'Kg');
 
+// Líneas del ajuste = conteos en BASE que DIFIEREN del stock del sistema.
+// ponytail: ERPNext borra los ítems sin cambio en el Stock Reconciliation; si TODOS coinciden
+// truena EmptyStockReconciliationItemsError. Filtramos aquí los que ya cuadran (solo compara qty;
+// el conteo no toca valuation_rate). Epsilon 0.001 = el step del input.
+export function lineasAjuste(conteo, items) {
+  const out = [];
+  for (const [item_code, v] of Object.entries(conteo)) {
+    if (v === '') continue;
+    const it = items.find(i => i.item_code === item_code);
+    const qty = parseFloat(v) * presFactor(it);
+    const actual = parseFloat(it?.actual_qty) || 0;
+    if (Math.abs(qty - actual) > 0.001) out.push({ item_code, qty });
+  }
+  return out;
+}
+
 function ConteoFisico({ onSuccess, onCancel }) {
   const [items, setItems]     = useState([]);
   const [conteo, setConteo]   = useState({});
@@ -22,6 +38,9 @@ function ConteoFisico({ onSuccess, onCancel }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState(null);
+  const [pidiendoPass, setPidiendoPass] = useState(false);
+  const [password, setPassword]         = useState('');
+  const [passError, setPassError]       = useState(null);
 
   useEffect(() => {
     inventory.getProductosRegistrados({})
@@ -42,21 +61,30 @@ function ConteoFisico({ onSuccess, onCancel }) {
     [conteo]
   );
 
-  const handleSubmit = async () => {
-    // Stock Reconciliation guarda qty en stock_uom (base): convierto presentación→base aquí.
-    const lineas = Object.entries(conteo)
-      .filter(([, v]) => v !== '')
-      .map(([item_code, qty]) => {
-        const it = items.find(i => i.item_code === item_code);
-        return { item_code, qty: parseFloat(qty) * presFactor(it) };
-      });
-    if (!lineas.length) return;
+  // Paso 1: valida que haya diferencias reales antes de pedir la contraseña.
+  const revisar = () => {
+    setError(null);
+    // Stock Reconciliation guarda qty en base y SOLO acepta ítems con diferencia real.
+    if (!lineasAjuste(conteo, items).length) {
+      setError('El conteo coincide con el stock del sistema: no hay diferencias que ajustar.');
+      return;
+    }
+    setPassword('');
+    setPassError(null);
+    setPidiendoPass(true);
+  };
+
+  // Paso 2: el backend valida rol Gerente + esta contraseña antes de aplicar el ajuste.
+  const confirmar = async () => {
+    const lineas = lineasAjuste(conteo, items);
+    if (!lineas.length || !password) return;
     setSending(true);
+    setPassError(null);
     try {
-      await stockService.crearConteoFisico({ items: lineas });
+      await stockService.crearConteoFisico({ items: lineas, password });
       onSuccess?.();
     } catch (e) {
-      setError(parseErrorFrappe(e));
+      setPassError(parseErrorFrappe(e)); // inline en el modal → permite reintentar
     } finally {
       setSending(false);
     }
@@ -174,13 +202,40 @@ function ConteoFisico({ onSuccess, onCancel }) {
         </button>
         <button
           className="nc-btn-primary"
-          onClick={handleSubmit}
+          onClick={revisar}
           disabled={sending || pendientes === 0}
           style={pendientes > 0 ? { background: 'var(--tv-marca-deep)', color: '#fff', borderColor: 'var(--tv-marca-deep)' } : {}}
         >
           {sending ? 'Aplicando…' : `Aplicar conteo (${pendientes} items)`}
         </button>
       </div>
+
+      {pidiendoPass && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && !sending && setPidiendoPass(false)}>
+          <div className="del-modal">
+            <h3>Confirmar ajuste de inventario</h3>
+            <p>Ajustar el stock queda registrado a tu nombre. Escribe tu contraseña para continuar.</p>
+            <input
+              type="password"
+              autoFocus
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && password && !sending) confirmar(); }}
+              placeholder="Tu contraseña"
+              style={{ width: '100%', padding: '10px 14px', marginTop: 8, borderRadius: 12, border: '1px solid var(--tv-line, #e2ddd4)', boxSizing: 'border-box' }}
+            />
+            {passError && <p style={{ color: 'var(--tv-stop)', marginTop: 10, fontSize: 14 }}>{passError}</p>}
+            <div className="del-modal-actions" style={{ marginTop: 16 }}>
+              <button className="del-btn-cancel" onClick={() => setPidiendoPass(false)} disabled={sending}>
+                Cancelar
+              </button>
+              <button className="del-btn-confirm" onClick={confirmar} disabled={sending || !password}>
+                {sending ? 'Aplicando…' : 'Ajustar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <ModalError mensaje={error} onClose={() => setError(null)} />}
     </div>
