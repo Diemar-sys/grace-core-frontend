@@ -145,7 +145,10 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 
   // Solo empleados de la nómina elegida (Alma/Luis). Sin nómina elegida, ninguno.
   const empleadosNomina = useMemo(
-    () => nominaDe ? empleados.filter(e => e.custom_nomina_de === nominaDe) : [],
+    () => nominaDe
+      ? empleados.filter(e => e.custom_nomina_de === nominaDe)
+          .sort((a, b) => (a.date_of_joining || '').localeCompare(b.date_of_joining || ''))
+      : [],
     [empleados, nominaDe],
   );
 
