@@ -237,7 +237,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
         </div>
       )}
 
-      {error && <ModalError mensaje={error} onClose={() => setError(null)} />}
+      {error && <ModalError isOpen message={error} onClose={() => setError(null)} />}
     </div>
   );
 }

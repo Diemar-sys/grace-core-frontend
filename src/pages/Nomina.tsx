@@ -5,6 +5,7 @@ import {
   type Empleado,
   type Sucursal,
   type Corrida,
+  type RenglonInput,
   type ReporteRow,
 } from '../services/frappeNomina';
 import '../styles/Nomina.css'; // <-- Tu CSS hace toda la magia aquí
@@ -22,8 +23,34 @@ function proximoMiercoles(): string {
   return d.toISOString().slice(0, 10);
 }
 
-interface Fila { empleado: string; declarado: string; retenciones: string; efectivo: string; }
-const filaVacia = (): Fila => ({ empleado: '', declarado: '', retenciones: '', efectivo: '' });
+interface Fila {
+  empleado: string;
+  // Percepciones
+  sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string;
+  // Deducciones
+  isr_mes: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
+  // Informativos (no suman)
+  isr_antes_subsidio: string; infonavit_cf_corresp: string;
+  efectivo: string;
+}
+const filaVacia = (): Fila => ({
+  empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '',
+  isr_mes: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
+  isr_antes_subsidio: '', infonavit_cf_corresp: '', efectivo: '',
+});
+
+// Grupos de captura (label + campo). Informativos NO suman al neto.
+const PERCEPCIONES: [keyof Fila, string][] = [
+  ['sueldo', 'Sueldo'], ['septimo_dia', 'Séptimo día'],
+  ['prima_dominical', 'Prima dominical'], ['gratificacion', 'Gratificación'],
+];
+const DEDUCCIONES: [keyof Fila, string][] = [
+  ['isr_mes', 'ISR (mes)'], ['imss', 'IMSS'],
+  ['infonavit_cf_corresp', 'Infonavit CF corresp.'], ['ajuste_neto', 'Ajuste al neto'],
+];
+const INFORMATIVOS: [keyof Fila, string][] = [
+  ['isr_antes_subsidio', 'ISR antes de subsidio'], ['prestamo_infonavit_cf', 'Préstamo Infonavit CF (saldo)'],
+];
 
 export default function Nomina() {
   const [tab, setTab] = useState<'corrida' | 'empleados' | 'reporte'>('corrida');
@@ -127,19 +154,84 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const addFila = () => setFilas(fs => [...fs, filaVacia()]);
   const delFila = (i: number) => setFilas(fs => fs.filter((_, j) => j !== i));
 
-  const calc = (f: Fila) => {
-    const d = Number(f.declarado || 0), r = Number(f.retenciones || 0), e = Number(f.efectivo || 0);
-    return { neto: d - r + e, costo: d + e };
+  // Renglón guardado → Fila de captura (0/null → '' pa no ensuciar inputs; negativos se conservan).
+  const filaDesde = (r: RenglonInput): Fila => {
+    const s = (v: number | string | undefined) => (v ? String(v) : '');
+    return {
+      empleado: r.empleado || '',
+      sueldo: s(r.sueldo), septimo_dia: s(r.septimo_dia),
+      prima_dominical: s(r.prima_dominical), gratificacion: s(r.gratificacion),
+      isr_mes: s(r.isr_mes), imss: s(r.imss),
+      prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
+      isr_antes_subsidio: s(r.isr_antes_subsidio), infonavit_cf_corresp: s(r.infonavit_cf_corresp),
+      efectivo: s(r.efectivo),
+    };
   };
-  
-  const totales = useMemo(() => filas.reduce((t, f) => {
-    const { neto, costo } = calc(f);
-    t.declarado += Number(f.declarado || 0);
-    t.retenciones += Number(f.retenciones || 0);
-    t.efectivo += Number(f.efectivo || 0);
-    t.neto += neto; t.costo += costo;
+
+  // Precarga la semana anterior de cada fila que tenga empleado (1 fila → solo ese; +Todos → todos).
+  // Conta solo ajusta lo que cambió. Filas sin historial confirmado se dejan como están.
+  const cargarAnterior = async () => {
+    const conEmp = filas.map((f, i) => ({ f, i })).filter(x => x.f.empleado);
+    if (!conEmp.length) { flash('error', 'Elige o agrega al menos un empleado'); return; }
+    try {
+      const prev = await Promise.all(conEmp.map(x => nominaService.getUltimoRenglon(x.f.empleado)));
+      const byIdx = new Map(conEmp.map((x, k) => [x.i, prev[k]]));
+      let hallados = 0;
+      setFilas(fs => fs.map((f, i) => {
+        const r = byIdx.get(i);
+        if (!r) return f;               // sin historial → deja la fila intacta
+        hallados++;
+        return { ...filaDesde(r), empleado: f.empleado };
+      }));
+      flash(hallados ? 'ok' : 'error',
+        hallados ? `Cargados ${hallados} de ${conEmp.length} (semana anterior) — ajusta lo que cambió`
+                 : 'Ninguno tiene corrida confirmada previa');
+    } catch (e) { flash('error', (e as Error).message); }
+  };
+
+  // Un renglón vacío por cada empleado de la nómina (primer uso, sin corrida previa).
+  const agregarTodos = () => {
+    if (!nominaDe) { flash('error', 'Elige la nómina primero'); return; }
+    setFilas(empleadosNomina.map(e => ({ ...filaVacia(), empleado: e.name })));
+  };
+
+  const calc = (f: Fila) => {
+    const n = (v: string) => Number(v || 0);
+    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion);
+    const deducc = n(f.isr_mes) + n(f.imss) + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
+    const efectivo = n(f.efectivo);
+    return { bruto, deducc, neto: bruto - deducc + efectivo, costo: bruto + efectivo };
+  };
+
+  // Totales por concepto + los 2 números del cliente.
+  const totales = useMemo(() => {
+    const n = (v: string) => Number(v || 0);
+    const t = {
+      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, bruto: 0,
+      isr_mes: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
+      efectivo: 0, neto: 0, costo: 0, impuestos: 0,
+    };
+    for (const f of filas) {
+      const c = calc(f);
+      t.sueldo += n(f.sueldo); t.septimo_dia += n(f.septimo_dia);
+      t.prima_dominical += n(f.prima_dominical); t.gratificacion += n(f.gratificacion);
+      t.isr_mes += n(f.isr_mes); t.imss += n(f.imss);
+      t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
+      t.bruto += c.bruto; t.deducc += c.deducc; t.efectivo += n(f.efectivo);
+      t.neto += c.neto; t.costo += c.costo;
+    }
+    t.impuestos = t.isr_mes + t.imss + t.ajuste_neto; // + ajuste → cuadra con Total Deducciones del recibo
     return t;
-  }, { declarado: 0, retenciones: 0, efectivo: 0, neto: 0, costo: 0 }), [filas]);
+  }, [filas]);
+
+  // Sumatoria dispersa: solo conceptos con valor (0 → no se muestra).
+  const conceptoTotales: [string, number][] = [
+    ['Sueldo', totales.sueldo], ['Séptimo día', totales.septimo_dia],
+    ['Prima dominical', totales.prima_dominical], ['Gratificación', totales.gratificacion],
+    ['ISR', totales.isr_mes], ['IMSS', totales.imss],
+    ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
+    ['Efectivo', totales.efectivo],
+  ];
 
   const guardar = async (submit: boolean) => {
     const renglones = filas.filter(f => f.empleado);
@@ -175,50 +267,65 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
         <label>al<input type="date" value={semanaAl} onChange={e => setSemanaAl(e.target.value)} /></label>
       </div>
 
-      <table className="nomina-tabla">
-        <thead>
-          <tr>
-            <th>Empleado</th><th>Declarado</th><th>Retenciones</th><th>Efectivo</th>
-            <th>Neto</th><th>Costo patrón</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {filas.map((f, i) => {
-            const { neto, costo } = calc(f);
-            return (
-              <tr key={i}>
-                <td>
-                  <select value={f.empleado} onChange={e => setFila(i, 'empleado', e.target.value)} disabled={!nominaDe}>
-                    <option value="">{nominaDe ? '— elegir —' : '— elige nómina primero —'}</option>
-                    {empleadosNomina.map(emp => (
-                      <option key={emp.name} value={emp.name}>{emp.employee_name}{emp.branch ? ` (${emp.branch})` : ''}</option>
-                    ))}
-                  </select>
-                </td>
-                <td><input type="number" step="0.01" value={f.declarado} onChange={e => setFila(i, 'declarado', e.target.value)} /></td>
-                <td><input type="number" step="0.01" value={f.retenciones} onChange={e => setFila(i, 'retenciones', e.target.value)} /></td>
-                <td><input type="number" step="0.01" value={f.efectivo} onChange={e => setFila(i, 'efectivo', e.target.value)} /></td>
-                <td className="ro">{money(neto)}</td>
-                <td className="ro">{money(costo)}</td>
-                <td><button className="nomina-del" onClick={() => delFila(i)} title="Quitar">×</button></td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th>Totales</th>
-            <th>{money(totales.declarado)}</th>
-            <th>{money(totales.retenciones)}</th>
-            <th>{money(totales.efectivo)}</th>
-            <th>{money(totales.neto)}</th>
-            <th>{money(totales.costo)}</th>
-            <th></th>
-          </tr>
-        </tfoot>
-      </table>
+      {/* Captura por empleado: cada tarjeta bento con percepciones + deducciones + informativos + efectivo. */}
+      {filas.map((f, i) => {
+        const c = calc(f);
+        const grupo = (titulo: string, tono: string, campos: [keyof Fila, string][]) => (
+          <div className="nom-grupo">
+            <div className={`nom-grupo-tit ${tono}`}>{titulo}</div>
+            {campos.map(([campo, label]) => (
+              <label key={campo} className="nom-field">
+                <span>{label}</span>
+                <input type="number" step="0.01" value={f[campo]} onChange={e => setFila(i, campo, e.target.value)} />
+              </label>
+            ))}
+          </div>
+        );
+        return (
+          <div key={i} className="nom-card">
+            <div className="nom-card-head">
+              <select className="nom-card-emp" value={f.empleado} onChange={e => setFila(i, 'empleado', e.target.value)} disabled={!nominaDe}>
+                <option value="">{nominaDe ? '— elegir empleado —' : '— elige nómina primero —'}</option>
+                {empleadosNomina.map(emp => (
+                  <option key={emp.name} value={emp.name}>{emp.employee_name}{emp.branch ? ` (${emp.branch})` : ''}</option>
+                ))}
+              </select>
+              <button className="nomina-del" onClick={() => delFila(i)} title="Quitar">×</button>
+            </div>
+            <div className="nom-grupos">
+              {grupo('Percepciones', 'perc', PERCEPCIONES)}
+              {grupo('Deducciones', 'ded', DEDUCCIONES)}
+              {grupo('Informativos (no suman)', 'info', INFORMATIVOS)}
+              {grupo('Efectivo', 'efe', [['efectivo', 'Efectivo']])}
+            </div>
+            <div className="nom-card-tot">
+              <span className="nom-stat"><em>Bruto</em><b>{money(c.bruto)}</b></span>
+              <span className="nom-stat"><em>Deducciones</em><b>{money(c.deducc)}</b></span>
+              <span className="nom-stat neto"><em>Neto</em><b>{money(c.neto)}</b></span>
+              <span className="nom-stat"><em>Costo</em><b>{money(c.costo)}</b></span>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Sumatoria: conceptos con valor (chips) + los 2 números del cliente (tiles hero). */}
+      <div className="nom-suma">
+        <h3>Sumatoria</h3>
+        <div className="nom-suma-chips">
+          {conceptoTotales.filter(([, v]) => v !== 0).map(([label, v]) => (
+            <span key={label} className="nom-chip">{label}<b>{money(v)}</b></span>
+          ))}
+        </div>
+        <div className="nom-suma-hero">
+          <div className="nom-hero"><span>Total neto</span><b>{money(totales.neto)}</b></div>
+          <div className="nom-hero gasto"><span>💰 Gasto en empleados</span><b>{money(totales.costo)}</b></div>
+          <div className="nom-hero imp"><span>🏛️ Total impuestos</span><b>{money(totales.impuestos)}</b></div>
+        </div>
+      </div>
 
       <div className="nomina-acciones">
+        <button onClick={agregarTodos} disabled={!nominaDe} title="Agrega un renglón por cada empleado de la nómina">+ Todos los empleados</button>
+        <button onClick={cargarAnterior} disabled={!nominaDe} title="Precarga la semana anterior de cada empleado en la lista">↻ Cargar nómina anterior</button>
         <button onClick={addFila}>+ Empleado</button>
         <span className="spacer" />
         <button disabled={guardando} onClick={() => guardar(false)}>Guardar borrador</button>
@@ -281,20 +388,47 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 function Empleados({ empleados, sucursales, recargar, flash }: {
   empleados: Empleado[]; sucursales: Sucursal[]; recargar: () => void; flash: Flash;
 }) {
-  const [form, setForm] = useState({ nombre: '', fecha_ingreso: '', fecha_nacimiento: '', genero: 'Male', sucursal: '', nomina_de: '' });
+  const FORM_VACIO = { nombre: '', fecha_ingreso: '', fecha_nacimiento: '', genero: 'Male', sucursal: '', nomina_de: '' };
+  const [form, setForm] = useState(FORM_VACIO);
   const [nuevaSuc, setNuevaSuc] = useState('');
+  const [editando, setEditando] = useState<string | null>(null); // name del empleado en edición, o null = alta
+  const [adminPwd, setAdminPwd] = useState('');
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // Carga un empleado en el form (modo edición). Editar datos personales exige clave de Administrator.
+  const editar = (e: Empleado) => {
+    setEditando(e.name);
+    setAdminPwd('');
+    setForm({
+      nombre: e.employee_name || '', fecha_ingreso: e.date_of_joining || '',
+      fecha_nacimiento: e.date_of_birth || '', genero: e.gender || 'Male',
+      sucursal: e.branch || '', nomina_de: e.custom_nomina_de || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const cancelarEdicion = () => { setEditando(null); setAdminPwd(''); setForm(FORM_VACIO); };
 
   const guardar = async () => {
     if (!form.nombre.trim()) { flash('error', 'El nombre es obligatorio'); return; }
-    if (!form.nomina_de) { flash('error', 'Elige de quién es la nómina (Alma / Luis)'); return; }
     try {
-      const res = await nominaService.crearEmpleado({
-        nombre: form.nombre, fecha_ingreso: form.fecha_ingreso, fecha_nacimiento: form.fecha_nacimiento,
-        genero: form.genero, sucursal: form.sucursal || null, nomina_de: form.nomina_de,
-      });
-      flash('ok', `Empleado ${res.employee_name} dado de alta`);
-      setForm({ nombre: '', fecha_ingreso: '', fecha_nacimiento: '', genero: 'Male', sucursal: '', nomina_de: '' });
+      if (editando) {
+        if (!adminPwd) { flash('error', 'Escribe la contraseña de Administrator'); return; }
+        const res = await nominaService.editarEmpleado(editando, {
+          nombre: form.nombre, fecha_ingreso: form.fecha_ingreso || null,
+          fecha_nacimiento: form.fecha_nacimiento || null, genero: form.genero,
+          sucursal: form.sucursal || '', nomina_de: form.nomina_de, admin_password: adminPwd,
+        });
+        flash('ok', `Empleado ${res.employee_name} actualizado`);
+        cancelarEdicion();
+      } else {
+        if (!form.nomina_de) { flash('error', 'Elige de quién es la nómina (Alma / Luis)'); return; }
+        const res = await nominaService.crearEmpleado({
+          nombre: form.nombre, fecha_ingreso: form.fecha_ingreso, fecha_nacimiento: form.fecha_nacimiento,
+          genero: form.genero, sucursal: form.sucursal || null, nomina_de: form.nomina_de,
+        });
+        flash('ok', `Empleado ${res.employee_name} dado de alta`);
+        setForm(FORM_VACIO);
+      }
       recargar();
     } catch (e) { flash('error', (e as Error).message); }
   };
@@ -315,8 +449,8 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
 
   return (
     <div className="nomina-empleados">
-      <div className="nomina-form">
-        <h2>Alta de empleado</h2>
+      <div className={'nomina-form' + (editando ? ' editando' : '')}>
+        <h2>{editando ? 'Editar empleado' : 'Alta de empleado'}</h2>
         <label>Nombre<input value={form.nombre} onChange={e => set('nombre', e.target.value)} /></label>
         <label>Fecha de ingreso<input type="date" value={form.fecha_ingreso} onChange={e => set('fecha_ingreso', e.target.value)} /></label>
         <label>Fecha de nacimiento<input type="date" value={form.fecha_nacimiento} onChange={e => set('fecha_nacimiento', e.target.value)} /></label>
@@ -339,7 +473,20 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
             <option value="LUIS TORRES">Luis Torres</option>
           </select>
         </label>
-        <button className="primary" onClick={guardar}>Dar de alta</button>
+        {editando && (
+          <label className="nomina-gate">Contraseña de Administrator
+            <input type="password" autoComplete="off" placeholder="••••••••"
+              value={adminPwd} onChange={e => setAdminPwd(e.target.value)} />
+          </label>
+        )}
+        {editando ? (
+          <div className="nomina-form-acc">
+            <button onClick={cancelarEdicion}>Cancelar</button>
+            <button className="primary" onClick={guardar}>Guardar cambios</button>
+          </div>
+        ) : (
+          <button className="primary" onClick={guardar}>Dar de alta</button>
+        )}
 
         <div className="nomina-suc-nueva">
           <input placeholder="Nueva sucursal" value={nuevaSuc} onChange={e => setNuevaSuc(e.target.value)} />
@@ -350,10 +497,10 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
       <div className="nomina-lista-emp">
         <h2>Empleados ({empleados.length})</h2>
         <table className="nomina-lista">
-          <thead><tr><th>Nombre</th><th>Sucursal</th><th>Nómina de</th><th>Ingreso</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Sucursal</th><th>Nómina de</th><th>Ingreso</th><th></th></tr></thead>
           <tbody>
             {empleados.map(e => (
-              <tr key={e.name}>
+              <tr key={e.name} className={editando === e.name ? 'fila-editando' : ''}>
                 <td>{e.employee_name}</td>
                 <td>{e.branch || '—'}</td>
                 <td>
@@ -368,9 +515,10 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
                   </select>
                 </td>
                 <td>{e.date_of_joining}</td>
+                <td><button className="nomina-editar" onClick={() => editar(e)}>Editar</button></td>
               </tr>
             ))}
-            {!empleados.length && <tr><td colSpan={4} className="vacio">Sin empleados aún</td></tr>}
+            {!empleados.length && <tr><td colSpan={5} className="vacio">Sin empleados aún</td></tr>}
           </tbody>
         </table>
       </div>

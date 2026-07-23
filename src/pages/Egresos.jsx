@@ -91,7 +91,7 @@ const impuestoDefault = (subcat) => SUBCAT_IVA.includes(subcat) ? 'iva16' : 'tas
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
   { key: 'Gasto',        label: 'Gastos',      sub: 'Operativos',       icon: <IconGasto />,      color: '#dc2626', bg: '#fee2e2',
-    subcategorias: ['Gasolina','Gas','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas'] },
+    subcategorias: ['Gasolina','Gas','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Otros gastos'] },
   { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago camioneta'] },
   { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo'] },

@@ -169,7 +169,100 @@
 }
 .nomina-suc-nueva input { flex: 1; }
 
+/* Modo edición: el form de alta se reusa para editar (candado de Administrator). */
+.nomina-form.editando {
+  background: var(--color-brand-bg);
+  border-radius: var(--radius-card);
+  padding: 1.25rem; margin: -.5rem;
+  box-shadow: inset 0 0 0 1.5px var(--color-brand-light);
+}
+.nomina-gate { color: var(--color-danger) !important; font-weight: 600; }
+.nomina-gate input { border-color: var(--color-danger) !important; }
+.nomina-form-acc { display: flex; gap: .6rem; }
+.nomina-form-acc .primary { flex: 1; }
+.nomina-editar {
+  padding: .3rem .85rem !important; font-size: .8rem !important; border-radius: var(--radius-pill) !important;
+}
+.nomina-lista tbody tr.fila-editando { background: var(--color-brand-hover); }
+
+/* ─────────────── Captura por empleado (tarjetas bento) ─────────────── */
+.nom-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  transition: box-shadow .2s ease, transform .2s ease;
+  animation: anim-fade-up .3s ease both;
+}
+.nom-card:hover { box-shadow: var(--shadow-bento-hover); transform: translateY(-2px); }
+
+.nom-card-head { display: flex; gap: .6rem; align-items: center; margin-bottom: 1.25rem; }
+.nom-card-emp {
+  flex: 1; font-weight: 600; font-size: .95rem;
+  background: var(--color-surface-sunk); border-color: transparent;
+}
+
+.nom-grupos { display: flex; flex-wrap: wrap; gap: 1.5rem 2rem; }
+.nom-grupo { flex: 1 1 220px; min-width: 200px; }
+.nom-grupo-tit {
+  font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: .2rem .6rem; border-radius: var(--radius-pill); display: inline-block; margin-bottom: .7rem;
+}
+.nom-grupo-tit.perc { background: #dcfce7; color: #166534; }   /* percepciones — menta */
+.nom-grupo-tit.ded  { background: #fee2e2; color: #991b1b; }   /* deducciones — rojo suave */
+.nom-grupo-tit.info { background: var(--color-surface-sunk); color: var(--color-text-muted); }
+.nom-grupo-tit.efe  { background: #dbeafe; color: #1e40af; }   /* efectivo — azul */
+
+.nom-field {
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem;
+}
+.nom-field span { font-size: .82rem; color: var(--color-text-muted); }
+.nom-field input { width: 116px; text-align: right; }
+
+.nom-card-tot {
+  display: flex; flex-wrap: wrap; gap: 1.75rem; margin-top: 1.25rem; padding-top: 1rem;
+  border-top: 1px solid var(--color-hairline);
+}
+.nom-stat { display: flex; flex-direction: column; gap: .1rem; }
+.nom-stat em { font-style: normal; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-muted); }
+.nom-stat b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.nom-stat.neto b { color: #166534; }
+
+/* ─────────────── Sumatoria (bento + tiles hero) ─────────────── */
+.nom-suma {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.nom-suma h3 { margin: 0 0 1rem; font-family: var(--font-display); font-size: 1.15rem; letter-spacing: -.01em; }
+.nom-suma-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.nom-chip {
+  display: inline-flex; gap: .4rem; align-items: baseline;
+  background: var(--color-brand-bg); padding: .35rem .8rem; border-radius: var(--radius-pill);
+  font-size: .8rem; color: var(--color-text-muted);
+}
+.nom-chip b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+.nom-suma-hero {
+  display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem;
+}
+.nom-hero {
+  flex: 1 1 200px; display: flex; flex-direction: column; gap: .25rem;
+  padding: 1rem 1.25rem; border-radius: var(--radius-card);
+  background: var(--color-surface-sunk);
+}
+.nom-hero span { font-size: .78rem; color: var(--color-text-muted); }
+.nom-hero b { font-size: 1.5rem; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.nom-hero.gasto { background: #ede9fe; }
+.nom-hero.gasto b { color: #6d28d9; }
+.nom-hero.imp { background: #dbeafe; }
+.nom-hero.imp b { color: #1e40af; }
+
 @media (max-width: 720px) {
   .nomina-empleados { grid-template-columns: 1fr; }
   .nomina-tabla { display: block; overflow-x: auto; }
+  .nom-grupo { flex-basis: 100%; }
 }

@@ -9,7 +9,21 @@ export interface Empleado {
   designation?: string;
   status?: string;
   date_of_joining?: string;
+  date_of_birth?: string;
+  gender?: string;
   custom_nomina_de?: string;
+}
+
+// Cambios en editarEmpleado. Los datos personales exigen admin_password (candado Administrator).
+export interface CambiosEmpleado {
+  nomina_de?: string;
+  sucursal?: string | null;
+  nombre?: string;
+  fecha_nacimiento?: string | null;
+  fecha_ingreso?: string | null;
+  genero?: string;
+  puesto?: string | null;
+  admin_password?: string;
 }
 
 export interface Sucursal { name: string; }
@@ -38,11 +52,20 @@ export interface ReporteRow {
   costo_patron: number;
 }
 
+// Campos de captura itemizados (declarado/retenciones/neto/costo los deriva el backend).
 export interface RenglonInput {
   empleado: string;
-  declarado: number | string;
-  retenciones: number | string;
-  efectivo: number | string;
+  sueldo?: number | string;
+  septimo_dia?: number | string;
+  prima_dominical?: number | string;
+  gratificacion?: number | string;
+  isr_mes?: number | string;
+  imss?: number | string;
+  prestamo_infonavit_cf?: number | string;
+  ajuste_neto?: number | string;
+  isr_antes_subsidio?: number | string;
+  infonavit_cf_corresp?: number | string;
+  efectivo?: number | string;
 }
 
 export interface NuevoEmpleado {
@@ -95,6 +118,12 @@ class FrappeNominaService extends FrappeBase {
     return json?.message;
   }
 
+  // Último renglón confirmado de un empleado (para precargar su fila). null si sin historial.
+  async getUltimoRenglon(empleado: string): Promise<RenglonInput | null> {
+    const json = await this._fetch(`${METHOD('get_ultimo_renglon')}?empleado=${encodeURIComponent(empleado)}`);
+    return json?.message || null;
+  }
+
   async getCorridas({ fecha_desde, fecha_hasta }: Rango = {}): Promise<Corrida[]> {
     const params = new URLSearchParams();
     if (fecha_desde) params.set('fecha_desde', fecha_desde);
@@ -112,7 +141,7 @@ class FrappeNominaService extends FrappeBase {
     return json?.message;
   }
 
-  async editarEmpleado(name: string, cambios: { nomina_de?: string; sucursal?: string | null }): Promise<Empleado> {
+  async editarEmpleado(name: string, cambios: CambiosEmpleado): Promise<Empleado> {
     const json = await this._fetch(METHOD('editar_empleado'), {
       method: 'POST',
       body: JSON.stringify({ name, ...cambios }),

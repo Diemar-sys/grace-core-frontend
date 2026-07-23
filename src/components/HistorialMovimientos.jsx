@@ -14,6 +14,7 @@ const TIPO_LABEL = {
   'Material Transfer': { txt: 'Transferencia', color: '#d97706', bg: '#fef3c7' },
   'Material Issue':    { txt: 'Merma/Salida',  color: '#dc2626', bg: '#fee2e2' },
   'Manufacture':       { txt: 'Producción',    color: '#16a34a', bg: '#dcfce7' },
+  'Stock Reconciliation': { txt: 'Ajuste',     color: '#7c3aed', bg: '#ede9fe' },
 };
 
 function fmtQty(n) {
@@ -157,10 +158,14 @@ function HistorialMovimientos({ almacenes }) {
                       </span>
                     </td>
                     <td style={{ fontSize: 12, color: '#666' }}>
-                      {m.rol === 'origen' ? '↗ Salió' : m.rol === 'destino' ? '↘ Entró' : '↔ Interno'}
+                      {m.rol === 'ajuste' ? '⚖ Ajuste'
+                        : m.rol === 'origen' ? '↗ Salió'
+                        : m.rol === 'destino' ? '↘ Entró' : '↔ Interno'}
                     </td>
                     <td style={{ fontSize: 13 }}>
-                      {labelAlmacen(m.origen)} → {labelAlmacen(m.destino)}
+                      {m.rol === 'ajuste'
+                        ? labelAlmacen(m.destino)
+                        : <>{labelAlmacen(m.origen)} → {labelAlmacen(m.destino)}</>}
                     </td>
                     <td style={{ fontSize: 12, color: '#666', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {m.remarks}
@@ -173,24 +178,48 @@ function HistorialMovimientos({ almacenes }) {
                         <div className="venta-detalle">
                           <table className="sys-table sys-table--nested">
                             <thead>
-                              <tr>
-                                <th>Código</th>
-                                <th>Item</th>
-                                <th>Origen</th>
-                                <th>Destino</th>
-                                <th style={{ textAlign: 'right' }}>Cantidad</th>
-                                <th>UoM</th>
-                                <th style={{ textAlign: 'right' }}>Valor</th>
-                              </tr>
+                              {m.rol === 'ajuste' ? (
+                                <tr>
+                                  <th>Código</th>
+                                  <th>Item</th>
+                                  <th style={{ textAlign: 'right' }}>Antes</th>
+                                  <th style={{ textAlign: 'right' }}>Después</th>
+                                  <th style={{ textAlign: 'right' }}>Δ</th>
+                                  <th>UoM</th>
+                                  <th style={{ textAlign: 'right' }}>Valor cambio</th>
+                                </tr>
+                              ) : (
+                                <tr>
+                                  <th>Código</th>
+                                  <th>Item</th>
+                                  <th>Origen</th>
+                                  <th>Destino</th>
+                                  <th style={{ textAlign: 'right' }}>Cantidad</th>
+                                  <th>UoM</th>
+                                  <th style={{ textAlign: 'right' }}>Valor</th>
+                                </tr>
+                              )}
                             </thead>
                             <tbody>
                               {m.items.map((it, idx) => (
                                 <tr key={`${it.item_code}-${idx}`}>
                                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{it.item_code}</td>
                                   <td>{it.item_name}</td>
-                                  <td style={{ fontSize: 12, color: '#666' }}>{labelAlmacen(it.s_warehouse)}</td>
-                                  <td style={{ fontSize: 12, color: '#666' }}>{labelAlmacen(it.t_warehouse)}</td>
-                                  <td style={{ textAlign: 'right' }}>{fmtQty(it.qty)}</td>
+                                  {m.rol === 'ajuste' ? (
+                                    <>
+                                      <td style={{ textAlign: 'right', color: '#666' }}>{fmtQty(it.antes)}</td>
+                                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtQty(it.despues)}</td>
+                                      <td style={{ textAlign: 'right', color: it.qty > 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                                        {it.qty > 0 ? '+' : ''}{fmtQty(it.qty)}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td style={{ fontSize: 12, color: '#666' }}>{labelAlmacen(it.s_warehouse)}</td>
+                                      <td style={{ fontSize: 12, color: '#666' }}>{labelAlmacen(it.t_warehouse)}</td>
+                                      <td style={{ textAlign: 'right' }}>{fmtQty(it.qty)}</td>
+                                    </>
+                                  )}
                                   <td>{fmtUom(it.uom)}</td>
                                   <td style={{ textAlign: 'right' }}>
                                     {it.amount > 0

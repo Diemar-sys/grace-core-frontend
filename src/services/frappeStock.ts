@@ -420,7 +420,6 @@ class FrappeStockService extends FrappeBase {
       }
     });
     const entries = [...mapEntries.values()];
-    if (!entries.length) return [];
 
     // Fetch items por cada SE.
     const itemsByParent: Record<string, any[]> = {};
@@ -435,39 +434,105 @@ class FrappeStockService extends FrappeBase {
       }
     }));
 
-    return entries
-      .sort((a, b) => {
-        const cmp = (b.posting_date || '').localeCompare(a.posting_date || '');
-        if (cmp !== 0) return cmp;
-        return (b.posting_time || '').localeCompare(a.posting_time || '');
-      })
-      .map(e => {
-        const items = (itemsByParent[e.name] || []).map((d: any) => {
-          return {
-            item_code: d.item_code,
-            item_name: d.item_name || d.item_code,
-            qty: parseFloat(d.qty || 0), // el doc ya guarda en unidad base
-            uom: d.stock_uom || d.uom || '',
-            s_warehouse: d.s_warehouse || null,
-            t_warehouse: d.t_warehouse || null,
-            basic_rate: parseFloat(d.basic_rate || 0),
-            amount: parseFloat(d.amount || 0),
-          };
-        });
-        const rol = e._roles.has('origen') && e._roles.has('destino')
-          ? 'interno' : e._roles.has('origen') ? 'origen' : 'destino';
+    const seMovs = entries.map(e => {
+      const items = (itemsByParent[e.name] || []).map((d: any) => {
         return {
-          name: e.name,
-          fecha: e.posting_date,
-          hora: horaFrappe(e.posting_time),
-          tipo: e.stock_entry_type,
-          rol,
-          origen: e.from_warehouse || null,
-          destino: e.to_warehouse || null,
-          remarks: e.remarks || '',
-          items,
+          item_code: d.item_code,
+          item_name: d.item_name || d.item_code,
+          qty: parseFloat(d.qty || 0), // el doc ya guarda en unidad base
+          uom: d.stock_uom || d.uom || '',
+          s_warehouse: d.s_warehouse || null,
+          t_warehouse: d.t_warehouse || null,
+          basic_rate: parseFloat(d.basic_rate || 0),
+          amount: parseFloat(d.amount || 0),
         };
       });
+      const rol = e._roles.has('origen') && e._roles.has('destino')
+        ? 'interno' : e._roles.has('origen') ? 'origen' : 'destino';
+      return {
+        name: e.name,
+        fecha: e.posting_date,
+        hora: horaFrappe(e.posting_time),
+        _time: e.posting_time || '',
+        tipo: e.stock_entry_type,
+        rol,
+        origen: e.from_warehouse || null,
+        destino: e.to_warehouse || null,
+        remarks: e.remarks || '',
+        items,
+      };
+    });
+
+    // Los ajustes (Stock Reconciliation) también son movimientos → mismo timeline.
+    const ajusteMovs = await this._getAjustes(warehouse, desde, hasta, signal);
+
+    return [...seMovs, ...ajusteMovs].sort((a, b) => {
+      const cmp = (b.fecha || '').localeCompare(a.fecha || '');
+      if (cmp !== 0) return cmp;
+      return (b._time || '').localeCompare(a._time || '');
+    });
+  }
+
+  // Ajustes de inventario = Stock Reconciliation (docstatus 1) que tocan el almacén.
+  // ponytail: trae los reconciliation del rango y filtra items por almacén en cliente;
+  // son pocos (spot-fixes). Si crecen mucho, filtrar server-side por Stock Reconciliation Item.
+  async _getAjustes(warehouse: string, desde: string, hasta: string, signal?: AbortSignal): Promise<any[]> {
+    const params = new URLSearchParams({
+      // 'remarks' no se permite en la query de lista → lo leo del doc completo abajo.
+      fields: JSON.stringify(['name', 'posting_date', 'posting_time']),
+      filters: JSON.stringify([
+        ['docstatus', '=', 1],
+        ['posting_date', '>=', desde],
+        ['posting_date', '<=', hasta],
+      ]),
+      order_by: 'posting_date desc, posting_time desc',
+      limit_page_length: '500',
+    });
+    const res = await this._fetch('/api/resource/Stock Reconciliation?' + params, { signal });
+    const list = res?.data || [];
+    const movs: any[] = [];
+    await Promise.all(list.map(async (r: any) => {
+      try {
+        const doc = await this._fetch('/api/resource/Stock Reconciliation/' + encodeURIComponent(r.name), { signal });
+        // Solo ítems de este almacén CON cambio de cantidad real. Descarta reconciliaciones
+        // de solo-valuación (quantity_difference 0) que no movieron stock → no son movimientos.
+        const items = (doc?.data?.items || []).filter(
+          (it: any) => it.warehouse === warehouse && Math.abs(parseFloat(it.quantity_difference || 0)) > 0.0001
+        );
+        if (!items.length) return;
+        movs.push({
+          name: r.name,
+          fecha: r.posting_date,
+          hora: horaFrappe(r.posting_time),
+          _time: r.posting_time || '',
+          tipo: 'Stock Reconciliation',
+          rol: 'ajuste',
+          origen: null,
+          destino: warehouse,
+          remarks: doc?.data?.remarks || '',
+          items: items.map((it: any) => {
+            const delta = parseFloat(it.quantity_difference || 0); // + subió, - bajó
+            const rate  = parseFloat(it.valuation_rate || 0);
+            return {
+              item_code: it.item_code,
+              item_name: it.item_name || it.item_code,
+              qty: delta,
+              antes: parseFloat(it.current_qty || 0),   // stock del sistema antes del ajuste
+              despues: parseFloat(it.qty || 0),          // stock contado (después)
+              uom: it.stock_uom || '',
+              s_warehouse: null,
+              t_warehouse: warehouse,
+              basic_rate: rate,
+              amount: Math.abs(delta * rate), // valor del cambio, no el monto absoluto del item
+            };
+          }),
+        });
+      } catch (err) {
+        if ((err as any)?.name === 'AbortError') return;
+        console.warn('No se pudieron cargar items del ajuste', r.name, err);
+      }
+    }));
+    return movs;
   }
 
   // Regalo de proveedor (free goods): Material Receipt a rate de mercado.
