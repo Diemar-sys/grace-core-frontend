@@ -59,6 +59,7 @@ export interface RenglonInput {
   septimo_dia?: number | string;
   prima_dominical?: number | string;
   gratificacion?: number | string;
+  vacaciones?: number | string;
   isr_mes?: number | string;
   imss?: number | string;
   prestamo_infonavit_cf?: number | string;
@@ -84,6 +85,7 @@ export interface NuevaCorrida {
   semana_del?: string | null;
   semana_al?: string | null;
   submit?: 0 | 1;
+  name?: string; // si viene, actualiza ese borrador en vez de crear uno nuevo
 }
 
 interface Rango { fecha_desde?: string | null; fecha_hasta?: string | null; }
@@ -116,6 +118,12 @@ class FrappeNominaService extends FrappeBase {
       body: JSON.stringify(data),
     });
     return json?.message;
+  }
+
+  // Detalle de una corrida (cabecera + renglones) — para seguir editando un borrador.
+  async getCorrida(name: string): Promise<{ nomina_de?: string; fecha_pago?: string; semana_del?: string; semana_al?: string; renglones: RenglonInput[] }> {
+    const json = await this._fetch(`${METHOD('get_corrida')}?name=${encodeURIComponent(name)}`);
+    return json?.message || { renglones: [] };
   }
 
   // Último renglón confirmado de un empleado (para precargar su fila). null si sin historial.

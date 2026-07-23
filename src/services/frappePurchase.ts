@@ -527,7 +527,9 @@ class FrappeComprasService extends FrappeBase {
       ]),
       filters: JSON.stringify(filters),
       order_by: "custom_no_de_compra desc",
-      limit_page_length: '100',
+      // ponytail: cap alto para que un rango de fechas no se trunque (128 en 2 meses ~ 64/mes).
+      // Si algún día se consultan rangos enormes (>2000 compras), paginar server-side.
+      limit_page_length: '2000',
     });
     const data = await this._fetch("/api/resource/Purchase Receipt?" + params, { signal });
     return data?.data || [];

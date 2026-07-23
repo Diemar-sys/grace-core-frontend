@@ -185,6 +185,18 @@
 }
 .nomina-lista tbody tr.fila-editando { background: var(--color-brand-hover); }
 
+/* Barra de edición de borrador */
+.nomina-borrador-bar {
+  display: flex; align-items: center; gap: 1rem; justify-content: space-between;
+  background: #fef3c7; color: #92400e; border-radius: var(--radius-card);
+  padding: .7rem 1.1rem; margin-bottom: 1rem; font-size: .9rem;
+  animation: anim-slide-in .25s ease both;
+}
+.nomina-borrador-bar button {
+  padding: .3rem .9rem !important; font-size: .8rem !important;
+  border-radius: var(--radius-pill) !important;
+}
+
 /* ─────────────── Captura por empleado (tarjetas bento) ─────────────── */
 .nom-card {
   background: var(--color-surface);

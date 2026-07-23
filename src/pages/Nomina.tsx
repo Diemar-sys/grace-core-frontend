@@ -26,7 +26,7 @@ function proximoMiercoles(): string {
 interface Fila {
   empleado: string;
   // Percepciones
-  sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string;
+  sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string; vacaciones: string;
   // Deducciones
   isr_mes: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
   // Informativos (no suman)
@@ -34,7 +34,7 @@ interface Fila {
   efectivo: string;
 }
 const filaVacia = (): Fila => ({
-  empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '',
+  empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '', vacaciones: '',
   isr_mes: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
   isr_antes_subsidio: '', infonavit_cf_corresp: '', efectivo: '',
 });
@@ -43,6 +43,7 @@ const filaVacia = (): Fila => ({
 const PERCEPCIONES: [keyof Fila, string][] = [
   ['sueldo', 'Sueldo'], ['septimo_dia', 'Séptimo día'],
   ['prima_dominical', 'Prima dominical'], ['gratificacion', 'Gratificación'],
+  ['vacaciones', 'Vacaciones'],
 ];
 const DEDUCCIONES: [keyof Fila, string][] = [
   ['isr_mes', 'ISR (mes)'], ['imss', 'IMSS'],
@@ -113,6 +114,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const [filas, setFilas] = useState<Fila[]>([filaVacia()]);
   const [guardando, setGuardando] = useState(false);
   const [corridas, setCorridas] = useState<Corrida[]>([]);
+  const [borradorId, setBorradorId] = useState<string | null>(null); // name del borrador que se está editando
 
   const [filtroNom, setFiltroNom] = useState<'todas' | 'ALMA RODRIGUEZ' | 'LUIS TORRES'>('todas');
 
@@ -164,6 +166,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       empleado: r.empleado || '',
       sueldo: s(r.sueldo), septimo_dia: s(r.septimo_dia),
       prima_dominical: s(r.prima_dominical), gratificacion: s(r.gratificacion),
+      vacaciones: s(r.vacaciones),
       isr_mes: s(r.isr_mes), imss: s(r.imss),
       prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
       isr_antes_subsidio: s(r.isr_antes_subsidio), infonavit_cf_corresp: s(r.infonavit_cf_corresp),
@@ -198,9 +201,29 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     setFilas(empleadosNomina.map(e => ({ ...filaVacia(), empleado: e.name })));
   };
 
+  // Carga un borrador al formulario para seguir editándolo (guardar lo actualiza, no crea otro).
+  const editarBorrador = async (c: Corrida) => {
+    try {
+      const det = await nominaService.getCorrida(c.name);
+      setNominaDe(det.nomina_de || '');
+      setFechaPago(det.fecha_pago || proximoMiercoles());
+      setSemanaDel(det.semana_del || '');
+      setSemanaAl(det.semana_al || '');
+      setFilas((det.renglones || []).length ? det.renglones.map(filaDesde) : [filaVacia()]);
+      setBorradorId(c.name);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      flash('ok', `Editando borrador ${c.name}`);
+    } catch (e) { flash('error', (e as Error).message); }
+  };
+  // Limpia el form y sale del modo edición de borrador.
+  const nuevaCorrida = () => {
+    setBorradorId(null); setFilas([filaVacia()]);
+    setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setFechaPago(proximoMiercoles());
+  };
+
   const calc = (f: Fila) => {
     const n = (v: string) => Number(v || 0);
-    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion);
+    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion) + n(f.vacaciones);
     const deducc = n(f.isr_mes) + n(f.imss) + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
     const efectivo = n(f.efectivo);
     return { bruto, deducc, neto: bruto - deducc + efectivo, costo: bruto + efectivo };
@@ -210,7 +233,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const totales = useMemo(() => {
     const n = (v: string) => Number(v || 0);
     const t = {
-      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, bruto: 0,
+      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0, bruto: 0,
       isr_mes: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
       efectivo: 0, neto: 0, costo: 0, impuestos: 0,
     };
@@ -218,6 +241,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       const c = calc(f);
       t.sueldo += n(f.sueldo); t.septimo_dia += n(f.septimo_dia);
       t.prima_dominical += n(f.prima_dominical); t.gratificacion += n(f.gratificacion);
+      t.vacaciones += n(f.vacaciones);
       t.isr_mes += n(f.isr_mes); t.imss += n(f.imss);
       t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
       t.bruto += c.bruto; t.deducc += c.deducc; t.efectivo += n(f.efectivo);
@@ -231,6 +255,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const conceptoTotales: [string, number][] = [
     ['Sueldo', totales.sueldo], ['Séptimo día', totales.septimo_dia],
     ['Prima dominical', totales.prima_dominical], ['Gratificación', totales.gratificacion],
+    ['Vacaciones', totales.vacaciones],
     ['ISR', totales.isr_mes], ['IMSS', totales.imss],
     ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
     ['Efectivo', totales.efectivo],
@@ -247,9 +272,10 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
         fecha_pago: fechaPago, nomina_de: nominaDe,
         semana_del: semanaDel || null, semana_al: semanaAl || null,
         renglones, submit: submit ? 1 : 0,
+        name: borradorId || undefined, // si editaba un borrador, lo actualiza
       });
       flash('ok', `Corrida ${res.name} ${submit ? 'confirmada' : 'guardada en borrador'}`);
-      setFilas([filaVacia()]);
+      nuevaCorrida();
       cargarCorridas();
     } catch (e) { flash('error', (e as Error).message); }
     finally { setGuardando(false); }
@@ -257,6 +283,12 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 
   return (
     <div className="nomina-corrida">
+      {borradorId && (
+        <div className="nomina-borrador-bar">
+          <span>✏️ Editando borrador <b>{borradorId}</b></span>
+          <button onClick={nuevaCorrida}>Nueva corrida</button>
+        </div>
+      )}
       <div className="nomina-cabecera">
         <label>Nómina de
           <select value={nominaDe} onChange={e => setNominaDe(e.target.value)}>
@@ -365,9 +397,15 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
               <td>{money(c.total_neto)}</td>
               <td>{money(c.total_costo)}</td>
               <td>{c.egreso_generado || '—'}</td>
-              <td>{c.docstatus === 1 && (
-                <button className="nomina-del" title="Cancelar corrida" onClick={() => cancelarCorrida(c)}>×</button>
-              )}</td>
+              <td>
+                {c.docstatus === 0 && (
+                  <button className="nomina-editar" title="Seguir editando este borrador"
+                    onClick={() => editarBorrador(c)}>Continuar</button>
+                )}
+                {c.docstatus === 1 && (
+                  <button className="nomina-del" title="Cancelar corrida" onClick={() => cancelarCorrida(c)}>×</button>
+                )}
+              </td>
             </tr>
           ))}
           {!corridasFiltradas.length && <tr><td colSpan={8} className="vacio">Sin corridas aún</td></tr>}
