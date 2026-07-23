@@ -499,7 +499,7 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
         <table className="nomina-lista">
           <thead><tr><th>Nombre</th><th>Sucursal</th><th>Nómina de</th><th>Ingreso</th><th></th></tr></thead>
           <tbody>
-            {empleados.map(e => (
+            {[...empleados].sort((a, b) => (a.date_of_joining || '').localeCompare(b.date_of_joining || '')).map(e => (
               <tr key={e.name} className={editando === e.name ? 'fila-editando' : ''}>
                 <td>{e.employee_name}</td>
                 <td>{e.branch || '—'}</td>
