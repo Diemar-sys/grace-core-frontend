@@ -18,11 +18,13 @@ export interface SucursalesConfig {
   sucursales_destino: SucursalDestino[];
 }
 
+// ponytail: fallback vacío a propósito. Un destino hardcodeado se pudre al
+// primer rename de almacén (pasó con 'MP PUERTA - PG' → 'TIENDA - PANQUELERIA - PG')
+// y manda stock al almacén equivocado en silencio. Sin endpoint, mejor que el
+// select salga vacío y truene visible.
 const FALLBACK: SucursalesConfig = Object.freeze({
   sucursales_internas: [] as string[],
-  sucursales_destino: [
-    { label: 'PUERTA REAL', warehouse: 'MP PUERTA - PG' },
-  ],
+  sucursales_destino: [] as SucursalDestino[],
 });
 
 let _cache: SucursalesConfig | null = null;
