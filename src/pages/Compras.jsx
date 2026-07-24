@@ -259,6 +259,28 @@ function Compras() {
                                         </button>
                                       </>
                                     ) : null}
+                                    {/* Editar/confirmar/eliminar borrador desde la vista Facturas.
+                                        Solo para borradores no consolidados (docstatus 0, 1 sola nota):
+                                        una factura consolidada agrupa varias notas y no se edita como una. */}
+                                    {!soloLectura && !g.esConsolidacion && g.notas[0]?.docstatus === 0 && (
+                                      <>
+                                        {accionActiva === 'confirmar' && (
+                                          <button className="comp-btn-confirmar" onClick={e => { e.stopPropagation(); handleConfirmarBorrador(g.notas[0].name); }} title="Confirmar compra">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                          </button>
+                                        )}
+                                        {accionActiva === 'editar' && (
+                                          <button className="comp-btn-editar" onClick={e => { e.stopPropagation(); handleEditar(g.notas[0].name); }} title="Editar compra">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+                                          </button>
+                                        )}
+                                        {accionActiva === 'eliminar' && (
+                                          <button className="comp-btn-eliminar" onClick={e => { e.stopPropagation(); deleteModal.open(g.notas[0].name); }} title="Eliminar borrador">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
                                     {!soloLectura && accionActiva === 'cancelar' && (
                                       <button className="comp-btn-eliminar"
                                         onClick={e => { e.stopPropagation(); g.esConsolidacion ? cancelConsolidadoModal.open(g) : cancelModal.open(g.notas[0]); }}

@@ -638,9 +638,10 @@ class FrappeStockService extends FrappeBase {
    * Guarda custom_precio_venta congelado del catálogo al momento del envío.
    * items: qty en stock_uom (Kg/Lt/Pza). asBorrador=true no submitea (docstatus=0).
    */
-  async crearTransferenciaSucursal({ warehouseDestino, items, fecha = null, notas = '', asBorrador = false }: { warehouseDestino: string; items: any[]; fecha?: string | null; notas?: string; asBorrador?: boolean }) {
+  async crearTransferenciaSucursal({ warehouseDestino, items, fecha = null, notas = '', asBorrador = false, warehouseOrigen = BODEGA_CENTRAL }: { warehouseDestino: string; items: any[]; fecha?: string | null; notas?: string; asBorrador?: boolean; warehouseOrigen?: string }) {
     if (!warehouseDestino) throw new Error('Selecciona warehouse destino');
     if (!items?.length) throw new Error('Agrega al menos un producto');
+    if (!warehouseOrigen) throw new Error('Selecciona almacén de origen');
 
     // Si no traen precio congelado, jalarlo del catálogo ahora.
     const sinPrecio = items.filter(it => !(parseFloat(it.precio_venta_congelado) >= 0)).map(it => it.item_code);
@@ -663,7 +664,7 @@ class FrappeStockService extends FrappeBase {
       stock_entry_type: 'Material Transfer',
       company: COMPANY,
       posting_date: fecha || new Date().toISOString().split('T')[0],
-      from_warehouse: BODEGA_CENTRAL,
+      from_warehouse: warehouseOrigen,
       to_warehouse: warehouseDestino,
       remarks: notas || `Envio a sucursal ${warehouseDestino}`,
       items: items.map(it => {
@@ -672,7 +673,7 @@ class FrappeStockService extends FrappeBase {
         return {
           item_code: it.item_code,
           item_name: it.item_name,
-          s_warehouse: BODEGA_CENTRAL,
+          s_warehouse: warehouseOrigen,
           t_warehouse: warehouseDestino,
           qty: parseFloat(it.qty),
           uom: it.uom,

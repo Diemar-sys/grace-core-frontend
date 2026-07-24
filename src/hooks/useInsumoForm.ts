@@ -25,6 +25,7 @@ const ESTADO_INICIAL = {
   custom_precio_final: '',
   custom_precio_de_venta: '',
   custom_precio_de_venta_pueblos: '',
+  custom_costo_estimado: '',
   custom_porcentaje_de_ganancia: '',
   custom_ganancia: '',
   custom_vendible_b2b: false,

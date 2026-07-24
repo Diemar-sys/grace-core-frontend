@@ -1306,3 +1306,21 @@ tr.nc-fila-alerta:hover td {
   font-weight: 700;
 }
 .nc-modal .nc-btn-primary:hover { background: var(--tv-marca-deep); border-color: var(--tv-marca-deep); }
+
+/* Entrada de pan — total de la hornada (bloque flotante estilo Bento) */
+.nc-entrada-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+}
+.nc-entrada-total span { color: #6b7280; font-weight: 600; }
+.nc-entrada-total strong {
+  font-size: 20px;
+  color: var(--tv-marca);
+  font-variant-numeric: tabular-nums;
+}

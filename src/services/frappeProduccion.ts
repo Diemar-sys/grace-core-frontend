@@ -209,19 +209,39 @@ class FrappeProduccionService extends FrappeBase {
    * @param {string} search - Texto de búsqueda.
    * @returns {Promise<Array>} Lista de productos terminados.
    */
-  async buscarProductosTerminados(search = '') {
+  async buscarProductosTerminados(search = '', limit = 20) {
     const filters = [
       ['disabled', '=', 0],
       ['custom_tipo_item', '=', 'PRODUCTO TERMINADO'],
     ];
     if (search) filters.push(['item_name', 'like', `%${search}%`]);
     const params = new URLSearchParams({
-      fields: JSON.stringify(['item_code', 'item_name', 'stock_uom', 'custom_precio_de_venta']),
+      fields: JSON.stringify(['item_code', 'item_name', 'stock_uom', 'custom_precio_de_venta', 'custom_costo_estimado']),
       filters: JSON.stringify(filters),
-      limit_page_length: '20',
+      limit_page_length: String(limit),
     });
     const data = await this._fetch(`/api/resource/Item?${params}`);
     return data.data || [];
+  }
+
+  /**
+   * Da de alta pan terminado SIN receta (Material Receipt valuado al costo estimado).
+   * items: [{ item_code, qty, costo? }]. Sin `costo` se usa el del catálogo;
+   * si el producto tampoco lo tiene, el backend rechaza la entrada (rate 0 hunde
+   * el moving average).
+   */
+  async registrarEntradaPan({ items, fecha = null, notas = '' }:
+    { items: any[]; fecha?: string | null; notas?: string }) {
+    if (!items?.length) throw new Error('Agrega al menos un producto');
+    // El almacén lo deriva el backend del departamento de cada producto.
+    const res = await this._fetch(
+      '/api/method/gestion_panaderia.api.produccion_api.registrar_entrada_pan',
+      {
+        method: 'POST',
+        body: JSON.stringify({ items, fecha, notas }),
+      },
+    );
+    return res?.message ?? res;
   }
 
   /**

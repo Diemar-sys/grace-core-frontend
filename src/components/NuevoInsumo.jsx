@@ -116,6 +116,17 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                       : 'Insumo de uso general (limpieza, empaque, etc.)'}
                 </small>
               </div>
+              {/* El pan hereda su departamento de la Categoría (un solo valor, hook backend
+                  sync_departamento_pt). Los checkboxes multi-departamento son para insumos:
+                  una harina la usan varios departamentos, un pan pertenece a uno solo. */}
+              {esProductoTerminado ? (
+                <div className="form-group">
+                  <label>Departamento</label>
+                  <input type="text" value={formData.item_group || ''} readOnly
+                    className="input-calculated" placeholder="Se toma de la Categoría" />
+                  <small>El pan hereda el departamento de su categoría; así el corte de caja y el reporte de ventas cuadran siempre.</small>
+                </div>
+              ) : (
               <div className="form-group">
                 <label>Departamentos</label>
                 <div className="departamentos-checkboxes" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px', background: '#ffffff', padding: '10px', borderRadius: '8px', border: '1px solid #e5d2b8' }}>
@@ -139,6 +150,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                   })}
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -305,6 +317,13 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                     value={formData.custom_precio_de_venta_pueblos}
                     onChange={handleChange} placeholder="Ej: 18.00" min="0" step="0.01" />
                   <small>Precio para el canal Pueblos/Camionetas. Si lo dejas vacío, ese canal usa el precio de Sucursal.</small>
+                </div>
+                <div className="form-group">
+                  <label>Costo estimado por pieza ($)</label>
+                  <input type="number" name="custom_costo_estimado"
+                    value={formData.custom_costo_estimado}
+                    onChange={handleChange} placeholder="Ej: 1.80" min="0" step="0.01" />
+                  <small>Lo que cuesta producir una pieza. Se usa para valuar la entrada de pan sin receta; sin él hay que teclearlo en cada entrada.</small>
                 </div>
               </div>
             </div>

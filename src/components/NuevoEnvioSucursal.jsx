@@ -24,10 +24,24 @@ const FILA_VACIA = () => ({
 const fmtQty = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// De dónde sale el envío: Bodega Central (materia prima) o el almacén de
+// producción del pan (ALMACEN - PAN BLANCO/DULCE/PANQUELERIA...). El pan diario
+// y la MP se reparten en días distintos, así que basta elegir uno por envío.
+// La lista real viene del backend (almacenes tipo Departamento + Bodega Central).
+
 // ── Componente principal ────────────────────────────────────────────────────
 function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const { sucursales_destino: sucursales } = useSucursales();
   const [warehouseDestino, setWarehouseDestino] = useState(sucursalDefault || '');
+  const [origenes, setOrigenes] = useState([]);
+  const [warehouseOrigen, setWarehouseOrigen] = useState(BODEGA_CENTRAL);
+
+  // Orígenes reales: Bodega Central + almacenes de producción (tipo Departamento).
+  useEffect(() => {
+    stockService.fetchAllWarehouses()
+      .then(setOrigenes)
+      .catch(err => console.error('cargar orígenes envío:', err));
+  }, []);
 
   // Inicializar warehouse cuando cargue config (si no vino sucursalDefault)
   useEffect(() => {
@@ -98,6 +112,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     try {
       const doc = await stockService.crearTransferenciaSucursal({
         warehouseDestino,
+        warehouseOrigen,
         items: itemsPayload(items),
         fecha,
         notas,
@@ -144,6 +159,20 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 
         <div className="nc-top-row">
           <div className="nc-field nc-field-proveedor">
+            <label>Sale de *</label>
+            <select className="nc-input" value={warehouseOrigen}
+              onChange={e => {
+                setWarehouseOrigen(e.target.value);
+                // El stock mostrado por renglón es el del origen: cambiarlo invalida
+                // lo capturado, así que se parte de una tabla limpia.
+                setFilas([FILA_VACIA()]);
+              }}>
+              {origenes.map(o => (
+                <option key={o.name} value={o.name}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="nc-field nc-field-proveedor">
             <label>Sucursal destino *</label>
             <select className="nc-input" value={warehouseDestino}
               onChange={e => setWarehouseDestino(e.target.value)}>
@@ -183,6 +212,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
                   key={fila._id}
                   fila={fila}
 
+                  warehouseOrigen={warehouseOrigen}
                   onChange={(campos) => updateFila(fila._id, campos)}
                   onEliminar={() => eliminarFila(fila._id)}
                   onFocusNext={() => focusRow(idx + 1)}
@@ -212,7 +242,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 }
 
 // ── Fila de envío (sin precios) ─────────────────────────────────────────────
-function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna }) {
+function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna, warehouseOrigen = BODEGA_CENTRAL }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -272,7 +302,7 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna 
     setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
 
     try {
-      const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
+      const bin = await stockService.getStockActual(item.item_code, warehouseOrigen);
       // Bin ya está en unidad base (stock_uom) tras la migración UOM. NO multiplicar
       // por cantidad_por_presentación: eso inflaba ×factor (ej. Santa Clara ×12).
       // cantPres solo sirve para el guion "= N cajas" al capturar (más abajo).

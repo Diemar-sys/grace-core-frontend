@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevaReceta from '../components/NuevaReceta';
 import ModalError from '../components/modals/ModalError';
+import ModalEntradaPan from '../components/modals/ModalEntradaPan';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import useConfirmModal from '../hooks/useConfirmModal';
 import { produccionService } from '../services/frappeProduccion';
@@ -59,6 +60,7 @@ function Produccion() {
   // ── Global ────────────────────────────────────────────
   const [stockBajo, setStockBajo] = useState([]);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [showEntradaPan, setShowEntradaPan] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
 
   useEffect(() => {
@@ -195,6 +197,17 @@ function Produccion() {
         />
       )}
 
+      {/* Modal Entrada de Pan (sin receta) */}
+      {showEntradaPan && (
+        <ModalEntradaPan
+          onSuccess={(res) => {
+            setShowEntradaPan(false);
+            setErrorModal({ isOpen: true, message: `Entrada registrada: ${res?.name} · ${res?.renglones} producto(s)` });
+          }}
+          onCancel={() => setShowEntradaPan(false)}
+        />
+      )}
+
       {/* Modal Borrar Receta */}
       {deleteModal.item && (
         <ConfirmModal
@@ -250,6 +263,19 @@ function Produccion() {
             </div>
             <h3>Registro de Producción</h3>
             <p>Registrar producción del día</p>
+          </button>
+
+          {/* Entrada sin receta: mientras los BOM no existan, es la puerta por la
+              que el pan llega al inventario para poder repartirse. */}
+          <button className="panel-module" onClick={() => setShowEntradaPan(true)}>
+            <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12" /><path d="m8 11 4 4 4-4" />
+                <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
+              </svg>
+            </div>
+            <h3>Entrada de Pan</h3>
+            <p>Dar de alta pan sin receta</p>
           </button>
         </div>
       )}
