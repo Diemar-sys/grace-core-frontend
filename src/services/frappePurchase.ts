@@ -103,7 +103,14 @@ class FrappeComprasService extends FrappeBase {
     this._abortItems = new AbortController();
 
     const filters = [["disabled", "=", 0]];
-    if (search) filters.push(["item_name", "like", "%" + search + "%"]);
+    // Cada palabra es un LIKE aparte (AND): "velas 8" encuentra
+    // "VELAS ALEGRIA CONFETTY No. 8" aunque no sea texto contiguo. Antes un solo
+    // LIKE "%velas%" traía las 22 velas y el límite dejaba fuera algunas.
+    if (search) {
+      for (const palabra of search.split(/\s+/).filter(Boolean)) {
+        filters.push(["item_name", "like", "%" + palabra + "%"]);
+      }
+    }
     const params = new URLSearchParams({
       fields: JSON.stringify([
         "item_code", "item_name", "stock_uom", "item_group",
@@ -112,6 +119,7 @@ class FrappeComprasService extends FrappeBase {
         "custom_precio_por_kg",
       ]),
       filters: JSON.stringify(filters),
+      order_by: "item_name asc",
       limit_page_length: '20',
     });
     try {
