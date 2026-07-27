@@ -51,6 +51,19 @@ def fmt(n):
     return f"${_round(n):,.2f}"
 
 
+def _num(v, default=0.0):
+    """float tolerante para los desgloses que llegan del front.
+
+    float(x, default) NO existe y `d.get('k', 0)` solo cubre la llave ausente:
+    un campo que el usuario dejó vacío llega como '' y float('') revienta. Pasó
+    con una carga de gas sin aditivo — el ticket se caía al navegador.
+    """
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def fmt_unit(n):
     """Precio unitario con hasta 6 decimales.
 
@@ -415,12 +428,12 @@ def render_egreso_image(data):
     if gasolina:
         # El IEPS de combustibles es cuota fija por litro (no %), y el IVA va
         # sobre base + IEPS. Se imprime el desglose tal como sale en el CFDI.
-        lit = float(gasolina.get('litros', 0)); pre = float(gasolina.get('precio', 0))
-        base_comb = float(gasolina.get('base', lit * pre))
-        cuota = float(gasolina.get('cuota', 0))
-        ieps = float(gasolina.get('ieps', lit * cuota))
-        base = float(gasolina.get('base_gravable', base_comb + ieps))
-        iva = float(gasolina.get('iva', data['monto_impuesto']))
+        lit = _num(gasolina.get('litros')); pre = _num(gasolina.get('precio'))
+        base_comb = _num(gasolina.get('base'), lit * pre)
+        cuota = _num(gasolina.get('cuota'))
+        ieps = _num(gasolina.get('ieps'), lit * cuota)
+        base = _num(gasolina.get('base_gravable'), base_comb + ieps)
+        iva = _num(gasolina.get('iva'), _num(data['monto_impuesto']))
         rows.append({'text': 'COMBUSTIBLE', 'size': body})
         rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(pre)}", money(base_comb)), 'size': body})
         if ieps > 0:
@@ -430,19 +443,19 @@ def render_egreso_image(data):
         rows.append({'lr': ('Base gravable', money(base)), 'size': body})
         rows.append({'lr': ('IVA 16%', money(iva)), 'size': body})
     elif gas:
-        g_lit = float(gas.get('litros', 0)); g_pre = float(gas.get('precio', 0))
-        g_sub = float(gas.get('subtotal_gas', g_lit * g_pre))
-        a_lit = float(gas.get('aditivo_litros', 0)); a_pre = float(gas.get('aditivo_precio', 0))
-        a_sub = float(gas.get('aditivo_subtotal', a_lit * a_pre))
-        subtotal = float(gas.get('subtotal', g_sub + a_sub))
-        descuento = float(gas.get('descuento', 0))
-        base = float(gas.get('base', subtotal - descuento))
-        iva = float(gas.get('iva', data['monto_impuesto']))
+        g_lit = _num(gas.get('litros')); g_pre = _num(gas.get('precio'))
+        g_sub = _num(gas.get('subtotal_gas'), g_lit * g_pre)
+        a_lit = _num(gas.get('aditivo_litros')); a_pre = _num(gas.get('aditivo_precio'))
+        a_sub = _num(gas.get('aditivo_subtotal'), a_lit * a_pre)
+        subtotal = _num(gas.get('subtotal'), g_sub + a_sub)
+        descuento = _num(gas.get('descuento'))
+        base = _num(gas.get('base'), subtotal - descuento)
+        iva = _num(gas.get('iva'), _num(data['monto_impuesto']))
         rows.append({'text': 'GAS', 'size': body})
-        rows.append({'lr': (f"  {g_lit:.2f} L x {money(g_pre)}", money(g_sub)), 'size': body})
+        rows.append({'lr': (f"  {g_lit:.2f} L x {fmt_unit(g_pre)}", money(g_sub)), 'size': body})
         if a_lit > 0:
             rows.append({'text': 'ADITIVO', 'size': body})
-            rows.append({'lr': (f"  {a_lit:.2f} L x {money(a_pre)}", money(a_sub)), 'size': body})
+            rows.append({'lr': (f"  {a_lit:.2f} L x {fmt_unit(a_pre)}", money(a_sub)), 'size': body})
         rows.append({'rule': True})
         rows.append({'lr': ('Subtotal', money(subtotal)), 'size': body})
         if descuento > 0:

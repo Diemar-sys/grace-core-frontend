@@ -100,6 +100,10 @@ export async function imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, f
 
 const _fmt2 = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Precio unitario: hasta 6 decimales. El gas y la cuota IEPS se capturan asi y a
+// 2 decimales el renglon no multiplica ("425 L x $9.10" no da $3,868.97).
+const _fmtUnit = (n: number | string | null | undefined) =>
+  Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
 /**
  * Imprime un ticket térmico de Egreso (mismo flujo que compras).
@@ -176,14 +180,14 @@ function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null, ga
   const total = Number(p.monto || 0);
   const desglose = gasolina
     ? `
-      <tr><td>COMBUSTIBLE — ${_fmt2(gasolina.litros)} L × $${_fmt2(gasolina.precio)}</td><td class="r">$${_fmt2(gasolina.base)}</td></tr>
-      ${Number(gasolina.ieps) > 0 ? `<tr><td>IEPS — ${_fmt2(gasolina.litros)} L × $${_fmt2(gasolina.cuota)}</td><td class="r">$${_fmt2(gasolina.ieps)}</td></tr>` : ''}
+      <tr><td>COMBUSTIBLE — ${_fmt2(gasolina.litros)} L × $${_fmtUnit(gasolina.precio)}</td><td class="r">$${_fmt2(gasolina.base)}</td></tr>
+      ${Number(gasolina.ieps) > 0 ? `<tr><td>IEPS — ${_fmt2(gasolina.litros)} L × $${_fmtUnit(gasolina.cuota)}</td><td class="r">$${_fmt2(gasolina.ieps)}</td></tr>` : ''}
       <tr><td>Base gravable</td><td class="r">$${_fmt2(gasolina.base_gravable)}</td></tr>
       <tr><td>IVA 16%</td><td class="r">$${_fmt2(gasolina.iva)}</td></tr>`
     : gas
     ? `
-      <tr><td>GAS — ${_fmt2(gas.litros)} L × $${_fmt2(gas.precio)}</td><td class="r">$${_fmt2(gas.subtotal_gas)}</td></tr>
-      ${Number(gas.aditivo_litros) > 0 ? `<tr><td>ADITIVO — ${_fmt2(gas.aditivo_litros)} L × $${_fmt2(gas.aditivo_precio)}</td><td class="r">$${_fmt2(gas.aditivo_subtotal)}</td></tr>` : ''}
+      <tr><td>GAS — ${_fmt2(gas.litros)} L × $${_fmtUnit(gas.precio)}</td><td class="r">$${_fmt2(gas.subtotal_gas)}</td></tr>
+      ${Number(gas.aditivo_litros) > 0 ? `<tr><td>ADITIVO — ${_fmt2(gas.aditivo_litros)} L × $${_fmtUnit(gas.aditivo_precio)}</td><td class="r">$${_fmt2(gas.aditivo_subtotal)}</td></tr>` : ''}
       <tr><td>Subtotal</td><td class="r">$${_fmt2(gas.subtotal)}</td></tr>
       ${Number(gas.descuento) > 0 ? `<tr><td>Descuento</td><td class="r">-$${_fmt2(gas.descuento)}</td></tr>` : ''}
       <tr><td>Base gravable</td><td class="r">$${_fmt2(gas.base)}</td></tr>

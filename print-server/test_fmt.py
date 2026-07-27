@@ -25,7 +25,7 @@ _esc.printer = _pr
 sys.modules.setdefault('escpos', _esc)
 sys.modules.setdefault('escpos.printer', _pr)
 
-from print_server import fmt, fmt_unit  # noqa: E402
+from print_server import fmt, fmt_unit, _num  # noqa: E402
 
 CASOS = [
     (329.25 * 22.50, '$7,408.13'),  # el caso que destapo el bug (era 7,408.12)
@@ -49,7 +49,14 @@ def main():
     assert fmt_unit('6.4556') == '$6.4556', fmt_unit('6.4556')
     assert fmt_unit(9.103422) == '$9.103422', fmt_unit(9.103422)
     assert fmt_unit(13.42) == '$13.42', fmt_unit(13.42)
-    print(f"OK — {len(CASOS) + 4} casos de redondeo cuadran con toLocaleString")
+    # _num: los desgloses llegan del front con campos vacios (gas sin aditivo).
+    assert _num('') == 0.0
+    assert _num(None) == 0.0
+    assert _num('abc') == 0.0
+    assert _num('', 7.5) == 7.5      # el default se usa cuando el valor no sirve
+    assert _num('425') == 425.0
+    assert _num(3.5) == 3.5
+    print(f"OK — {len(CASOS) + 4} casos de redondeo + 6 de _num")
 
 
 if __name__ == '__main__':
