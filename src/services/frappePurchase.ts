@@ -120,7 +120,7 @@ class FrappeComprasService extends FrappeBase {
       ]),
       filters: JSON.stringify(filters),
       order_by: "item_name asc",
-      // 50 (no 20): una familia grande como "VELAS ..." tiene 22 variantes y con
+      // 60 (no 20): una familia grande como "VELAS ..." tiene 22 variantes y con
       // 20 se caían 2. Sigue siendo tope de rendimiento; refinar con más palabras.
       limit_page_length: '60',
     });
