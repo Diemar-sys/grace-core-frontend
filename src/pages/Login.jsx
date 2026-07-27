@@ -166,6 +166,7 @@ function Login() {
                 <input
                   id="contrasena"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   placeholder="Ingresa tu contraseña"
                   value={formData.contrasena}
                   onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}

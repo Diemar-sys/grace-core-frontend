@@ -6,7 +6,7 @@ import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
 import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../config/impuestos';
-import { calcularTotalesEfectivos } from '../components/compras/compraUtils';
+import { calcularTotalesEfectivos, calcGasolina } from '../components/compras/compraUtils';
 import BuscadorProveedor from '../components/compras/BuscadorProveedor';
 import '../styles/NuevaCompra.css';
 import '../styles/Egresos.css';
@@ -139,9 +139,95 @@ const FORM_INIT = {
   factura_key: 'SIN FACTURA', no_factura: '',
   // Gas-specific
   gas_litros: '', gas_precio: '',
+  gasolina_litros: '', gasolina_precio: '', gasolina_cuota: '',
   aditivo_litros: '', aditivo_precio: '',
   descuento_gas: '',
 };
+
+// ── Formulario Gasolina ───────────────────────────────────────────
+// Litros × precio = base; IEPS = litros × cuota (fija por litro, del CFDI);
+// IVA 16% sobre base + IEPS. Ver calcGasolina en compraUtils.
+function GasolinaForm({ form, setForm, subcatField, proveedorField }) {
+  const { base, ieps, baseGravable, iva, total } = calcGasolina({
+    litros: form.gasolina_litros, precio: form.gasolina_precio, cuota: form.gasolina_cuota,
+  });
+
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      monto: total.toFixed(2),
+      monto_impuesto: iva.toFixed(2),
+      impuesto_tipo: iva > 0 ? 'IVA' : '',
+    }));
+  }, [total, iva]); // eslint-disable-line
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div className="gas-form">
+      <div className="gas-form-grid">
+        {proveedorField}
+        {subcatField}
+        <label>Vehículo
+          <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
+            <option value="">Seleccionar...</option>
+            {VEHICULOS.map(v => <option key={v}>{v}</option>)}
+          </select>
+        </label>
+        <label>Fecha
+          <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
+        </label>
+        <label>Factura
+          <select value={form.factura_key || 'SIN FACTURA'} onChange={e => set('factura_key', e.target.value)}>
+            {FACTURA_OPTIONS.map(o => (
+              <option key={o.label} value={o.facturado_a}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
+          <label>No. Factura
+            <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
+          </label>
+        )}
+      </div>
+
+      <div className="gas-lineas">
+        <div className="gas-linea-header">Combustible</div>
+        <div className="gas-linea-grid">
+          <label>Litros
+            <input type="number" step="0.001" placeholder="0.000" value={form.gasolina_litros} onChange={e => set('gasolina_litros', e.target.value)} />
+          </label>
+          <label>Precio unitario
+            <input type="number" step="0.000001" placeholder="0.000000" value={form.gasolina_precio} onChange={e => set('gasolina_precio', e.target.value)} />
+          </label>
+          <label>Base
+            <input type="text" readOnly value={fmtN(base)} className="gas-calc-field" />
+          </label>
+        </div>
+
+        <div className="gas-linea-header">IEPS (cuota por litro)</div>
+        <div className="gas-linea-grid">
+          <label>Litros
+            <input type="text" readOnly value={form.gasolina_litros || '0'} className="gas-calc-field" />
+          </label>
+          <label>Cuota por litro
+            {/* Se teclea del CFDI: Hacienda la mueve con los estímulos, no se hardcodea. */}
+            <input type="number" step="0.000001" placeholder="0.000000" value={form.gasolina_cuota} onChange={e => set('gasolina_cuota', e.target.value)} />
+          </label>
+          <label>IEPS
+            <input type="text" readOnly value={fmtN(ieps)} className="gas-calc-field" />
+          </label>
+        </div>
+
+        <div className="gas-totales">
+          <div className="gas-total-row"><span>Base gravable</span><span>{fmtN(baseGravable)}</span></div>
+          <div className="gas-total-row"><span>IVA 16%</span><span>{fmtN(iva)}</span></div>
+          <div className="gas-total-row gas-total-final"><span>Total</span><span>{fmtN(total)}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Formulario Gas con cálculo automático ─────────────────────────
 function GasForm({ form, setForm, subcatField, proveedorField }) {
@@ -487,6 +573,24 @@ export default function Egresos() {
     const up = s => (s || '').toUpperCase();
     const prov = form.proveedor?.name || '';  // pagado se marca en la lista, no al crear
 
+    if (form.subcategoria === 'Gasolina') {
+      const g = calcGasolina({ litros: form.gasolina_litros, precio: form.gasolina_precio, cuota: form.gasolina_cuota });
+      return {
+        fecha: form.fecha, proveedor: prov, categoria: 'GASTO', subcategoria: 'GASOLINA',
+        concepto: up(form.concepto),
+        // Mismo trato que el gas: el desglose vive como JSON en descripcion.
+        descripcion: JSON.stringify({
+          gasolina_litros: form.gasolina_litros, gasolina_precio: form.gasolina_precio,
+          gasolina_base: g.base, ieps_cuota: form.gasolina_cuota, ieps_importe: g.ieps,
+          base_gravable: g.baseGravable, iva: g.iva, total: g.total,
+        }),
+        monto: g.total.toFixed(2), impuesto_tipo: g.iva > 0 ? 'IVA' : '', monto_impuesto: g.iva.toFixed(2),
+        facturado_a: facturaOpt.facturado_a,
+        con_factura: facturaOpt.con_factura ? 1 : 0,
+        no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
+      };
+    }
+
     if (form.subcategoria === 'Gas') {
       const gasSubtotal     = n(form.gas_litros) * n(form.gas_precio);
       const aditivoSubtotal = n(form.aditivo_litros) * n(form.aditivo_precio);
@@ -732,9 +836,11 @@ export default function Egresos() {
                       })} />
                   </label>
                 );
-                return form.subcategoria === 'Gas'
-                  ? <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />
-                  : <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+                if (form.subcategoria === 'Gas')
+                  return <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+                if (form.subcategoria === 'Gasolina')
+                  return <GasolinaForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+                return <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
               })()}
             </div>
 

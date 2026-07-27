@@ -108,6 +108,22 @@ const _fmt2 = (n: number | string | null | undefined) =>
  * Intenta la térmica en :6789; si no responde, cae a window.print().
  */
 export async function imprimirEgresoTicket(egreso: EgresoRow) {
+  // La gasolina guarda su desglose igual que el gas: JSON en descripcion.
+  // El IEPS es cuota por litro y el IVA va sobre base + IEPS (ver calcGasolina).
+  let gasolina = null;
+  if ((egreso.subcategoria || '').toUpperCase() === 'GASOLINA' && egreso.descripcion) {
+    try {
+      const d = JSON.parse(egreso.descripcion);
+      if (Number(d.gasolina_litros)) {
+        gasolina = {
+          litros: d.gasolina_litros, precio: d.gasolina_precio, base: d.gasolina_base,
+          cuota: d.ieps_cuota, ieps: d.ieps_importe,
+          base_gravable: d.base_gravable, iva: d.iva,
+        };
+      }
+    } catch { /* descripcion no es JSON (gasolina capturada como texto libre) */ }
+  }
+
   let gas = null;
   if ((egreso.subcategoria || '').toUpperCase() === 'GAS' && egreso.descripcion) {
     try {
@@ -134,6 +150,7 @@ export async function imprimirEgresoTicket(egreso: EgresoRow) {
     impuesto_tipo: egreso.impuesto_tipo || '',
     monto_impuesto: egreso.monto_impuesto || 0,
     gas,
+    gasolina,
   };
 
   try {
@@ -150,14 +167,20 @@ export async function imprimirEgresoTicket(egreso: EgresoRow) {
     console.warn('Térmica no disponible, fallback navegador:', (err as Error).message);
     const win = window.open('', '_blank', 'width=420,height=700');
     if (!win) return; // popup bloqueado → no hay dónde imprimir
-    win.document.write(_htmlEgreso(payload, gas) + '<script>window.onload=function(){window.print();}</script>');
+    win.document.write(_htmlEgreso(payload, gas, gasolina) + '<script>window.onload=function(){window.print();}</script>');
     win.document.close();
   }
 }
 
-function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null) {
+function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null, gasolina: Record<string, any> | null = null) {
   const total = Number(p.monto || 0);
-  const desglose = gas
+  const desglose = gasolina
+    ? `
+      <tr><td>COMBUSTIBLE — ${_fmt2(gasolina.litros)} L × $${_fmt2(gasolina.precio)}</td><td class="r">$${_fmt2(gasolina.base)}</td></tr>
+      ${Number(gasolina.ieps) > 0 ? `<tr><td>IEPS — ${_fmt2(gasolina.litros)} L × $${_fmt2(gasolina.cuota)}</td><td class="r">$${_fmt2(gasolina.ieps)}</td></tr>` : ''}
+      <tr><td>Base gravable</td><td class="r">$${_fmt2(gasolina.base_gravable)}</td></tr>
+      <tr><td>IVA 16%</td><td class="r">$${_fmt2(gasolina.iva)}</td></tr>`
+    : gas
     ? `
       <tr><td>GAS — ${_fmt2(gas.litros)} L × $${_fmt2(gas.precio)}</td><td class="r">$${_fmt2(gas.subtotal_gas)}</td></tr>
       ${Number(gas.aditivo_litros) > 0 ? `<tr><td>ADITIVO — ${_fmt2(gas.aditivo_litros)} L × $${_fmt2(gas.aditivo_precio)}</td><td class="r">$${_fmt2(gas.aditivo_subtotal)}</td></tr>` : ''}

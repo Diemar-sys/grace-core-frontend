@@ -5,6 +5,9 @@ const SKIP_TYPES = new Set<string>([
   'file', 'date', 'time', 'datetime-local', 'tel', 'color', 'range', 'month', 'week',
 ]);
 
+// Señal nativa de "esto es una contraseña", independiente del type visible.
+const PWD_AUTOCOMPLETE = new Set<string>(['current-password', 'new-password', 'one-time-code']);
+
 const setNativeValue = (el: HTMLInputElement | HTMLTextAreaElement, value: string): void => {
   const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
@@ -19,6 +22,10 @@ export function useAutoUppercase(): void {
       const tag = t.tagName;
       if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
       if (tag === 'INPUT' && SKIP_TYPES.has((t as HTMLInputElement).type)) return;
+      // Un campo de contraseña con "ojito" cambia a type=text al revelarse, y ahí
+      // dejaba de ser 'password': la mayúscula automática estropeaba la clave que
+      // se estaba escribiendo. autocomplete no cambia con el toggle, así que manda.
+      if (PWD_AUTOCOMPLETE.has(t.autocomplete)) return;
       if (t.dataset.noUpper === 'true') return;
       if (t.closest('[data-no-upper]')) return;
       const upper = t.value.toUpperCase();

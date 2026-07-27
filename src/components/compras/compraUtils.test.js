@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   subtotalFila, impuestoFila, totalFila, calcVariacion, parseImpuesto, totalPorFila,
-  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion, mezclarComprasYGastos, desgloseEgreso,
+  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion, mezclarComprasYGastos, desgloseEgreso, calcGasolina,
 } from './compraUtils';
 
 describe('compraUtils — subtotales e impuestos', () => {
@@ -405,5 +405,50 @@ describe('desgloseEgreso — detalle de un gasto', () => {
   it('texto libre se muestra tal cual', () => {
     expect(desgloseEgreso({ descripcion: 'PAGO EN EFECTIVO' }).texto).toBe('PAGO EN EFECTIVO');
     expect(desgloseEgreso({}).texto).toBeNull();
+  });
+});
+
+describe('calcGasolina — IEPS de cuota fija por litro', () => {
+  // 38.5 L a $13.42/L con cuota IEPS $6.4556/L
+  const carga = { litros: '38.5', precio: '13.42', cuota: '6.4556' };
+
+  it('el IEPS es litros × cuota, no un porcentaje de la base', () => {
+    const { base, ieps } = calcGasolina(carga);
+    expect(base).toBeCloseTo(516.67, 2);
+    expect(ieps).toBeCloseTo(248.5406, 4);
+    expect(ieps).not.toBeCloseTo(base * 0.08, 2); // el bug viejo: IEPS 8%
+  });
+
+  it('el IVA va sobre base + IEPS, no sobre la base sola', () => {
+    const { base, iva, baseGravable, total } = calcGasolina(carga);
+    expect(baseGravable).toBeCloseTo(765.2106, 4);
+    expect(iva).toBeCloseTo(122.4337, 4);
+    expect(iva).not.toBeCloseTo(base * 0.16, 2);
+    expect(total).toBeCloseTo(887.6443, 4);
+  });
+
+  it('sin cuota se comporta como un gasto normal con IVA', () => {
+    const { ieps, iva, total } = calcGasolina({ litros: '10', precio: '20', cuota: '' });
+    expect(ieps).toBe(0);
+    expect(iva).toBeCloseTo(32, 6);
+    expect(total).toBeCloseTo(232, 6);
+  });
+
+  it('campos vacíos no producen NaN', () => {
+    expect(calcGasolina({})).toEqual({ base: 0, ieps: 0, baseGravable: 0, iva: 0, total: 0 });
+  });
+
+  it('desgloseEgreso desdobla la gasolina en combustible + IEPS', () => {
+    const g = calcGasolina(carga);
+    const descripcion = JSON.stringify({
+      gasolina_litros: carga.litros, gasolina_precio: carga.precio, gasolina_base: g.base,
+      ieps_cuota: carga.cuota, ieps_importe: g.ieps,
+      base_gravable: g.baseGravable, iva: g.iva, total: g.total,
+    });
+    const { filas, texto } = desgloseEgreso({ subcategoria: 'GASOLINA', descripcion });
+    expect(texto).toBeNull();
+    expect(filas.map(f => f.concepto)).toEqual(['GASOLINA', 'IEPS (cuota por litro)']);
+    expect(filas[0].importe).toBeCloseTo(516.67, 2);
+    expect(filas[1].importe).toBeCloseTo(248.5406, 4);
   });
 });

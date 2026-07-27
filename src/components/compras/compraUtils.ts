@@ -187,6 +187,21 @@ export function mezclarComprasYGastos(compras: any[], egresos: any[]) {
 }
 
 /**
+ * Gasolina: el IEPS NO es un porcentaje, es una cuota fija por litro que fija
+ * Hacienda (y cambia con los estímulos). El IVA va sobre base + IEPS, no sobre
+ * la base sola — por eso capturar gasolina con "IEPS 8%" nunca cuadraba contra
+ * el CFDI. La cuota se teclea de la factura: no se hardcodea porque se mueve.
+ */
+export function calcGasolina({ litros, precio, cuota }: { litros?: any; precio?: any; cuota?: any }) {
+  const num = (v: any) => parseFloat(v) || 0;
+  const base = num(litros) * num(precio);
+  const ieps = num(litros) * num(cuota);
+  const baseGravable = base + ieps;
+  const iva = baseGravable * 0.16;
+  return { base, ieps, baseGravable, iva, total: baseGravable + iva };
+}
+
+/**
  * Renglones para el detalle de un gasto.
  * Normalmente son sus partidas. Los gastos de GAS no usan partidas: guardan el
  * desglose (litros, aditivo, descuento) como JSON en `descripcion` — ver
@@ -204,6 +219,10 @@ export function desgloseEgreso(egreso: any): { filas: any[]; texto: string | nul
       const filas = [];
       if (Number(d.gas_litros))     filas.push({ concepto: 'GAS',     cantidad: d.gas_litros,     precio: d.gas_precio,     importe: d.gas_subtotal });
       if (Number(d.aditivo_litros)) filas.push({ concepto: 'ADITIVO', cantidad: d.aditivo_litros, precio: d.aditivo_precio, importe: d.aditivo_subtotal });
+      if (Number(d.gasolina_litros)) {
+        filas.push({ concepto: 'GASOLINA', cantidad: d.gasolina_litros, precio: d.gasolina_precio, importe: d.gasolina_base });
+        if (Number(d.ieps_importe)) filas.push({ concepto: 'IEPS (cuota por litro)', cantidad: d.gasolina_litros, precio: d.ieps_cuota, importe: d.ieps_importe });
+      }
       if (Number(d.descuento))      filas.push({ concepto: 'DESCUENTO', cantidad: '', precio: '', importe: -Number(d.descuento) });
       // JSON reconocido: nunca se muestra crudo, aunque no arme ningún renglón.
       return { filas, texto: null };

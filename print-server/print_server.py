@@ -32,8 +32,34 @@ def get_printer():
         from escpos.printer import File
         return File(resolve_dev_path(), profile="default")
 
+from decimal import Decimal, ROUND_HALF_UP
+
+
+def _round(n, places='0.01'):
+    """Redondeo mitad-ARRIBA, igual que el navegador.
+
+    f"{n:.2f}" usa banker's rounding (mitad al par): 329.25 Kg x $22.50 =
+    7408.125 exacto -> imprime 7408.12, mientras el modal en pantalla muestra
+    7408.13. Ese centavo de diferencia aparecia en el ticket como una linea
+    "AJUSTE" que no existe en el documento. JS redondea mitad-arriba, asi que
+    el ticket tambien.
+    """
+    return Decimal(str(float(n or 0))).quantize(Decimal(places), rounding=ROUND_HALF_UP)
+
+
 def fmt(n):
-    return f"${float(n or 0):,.2f}"
+    return f"${_round(n):,.2f}"
+
+
+def fmt_unit(n):
+    """Precio unitario con hasta 6 decimales.
+
+    La cuota de IEPS ($6.4556/L) y el precio del combustible se capturan con esa
+    precisión: a 2 decimales el renglón no multiplica ($6.46 x 38.5 no da el
+    importe impreso) y parece que el ticket está mal.
+    """
+    s = f"{_round(n, '0.000001'):,.6f}".rstrip('0').rstrip('.')
+    return f"${s}"
 
 
 # ── Renderizado de ticket como IMAGEN (fuente TTF pequeña) ────────────────────
@@ -384,8 +410,26 @@ def render_egreso_image(data):
     rows.append({'text': f"Con factura:  {'SI' if data['con_factura'] else 'NO'}", 'size': body})
     rows.append({'rule': True})
 
+    gasolina = data.get('gasolina')
     gas = data.get('gas')
-    if gas:
+    if gasolina:
+        # El IEPS de combustibles es cuota fija por litro (no %), y el IVA va
+        # sobre base + IEPS. Se imprime el desglose tal como sale en el CFDI.
+        lit = float(gasolina.get('litros', 0)); pre = float(gasolina.get('precio', 0))
+        base_comb = float(gasolina.get('base', lit * pre))
+        cuota = float(gasolina.get('cuota', 0))
+        ieps = float(gasolina.get('ieps', lit * cuota))
+        base = float(gasolina.get('base_gravable', base_comb + ieps))
+        iva = float(gasolina.get('iva', data['monto_impuesto']))
+        rows.append({'text': 'COMBUSTIBLE', 'size': body})
+        rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(pre)}", money(base_comb)), 'size': body})
+        if ieps > 0:
+            rows.append({'text': 'IEPS (cuota por litro)', 'size': body})
+            rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(cuota)}", money(ieps)), 'size': body})
+        rows.append({'rule': True})
+        rows.append({'lr': ('Base gravable', money(base)), 'size': body})
+        rows.append({'lr': ('IVA 16%', money(iva)), 'size': body})
+    elif gas:
         g_lit = float(gas.get('litros', 0)); g_pre = float(gas.get('precio', 0))
         g_sub = float(gas.get('subtotal_gas', g_lit * g_pre))
         a_lit = float(gas.get('aditivo_litros', 0)); a_pre = float(gas.get('aditivo_precio', 0))
@@ -609,7 +653,8 @@ def imprimir_egreso():
         total         = float(data.get('monto', 0))
         impuesto_tipo = (data.get('impuesto_tipo', '') or '').upper()
         monto_impuesto = float(data.get('monto_impuesto', 0))
-        gas           = data.get('gas')  # desglose solo para subcategoria GAS
+        gas           = data.get('gas')       # desglose solo para subcategoria GAS
+        gasolina      = data.get('gasolina')  # desglose solo para subcategoria GASOLINA
 
         hora = datetime.now().strftime('%H:%M')
 
@@ -620,7 +665,7 @@ def imprimir_egreso():
             'facturado_a': facturado_a, 'con_factura': con_factura,
             'no_factura': no_factura, 'total': total,
             'impuesto_tipo': impuesto_tipo, 'monto_impuesto': monto_impuesto,
-            'gas': gas,
+            'gas': gas, 'gasolina': gasolina,
         })
         p = get_printer()
         try:

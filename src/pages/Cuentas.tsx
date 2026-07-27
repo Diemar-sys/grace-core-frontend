@@ -257,7 +257,7 @@ export default function Cuentas() {
                 </label>
                 <label className="cuentas-field full">CONTRASEÑA
                   <span className="cuentas-pwd">
-                    <input type={verPwd ? 'text' : 'password'}
+                    <input type={verPwd ? 'text' : 'password'} autoComplete="new-password"
                       placeholder={editEmail ? 'Dejar en blanco = no cambiar' : 'Mínimo 6 caracteres'}
                       value={form.password} onChange={(e: ChangeEvent<HTMLInputElement>) => set('password', e.target.value)} />
                     <button type="button" className="cuentas-eye" onClick={() => setVerPwd(v => !v)}
@@ -310,6 +310,7 @@ export default function Cuentas() {
               <label className="cuentas-field full">CONTRASEÑA DE ADMINISTRATOR
                 <span className="cuentas-pwd">
                   <input type={verGatePwd ? 'text' : 'password'} autoFocus
+                    autoComplete="current-password"
                     placeholder="••••••••" value={gatePwd}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setGatePwd(e.target.value)}
                     onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') confirmarGate(); }} />
