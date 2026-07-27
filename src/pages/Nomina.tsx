@@ -434,7 +434,17 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
   const [nuevaSuc, setNuevaSuc] = useState('');
   const [editando, setEditando] = useState<string | null>(null); // name del empleado en edición, o null = alta
   const [adminPwd, setAdminPwd] = useState('');
+  // Alma y Luis salían mezclados en una sola lista de 31. 'todas' | 'ALMA RODRIGUEZ'
+  // | 'LUIS TORRES' | '' (los que aún no tienen nómina asignada).
+  const [filtro, setFiltro] = useState('todas');
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const visibles = useMemo(() => {
+    const lista = filtro === 'todas'
+      ? empleados
+      : empleados.filter(e => (e.custom_nomina_de || '') === filtro);
+    return [...lista].sort((a, b) => (a.date_of_joining || '').localeCompare(b.date_of_joining || ''));
+  }, [empleados, filtro]);
 
   // Carga un empleado en el form (modo edición). Editar datos personales exige clave de Administrator.
   const editar = (e: Empleado) => {
@@ -536,11 +546,21 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
       </div>
 
       <div className="nomina-lista-emp">
-        <h2>Empleados ({empleados.length})</h2>
+        <div className="nomina-lista-head">
+          <h2>Empleados ({visibles.length}{visibles.length !== empleados.length ? ` de ${empleados.length}` : ''})</h2>
+          <label>Nómina de
+            <select value={filtro} onChange={e => setFiltro(e.target.value)}>
+              <option value="todas">Todas</option>
+              <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
+              <option value="LUIS TORRES">Luis Torres</option>
+              <option value="">— sin asignar —</option>
+            </select>
+          </label>
+        </div>
         <table className="nomina-lista">
           <thead><tr><th>Nombre</th><th>Sucursal</th><th>Nómina de</th><th>Ingreso</th><th></th></tr></thead>
           <tbody>
-            {[...empleados].sort((a, b) => (a.date_of_joining || '').localeCompare(b.date_of_joining || '')).map(e => (
+            {visibles.map(e => (
               <tr key={e.name} className={editando === e.name ? 'fila-editando' : ''}>
                 <td>{e.employee_name}</td>
                 <td>{e.branch || '—'}</td>
@@ -559,7 +579,11 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
                 <td><button className="nomina-editar" onClick={() => editar(e)}>Editar</button></td>
               </tr>
             ))}
-            {!empleados.length && <tr><td colSpan={5} className="vacio">Sin empleados aún</td></tr>}
+            {!visibles.length && (
+              <tr><td colSpan={5} className="vacio">
+                {empleados.length ? 'Ningún empleado en esta nómina' : 'Sin empleados aún'}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>
