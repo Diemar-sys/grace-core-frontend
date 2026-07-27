@@ -1,7 +1,11 @@
 import NuevaCompra from '../NuevaCompra';
 import ConfirmModal from '../modals/ConfirmModal';
+import { desgloseEgreso } from './compraUtils';
 
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// El precio del gas se captura con 6 decimales ($9.103422/L): redondearlo a 2 haría
+// que cantidad × precio no cuadre con el importe.
+const fmtPrecio = (n) => Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
 const ICON_TRASH = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -23,12 +27,14 @@ const ICON_WARNING = (
 
 export default function ComprasModales({
   modal, borradorEditar, handleModalSuccess, handleModalCancel,
-  deleteModal, cancelModal, pagoModal,
+  deleteModal, deleteEgresoModal, cancelModal, pagoModal,
   consolidarModal, desagruparModal, cancelConsolidadoModal,
   folioConsolidar, setFolioConsolidar,
   facturadoConsolidar, setFacturadoConsolidar,
   detalleModal, setDetalleModal,
 }) {
+  const desglose = detalleModal?.egreso ? desgloseEgreso(detalleModal.egreso) : null;
+
   return (
     <>
       {/* Modal nueva / editar compra */}
@@ -57,6 +63,22 @@ export default function ComprasModales({
           onCancel={deleteModal.close}
           loading={deleteModal.loading}
           error={deleteModal.error}
+        />
+      )}
+
+      {/* Eliminar gasto (Egreso) desde la vista Egresos */}
+      {deleteEgresoModal?.item && (
+        <ConfirmModal
+          title="Eliminar gasto"
+          description={<>¿Seguro que deseas eliminar el gasto <strong>{deleteEgresoModal.item.concepto || deleteEgresoModal.item.name}</strong>{deleteEgresoModal.item.no_de_compra ? <> (#{deleteEgresoModal.item.no_de_compra})</> : null}?</>}
+          subdescription="Esta acción es permanente y no se puede deshacer."
+          icon={ICON_TRASH}
+          confirmLabel="Sí, eliminar"
+          loadingLabel="Eliminando..."
+          onConfirm={deleteEgresoModal.confirm}
+          onCancel={deleteEgresoModal.close}
+          loading={deleteEgresoModal.loading}
+          error={deleteEgresoModal.error}
         />
       )}
 
@@ -170,6 +192,65 @@ export default function ComprasModales({
           <div className="comp-detalle-modal" onClick={e => e.stopPropagation()}>
             {detalleModal.loading ? (
               <p style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</p>
+            ) : detalleModal.egreso ? (
+              /* Detalle de un gasto: mismas cajas que la compra, pero el desglose
+                 son partidas (concepto/cantidad/precio), no artículos de inventario.
+                 Un gasto puede no tener partidas: ahí manda la descripción. */
+              <>
+                <div className="comp-detalle-header">
+                  <div>
+                    <span className="comp-detalle-num">#{detalleModal.egreso.no_de_compra || '—'}</span>
+                    <span className="comp-detalle-proveedor">{detalleModal.egreso.proveedor || detalleModal.egreso.concepto || 'GASTO'}</span>
+                    <span className="comp-detalle-fecha">{detalleModal.egreso.fecha}</span>
+                  </div>
+                  <button className="comp-detalle-close" onClick={() => setDetalleModal(null)}>✕</button>
+                </div>
+                <div className="comp-detalle-scroll">
+                  {desglose.filas.length ? (
+                    <table className="comp-detalle-tabla sys-table">
+                      <thead>
+                        <tr><th>CONCEPTO</th><th>CANTIDAD</th><th className="cell-right">PRECIO UNIT.</th><th className="cell-right">IMPORTE</th></tr>
+                      </thead>
+                      <tbody>
+                        {desglose.filas.map((p, i) => (
+                          <tr key={p.name || i}>
+                            <td>
+                              <div>{p.concepto || '—'}</div>
+                              {p.impuesto && <small style={{ color: '#888', fontFamily: 'monospace' }}>{p.impuesto}</small>}
+                            </td>
+                            <td>{p.cantidad || '—'}</td>
+                            <td className="cell-right">{p.precio ? `$${fmtPrecio(p.precio)}` : '—'}</td>
+                            <td className="cell-right cell-bold">${fmt(p.importe)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: '20px 24px' }}>
+                      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{detalleModal.egreso.concepto || 'Sin concepto'}</p>
+                      <p style={{ margin: 0, color: '#888' }}>
+                        {desglose.texto || 'Este gasto se capturó sin desglose por artículo.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="comp-detalle-footer">
+                  <span>
+                    {desglose.filas.length ? `${desglose.filas.length} partida(s) · ` : ''}
+                    {detalleModal.egreso.subcategoria || 'GASTO'}
+                    {detalleModal.egreso.no_factura ? ` · ${detalleModal.egreso.no_factura}` : ''}
+                  </span>
+                  <span>
+                    {detalleModal.egreso.monto_impuesto > 0 && (
+                      <>
+                        SUBTOTAL <strong>${fmt(detalleModal.egreso.monto - detalleModal.egreso.monto_impuesto)}</strong>&nbsp;&nbsp;
+                        IMPUESTO <strong>${fmt(detalleModal.egreso.monto_impuesto)}</strong>&nbsp;&nbsp;
+                      </>
+                    )}
+                    TOTAL <strong className="comp-detalle-total">${fmt(detalleModal.egreso.monto)}</strong>
+                  </span>
+                </div>
+              </>
             ) : (
               <>
                 <div className="comp-detalle-header">

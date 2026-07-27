@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { comprasService } from '../services/frappePurchase';
+import { egresosService } from '../services/frappeEgresos';
 import useConfirmModal from './useConfirmModal';
 import { docToDatosImpresion, imprimirCompraPDF, imprimirCompraTicket, imprimirTicketConsolidado } from '../utils/print/comprasPrint';
-import { agruparFacturas, listarNotas } from '../components/compras/compraUtils';
+import { imprimirEgresoTicket } from '../services/printService';
+import { agruparFacturas, listarNotas, mezclarComprasYGastos } from '../components/compras/compraUtils';
 
 export const ESTADO_DOCSTATUS: Record<string, number> = { recibida: 1, en_espera: 0, cancelada: 2 };
 
@@ -12,6 +14,7 @@ export default function useCompras() {
   const soloLectura = searchParams.get('modo') === 'consulta';
 
   const [compras, setCompras] = useState<any[]>([]);
+  const [egresos, setEgresos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<string | null>(null);
   const [borradorEditar, setBorradorEditar] = useState<any>(null);
@@ -29,6 +32,14 @@ export default function useCompras() {
     try {
       const data = await comprasService.getCompraBorrador(name);
       setDetalleModal({ compra: data });
+    } catch { setDetalleModal(null); }
+  }, []);
+
+  const abrirDetalleEgreso = useCallback(async (name: string) => {
+    setDetalleModal({ loading: true });
+    try {
+      const data = await egresosService.getEgreso(name);
+      setDetalleModal({ egreso: data });
     } catch { setDetalleModal(null); }
   }, []);
 
@@ -63,8 +74,19 @@ export default function useCompras() {
   const cargar = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const data = await comprasService.getCompras({ desde: desde || null, hasta: hasta || null }, signal);
+      // Los gastos (Egreso categoría GASTO) comparten el consecutivo No. de compra con
+      // las recepciones, por eso se listan aquí. Si get_egresos falla, la lista de
+      // compras NO se cae: los gastos quedan vacíos.
+      const [data, egr] = await Promise.all([
+        comprasService.getCompras({ desde: desde || null, hasta: hasta || null }, signal),
+        egresosService.getEgresos({
+          categoria: 'GASTO',
+          fecha_desde: desde || undefined,
+          fecha_hasta: hasta || undefined,
+        }).catch(() => []),
+      ]);
       setCompras(data);
+      setEgresos(egr);
     } catch (err) {
       if ((err as any)?.name === 'AbortError') return;
       console.error(err);
@@ -77,12 +99,18 @@ export default function useCompras() {
     (name: any) => comprasService.eliminarBorrador(name),
     { onSuccess: () => cargar() }
   );
+  const deleteEgresoModal = useConfirmModal(
+    (egreso: any) => egresosService.eliminarEgreso(egreso.name),
+    { onSuccess: () => cargar() }
+  );
   const cancelModal = useConfirmModal(
     (compra: any) => comprasService.cancelarCompra(compra.name),
     { onSuccess: () => cargar() }
   );
   const pagoModal = useConfirmModal(
-    ({ name, value }: any) => comprasService.updatePagado(name, value),
+    ({ name, value, esGasto }: any) => esGasto
+      ? egresosService.marcarPagado(name, value)
+      : comprasService.updatePagado(name, value),
     { onSuccess: () => cargar() }
   );
   const consolidarModal = useConfirmModal(
@@ -174,6 +202,11 @@ export default function useCompras() {
     } catch (err) { console.error('Error imprimiendo compra:', err); }
   };
 
+  const handleImprimirEgreso = async (egreso: any) => {
+    try { await imprimirEgresoTicket(egreso); }
+    catch (err) { console.error('Error imprimiendo egreso:', err); }
+  };
+
   const handleConfirmarBorrador = async (name: string) => {
     try {
       await comprasService.confirmarBorrador(name);
@@ -209,15 +242,33 @@ export default function useCompras() {
       || noCompra.includes(termNum) || factura.includes(term);
   });
 
+  // Los gastos no tienen docstatus (no son documento de stock) → el filtro Estado no
+  // aplica y la vista lo esconde. El resto de filtros sí, contra los campos del Egreso.
+  const filteredEgresos = egresos.filter(e => {
+    if (pagoFiltro === 'pagadas'    && !e.pagado) return false;
+    if (pagoFiltro === 'pendientes' &&  e.pagado) return false;
+    if (facturadoFiltro !== 'todas' && (e.facturado_a || 'SIN FACTURA') !== facturadoFiltro) return false;
+    if (proveedorFiltro !== 'todas' && e.proveedor !== proveedorFiltro) return false;
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const termNum = term.replace(/^#/, '');
+    return (e.proveedor || '').toLowerCase().includes(term)
+      || (e.concepto || '').toLowerCase().includes(term)
+      || (e.no_factura || '').toLowerCase().includes(term)
+      || String(e.no_de_compra ?? '').toLowerCase().includes(termNum);
+  });
+
   const facturasAgrupadas = agruparFacturas(filteredCompras);
   const notasItems        = listarNotas(filteredCompras);
+
+  const totalItems = mezclarComprasYGastos(filteredCompras, filteredEgresos);
 
   return {
     soloLectura,
     compras, loading,
     modal, setModal,
     borradorEditar,
-    detalleModal, setDetalleModal, abrirDetalle,
+    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso,
     desde, setDesde,
     hasta, setHasta,
     searchTerm, setSearchTerm,
@@ -234,6 +285,7 @@ export default function useCompras() {
     facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos,
     filteredCompras, facturasAgrupadas, notasItems,
+    egresos, filteredEgresos, totalItems, handleImprimirEgreso, deleteEgresoModal,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar,

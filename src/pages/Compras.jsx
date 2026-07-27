@@ -8,11 +8,58 @@ import "../styles/Compras.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Columnas por vista. La clase viaja también en cada <td> para que el responsive
+// esconda por CLASE y no por nth-child: el índice de una columna cambia según la vista.
+const COLUMNAS = {
+  facturas: [
+    { k: 'no',        label: '# Factura' },
+    { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
+    { k: 'proveedor', label: 'Proveedor' },
+    { k: 'facturado', label: 'Facturado a',  cls: 'col-facturado' },
+    { k: 'subtotal',  label: 'Subtotal',     cls: 'col-subtotal' },
+    { k: 'total',     label: 'Total' },
+    { k: 'notas',     label: 'Notas',        cls: 'col-notas' },
+    { k: 'pagado',    label: 'Pagado' },
+    { k: 'acciones',  label: 'Acciones' },
+  ],
+  notas: [
+    { k: 'no',        label: '# Compra' },
+    { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
+    { k: 'proveedor', label: 'Proveedor' },
+    { k: 'facturado', label: 'Facturado a',  cls: 'col-facturado' },
+    { k: 'subtotal',  label: 'Subtotal',     cls: 'col-subtotal' },
+    { k: 'total',     label: 'Total' },
+    { k: 'estado',    label: 'Estado',       cls: 'col-notas' },
+    { k: 'pagado',    label: 'Pagado' },
+    { k: 'acciones',  label: 'Acciones' },
+  ],
+  egresos: [
+    { k: 'no',        label: '# Compra' },
+    { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
+    { k: 'proveedor', label: 'Proveedor' },
+    { k: 'concepto',  label: 'Concepto' },
+    { k: 'facturado', label: 'Facturado a',  cls: 'col-facturado' },
+    { k: 'total',     label: 'Monto' },
+    { k: 'pagado',    label: 'Pagado' },
+    { k: 'acciones',  label: 'Acciones' },
+  ],
+  total: [
+    { k: 'no',        label: '# Compra' },
+    { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
+    { k: 'proveedor', label: 'Proveedor' },
+    { k: 'tipo',      label: 'Tipo' },
+    { k: 'facturado', label: 'Facturado a',  cls: 'col-facturado' },
+    { k: 'total',     label: 'Total' },
+    { k: 'pagado',    label: 'Pagado' },
+    { k: 'acciones',  label: 'Acciones' },
+  ],
+};
+
 function Compras() {
   const {
     soloLectura, compras, loading,
     modal, setModal, borradorEditar,
-    detalleModal, setDetalleModal, abrirDetalle,
+    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso,
     desde, setDesde, hasta, setHasta,
     searchTerm, setSearchTerm, facturadoSaving,
     estadoFiltro, setEstadoFiltro,
@@ -25,12 +72,18 @@ function Compras() {
     folioConsolidar, setFolioConsolidar,
     facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos, facturasAgrupadas, notasItems,
+    filteredEgresos, totalItems, handleImprimirEgreso, deleteEgresoModal,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar, handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,
     handleConfirmarBorrador, handleModalSuccess, handleModalCancel,
     reimprimirConsolidado,
   } = useCompras();
+
+  const columnas = COLUMNAS[vista] || COLUMNAS.facturas;
+  // Egresos y Total no tienen Subtotal ni Notas/Estado: en tablet se recorta
+  // "Facturado a" en su lugar (ver Compras.css).
+  const vistaSimple = vista === 'egresos' || vista === 'total';
 
   return (
     <Layout>
@@ -91,17 +144,23 @@ function Compras() {
                 <select className="comp-date-input" value={vista} onChange={e => setVista(e.target.value)}>
                   <option value="facturas">Facturas ({facturasAgrupadas.length})</option>
                   <option value="notas">Notas ({notasItems.length})</option>
+                  <option value="egresos">Egresos ({filteredEgresos.length})</option>
+                  <option value="total">Total ({totalItems.length})</option>
                 </select>
               </div>
-              <div className="filtro-group filtro-sm">
-                <label>Estado</label>
-                <select className="comp-date-input" value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}>
-                  <option value="recibida">Recibida ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.recibida).length})</option>
-                  <option value="en_espera">En espera ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.en_espera).length})</option>
-                  <option value="cancelada">Cancelada ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.cancelada).length})</option>
-                  <option value="todas">Todas ({compras.length})</option>
-                </select>
-              </div>
+              {/* El Egreso no tiene docstatus → el filtro Estado no aplica a esas vistas
+                  (y quitarlo es lo que hace caber los filtros en un renglón). */}
+              {!vistaSimple && (
+                <div className="filtro-group filtro-sm">
+                  <label>Estado</label>
+                  <select className="comp-date-input" value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}>
+                    <option value="recibida">Recibida ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.recibida).length})</option>
+                    <option value="en_espera">En espera ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.en_espera).length})</option>
+                    <option value="cancelada">Cancelada ({compras.filter(c => c.docstatus === ESTADO_DOCSTATUS.cancelada).length})</option>
+                    <option value="todas">Todas ({compras.length})</option>
+                  </select>
+                </div>
+              )}
               <div className="filtro-group filtro-sm">
                 <label>Facturas</label>
                 <select className="comp-date-input" value={pagoFiltro} onChange={e => setPagoFiltro(e.target.value)}>
@@ -170,24 +229,16 @@ function Compras() {
               <div className="loading">Cargando compras...</div>
             ) : (
               <div className="table-container">
-                <table className="sys-table">
+                <table className={`sys-table${vistaSimple ? ' vista-simple' : ''}`}>
                   <thead>
                     <tr>
-                      <th>{vista === 'facturas' ? '# Factura' : '# Compra'}</th>
-                      <th>Fecha</th>
-                      <th>Proveedor</th>
-                      <th>Facturado a</th>
-                      <th>Subtotal</th>
-                      <th>Total</th>
-                      <th>{vista === 'facturas' ? 'Notas' : 'Estado'}</th>
-                      <th>Pagado</th>
-                      <th>Acciones</th>
+                      {columnas.map(c => <th key={c.k} className={c.cls}>{c.label}</th>)}
                     </tr>
                   </thead>
                   <tbody>
                     {vista === 'facturas' ? (
                       facturasAgrupadas.length === 0 ? (
-                        <tr><td colSpan={9} className="no-data">No hay facturas registradas</td></tr>
+                        <tr><td colSpan={columnas.length} className="no-data">No hay facturas registradas</td></tr>
                       ) : (
                         facturasAgrupadas.map(g => {
                           const abierto = expandido.has(g.key);
@@ -200,9 +251,9 @@ function Compras() {
                                 <td className="cell-code">
                                   {g.folio || '(sin folio)'}
                                 </td>
-                                <td>{g.posting_date}</td>
-                                <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
-                                <td>
+                                <td className="col-fecha">{g.posting_date}</td>
+                                <td className="comp-td-proveedor" title={g.supplier_name || g.supplier}>{g.supplier_name || g.supplier}</td>
+                                <td className="col-facturado">
                                   {(g.cancelada || g.notas.every(n => n.custom_pagado))
                                     ? <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}
                                         title="Pagada — facturado bloqueado">
@@ -218,9 +269,9 @@ function Compras() {
                                         <option value="LUIS TORRES">LUIS TORRES</option>
                                       </select>}
                                 </td>
-                                <td className="cell-right">${fmt(g.total)}</td>
+                                <td className="cell-right col-subtotal">${fmt(g.total)}</td>
                                 <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
-                                <td style={{ textAlign: 'center' }}>{g.esConsolidacion ? g.notas.length : '—'}</td>
+                                <td className="col-notas" style={{ textAlign: 'center' }}>{g.esConsolidacion ? g.notas.length : '—'}</td>
                                 <td style={{ textAlign: 'center' }}>
                                   {g.cancelada ? (
                                     <span className="status-badge status-cancelled">Cancelada</span>
@@ -294,17 +345,101 @@ function Compras() {
                               {g.esConsolidacion && abierto && g.notas.map(n => (
                                 <tr key={n.name} className="comp-subrow" onClick={() => abrirDetalle(n.name)} style={{ cursor: 'pointer' }}>
                                   <td className="cell-code" style={{ paddingLeft: 28 }}>{n.custom_no_de_compra ? `#${n.custom_no_de_compra}` : '—'}</td>
-                                  <td>{n.posting_date}</td>
+                                  <td className="col-fecha">{n.posting_date}</td>
                                   <td>{n.custom_nota_remision || '—'}</td>
-                                  <td></td>
-                                  <td className="cell-right">${fmt(n.total)}</td>
+                                  <td className="col-facturado"></td>
+                                  <td className="cell-right col-subtotal">${fmt(n.total)}</td>
                                   <td className="cell-right">${fmt(n.grand_total)}</td>
-                                  <td colSpan={3}></td>
+                                  {/* celdas sueltas (no colSpan) para que ocultar col-notas no descuadre la fila */}
+                                  <td className="col-notas"></td>
+                                  <td></td>
+                                  <td></td>
                                 </tr>
                               ))}
                             </React.Fragment>
                           );
                         })
+                      )
+                    ) : vista === 'egresos' ? (
+                      filteredEgresos.length === 0 ? (
+                        <tr><td colSpan={columnas.length} className="no-data">No hay gastos registrados</td></tr>
+                      ) : (
+                        filteredEgresos.map(e => (
+                          <tr key={e.name} onClick={() => abrirDetalleEgreso(e.name)} style={{ cursor: 'pointer' }}>
+                            <td className="cell-code">{e.no_de_compra ? `#${e.no_de_compra}` : '—'}</td>
+                            <td className="col-fecha">{e.fecha}</td>
+                            <td className="comp-td-proveedor" title={e.proveedor || ''}>{e.proveedor || '—'}</td>
+                            <td>
+                              {e.concepto || '—'}
+                              {e.subcategoria && <div className="comp-subcat">{e.subcategoria}</div>}
+                            </td>
+                            <td className="col-facturado">
+                              <span className={(e.facturado_a && e.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                                {e.facturado_a || 'SIN FACTURA'}
+                              </span>
+                              {e.no_factura && <div className="comp-subcat">{e.no_factura}</div>}
+                            </td>
+                            <td className="cell-right cell-bold">${fmt(e.monto)}</td>
+                            <td style={{ textAlign: 'center' }} onClick={ev => ev.stopPropagation()}>
+                              <input type="checkbox" checked={!!e.pagado}
+                                disabled={soloLectura || !!e.pagado || pagoModal.loading}
+                                onChange={() => pagoModal.open({
+                                  name: e.name, value: 1, esGasto: true,
+                                  compra: { custom_no_de_compra: e.no_de_compra },
+                                })}
+                                title={e.pagado ? 'Pagado (bloqueado)' : 'Pendiente de pago'}
+                                style={{ width: 18, height: 18, cursor: e.pagado ? 'not-allowed' : 'pointer' }} />
+                            </td>
+                            <td className="comp-td-acciones" onClick={ev => ev.stopPropagation()}>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <button className="comp-btn-editar" onClick={() => handleImprimirEgreso(e)} title="Imprimir ticket del gasto">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                                </button>
+                                {!soloLectura && accionActiva === 'eliminar' && (
+                                  <button className="comp-btn-eliminar" onClick={() => deleteEgresoModal.open(e)} title="Eliminar gasto">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )
+                    ) : vista === 'total' ? (
+                      totalItems.length === 0 ? (
+                        <tr><td colSpan={columnas.length} className="no-data">No hay movimientos en el rango</td></tr>
+                      ) : (
+                        totalItems.map(it => (
+                          <tr key={(it.esGasto ? 'g-' : 'c-') + it.key}
+                            onClick={() => it.esGasto ? abrirDetalleEgreso(it.key) : abrirDetalle(it.key)}
+                            style={{ cursor: 'pointer' }}>
+                            <td className="cell-code">{it.no ? `#${it.no}` : '—'}</td>
+                            <td className="col-fecha">{it.fecha}</td>
+                            <td className="comp-td-proveedor" title={it.proveedor}>{it.proveedor}</td>
+                            <td>
+                              <span className={`comp-tipo-badge ${it.esGasto ? 'es-gasto' : 'es-compra'}`}>
+                                {it.esGasto ? 'GASTO' : 'COMPRA'}
+                              </span>
+                            </td>
+                            <td className="col-facturado">
+                              <span className={(it.facturado_a && it.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                                {it.facturado_a}
+                              </span>
+                            </td>
+                            <td className="cell-right cell-bold">${fmt(it.total)}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className={`status-badge ${it.pagado ? 'status-ok' : 'status-low'}`}>
+                                {it.pagado ? 'Pagada' : 'Por pagar'}
+                              </span>
+                            </td>
+                            <td className="comp-td-acciones" onClick={ev => ev.stopPropagation()}>
+                              <button className="comp-btn-editar" title="Imprimir ticket"
+                                onClick={() => it.esGasto ? handleImprimirEgreso(it.raw) : handleImprimir(it.raw.name, 'ticket')}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
                       )
                     ) : (() => {
                       const fila = (c) => (
@@ -322,9 +457,9 @@ function Compras() {
                             {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}
                             {!!c.custom_consolidado && <span className="comp-consol-badge" title="Consolidada">🔒</span>}
                           </td>
-                          <td>{c.posting_date}</td>
-                          <td className="comp-td-proveedor">{c.supplier_name || c.supplier}</td>
-                          <td>
+                          <td className="col-fecha">{c.posting_date}</td>
+                          <td className="comp-td-proveedor" title={c.supplier_name || c.supplier}>{c.supplier_name || c.supplier}</td>
+                          <td className="col-facturado">
                             {(soloLectura || c.custom_pagado)
                               ? <span className={(c.custom_facturado_a && c.custom_facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}
                                   title={c.custom_pagado ? 'Pagada — facturado bloqueado' : undefined}>{c.custom_facturado_a || 'SIN FACTURA'}</span>
@@ -336,9 +471,9 @@ function Compras() {
                                   <option value="LUIS TORRES">LUIS TORRES</option>
                                 </select>}
                           </td>
-                          <td className="cell-right">${fmt(c.total)}</td>
+                          <td className="cell-right col-subtotal">${fmt(c.total)}</td>
                           <td className="cell-right cell-bold">${fmt(c.grand_total)}</td>
-                          <td>
+                          <td className="col-notas">
                             <span className={`status-badge ${c.docstatus === 0 ? 'status-low' : c.docstatus === 2 ? 'status-cancelled' : 'status-ok'}`}>
                               {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
                             </span>
@@ -399,7 +534,7 @@ function Compras() {
                       );
 
                       if (notasItems.length === 0)
-                        return <tr><td colSpan={9} className="no-data">No hay compras registradas</td></tr>;
+                        return <tr><td colSpan={columnas.length} className="no-data">No hay compras registradas</td></tr>;
 
                       return notasItems.map(it => {
                         if (it.tipo !== 'grupo') return fila(it.compra);
@@ -410,9 +545,9 @@ function Compras() {
                               <td className="cell-code">
                                 {g.folio || '(sin folio)'} <span className="comp-consol-badge" title="Notas consolidadas">🔒 {g.notas.length}</span>
                               </td>
-                              <td>{g.posting_date}</td>
-                              <td className="comp-td-proveedor">{g.supplier_name || g.supplier}</td>
-                              <td>
+                              <td className="col-fecha">{g.posting_date}</td>
+                              <td className="comp-td-proveedor" title={g.supplier_name || g.supplier}>{g.supplier_name || g.supplier}</td>
+                              <td className="col-facturado">
                                 {g.notas.every(n => n.custom_pagado)
                                   ? <span className={(g.facturado_a && g.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
                                       {g.facturado_a || 'SIN FACTURA'}
@@ -427,9 +562,9 @@ function Compras() {
                                       <option value="LUIS TORRES">LUIS TORRES</option>
                                     </select>}
                               </td>
-                              <td className="cell-right">${fmt(g.total)}</td>
+                              <td className="cell-right col-subtotal">${fmt(g.total)}</td>
                               <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
-                              <td><span className="status-badge status-ok">Recibida</span></td>
+                              <td className="col-notas"><span className="status-badge status-ok">Recibida</span></td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
                                   {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
@@ -473,6 +608,7 @@ function Compras() {
         handleModalSuccess={handleModalSuccess}
         handleModalCancel={handleModalCancel}
         deleteModal={deleteModal}
+        deleteEgresoModal={deleteEgresoModal}
         cancelModal={cancelModal}
         pagoModal={pagoModal}
         consolidarModal={consolidarModal}

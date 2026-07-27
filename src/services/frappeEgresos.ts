@@ -22,6 +22,12 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message || [];
   }
 
+  /** Un egreso con su desglose de partidas (para el modal de detalle). */
+  async getEgreso(name: string): Promise<any> {
+    const json = await this._fetch(`${METHOD('get_egreso')}?name=${encodeURIComponent(name)}`);
+    return json?.message;
+  }
+
   async crearEgreso(data: unknown): Promise<any> {
     const json = await this._fetch(METHOD('crear_egreso'), {
       method: 'POST',

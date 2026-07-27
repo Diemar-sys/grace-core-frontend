@@ -162,6 +162,56 @@ export function listarNotas(filteredCompras: any[]): any[] {
   return items;
 }
 
+/**
+ * Vista Total: mercancía (Purchase Receipt) + servicios (Egreso) en un solo listado,
+ * ordenado por el consecutivo No. de compra que ambos comparten.
+ * Solo entran compras recibidas (docstatus 1): un borrador o una cancelada no es dinero gastado.
+ */
+export function mezclarComprasYGastos(compras: any[], egresos: any[]) {
+  return [
+    ...compras.filter(c => c.docstatus === 1).map(c => ({
+      key: c.name, esGasto: false, raw: c,
+      no: c.custom_no_de_compra, fecha: c.posting_date,
+      proveedor: c.supplier_name || c.supplier,
+      facturado_a: c.custom_facturado_a || 'SIN FACTURA',
+      total: parseFloat(c.grand_total || 0), pagado: !!c.custom_pagado,
+    })),
+    ...egresos.map(e => ({
+      key: e.name, esGasto: true, raw: e,
+      no: e.no_de_compra, fecha: e.fecha,
+      proveedor: e.proveedor || e.concepto || '—',
+      facturado_a: e.facturado_a || 'SIN FACTURA',
+      total: parseFloat(e.monto || 0), pagado: !!e.pagado,
+    })),
+  ].sort((a, b) => (b.no || 0) - (a.no || 0));
+}
+
+/**
+ * Renglones para el detalle de un gasto.
+ * Normalmente son sus partidas. Los gastos de GAS no usan partidas: guardan el
+ * desglose (litros, aditivo, descuento) como JSON en `descripcion` — ver
+ * printService.imprimirEgresoTicket, que lee ese mismo JSON. Sin esto, el modal
+ * escupía el JSON crudo en pantalla.
+ * @returns filas para la tabla y, si no hay desglose, el texto libre a mostrar.
+ */
+export function desgloseEgreso(egreso: any): { filas: any[]; texto: string | null } {
+  if (egreso?.partidas?.length) return { filas: egreso.partidas, texto: null };
+
+  const raw = (egreso?.descripcion || '').trim();
+  if (raw.startsWith('{')) {
+    try {
+      const d = JSON.parse(raw);
+      const filas = [];
+      if (Number(d.gas_litros))     filas.push({ concepto: 'GAS',     cantidad: d.gas_litros,     precio: d.gas_precio,     importe: d.gas_subtotal });
+      if (Number(d.aditivo_litros)) filas.push({ concepto: 'ADITIVO', cantidad: d.aditivo_litros, precio: d.aditivo_precio, importe: d.aditivo_subtotal });
+      if (Number(d.descuento))      filas.push({ concepto: 'DESCUENTO', cantidad: '', precio: '', importe: -Number(d.descuento) });
+      // JSON reconocido: nunca se muestra crudo, aunque no arme ningún renglón.
+      return { filas, texto: null };
+    } catch { /* no era JSON válido → cae a texto libre */ }
+  }
+  return { filas: [], texto: raw || null };
+}
+
 export const calcVariacion = (fila: any) => {
   const actual   = parseFloat(fila.rate || 0);
   const catalogo = parseFloat(fila.precio_catalogo || 0);

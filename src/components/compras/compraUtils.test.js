@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   subtotalFila, impuestoFila, totalFila, calcVariacion, parseImpuesto, totalPorFila,
-  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion,
+  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion, mezclarComprasYGastos, desgloseEgreso,
 } from './compraUtils';
 
 describe('compraUtils — subtotales e impuestos', () => {
@@ -332,5 +332,78 @@ describe('listarNotas — vista Notas', () => {
       expect(i.tipo).toBe('grupo');
       expect(i.grupo.notas).toHaveLength(1);
     });
+  });
+});
+
+describe('mezclarComprasYGastos — vista Total', () => {
+  const compras = [
+    { name: 'PR-1', docstatus: 1, custom_no_de_compra: 180, posting_date: '2026-07-23',
+      supplier_name: 'EL TRIGAL', grand_total: '1000', custom_pagado: 1 },
+    { name: 'PR-2', docstatus: 0, custom_no_de_compra: 186, posting_date: '2026-07-24',
+      supplier_name: 'BORRADOR', grand_total: '99' },
+    { name: 'PR-3', docstatus: 2, custom_no_de_compra: 187, posting_date: '2026-07-24',
+      supplier_name: 'CANCELADA', grand_total: '77' },
+  ];
+  const egresos = [
+    { name: 'EGR-1', no_de_compra: 185, fecha: '2026-07-24', proveedor: 'ROYAL PEST',
+      concepto: 'FUMIGACION', monto: '580', pagado: 0, facturado_a: 'LUIS TORRES' },
+  ];
+
+  it('intercala gastos y compras por No. de compra descendente', () => {
+    expect(mezclarComprasYGastos(compras, egresos).map(r => r.no)).toEqual([185, 180]);
+  });
+
+  it('deja fuera borradores y canceladas (no son dinero gastado)', () => {
+    const nos = mezclarComprasYGastos(compras, egresos).map(r => r.no);
+    expect(nos).not.toContain(186);
+    expect(nos).not.toContain(187);
+  });
+
+  it('normaliza ambos lados a la misma fila', () => {
+    const [gasto, compra] = mezclarComprasYGastos(compras, egresos);
+    expect(gasto).toMatchObject({ esGasto: true, proveedor: 'ROYAL PEST', total: 580, pagado: false });
+    expect(compra).toMatchObject({ esGasto: false, proveedor: 'EL TRIGAL', total: 1000, pagado: true });
+  });
+
+  it('sin proveedor cae al concepto (gasolina sin proveedor)', () => {
+    const sinProv = [{ name: 'EGR-2', no_de_compra: 174, monto: '500', concepto: 'TORNADO VAN 4' }];
+    expect(mezclarComprasYGastos([], sinProv)[0].proveedor).toBe('TORNADO VAN 4');
+  });
+});
+
+describe('desgloseEgreso — detalle de un gasto', () => {
+  // JSON real del gasto #156 (DIESGAS): GAS no usa partidas, guarda el desglose
+  // como JSON en descripcion. El modal lo escupía crudo en pantalla.
+  const GAS_156 = '{"gas_litros":"277.56","gas_precio":"9.103422","gas_subtotal":2526.74581032,'
+    + '"aditivo_litros":"1","aditivo_precio":"71.782121","aditivo_subtotal":71.782121,'
+    + '"subtotal":2598.5279313200003,"descuento":119.63,"base_gravable":2478.89793132,'
+    + '"iva":396.62366901120004,"total":2875.5216003312003}';
+
+  it('desdobla el JSON de gas en renglones (gas, aditivo, descuento)', () => {
+    const { filas, texto } = desgloseEgreso({ subcategoria: 'GAS', descripcion: GAS_156 });
+    expect(texto).toBeNull();
+    expect(filas.map(f => f.concepto)).toEqual(['GAS', 'ADITIVO', 'DESCUENTO']);
+    expect(filas[0]).toMatchObject({ cantidad: '277.56', precio: '9.103422', importe: 2526.74581032 });
+    expect(filas[2].importe).toBe(-119.63);
+  });
+
+  it('los importes cuadran contra el total del egreso', () => {
+    const { filas } = desgloseEgreso({ descripcion: GAS_156 });
+    const suma = filas.reduce((s, f) => s + Number(f.importe), 0);
+    expect(suma).toBeCloseTo(2478.89793132, 6); // base gravable, antes de IVA
+  });
+
+  it('nunca devuelve el JSON como texto, aunque no arme renglones', () => {
+    expect(desgloseEgreso({ descripcion: '{"gas_litros":"0"}' })).toEqual({ filas: [], texto: null });
+  });
+
+  it('las partidas mandan sobre la descripción', () => {
+    const partidas = [{ concepto: 'ESCALERA', cantidad: 1, precio: 2400, importe: 2400 }];
+    expect(desgloseEgreso({ partidas, descripcion: 'nota suelta' }).filas).toBe(partidas);
+  });
+
+  it('texto libre se muestra tal cual', () => {
+    expect(desgloseEgreso({ descripcion: 'PAGO EN EFECTIVO' }).texto).toBe('PAGO EN EFECTIVO');
+    expect(desgloseEgreso({}).texto).toBeNull();
   });
 });

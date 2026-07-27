@@ -267,6 +267,24 @@
 .comprasv2 .comp-facturado-badge::before { background: var(--tv-ok); }
 .comprasv2 .comp-sinfactura-badge { background: var(--tv-masa); color: var(--tv-ink-soft); border: 1px dashed var(--tv-hairline); }
 .comprasv2 .comp-sinfactura-badge::before { background: var(--tv-ink-soft); }
+/* Segunda línea gris bajo la celda: subcategoría del gasto y folio de factura */
+.comprasv2 .comp-subcat {
+  margin-top: 3px;
+  font-family: var(--tv-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--tv-ink-soft);
+}
+/* Vista Total: de un vistazo, si el renglón es mercancía o servicio */
+.comprasv2 .comp-tipo-badge {
+  display: inline-block;
+  padding: 4px 11px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap;
+  font-family: var(--tv-mono);
+}
+.comprasv2 .comp-tipo-badge.es-compra { background: var(--tv-marca-wash); color: var(--tv-marca); }
+.comprasv2 .comp-tipo-badge.es-gasto  { background: #e3f0ff; color: #1565c0; }
+
 .comprasv2 .comp-facturado-select {
   padding: 5px 28px 5px 11px; border-radius: 8px;
   border: 1px solid var(--tv-hairline); background: var(--tv-surface);
@@ -292,16 +310,19 @@
 
 /* ══ RESPONSIVE ══════════════════════════════════════════ */
 
-/* Tablet portrait 769–1024px: oculta SUBTOTAL (col 5) y NOTAS (col 7),
-   compacta filtros, fija altura tabla para que el fondo del card sea visible */
+/* Se oculta por CLASE, nunca por nth-child: el número de columna cambia según la
+   vista (Facturas/Notas/Egresos/Total) y el índice escondería la columna equivocada. */
+
+/* Tablet portrait 769–1024px: fuera Subtotal y Notas/Estado, compacta filtros,
+   fija altura tabla para que el fondo del card sea visible */
 @media (max-width: 1024px) {
-  .comprasv2 .sys-table thead tr th:nth-child(5),
-  .comprasv2 .sys-table tbody tr td:nth-child(5) { display: none; } /* Subtotal */
-  .comprasv2 .sys-table thead tr th:nth-child(7),
-  .comprasv2 .sys-table tbody tr td:nth-child(7) { display: none; } /* Notas */
+  .comprasv2 .col-subtotal,
+  .comprasv2 .col-notas { display: none; }
+  /* Egresos y Total no tienen esas dos columnas → se recorta Facturado a */
+  .comprasv2 .vista-simple .col-facturado { display: none; }
   .comprasv2 .filtro-group select,
   .comprasv2 .filtro-group input,
-  .comprasv2 .comp-date-input { font-size: 13px; padding: 7px 10px; }
+  .comprasv2 .comp-date-input { font-size: 13px; padding: 7px 10px; min-width: 150px; }
   .comprasv2 .comp-badge { font-size: 11px; padding: 3px 8px; }
   /* Sin flex: 1 en tablet → la tabla tiene max-height fijo, el card muestra su fondo */
   .comprasv2 .table-container { flex: none; max-height: 58vh; }
@@ -311,14 +332,20 @@
   .comprasv2 { padding: var(--space-4); }
   .comprasv2 .comp-stat-total { font-size: 18px; }
   .comprasv2 .comp-td-acciones { width: auto; }
-  .comprasv2 .sys-table thead tr th:nth-child(5),
-  .comprasv2 .sys-table tbody tr td:nth-child(5) { display: none; } /* Subtotal */
+  .comprasv2 .col-subtotal { display: none; }
+  /* Nombres largos ("COMERCIALIZADORA INDUSTRIAL DEL CENTRO") comían 3 renglones
+     de alto por fila. Una línea + puntos suspensivos; el nombre completo va en title. */
+  .comprasv2 .comp-td-proveedor {
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 @media (max-width: 480px) {
-  .comprasv2 .sys-table thead tr th:nth-child(2),
-  .comprasv2 .sys-table tbody tr td:nth-child(2),
-  .comprasv2 .sys-table thead tr th:nth-child(5),
-  .comprasv2 .sys-table tbody tr td:nth-child(5) { display: none; } /* Fecha + Subtotal */
+  .comprasv2 .col-fecha,
+  .comprasv2 .col-subtotal { display: none; }
+  .comprasv2 .comp-td-proveedor { max-width: 120px; }
   .comprasv2 .comp-btn-editar,
   .comprasv2 .comp-btn-eliminar,
   .comprasv2 .comp-btn-confirmar { padding: 6px 8px; font-size: 11px; }
