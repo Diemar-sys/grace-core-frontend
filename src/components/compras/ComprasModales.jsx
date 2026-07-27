@@ -1,3 +1,4 @@
+import React from 'react';
 import NuevaCompra from '../NuevaCompra';
 import ConfirmModal from '../modals/ConfirmModal';
 import { desgloseEgreso } from './compraUtils';
@@ -121,10 +122,14 @@ export default function ComprasModales({
       {/* Marcar pagada / pendiente */}
       {pagoModal.item && (
         <ConfirmModal
-          title={pagoModal.item.value ? 'Marcar como PAGADA' : 'Marcar como PENDIENTE'}
-          description={pagoModal.item.value
-            ? <>¿Confirmas que la compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> ya fue <strong>pagada</strong> al proveedor?</>
-            : <>La compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> volverá a quedar como <strong>pendiente de pago</strong>.</>}
+          title={pagoModal.item.names?.length
+            ? 'Marcar la factura como PAGADA'
+            : pagoModal.item.value ? 'Marcar como PAGADA' : 'Marcar como PENDIENTE'}
+          description={pagoModal.item.names?.length
+            ? <>Se marcarán como <strong>pagadas las {pagoModal.item.names.length} nota(s)</strong> pendientes de la factura <strong>{pagoModal.item.folio || '(sin folio)'}</strong>.</>
+            : pagoModal.item.value
+              ? <>¿Confirmas que la compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> ya fue <strong>pagada</strong> al proveedor?</>
+              : <>La compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> volverá a quedar como <strong>pendiente de pago</strong>.</>}
           icon={ICON_WARNING}
           confirmLabel={pagoModal.item.value ? 'Sí, ya se pagó' : 'Sí, dejar pendiente'}
           loadingLabel="Guardando..."
@@ -192,6 +197,56 @@ export default function ComprasModales({
           <div className="comp-detalle-modal" onClick={e => e.stopPropagation()}>
             {detalleModal.loading ? (
               <p style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</p>
+            ) : detalleModal.grupo ? (
+              /* Factura consolidada: todo lo que trae, de corrido, con un separador
+                 por nota — abrirlas una por una para saber qué se compró era el castre. */
+              <>
+                <div className="comp-detalle-header">
+                  <div>
+                    <span className="comp-detalle-num">{detalleModal.grupo.folio || '(sin folio)'}</span>
+                    <span className="comp-detalle-proveedor">{detalleModal.grupo.proveedor}</span>
+                    <span className="comp-detalle-fecha">{detalleModal.grupo.fecha}</span>
+                  </div>
+                  <button className="comp-detalle-close" onClick={() => setDetalleModal(null)}>✕</button>
+                </div>
+                <div className="comp-detalle-scroll">
+                  <table className="comp-detalle-tabla sys-table">
+                    <thead>
+                      <tr><th>PRODUCTO</th><th>CANTIDAD</th><th>MEDIDA</th><th className="cell-right">PRECIO UNIT.</th><th className="cell-right">SUBTOTAL</th></tr>
+                    </thead>
+                    <tbody>
+                      {detalleModal.grupo.notas.map(nota => (
+                        <React.Fragment key={nota.name}>
+                          <tr className="comp-detalle-sep">
+                            <td colSpan={3}>
+                              NOTA {nota.custom_no_de_compra ? `#${nota.custom_no_de_compra}` : nota.name}
+                              {nota.custom_nota_remision ? ` · ${nota.custom_nota_remision}` : ''}
+                              {` · ${nota.posting_date}`}
+                            </td>
+                            <td colSpan={2} className="cell-right">${fmt(nota.grand_total)}</td>
+                          </tr>
+                          {nota.items?.map(it => (
+                            <tr key={it.name}>
+                              <td><div>{it.item_name}</div><small style={{ color: '#888', fontFamily: 'monospace' }}>{it.item_code}</small></td>
+                              <td>{it.qty} {it.uom}</td>
+                              <td style={{ color: '#aaa' }}>{it.stock_qty} {it.stock_uom}</td>
+                              <td className="cell-right">${fmt(it.rate)}</td>
+                              <td className="cell-right cell-bold">${fmt(it.amount)}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="comp-detalle-footer">
+                  <span>
+                    {detalleModal.grupo.notas.length} nota(s) ·{' '}
+                    {detalleModal.grupo.notas.reduce((s, n) => s + (n.items?.length || 0), 0)} producto(s)
+                  </span>
+                  <span>SUBTOTAL <strong>${fmt(detalleModal.grupo.total)}</strong>&nbsp;&nbsp;TOTAL <strong className="comp-detalle-total">${fmt(detalleModal.grupo.grand_total)}</strong></span>
+                </div>
+              </>
             ) : detalleModal.egreso ? (
               /* Detalle de un gasto: mismas cajas que la compra, pero el desglose
                  son partidas (concepto/cantidad/precio), no artículos de inventario.

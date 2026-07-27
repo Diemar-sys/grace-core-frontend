@@ -35,6 +35,22 @@ export default function useCompras() {
     } catch { setDetalleModal(null); }
   }, []);
 
+  /** Detalle de una factura consolidada: todas sus notas en un solo scroll, separadas. */
+  const abrirDetalleGrupo = useCallback(async (g: any) => {
+    setDetalleModal({ loading: true });
+    try {
+      const docs = await Promise.all(g.notas.map((n: any) => comprasService.getCompraBorrador(n.name)));
+      setDetalleModal({
+        grupo: {
+          folio: g.folio, fecha: g.posting_date,
+          proveedor: g.supplier_name || g.supplier,
+          total: g.total, grand_total: g.grand_total,
+          notas: docs,
+        },
+      });
+    } catch { setDetalleModal(null); }
+  }, []);
+
   const abrirDetalleEgreso = useCallback(async (name: string) => {
     setDetalleModal({ loading: true });
     try {
@@ -107,10 +123,14 @@ export default function useCompras() {
     (compra: any) => comprasService.cancelarCompra(compra.name),
     { onSuccess: () => cargar() }
   );
+  // Un pago cubre la factura completa: si viene `names` (grupo consolidado) se marcan
+  // todas sus notas de un tiro, en vez de ir palomeando una por una.
   const pagoModal = useConfirmModal(
-    ({ name, value, esGasto }: any) => esGasto
-      ? egresosService.marcarPagado(name, value)
-      : comprasService.updatePagado(name, value),
+    ({ name, names, value, esGasto }: any) => names?.length
+      ? Promise.all(names.map((n: string) => comprasService.updatePagado(n, value)))
+      : esGasto
+        ? egresosService.marcarPagado(name, value)
+        : comprasService.updatePagado(name, value),
     { onSuccess: () => cargar() }
   );
   const consolidarModal = useConfirmModal(
@@ -268,7 +288,7 @@ export default function useCompras() {
     compras, loading,
     modal, setModal,
     borradorEditar,
-    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso,
+    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso, abrirDetalleGrupo,
     desde, setDesde,
     hasta, setHasta,
     searchTerm, setSearchTerm,

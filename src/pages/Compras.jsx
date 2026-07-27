@@ -59,7 +59,7 @@ function Compras() {
   const {
     soloLectura, compras, loading,
     modal, setModal, borradorEditar,
-    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso,
+    detalleModal, setDetalleModal, abrirDetalle, abrirDetalleEgreso, abrirDetalleGrupo,
     desde, setDesde, hasta, setHasta,
     searchTerm, setSearchTerm, facturadoSaving,
     estadoFiltro, setEstadoFiltro,
@@ -243,13 +243,24 @@ function Compras() {
                         facturasAgrupadas.map(g => {
                           const abierto = expandido.has(g.key);
                           const multi   = g.esConsolidacion && g.notas.length > 1;
+                          // Notas que un pago en cascada sí puede tocar: confirmadas y sin pagar.
+                          const pendientes = g.notas.filter(n => !n.custom_pagado && n.docstatus === 1);
                           return (
                             <React.Fragment key={g.key}>
                               <tr className={multi ? 'comp-row-grupo' : undefined}
-                                onClick={g.esConsolidacion ? () => toggleExpand(g.key) : () => abrirDetalle(g.notas[0].name)}
+                                onClick={g.esConsolidacion ? () => abrirDetalleGrupo(g) : () => abrirDetalle(g.notas[0].name)}
                                 style={{ cursor: 'pointer' }}>
                                 <td className="cell-code">
                                   {g.folio || '(sin folio)'}
+                                  {g.esConsolidacion && (
+                                    /* El click en la fila abre el detalle completo; este botón
+                                       sigue sirviendo para ver los renglones sin salir de la lista. */
+                                    <button className="comp-expand-btn"
+                                      onClick={ev => { ev.stopPropagation(); toggleExpand(g.key); }}
+                                      title={abierto ? 'Contraer notas' : 'Ver notas en la lista'}>
+                                      {abierto ? '▾' : '▸'}
+                                    </button>
+                                  )}
                                 </td>
                                 <td className="col-fecha">{g.posting_date}</td>
                                 <td className="comp-td-proveedor" title={g.supplier_name || g.supplier}>{g.supplier_name || g.supplier}</td>
@@ -281,6 +292,19 @@ function Compras() {
                                       style={{ cursor: 'pointer', userSelect: 'none' }}
                                       title="Marcar como pagada"
                                       onClick={e => { e.stopPropagation(); pagoModal.open({ name: g.notas[0].name, value: 1, compra: g.notas[0] }); }}
+                                    >
+                                      {`${g.pagadas}/${g.activas}`}
+                                    </span>
+                                  ) : (g.esConsolidacion && pendientes.length) ? (
+                                    /* Una factura se paga completa: marca de un golpe sus notas pendientes. */
+                                    <span
+                                      className="status-badge status-low"
+                                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                                      title={`Marcar las ${pendientes.length} nota(s) pendientes como pagadas`}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        pagoModal.open({ names: pendientes.map(n => n.name), value: 1, folio: g.folio });
+                                      }}
                                     >
                                       {`${g.pagadas}/${g.activas}`}
                                     </span>
@@ -539,11 +563,17 @@ function Compras() {
                       return notasItems.map(it => {
                         if (it.tipo !== 'grupo') return fila(it.compra);
                         const g = it.grupo, ek = 'ng-' + g.key, ab = expandido.has(ek);
+                        const pendientes = g.notas.filter(n => !n.custom_pagado && n.docstatus === 1);
                         return (
                           <React.Fragment key={ek}>
-                            <tr className="comp-row-grupo" onClick={() => toggleExpand(ek)} style={{ cursor: 'pointer' }}>
+                            <tr className="comp-row-grupo" onClick={() => abrirDetalleGrupo(g)} style={{ cursor: 'pointer' }}>
                               <td className="cell-code">
                                 {g.folio || '(sin folio)'} <span className="comp-consol-badge" title="Notas consolidadas">🔒 {g.notas.length}</span>
+                                <button className="comp-expand-btn"
+                                  onClick={ev => { ev.stopPropagation(); toggleExpand(ek); }}
+                                  title={ab ? 'Contraer notas' : 'Ver notas en la lista'}>
+                                  {ab ? '▾' : '▸'}
+                                </button>
                               </td>
                               <td className="col-fecha">{g.posting_date}</td>
                               <td className="comp-td-proveedor" title={g.supplier_name || g.supplier}>{g.supplier_name || g.supplier}</td>
@@ -565,10 +595,19 @@ function Compras() {
                               <td className="cell-right col-subtotal">${fmt(g.total)}</td>
                               <td className="cell-right cell-bold">${fmt(g.grand_total)}</td>
                               <td className="col-notas"><span className="status-badge status-ok">Recibida</span></td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className={`status-badge ${g.pagadas === g.notas.length ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
-                                  {g.pagadas === g.notas.length ? 'Pagada' : `${g.pagadas}/${g.notas.length}`}
-                                </span>
+                              <td style={{ textAlign: 'center' }} onClick={ev => ev.stopPropagation()}>
+                                {pendientes.length ? (
+                                  <span
+                                    className={`status-badge ${g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}
+                                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                                    title={`Marcar las ${pendientes.length} nota(s) pendientes como pagadas`}
+                                    onClick={() => pagoModal.open({ names: pendientes.map(n => n.name), value: 1, folio: g.folio })}
+                                  >
+                                    {`${g.pagadas}/${g.notas.length}`}
+                                  </span>
+                                ) : (
+                                  <span className="status-badge status-ok">Pagada</span>
+                                )}
                               </td>
                               <td className="comp-td-acciones">
                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
