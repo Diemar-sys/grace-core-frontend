@@ -116,10 +116,13 @@ class FrappeStockService extends FrappeBase {
    * @param search - Consulta de usuario.
    * @returns Coincidencias activas.
    */
-  async buscarItemsTexto(search = ""): Promise<any[]> {
+  /** `tipo` = custom_tipo_item ("MATERIA PRIMA" | "PRODUCTO TERMINADO" | ...); vacío = todos. */
+  async buscarItemsTexto(search = "", tipo = ""): Promise<any[]> {
+    const filtros: any[] = [["disabled", "=", 0]];
+    if (tipo) filtros.push(["custom_tipo_item", "=", tipo]);
     const params = new URLSearchParams({
       fields: JSON.stringify(["item_code", "item_name", "stock_uom", "item_group", "custom_cantidad_por_presentación", "custom_presentación", "custom_precio_por_kg", "custom_precio_final", "custom_precio_de_compra", "valuation_rate"]),
-      filters: JSON.stringify([["disabled", "=", 0]]),
+      filters: JSON.stringify(filtros),
       limit_page_length: '20',
     });
     if (search) {

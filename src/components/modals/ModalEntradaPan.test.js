@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { itemsPayload, calcularValor } from './ModalEntradaPan';
+import { itemsPayload, calcularValor, resolverItemCode } from './ModalEntradaPan';
 
 /**
  * Reglas que se están probando, en español:
@@ -14,6 +14,24 @@ const CATALOGO = {
   MP_MANTECADA_GDE: { item_name: 'MANTECADA', custom_costo_estimado: 6.5 },
   MP_SIN_COSTO:     { item_name: 'GALLETA',   custom_costo_estimado: null },
 };
+
+const PRODUCTOS = Object.entries(CATALOGO).map(([item_code, p]) => ({ item_code, ...p }));
+
+describe('resolverItemCode — el usuario teclea nombre, el backend recibe código', () => {
+  it('resuelve por nombre, sin importar mayúsculas', () => {
+    expect(resolverItemCode('BOLILLO', PRODUCTOS)).toBe('MP_BOLILLO');
+    expect(resolverItemCode(' bolillo ', PRODUCTOS)).toBe('MP_BOLILLO');
+  });
+
+  it('sigue aceptando el item_code pegado', () => {
+    expect(resolverItemCode('MP_MANTECADA_GDE', PRODUCTOS)).toBe('MP_MANTECADA_GDE');
+  });
+
+  it('texto a medias o vacío no resuelve nada', () => {
+    expect(resolverItemCode('BOLI', PRODUCTOS)).toBe('');
+    expect(resolverItemCode('', PRODUCTOS)).toBe('');
+  });
+});
 
 describe('itemsPayload — qué renglones llegan al backend', () => {
   it('descarta renglones sin producto o sin cantidad', () => {

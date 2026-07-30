@@ -19,6 +19,19 @@ const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', qty: '', costo: '
 const fmtMoney = (n) =>
   Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
+/**
+ * El panadero teclea el NOMBRE del pan; el backend quiere el item_code.
+ * ponytail: nombre primero, código después — así un código pegado o escaneado
+ * sigue sirviendo. Nombre repetido en el catálogo = gana el primero.
+ */
+export function resolverItemCode(texto, productos) {
+  const t = (texto || '').trim().toUpperCase();
+  if (!t) return '';
+  const prod = productos.find(p => p.item_name?.toUpperCase() === t)
+    || productos.find(p => p.item_code?.toUpperCase() === t);
+  return prod?.item_code || '';
+}
+
 /** Renglones listos para el backend. Exportado: es lo que se prueba. */
 export function itemsPayload(filas) {
   return filas
@@ -64,10 +77,10 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
 
   // Al elegir producto se precarga su costo de catálogo (editable).
-  const elegirProducto = (id, itemCode) => {
-    const prod = catalogo[itemCode];
+  const elegirProducto = (id, texto) => {
+    const prod = catalogo[resolverItemCode(texto, productos)];
     updateFila(id, {
-      item_code: prod ? itemCode : '',
+      item_code: prod?.item_code || '',
       costo: prod?.custom_costo_estimado ? String(prod.custom_costo_estimado) : '',
     });
   };
@@ -140,13 +153,13 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
                     <input
                       className="nc-input"
                       list="pan-terminado-lista"
-                      defaultValue={fila.item_code}
+                      defaultValue={catalogo[fila.item_code]?.item_name || ''}
                       placeholder="Escribe el pan..."
                       onChange={e => elegirProducto(fila._id, e.target.value)}
                     />
                     {fila.item_code && (
                       <small className="nc-th-hint">
-                        {catalogo[fila.item_code]?.item_name} · {catalogo[fila.item_code]?.stock_uom}
+                        {fila.item_code} · {catalogo[fila.item_code]?.stock_uom}
                       </small>
                     )}
                   </td>
@@ -174,7 +187,7 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
 
         <datalist id="pan-terminado-lista">
           {productos.map(p => (
-            <option key={p.item_code} value={p.item_code}>{p.item_name}</option>
+            <option key={p.item_code} value={p.item_name}>{p.item_code}</option>
           ))}
         </datalist>
 

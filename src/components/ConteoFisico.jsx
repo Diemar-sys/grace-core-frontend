@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
+import { BODEGA_CENTRAL } from '../config/constants';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import '../styles/NuevaCompra.css';
@@ -43,7 +44,10 @@ function ConteoFisico({ onSuccess, onCancel }) {
   const [passError, setPassError]       = useState(null);
 
   useEffect(() => {
-    inventory.getProductosRegistrados({})
+    // El ajuste escribe en BODEGA_CENTRAL, así que el stock de referencia tiene
+    // que ser el de ESE almacén. Sumar todos mostraba existencias de las tiendas.
+    // ponytail: almacén fijo. Cuando cada admin ajuste el suyo, sale de la sesión.
+    inventory.getProductosRegistrados({ warehouse: BODEGA_CENTRAL })
       .then(data => setItems(data.filter(i => !i.disabled)))
       .catch(e => setError(parseErrorFrappe(e)))
       .finally(() => setLoading(false));
@@ -60,6 +64,9 @@ function ConteoFisico({ onSuccess, onCancel }) {
     () => Object.values(conteo).filter(v => v !== '').length,
     [conteo]
   );
+  // Un renglón vacío NO se ajusta y no avisa (lineasAjuste lo salta): así se
+  // quedaron 115 productos sin contar en el cierre de junio. Contarlos a la vista.
+  const faltantes = items.length - pendientes;
 
   // Paso 1: valida que haya diferencias reales antes de pedir la contraseña.
   const revisar = () => {
@@ -100,7 +107,16 @@ function ConteoFisico({ onSuccess, onCancel }) {
         <button className="nc-btn-close" onClick={onCancel}>×</button>
       </div>
 
-      <div className="nc-section-title">Productos a contar</div>
+      <div className="nc-section-title">
+        Productos a contar
+        {!loading && (
+          <span className={faltantes > 0 ? 'cf-contador cf-contador--falta' : 'cf-contador'}>
+            {faltantes > 0
+              ? `faltan ${faltantes} de ${items.length}`
+              : `los ${items.length} capturados`}
+          </span>
+        )}
+      </div>
 
       <input
         type="text"
@@ -177,6 +193,13 @@ function ConteoFisico({ onSuccess, onCancel }) {
                           background: rawVal !== '' ? 'var(--tv-marca-wash)' : 'var(--tv-surface)',
                         }}
                       />
+                      {/* Se captura en presentación pero el stock se guarda en base:
+                          sin esto, teclear 0.04 BULTO y ver 1 Kg parece un error de la app. */}
+                      {factor !== 1 && fisicoQty > 0 && (
+                        <div className="cf-conversion">
+                          = {(fisicoQty * factor).toLocaleString('es-MX', { maximumFractionDigits: 3 })} {it.stock_uom}
+                        </div>
+                      )}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: diffColor, fontVariantNumeric: 'tabular-nums' }}>
                       {diff === null ? '—' : (diff >= 0 ? '+' : '') + diff.toFixed(2)}
@@ -196,6 +219,14 @@ function ConteoFisico({ onSuccess, onCancel }) {
         </div>
       )}
 
+      {!loading && faltantes > 0 && (
+        <div className="cf-faltantes">
+          <strong>Faltan {faltantes} de {items.length} productos por capturar.</strong>{' '}
+          Los que dejes vacíos NO se ajustan: se quedan con el stock del sistema.
+          Si un producto no tiene existencia, escribe <strong>0</strong> — no lo dejes en blanco.
+        </div>
+      )}
+
       <div className="nc-actions">
         <button className="nc-btn-secondary" onClick={onCancel} disabled={sending}>
           Cancelar
@@ -206,7 +237,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
           disabled={sending || pendientes === 0}
           style={pendientes > 0 ? { background: 'var(--tv-marca-deep)', color: '#fff', borderColor: 'var(--tv-marca-deep)' } : {}}
         >
-          {sending ? 'Aplicando…' : `Aplicar conteo (${pendientes} items)`}
+          {sending ? 'Aplicando…' : `Aplicar conteo (${pendientes} de ${items.length})`}
         </button>
       </div>
 
@@ -214,6 +245,12 @@ function ConteoFisico({ onSuccess, onCancel }) {
         <div className="edit-overlay" onClick={e => e.target === e.currentTarget && !sending && setPidiendoPass(false)}>
           <div className="del-modal">
             <h3>Confirmar ajuste de inventario</h3>
+            {faltantes > 0 && (
+              <div className="cf-faltantes">
+                <strong>Ojo: {faltantes} de {items.length} productos quedaron sin capturar.</strong>{' '}
+                Esos NO se ajustan, conservan el stock del sistema. Si no hay existencia, cancela y escribe <strong>0</strong>.
+              </div>
+            )}
             <p>Ajustar el stock queda registrado a tu nombre. Escribe tu contraseña para continuar.</p>
             <input
               type="password"

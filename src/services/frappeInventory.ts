@@ -199,9 +199,10 @@ class FrappeInventoryService extends FrappeBase {
    * @returns {Promise<Array<Object>>} Lista cruda de items registrados.
    */
   async getProductosRegistrados(filtros: InventoryFiltros = {}, signal?: AbortSignal) {
-    const { itemGroup, search, departamento, tipoItem } = filtros;
+    const { itemGroup, search, departamento, tipoItem, warehouse } = filtros;
     let items = await this.#callMethod("get_inventory_view", {
       vista: "registrado", item_group: itemGroup, departamento, search, tipo_item: tipoItem,
+      warehouse,  // sin almacén = suma todos (catálogo); con almacén = solo ese (conteo físico)
     }, signal);
 
     return items.map((item) => {

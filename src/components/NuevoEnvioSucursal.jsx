@@ -21,6 +21,14 @@ const FILA_VACIA = () => ({
   presentacion: '',
 });
 
+// Filtro del buscador. "Todos" es el default: a las sucursales también se les
+// mandan insumos generales (bolsas, papel, limpieza), que no son ni MP ni pan.
+const TIPOS_ITEM = [
+  { value: '',                  label: 'Todos' },
+  { value: 'MATERIA PRIMA',     label: 'Materia Prima' },
+  { value: 'PRODUCTO TERMINADO', label: 'Pan' },
+];
+
 const fmtQty = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -51,6 +59,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   }, [sucursales, warehouseDestino]);
   const [fecha] = useState(new Date().toISOString().split('T')[0]);
   const [filas, setFilas] = useState([FILA_VACIA()]);
+  const [tipoItem, setTipoItem] = useState('');
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -158,6 +167,13 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         {success && <div className="nc-alert nc-alert-success">{success}</div>}
 
         <div className="nc-top-row">
+          <div className="nc-field nc-field-tipo">
+            <label>Tipo de producto</label>
+            <select className="nc-input" value={tipoItem}
+              onChange={e => setTipoItem(e.target.value)}>
+              {TIPOS_ITEM.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
           <div className="nc-field nc-field-proveedor">
             <label>Sale de *</label>
             <select className="nc-input" value={warehouseOrigen}
@@ -213,6 +229,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
                   fila={fila}
 
                   warehouseOrigen={warehouseOrigen}
+                  tipoItem={tipoItem}
                   onChange={(campos) => updateFila(fila._id, campos)}
                   onEliminar={() => eliminarFila(fila._id)}
                   onFocusNext={() => focusRow(idx + 1)}
@@ -242,7 +259,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 }
 
 // ── Fila de envío (sin precios) ─────────────────────────────────────────────
-function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna, warehouseOrigen = BODEGA_CENTRAL }) {
+function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna, warehouseOrigen = BODEGA_CENTRAL, tipoItem = '' }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -264,7 +281,7 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna,
     if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      const res = await stockService.buscarItemsTexto(texto);
+      const res = await stockService.buscarItemsTexto(texto, tipoItem);
       setSugerencias(res); setAbierto(true);
     }, 500);
   };

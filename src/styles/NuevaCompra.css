@@ -194,6 +194,46 @@
 }
 
 /* ── Tabla ─────────────────────────────────────────── */
+/* Conteo físico: lo tecleado va en presentación, el stock se guarda en base. */
+.cf-conversion {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-marca);
+  white-space: nowrap;
+}
+
+/* Conteo físico: contador siempre visible en el encabezado. */
+.cf-contador {
+  margin-left: 10px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--tv-ok-bg);
+  color: var(--tv-ok);
+}
+.cf-contador--falta {
+  background: var(--tv-warn-bg);
+  color: var(--tv-warn);
+}
+
+/* Conteo físico: los renglones vacíos no se ajustan, hay que verlos venir. */
+.cf-faltantes {
+  background: var(--tv-warn-bg);
+  color: var(--tv-warn);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Filtro del buscador: fijo, no compite de ancho con Sale de / Sucursal. */
+.nc-field.nc-field-tipo { flex: 0 0 200px; }
+
 .nc-section-title {
   font-size: 14px;
   font-weight: 600;
