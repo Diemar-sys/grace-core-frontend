@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { cargarBorrador, guardarBorrador, borrarBorrador } from '../db/conteoBorrador';
 import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
@@ -39,6 +40,8 @@ function ConteoFisico({ onSuccess, onCancel }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState(null);
+  const [restaurado, setRestaurado] = useState(0);
+  const hidratado = useRef(false);
   const [pidiendoPass, setPidiendoPass] = useState(false);
   const [password, setPassword]         = useState('');
   const [passError, setPassError]       = useState(null);
@@ -51,7 +54,23 @@ function ConteoFisico({ onSuccess, onCancel }) {
       .then(data => setItems(data.filter(i => !i.disabled)))
       .catch(e => setError(parseErrorFrappe(e)))
       .finally(() => setLoading(false));
+
+    // Lo capturado antes de cerrar el modal (o de que muriera la tablet).
+    cargarBorrador(BODEGA_CENTRAL)
+      .then(prev => { if (prev) { setConteo(prev); setRestaurado(Object.keys(prev).length); } })
+      .catch(e => console.error('borrador conteo:', e))
+      .finally(() => { hidratado.current = true; });
   }, []);
+
+  // Persistir mientras se teclea. El guard evita que el {} inicial pise el
+  // borrador antes de que termine de cargarse.
+  useEffect(() => {
+    if (!hidratado.current) return;
+    const t = setTimeout(() => {
+      guardarBorrador(BODEGA_CENTRAL, conteo).catch(e => console.error('borrador conteo:', e));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [conteo]);
 
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -89,6 +108,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
     setPassError(null);
     try {
       await stockService.crearConteoFisico({ items: lineas, password });
+      await borrarBorrador(BODEGA_CENTRAL).catch(() => {});  // ya cumplió
       onSuccess?.();
     } catch (e) {
       setPassError(parseErrorFrappe(e)); // inline en el modal → permite reintentar
@@ -175,8 +195,10 @@ function ConteoFisico({ onSuccess, onCancel }) {
                         </div>
                       )}
                     </td>
+                    {/* La unidad va pegada al número: "9.00" a solas no dice si son
+                        bultos, kilos o piezas, y de eso depende lo que se teclea. */}
                     <td style={{ textAlign: 'right', color: 'var(--tv-ink)', fontVariantNumeric: 'tabular-nums' }}>
-                      {erpQty.toFixed(2)}
+                      {erpQty.toFixed(2)} <span className="cf-unidad">{unit}</span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <input
@@ -202,7 +224,12 @@ function ConteoFisico({ onSuccess, onCancel }) {
                       )}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: diffColor, fontVariantNumeric: 'tabular-nums' }}>
-                      {diff === null ? '—' : (diff >= 0 ? '+' : '') + diff.toFixed(2)}
+                      {diff === null ? '—' : (
+                        <>
+                          {(diff >= 0 ? '+' : '') + diff.toFixed(2)}{' '}
+                          <span className="cf-unidad">{unit}</span>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );
@@ -216,6 +243,13 @@ function ConteoFisico({ onSuccess, onCancel }) {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {restaurado > 0 && (
+        <div className="cf-restaurado">
+          Se recuperó tu conteo anterior: <strong>{restaurado} productos</strong> ya capturados.
+          Se guarda solo en esta computadora, mientras no apliques el ajuste.
         </div>
       )}
 

@@ -23,10 +23,21 @@ export interface OutboxVenta {
   [k: string]: unknown;
 }
 
+// Borrador del conteo físico: un renglón por almacén y día. Contar 244
+// productos es una jornada con interrupciones, no un formulario de un jalón;
+// sin esto, cerrar el modal tira todo lo capturado.
+export interface ConteoBorrador {
+  key: string;                          // `${fecha}|${warehouse}`
+  warehouse: string;
+  valores: Record<string, string>;      // item_code -> lo tecleado (en presentación)
+  actualizado: string;
+}
+
 class GraceDB extends Dexie {
   catalogo!: Table<CatalogoItem, string>;
   stock!: Table<StockRow, string>;
   outbox!: Table<OutboxVenta, string>;
+  conteo!: Table<ConteoBorrador, string>;
 
   constructor() {
     super('grace_pos');
@@ -34,6 +45,9 @@ class GraceDB extends Dexie {
       catalogo: 'item_code, custom_departamento',
       stock: 'item_code',
       outbox: 'uuid, estado',
+    });
+    this.version(2).stores({
+      conteo: 'key',
     });
   }
 }

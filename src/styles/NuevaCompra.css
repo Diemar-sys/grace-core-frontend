@@ -194,6 +194,25 @@
 }
 
 /* ── Tabla ─────────────────────────────────────────── */
+/* Conteo físico: unidad pegada a la cifra, para que "9.00" no sea ambiguo. */
+.cf-unidad {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-ink-soft);
+  text-transform: uppercase;
+}
+
+/* Conteo físico: aviso de borrador recuperado. */
+.cf-restaurado {
+  background: var(--tv-ok-bg);
+  color: var(--tv-ok);
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* Conteo físico: lo tecleado va en presentación, el stock se guarda en base. */
 .cf-conversion {
   margin-top: 3px;
