@@ -96,7 +96,9 @@ const CATEGORIAS = [
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago camioneta'] },
   { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo'] },
   { key: 'Nómina',       label: 'Nómina',      sub: 'Empleados',        icon: <IconNomina />,     color: '#059669', bg: '#d1fae5', subcategorias: ['Empleados'] },
-  { key: 'Impuesto',     label: 'Impuestos',   sub: 'IVA · IEPS · ISR', icon: <IconImpuesto />,   color: '#1565c0', bg: '#e3f0ff', subcategorias: ['IVA','IEPS','ISR'] },
+  // IMSS no es un impuesto, pero se paga al gobierno y sale de la misma bolsa:
+  // va aquí porque es donde Diemar lo busca, no donde lo pondría un contador.
+  { key: 'Impuesto',     label: 'Impuestos',   sub: 'IVA · IEPS · ISR · IMSS', icon: <IconImpuesto />,   color: '#1565c0', bg: '#e3f0ff', subcategorias: ['IVA','IEPS','ISR','IMSS'] },
   { key: 'Renta',        label: 'Renta',       sub: 'Locales',          icon: <IconRenta />,      color: '#be185d', bg: '#fce7f3', subcategorias: [] },
 ];
 

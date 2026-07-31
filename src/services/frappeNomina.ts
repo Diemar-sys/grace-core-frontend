@@ -61,6 +61,7 @@ export interface RenglonInput {
   gratificacion?: number | string;
   vacaciones?: number | string;
   isr_mes?: number | string;
+  isr_art174?: number | string;
   imss?: number | string;
   prestamo_infonavit_cf?: number | string;
   ajuste_neto?: number | string;
