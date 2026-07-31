@@ -36,6 +36,7 @@ export interface Corrida {
   total_declarado?: number;
   total_retenciones?: number;
   total_efectivo?: number;
+  efectivo?: number;
   total_neto: number;
   total_costo: number;
   egreso_generado?: string;
@@ -47,7 +48,6 @@ export interface ReporteRow {
   corridas: number;
   declarado: number;
   retenciones: number;
-  efectivo: number;
   neto: number;
   costo_patron: number;
 }
@@ -67,7 +67,6 @@ export interface RenglonInput {
   ajuste_neto?: number | string;
   isr_antes_subsidio?: number | string;
   infonavit_cf_corresp?: number | string;
-  efectivo?: number | string;
 }
 
 export interface NuevoEmpleado {
@@ -82,6 +81,7 @@ export interface NuevoEmpleado {
 export interface NuevaCorrida {
   fecha_pago: string;
   nomina_de: string;
+  efectivo?: number;
   renglones: RenglonInput[];
   semana_del?: string | null;
   semana_al?: string | null;
@@ -122,7 +122,7 @@ class FrappeNominaService extends FrappeBase {
   }
 
   // Detalle de una corrida (cabecera + renglones) — para seguir editando un borrador.
-  async getCorrida(name: string): Promise<{ nomina_de?: string; fecha_pago?: string; semana_del?: string; semana_al?: string; renglones: RenglonInput[] }> {
+  async getCorrida(name: string): Promise<{ nomina_de?: string; fecha_pago?: string; semana_del?: string; semana_al?: string; efectivo?: number; renglones: RenglonInput[] }> {
     const json = await this._fetch(`${METHOD('get_corrida')}?name=${encodeURIComponent(name)}`);
     return json?.message || { renglones: [] };
   }

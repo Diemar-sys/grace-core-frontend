@@ -278,3 +278,11 @@
   .nomina-tabla { display: block; overflow-x: auto; }
   .nom-grupo { flex-basis: 100%; }
 }
+
+/* Efectivo de la corrida completa: va en el encabezado, no por empleado.
+   Resaltado porque es dinero por fuera y no debe pasar desapercibido. */
+.nom-efectivo input {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  font-weight: 600;
+}

@@ -31,12 +31,11 @@ interface Fila {
   isr_mes: string; isr_art174: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
   // Informativos (no suman)
   isr_antes_subsidio: string; infonavit_cf_corresp: string;
-  efectivo: string;
 }
 const filaVacia = (): Fila => ({
   empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '', vacaciones: '',
   isr_mes: '', isr_art174: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
-  isr_antes_subsidio: '', infonavit_cf_corresp: '', efectivo: '',
+  isr_antes_subsidio: '', infonavit_cf_corresp: '',
 });
 
 // Grupos de captura (label + campo). Informativos NO suman al neto.
@@ -111,6 +110,9 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const [fechaPago, setFechaPago] = useState<string>(proximoMiercoles);
   const [semanaDel, setSemanaDel] = useState('');
   const [semanaAl, setSemanaAl] = useState('');
+  // Efectivo "por fuera" de TODA la corrida (~20,000 semanales por cada nómina).
+  // No se reparte entre empleados: nadie lleva ese desglose.
+  const [efectivo, setEfectivo] = useState('');
   const [filas, setFilas] = useState<Fila[]>([filaVacia()]);
   const [guardando, setGuardando] = useState(false);
   const [corridas, setCorridas] = useState<Corrida[]>([]);
@@ -170,7 +172,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       isr_mes: s(r.isr_mes), isr_art174: s(r.isr_art174), imss: s(r.imss),
       prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
       isr_antes_subsidio: s(r.isr_antes_subsidio), infonavit_cf_corresp: s(r.infonavit_cf_corresp),
-      efectivo: s(r.efectivo),
     };
   };
 
@@ -209,6 +210,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       setFechaPago(det.fecha_pago || proximoMiercoles());
       setSemanaDel(det.semana_del || '');
       setSemanaAl(det.semana_al || '');
+      setEfectivo(det.efectivo ? String(det.efectivo) : '');
       setFilas((det.renglones || []).length ? det.renglones.map(filaDesde) : [filaVacia()]);
       setBorradorId(c.name);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -218,15 +220,15 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   // Limpia el form y sale del modo edición de borrador.
   const nuevaCorrida = () => {
     setBorradorId(null); setFilas([filaVacia()]);
-    setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setFechaPago(proximoMiercoles());
+    setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setEfectivo(''); setFechaPago(proximoMiercoles());
   };
 
   const calc = (f: Fila) => {
     const n = (v: string) => Number(v || 0);
     const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion) + n(f.vacaciones);
     const deducc = n(f.isr_mes) + n(f.isr_art174) + n(f.imss) + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
-    const efectivo = n(f.efectivo);
-    return { bruto, deducc, neto: bruto - deducc + efectivo, costo: bruto + efectivo };
+    // El efectivo es de la corrida completa, no del empleado: no entra aquí.
+    return { bruto, deducc, neto: bruto - deducc, costo: bruto };
   };
 
   // Totales por concepto + los 2 números del cliente.
@@ -244,7 +246,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       t.vacaciones += n(f.vacaciones);
       t.isr_mes += n(f.isr_mes); t.isr_art174 += n(f.isr_art174); t.imss += n(f.imss);
       t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
-      t.bruto += c.bruto; t.deducc += c.deducc; t.efectivo += n(f.efectivo);
+      t.bruto += c.bruto; t.deducc += c.deducc;
       t.neto += c.neto; t.costo += c.costo;
     }
     // El Art. 174 es ISR de pagos extraordinarios: cuenta como impuesto igual que el ordinario.
@@ -272,6 +274,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       const res = await nominaService.crearCorrida({
         fecha_pago: fechaPago, nomina_de: nominaDe,
         semana_del: semanaDel || null, semana_al: semanaAl || null,
+        efectivo: Number(efectivo || 0),
         renglones, submit: submit ? 1 : 0,
         name: borradorId || undefined, // si editaba un borrador, lo actualiza
       });
@@ -301,6 +304,10 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
         <label>Fecha de pago<input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)} /></label>
         <label>Semana del<input type="date" value={semanaDel} onChange={e => setSemanaDel(e.target.value)} /></label>
         <label>al<input type="date" value={semanaAl} onChange={e => setSemanaAl(e.target.value)} /></label>
+        <label className="nom-efectivo">Efectivo (toda la corrida)
+          <input type="number" step="0.01" min="0" placeholder="0.00"
+                 value={efectivo} onChange={e => setEfectivo(e.target.value)} />
+        </label>
       </div>
 
       {/* Captura por empleado: cada tarjeta bento con percepciones + deducciones + informativos + efectivo. */}
@@ -332,7 +339,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
               {grupo('Percepciones', 'perc', PERCEPCIONES)}
               {grupo('Deducciones', 'ded', DEDUCCIONES)}
               {grupo('Informativos (no suman)', 'info', INFORMATIVOS)}
-              {grupo('Efectivo', 'efe', [['efectivo', 'Efectivo']])}
             </div>
             <div className="nom-card-tot">
               <span className="nom-stat"><em>Bruto</em><b>{money(c.bruto)}</b></span>
@@ -615,19 +621,19 @@ function Reporte({ flash }: { flash: Flash }) {
       </div>
       <table className="nomina-lista">
         <thead>
-          <tr><th>Sucursal</th><th>Empleado</th><th>Corridas</th><th>Declarado</th><th>Efectivo</th><th>Neto</th><th>Costo patrón</th></tr>
+          <tr><th>Sucursal</th><th>Empleado</th><th>Corridas</th><th>Declarado</th><th>Neto</th><th>Costo patrón</th></tr>
         </thead>
         <tbody>
           {datos.map((r, i) => (
             <tr key={i}>
               <td>{r.sucursal}</td><td>{r.empleado}</td><td>{r.corridas}</td>
-              <td>{money(r.declarado)}</td><td>{money(r.efectivo)}</td>
+              <td>{money(r.declarado)}</td>
               <td>{money(r.neto)}</td><td>{money(r.costo_patron)}</td>
             </tr>
           ))}
-          {!datos.length && <tr><td colSpan={7} className="vacio">Sin datos en el rango</td></tr>}
+          {!datos.length && <tr><td colSpan={6} className="vacio">Sin datos en el rango</td></tr>}
         </tbody>
-        <tfoot><tr><th colSpan={6}>Costo real total</th><th>{money(total)}</th></tr></tfoot>
+        <tfoot><tr><th colSpan={5}>Costo real total</th><th>{money(total)}</th></tr></tfoot>
       </table>
     </div>
   );
