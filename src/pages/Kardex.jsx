@@ -10,6 +10,41 @@ function qty(n) {
   return (parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 3 });
 }
 
+/**
+ * Cuánta materia prima se gastó entre los DOS últimos conteos físicos.
+ *
+ * Es la pregunta del jefe: "si al conteo había 100, compré 200 y el siguiente
+ * conteo dio 50, gasté 250, ¿no?". Sí. Un conteo físico es la única verdad que
+ * tiene el sistema, así que entre dos conteos todo lo que desapareció sin
+ * documento (venta, traslado) se fue a producción.
+ *
+ * OJO al leerlo: ese número también se lleva la merma, lo que se echó a perder y
+ * los errores de conteo. Sin BOM cargado no hay forma de separarlos — la etiqueta
+ * de la vista lo dice.
+ *
+ * Devuelve null con menos de dos conteos: sin conteo de apertura no hay contra
+ * qué medir, y adivinarlo con el saldo del rango daría un número inventado.
+ */
+export function consumoEntreConteos(filas) {
+  const conteos = [];
+  filas.forEach((f, i) => { if (f.voucher_type === 'Stock Reconciliation') conteos.push(i); });
+  if (conteos.length < 2) return null;
+
+  const [ini, fin] = conteos.slice(-2);
+  let entradas = 0, salidas = 0;
+  for (let i = ini + 1; i < fin; i++) {           // entre dos conteos seguidos no hay otro conteo
+    entradas += parseFloat(filas[i].entrada) || 0;
+    salidas  += parseFloat(filas[i].salida)  || 0;
+  }
+  const habia = parseFloat(filas[ini].resultado) || 0;
+  const quedo = parseFloat(filas[fin].resultado) || 0;
+  return {
+    desde: filas[ini].fecha, hasta: filas[fin].fecha,
+    habia, entradas, salidas, quedo,
+    usado: habia + entradas - salidas - quedo,
+  };
+}
+
 const hoyStr = () => new Date().toISOString().split('T')[0];
 const primeroMesStr = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]; };
 
@@ -100,9 +135,7 @@ function Kardex() {
   const u = unidad ? ` ${unidad}` : '';
   const conv = (v) => enPres ? (parseFloat(v) || 0) / uomInfo.factor : (parseFloat(v) || 0);
 
-  // Ajuste (Stock Reconciliation): entrada/salida 0 pero fija el saldo →
-  // spec cliente "ajuste dice 50 → existencia 50": pintar existencia = resultado.
-  const existenciaDe = (f) => f.voucher_type === 'Stock Reconciliation' ? f.resultado : f.entrada;
+  const consumo = consumoEntreConteos(filas);
 
   // Resumen de conciliación: parte del ÚLTIMO ajuste (Stock Reconciliation) como
   // verdad ("había X") y suma lo comprado/salido DESPUÉS. queda = había+comprado-salió.
@@ -191,6 +224,20 @@ function Kardex() {
               <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>{qty(conv(tot.usado))}{u}</span>
               <span className="stat-label">Usado / salió</span>
             </div>
+            {/* Los ajustes van aparte: no se consumieron, sobraban en el papel. Meterlos
+                en "Usado" diría que se gastó algo que nunca estuvo en la bodega.
+                ponytail: la tira no cuadra sola porque "Comprado" son solo compras, no
+                todas las entradas. Si se quiere que cierre, la tarjeta pasa a "Entradas"
+                (tot.entradas) y se agrega el saldo inicial, que ya viene en el payload. */}
+            {!!tot.ajuste_neto && (
+              <div className="stat-card">
+                <span className="stat-number comp-stat-total"
+                      style={{ color: tot.ajuste_neto > 0 ? '#16a34a' : '#dc2626' }}>
+                  {tot.ajuste_neto > 0 ? '+' : '−'}{qty(Math.abs(conv(tot.ajuste_neto)))}{u}
+                </span>
+                <span className="stat-label">Ajustes de inventario</span>
+              </div>
+            )}
             <div className="stat-card">
               <span className="stat-number comp-stat-total">{qty(conv(tot.saldo_final))}{u}</span>
               <span className="stat-label">Saldo final</span>
@@ -219,8 +266,8 @@ function Kardex() {
                   <tr key={f.voucher_no + '-' + i}>
                     <td>{f.fecha}</td>
                     <td className="cell-name">{f.movimiento}</td>
-                    <td className="cell-right" style={{ color: existenciaDe(f) ? '#16a34a' : undefined }}>
-                      {existenciaDe(f) ? qty(conv(existenciaDe(f))) + u : '—'}
+                    <td className="cell-right" style={{ color: f.entrada ? '#16a34a' : undefined }}>
+                      {f.entrada ? qty(conv(f.entrada)) + u : '—'}
                     </td>
                     <td className="cell-right" style={{ color: f.salida ? '#dc2626' : undefined }}>
                       {f.salida ? qty(conv(f.salida)) + u : '—'}
@@ -229,8 +276,48 @@ function Kardex() {
                   </tr>
                 ))}
               </tbody>
-              {resumenAjuste && (
+              {(consumo || resumenAjuste) && (
                 <tfoot className="kardex-resumen-foot">
+                  {consumo && (<>
+                    <tr className="kardex-foot-titulo">
+                      <td colSpan={5} style={{ paddingTop: 14, borderTop: '2px solid #eadfce', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#9a6a3a' }}>
+                        Consumo entre conteos ({consumo.desde} → {consumo.hasta})
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2}>Había al conteo del {consumo.desde}</td>
+                      <td className="cell-right" /><td className="cell-right" />
+                      <td className="cell-right cell-bold">{qty(conv(consumo.habia))}{u}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2}>Entró entre conteos (compras, regalos)</td>
+                      <td className="cell-right" style={{ color: '#16a34a' }}>+ {qty(conv(consumo.entradas))}{u}</td>
+                      <td className="cell-right" /><td className="cell-right" />
+                    </tr>
+                    <tr>
+                      <td colSpan={2}>Vendido / trasladado (con documento)</td>
+                      <td className="cell-right" />
+                      <td className="cell-right" style={{ color: '#dc2626' }}>− {qty(conv(consumo.salidas))}{u}</td>
+                      <td className="cell-right" />
+                    </tr>
+                    <tr>
+                      <td colSpan={2}>Quedó al conteo del {consumo.hasta}</td>
+                      <td className="cell-right" /><td className="cell-right" />
+                      <td className="cell-right cell-bold">− {qty(conv(consumo.quedo))}{u}</td>
+                    </tr>
+                    <tr className="kardex-foot-total" style={{ fontWeight: 700 }}>
+                      <td colSpan={2}>
+                        {consumo.usado >= 0
+                          ? 'Se usó en producción (incluye merma)'
+                          : 'Sobró respecto a lo esperado'}
+                      </td>
+                      <td className="cell-right" /><td className="cell-right" />
+                      <td className="cell-right cell-bold" style={{ color: consumo.usado >= 0 ? '#dc2626' : '#16a34a' }}>
+                        = {qty(Math.abs(conv(consumo.usado)))}{u}
+                      </td>
+                    </tr>
+                  </>)}
+                  {resumenAjuste && (<>
                   <tr className="kardex-foot-titulo">
                     <td colSpan={5} style={{ paddingTop: 14, borderTop: '2px solid #eadfce', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#9a6a3a' }}>
                       Conciliación desde el ajuste ({resumenAjuste.fecha})
@@ -257,6 +344,7 @@ function Kardex() {
                     <td className="cell-right" /><td className="cell-right" />
                     <td className="cell-right cell-bold">= {qty(conv(resumenAjuste.queda))}{u}</td>
                   </tr>
+                  </>)}
                 </tfoot>
               )}
             </table>

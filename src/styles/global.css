@@ -448,7 +448,10 @@
 .sys-table tr.row-open:hover { background: #fdf6ec; }
 .sys-table tr.row-open td { border-bottom-color: transparent; }
 .sys-table tr.row-detail:hover { background: transparent; }
-.sys-table tr.row-detail td { padding: 0; border-bottom: 1px solid #e5e7eb; }
+/* `>` obligatorio: sin él el selector es descendente y le quita el padding a
+   TODAS las celdas de la tabla anidada, no solo a la celda contenedora. Ese era
+   el motivo de que la cifra y la UoM se pegaran ("-12Kg") en el detalle. */
+.sys-table tr.row-detail > td { padding: 0; border-bottom: 1px solid #e5e7eb; }
 
 /* Detalle de venta: un solo scroll (el de .table-container) */
 .venta-detalle { padding: 8px 16px 0; }
