@@ -604,14 +604,21 @@ function Reporte({ flash }: { flash: Flash }) {
   const [hasta, setDesde2] = useState(''); // Nota: dejé la variable original 'hasta' para no romper tu lógica
   const [hastaEstado, setHasta] = useState(''); 
   const [datos, setDatos] = useState<ReporteRow[]>([]);
+  // El efectivo no cabe en ningún renglón (es de la corrida, no del empleado),
+  // pero sí es costo de mano de obra: va como línea propia antes del total.
+  const [efectivo, setEfectivo] = useState(0);
 
   const cargar = useCallback(async () => {
-    try { setDatos(await nominaService.getReporteCostoReal({ fecha_desde: desde || null, fecha_hasta: hastaEstado || null })); }
+    try {
+      const r = await nominaService.getReporteCostoReal({ fecha_desde: desde || null, fecha_hasta: hastaEstado || null });
+      setDatos(r.filas); setEfectivo(r.efectivo);
+    }
     catch (e) { flash('error', (e as Error).message); }
   }, [desde, hastaEstado, flash]);
   useEffect(() => { cargar(); }, [cargar]);
 
-  const total = datos.reduce((s, r) => s + Number(r.costo_patron || 0), 0);
+  const declaradoTot = datos.reduce((s, r) => s + Number(r.costo_patron || 0), 0);
+  const total = declaradoTot + efectivo;
 
   return (
     <div className="nomina-reporte">
@@ -633,7 +640,10 @@ function Reporte({ flash }: { flash: Flash }) {
           ))}
           {!datos.length && <tr><td colSpan={6} className="vacio">Sin datos en el rango</td></tr>}
         </tbody>
-        <tfoot><tr><th colSpan={5}>Costo real total</th><th>{money(total)}</th></tr></tfoot>
+        <tfoot>
+          <tr><th colSpan={5}>Efectivo (toda la corrida, no por empleado)</th><th>{money(efectivo)}</th></tr>
+          <tr><th colSpan={5}>Costo real total</th><th>{money(total)}</th></tr>
+        </tfoot>
       </table>
     </div>
   );

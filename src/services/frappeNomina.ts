@@ -166,13 +166,13 @@ class FrappeNominaService extends FrappeBase {
     return json?.message;
   }
 
-  async getReporteCostoReal({ fecha_desde, fecha_hasta }: Rango = {}): Promise<ReporteRow[]> {
+  async getReporteCostoReal({ fecha_desde, fecha_hasta }: Rango = {}): Promise<{ filas: ReporteRow[]; efectivo: number }> {
     const params = new URLSearchParams();
     if (fecha_desde) params.set('fecha_desde', fecha_desde);
     if (fecha_hasta) params.set('fecha_hasta', fecha_hasta);
     const qs = params.toString();
     const json = await this._fetch(`${METHOD('reporte_costo_real')}${qs ? '?' + qs : ''}`);
-    return json?.message || [];
+    return json?.message || { filas: [], efectivo: 0 };
   }
 }
 
