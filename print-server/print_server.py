@@ -478,6 +478,46 @@ def render_egreso_image(data):
     return render_lines_image(rows)
 
 
+def render_regalo_image(data):
+    """Comprobante de regalo de proveedor (free goods -> ingreso en especie)."""
+    body = 22
+    small = 18
+    cols = _cols(body)
+    money = fmt
+    qty = _num(data.get('qty'))
+    unidad = str(data.get('unidad') or '')
+    qty_base = _num(data.get('qty_base'))
+    uom_base = str(data.get('uom_base') or '')
+    precio = _num(data.get('precio'))
+    rate_base = _num(data.get('rate_base'))
+    total = _num(data.get('total'), qty * precio)
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': small, 'align': 'c'},
+        {'rule': True},
+        {'text': 'REGALO DE PROVEEDOR', 'size': 22, 'align': 'c'},
+        {'rule': True},
+        {'text': f"No. Entrada: {str(data.get('no_entrada') or '-')[:cols - 13]}", 'size': body},
+        {'text': f"Fecha:       {data.get('fecha', '')}  {data.get('hora', '')}", 'size': body},
+        {'text': f"Almacen:     {str(data.get('almacen') or '-')[:cols - 13]}", 'size': body},
+        {'rule': True},
+        {'lr': ('PRODUCTO', 'VALOR'), 'size': body},
+        {'rule': True},
+        {'text': str(data.get('item_name') or '-')[:cols], 'size': body},
+        {'lr': (f"  {_qty(qty)} {unidad} x {money(precio)}".rstrip(), money(total)), 'size': body},
+    ]
+    # Sub-linea en unidad base: es lo que de verdad entro al inventario.
+    if qty_base > 0 and uom_base and (qty_base != qty or uom_base != unidad):
+        rows.append({'text': f"    ({_qty(qty_base)} {uom_base} a {fmt_unit(rate_base)}/{uom_base})", 'size': small})
+    rows.append({'rule': True})
+    rows.append({'lr': ('VALOR DEL REGALO:', money(total)), 'size': 30})
+    rows.append({'rule': True})
+    rows.append({'text': 'Ingreso en especie - NO se paga', 'size': small, 'align': 'c'})
+    rows.append({'text': 'Entra a costo de mercado', 'size': small, 'align': 'c'})
+    rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
+    return render_lines_image(rows)
+
+
 @app.route('/imprimir', methods=['POST', 'OPTIONS'])
 def imprimir():
     if request.method == 'OPTIONS':
@@ -783,6 +823,30 @@ def imprimir_traspaso():
             'sucursal': sucursal, 'destino': destino, 'no_envio': no_envio,
             'fecha': fecha, 'hora': hora, 'origen': origen, 'items': items,
         })
+        p = get_printer()
+        try:
+            p.image(img)
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
+
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
+
+
+@app.route('/imprimir-regalo', methods=['POST', 'OPTIONS'])
+def imprimir_regalo():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+
+        img = render_regalo_image(data)
         p = get_printer()
         try:
             p.image(img)

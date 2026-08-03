@@ -98,6 +98,31 @@ export async function imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, f
   return data;
 }
 
+interface RegaloData {
+  noEntrada?: string; fecha?: string; hora?: string; almacen?: string;
+  itemName?: string; qty: number; unidad?: string;
+  qtyBase?: number; uomBase?: string; precio: number; rateBase?: number; total: number;
+}
+
+/** Ticket térmico de regalo de proveedor (Material Receipt a precio de mercado). */
+export async function imprimirRegaloTermico({
+  noEntrada, fecha, hora, almacen, itemName, qty, unidad,
+  qtyBase, uomBase, precio, rateBase, total,
+}: RegaloData) {
+  const res = await fetch(`${PRINT_SERVER}/imprimir-regalo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      no_entrada: noEntrada, fecha, hora, almacen, item_name: itemName,
+      qty, unidad, qty_base: qtyBase, uom_base: uomBase,
+      precio, rate_base: rateBase, total,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Error al imprimir regalo');
+  return data;
+}
+
 const _fmt2 = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Precio unitario: hasta 6 decimales. El gas y la cuota IEPS se capturan asi y a

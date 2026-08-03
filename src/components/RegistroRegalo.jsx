@@ -4,6 +4,8 @@ import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
 import { fmtUom } from '../utils/uom';
 import { parseErrorFrappe, logError } from '../utils/errorFrappe';
+import { imprimirRegaloTermico } from '../services/printService';
+import { horaLocal } from '../utils/hora';
 import ModalError from './modals/ModalError';
 import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
@@ -74,11 +76,18 @@ function RegistroRegalo({ onSuccess, onCancel }) {
   const confirmar = async () => {
     setLoading(true);
     try {
-      await stockService.registrarRegalo({
+      const res = await stockService.registrarRegalo({
         item_code: item.item_code, qty: qtyBase, valuation_rate: ratePorBase, warehouse: almacen,
       });
       setConfirm(false);
       const lbl = almacenes.find(a => a.name === almacen)?.label || almacen;
+      // Auto-imprime el ticket, igual que compras/ventas/traspasos.
+      // ponytail: fire-and-forget; la térmica caída no debe tumbar el regalo ya registrado.
+      imprimirRegaloTermico({
+        noEntrada: res?.name, fecha: new Date().toISOString().split('T')[0], hora: horaLocal(),
+        almacen: lbl, itemName: item.item_name, qty: cantNum, unidad,
+        qtyBase, uomBase: fmtUom(item.uom), precio: precNum, rateBase: ratePorBase, total,
+      }).catch(err => console.error('Auto-print regalo:', err));
       setSuccess(`Regalo registrado en ${lbl}: ${cantNum} ${unidad} de ${item.item_name} (${fmtMXN(total)})`);
       setTimeout(() => onSuccess?.(), 1600);
     } catch (err) {
