@@ -6,6 +6,7 @@ import ModalSugerenciaPrecios from './compras/ModalSugerenciaPrecios';
 import ModalReciboPDF from './compras/ModalReciboPDF';
 import { docToDatosImpresion, imprimirCompraTicket } from '../utils/print/comprasPrint';
 import BuscadorProveedor from './compras/BuscadorProveedor';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 import FilaProducto from './compras/FilaProducto';
 import {
   FILA_VACIA, MARGEN_DEFAULT, fmt,
@@ -131,6 +132,55 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     cargar();
   }, [initialData]);
 
+  // ── Borrador local (solo compra NUEVA) ────────────────────────────────────
+  // En edición el borrador de verdad es el del servidor (Purchase Invoice
+  // docstatus 0): restaurar encima pisaría el documento. Este respaldo cubre
+  // solo la ventana antes del primer "Guardar borrador", que es justo donde
+  // cerrar el modal costaba volver a capturar la factura completa.
+  const restaurarBorrador = useCallback((d) => {
+    if (d.proveedor?.name) setProveedor(d.proveedor);
+    if (d.fecha) setFecha(d.fecha);
+    setBillNo(d.billNo || '');
+    setNotaRemision(d.notaRemision || '');
+    setTipoComprobante(d.tipoComprobante || 'Nota');
+    setFacturadoA(d.facturadoA || 'SIN FACTURA');
+    setNotas(d.notas || '');
+    setAjuste(d.ajuste || '');
+    setAjusteManual(!!d.ajusteManual);
+    setDescuento(d.descuento || '');
+    setIvaOverride(d.ivaOverride || '');            setIvaManual(!!d.ivaManual);
+    setIepsOverride(d.iepsOverride || '');          setIepsManual(!!d.iepsManual);
+    setSubtotalIva16Override(d.subtotalIva16Override || ''); setSubtotalIva16Manual(!!d.subtotalIva16Manual);
+    setSubtotalIepsOverride(d.subtotalIepsOverride || '');   setSubtotalIepsManual(!!d.subtotalIepsManual);
+    setSubtotalTasa0Override(d.subtotalTasa0Override || ''); setSubtotalTasa0Manual(!!d.subtotalTasa0Manual);
+    if (d.filas?.length) setFilas(d.filas);
+  }, []);
+
+  // Con `success` ya hay documento en ERPNext: el respaldo local sobra. Además
+  // apaga el autosave, si no el debounce pendiente vuelve a escribir el
+  // borrador *después* de que descartar() lo borró (zombi).
+  const hayCaptura = !success && (filas.some(f => f.item_code) || !!proveedor.name || notas.trim() !== '');
+  const { restaurado, descartar } = useBorradorLocal(
+    esEdicion ? null : 'compra-nueva',
+    hayCaptura ? {
+      proveedor, fecha, billNo, notaRemision, tipoComprobante, facturadoA, notas, filas,
+      ajuste, ajusteManual, descuento,
+      ivaOverride, ivaManual, iepsOverride, iepsManual,
+      subtotalIva16Override, subtotalIva16Manual,
+      subtotalIepsOverride, subtotalIepsManual,
+      subtotalTasa0Override, subtotalTasa0Manual,
+    } : null,
+    restaurarBorrador,
+  );
+
+  const descartarBorrador = () => {
+    descartar();
+    setProveedor({ name: '', label: '' });
+    setFilas([FILA_VACIA()]);
+    setBillNo(''); setNotaRemision(''); setNotas('');
+    setAjuste(''); setAjusteManual(false); setDescuento('');
+  };
+
   // ── CRUD de filas ─────────────────────────────────────────────────────────
   const agregarFila = useCallback(() => setFilas(f => [...f, FILA_VACIA()]), []);
 
@@ -253,6 +303,10 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       } else {
         const doc = await comprasService.guardarBorrador({ supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
         setSuccess(`BORRADOR GUARDADO: ${doc.name}`);
+        // A partir de aquí el borrador vive en ERPNext. Dejar también el local
+        // sería tener dos respaldos compitiendo: el siguiente que abra el modal
+        // en blanco vería resucitar una compra que ya está guardada.
+        descartar();
         docNoCompra = doc?.custom_no_de_compra ?? null;
       }
       const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -305,9 +359,13 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         compraName = doc?.name;
       }
       setSuccess(`✅ Compra confirmada. Total: $${fmt(totales.total)}`);
-      // Auto-imprime el ticket térmico de la compra confirmada (la reimpresión queda en Consultas).
+      descartar();   // la compra ya vive en ERPNext; el borrador cumplió
+      // Auto-imprime solo si la compra ya trae comprobante fiscal completo: No. de
+      // factura Y responsable. Una nota de remisión NO imprime aquí — su ticket sale
+      // al consolidarla (Compras → Agrupar), que es cuando aparece el folio.
+      // Reimpresión manual sigue disponible en Compras.
       // ponytail: fire-and-forget; refetch del doc = idéntico a la reimpresión, sin duplicar formato.
-      if (compraName) {
+      if (compraName && billNo.trim() && facturadoA !== 'SIN FACTURA') {
         comprasService.getCompraBorrador(compraName)
           .then(full => imprimirCompraTicket(docToDatosImpresion(full)))
           .catch(err => console.error('Auto-print compra:', err));
@@ -384,6 +442,19 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
         {error   && <div className="nc-alert nc-alert-error">{error}</div>}
         {success && <div className="nc-alert nc-alert-success">{success}</div>}
+
+        {restaurado && !success && (
+          <div className="nc-alert nc-alert-borrador">
+            <span>
+              Se retomó una compra sin terminar (guardada{' '}
+              {new Date(restaurado).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}).
+              Revisa precios y cantidades antes de confirmar.
+            </span>
+            <button className="nc-btn-descartar" onClick={descartarBorrador}>
+              Descartar y empezar de cero
+            </button>
+          </div>
+        )}
 
         <div className="nc-top-row">
           <div className="nc-field nc-field-proveedor">
