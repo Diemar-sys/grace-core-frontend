@@ -532,6 +532,9 @@ class FrappeComprasService extends FrappeBase {
     const params = new URLSearchParams({
       fields: JSON.stringify([
         "name", "supplier", "supplier_name", "docstatus",
+        // owner/modified los escribe Frappe en todo doc: sirven para saber de
+        // quién es un borrador y desde cuándo está ahí, sin guardar nada extra.
+        "owner", "modified",
         "posting_date", "total", "grand_total", "status",
         "custom_no_de_compra", "custom_nota_remision", "custom_tipo_comprobante", "custom_consolidado", "supplier_delivery_note", "rounding_adjustment", "custom_facturado_a", "custom_pagado",
       ]),

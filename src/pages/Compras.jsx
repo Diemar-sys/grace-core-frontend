@@ -3,6 +3,7 @@ import React from "react";
 import Layout from "../components/Layout";
 import ComprasModales from "../components/compras/ComprasModales";
 import useCompras, { ESTADO_DOCSTATUS } from "../hooks/useCompras";
+import { haceCuanto, nombreCorto } from "../utils/hora";
 import "../styles/global.css";
 import "../styles/Compras.css";
 
@@ -472,11 +473,17 @@ function Compras() {
                             {c.custom_consolidado ? (
                               <input type="checkbox" className="comp-sel" checked readOnly disabled title="Consolidada (bloqueada)" />
                             ) : esConsolidable(c) ? (
-                              <input type="checkbox" className="comp-sel"
+                              /* Una factura consolidada es de UN proveedor: marcar una nota
+                                 de otro descarta la selección anterior. Se atenúa para que
+                                 el cambio no parezca un check que se apaga solo. */
+                              <input type="checkbox"
+                                className={`comp-sel${seleccion.length > 0 && seleccion[0].supplier !== c.supplier ? ' comp-sel--otro' : ''}`}
                                 checked={seleccion.some(x => x.name === c.name)}
                                 onChange={() => toggleSel(c)}
                                 onClick={e => e.stopPropagation()}
-                                title="Seleccionar para ticket consolidado" />
+                                title={seleccion.length > 0 && seleccion[0].supplier !== c.supplier
+                                  ? `Es de ${c.supplier_name || c.supplier}. Al marcarla se descarta lo seleccionado de ${seleccion[0].supplier_name || seleccion[0].supplier} — una factura agrupa un solo proveedor.`
+                                  : 'Seleccionar para ticket consolidado'} />
                             ) : null}
                             {c.custom_no_de_compra ? `#${c.custom_no_de_compra}` : '—'}
                             {!!c.custom_consolidado && <span className="comp-consol-badge" title="Consolidada">🔒</span>}
@@ -501,6 +508,13 @@ function Compras() {
                             <span className={`status-badge ${c.docstatus === 0 ? 'status-low' : c.docstatus === 2 ? 'status-cancelled' : 'status-ok'}`}>
                               {c.docstatus === 0 ? 'En Espera' : c.docstatus === 2 ? 'Cancelada' : 'Recibida'}
                             </span>
+                            {/* De quién es el borrador y desde cuándo: sin esto, una lista
+                                de borradores ajenos no se puede distinguir de la propia. */}
+                            {c.docstatus === 0 && c.owner && (
+                              <small className="comp-borrador-owner">
+                                {nombreCorto(c.owner)} · {haceCuanto(c.modified)}
+                              </small>
+                            )}
                           </td>
                           <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                             <input type="checkbox" checked={!!c.custom_pagado}

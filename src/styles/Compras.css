@@ -228,6 +228,15 @@
   flex-shrink: 0;
   background: currentColor;
 }
+/* Autoría del borrador: dato de apoyo, va bajo el badge sin competir con él. */
+.comprasv2 .comp-borrador-owner {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: var(--tv-muted, #6b7280);
+  white-space: nowrap;
+}
+
 .comprasv2 .status-ok        { background: var(--tv-ok-bg);   color: var(--tv-ok);   border-color: #bfe3ce; }
 .comprasv2 .status-low       { background: var(--tv-warn-bg); color: var(--tv-warn); border-color: #ecd9a3; }
 .comprasv2 .status-cancelled { background: var(--tv-stop-bg); color: var(--tv-stop); border-color: #e3bdb5; }
@@ -396,6 +405,12 @@
 .comprasv2 .comp-consol-actions { display: flex; gap: 8px; }
 .comprasv2 .comp-consol-badge { margin-left: 6px; font-size: 12px; opacity: 0.75; }
 .comprasv2 .comp-sel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Nota de OTRO proveedor con una selección activa: sigue siendo clicable (cambiar
+   de proveedor es válido), pero atenuada para que se lea que no se suma a lo ya
+   marcado. El porqué va en el title. */
+.comprasv2 .comp-sel--otro { opacity: 0.3; }
+.comprasv2 .comp-sel--otro:hover { opacity: 0.6; }
 
 /* Vista Facturas: fila grupo + subfilas de notas (dropdown) */
 .comprasv2 .comp-row-grupo > td { font-weight: 500; }
