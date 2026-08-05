@@ -4,6 +4,7 @@ import { stockService } from '../services/frappeStock';
 import { fmtUom } from '../utils/uom';
 import { BODEGA_CENTRAL } from '../config/constants';
 import useSucursales from '../hooks/useSucursales';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 import ModalError from './modals/ModalError';
 import ModalHojaEntrega from './modals/ModalHojaEntrega';
 import { imprimirTraspasoTermico } from '../services/printService';
@@ -69,6 +70,47 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 
   const sucursalLabel = sucursales.find(s => s.warehouse === warehouseDestino)?.label || warehouseDestino;
 
+  // ── Borrador local ──────────────────────────────────────────────────────
+  // Cerrar el modal por accidente tiraba el envío a medias. Ahora se guarda en
+  // este navegador mientras se teclea y se descarta al confirmar.
+  const restaurarBorrador = useCallback((d) => {
+    if (d.warehouseOrigen)  setWarehouseOrigen(d.warehouseOrigen);
+    if (d.warehouseDestino) setWarehouseDestino(d.warehouseDestino);
+    setTipoItem(d.tipoItem || '');
+    setNotas(d.notas || '');
+
+    const previas = (d.filas || []).filter(f => f.item_code);
+    if (!previas.length) return;
+    // El stock guardado es de la sesión anterior y para entonces ya se movió:
+    // se pide de nuevo en vez de validar contra un número muerto.
+    setFilas([...previas.map(f => ({ ...f, stock: null, stockLoading: true })), FILA_VACIA()]);
+
+    const origen = d.warehouseOrigen || BODEGA_CENTRAL;
+    const ponerStock = (id, campos) =>
+      setFilas(fs => fs.map(r => r._id === id ? { ...r, ...campos } : r));
+    previas.forEach(f => {
+      stockService.getStockActual(f.item_code, origen)
+        .then(bin => ponerStock(f._id, { stock: parseFloat(bin?.actual_qty || 0), stockLoading: false }))
+        .catch(() => ponerStock(f._id, { stock: 0, stockLoading: false }));
+    });
+  }, []);
+
+  // Con `success` el envío ya existe en ERPNext: el respaldo local sobra. Además
+  // apaga el autosave, si no el debounce pendiente vuelve a escribir el borrador
+  // *después* de que descartar() lo borró (zombi).
+  const hayCaptura = !success && (filas.some(f => f.item_code) || notas.trim() !== '');
+  const { restaurado, descartar } = useBorradorLocal(
+    'envio-sucursal',
+    hayCaptura ? { warehouseOrigen, warehouseDestino, tipoItem, notas, filas } : null,
+    restaurarBorrador,
+  );
+
+  const descartarBorrador = () => {
+    descartar();
+    setFilas([FILA_VACIA()]);
+    setNotas('');
+  };
+
   // ── CRUD filas ──────────────────────────────────────────────────────────
   const agregarFila = useCallback(() => setFilas(f => [...f, FILA_VACIA()]), []);
   const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
@@ -128,6 +170,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         asBorrador: false,
       });
       setSuccess(`✅ Envío registrado: ${doc.name}`);
+      descartar();   // el documento ya vive en ERPNext; el borrador cumplió
       const hora = horaLocal();
       setHojaData({
         fecha, hora, sucursalLabel, warehouseDestino,
@@ -165,6 +208,19 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
         </div>
 
         {success && <div className="nc-alert nc-alert-success">{success}</div>}
+
+        {restaurado && !success && (
+          <div className="nc-alert nc-alert-borrador">
+            <span>
+              Se retomó un envío sin terminar (guardado{' '}
+              {new Date(restaurado).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}).
+              Revisa las cantidades antes de confirmar.
+            </span>
+            <button className="nc-btn-descartar" onClick={descartarBorrador}>
+              Descartar y empezar de cero
+            </button>
+          </div>
+        )}
 
         <div className="nc-top-row">
           <div className="nc-field nc-field-tipo">

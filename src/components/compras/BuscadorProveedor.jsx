@@ -16,6 +16,13 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  // El texto del input arranca con `value.label`, pero `useState` solo lo lee en
+  // el primer render: si el padre llena el proveedor DESPUÉS de montar (restaurar
+  // un borrador, cargar un doc del servidor), el input se quedaba en blanco
+  // aunque el proveedor sí estuviera puesto. Teclear no dispara esto: mientras
+  // se escribe, `value.label` no cambia.
+  useEffect(() => { setBusqueda(value.label || ''); }, [value.label]);
+
   const handleInput = (texto) => {
     setBusqueda(texto);
     setCursor(-1);

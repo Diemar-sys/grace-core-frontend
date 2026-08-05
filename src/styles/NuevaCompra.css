@@ -693,6 +693,32 @@
   color: #166534;
 }
 
+/* Borrador restaurado: avisa sin alarmar (ámbar, no rojo) y deja salida. */
+.nc-alert-borrador {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nc-btn-descartar {
+  background: #fff;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nc-btn-descartar:hover { background: #fef3c7; }
+
 /* ── Acciones ───────────────────────────────────────── */
 .nc-actions {
   display: flex;

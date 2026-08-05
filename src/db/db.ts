@@ -33,11 +33,22 @@ export interface ConteoBorrador {
   actualizado: string;
 }
 
+// Borrador genérico de un formulario largo (envío, compra, venta B2B). Un
+// renglón por formulario: `datos` es el estado serializado tal cual lo dejó
+// quien capturaba. A diferencia de `conteo`, aquí no hay clave por día — un
+// envío a medias se retoma el mismo rato, no mañana.
+export interface BorradorForm {
+  key: string;                          // id del formulario, ej. 'envio-sucursal'
+  datos: unknown;
+  actualizado: string;
+}
+
 class GraceDB extends Dexie {
   catalogo!: Table<CatalogoItem, string>;
   stock!: Table<StockRow, string>;
   outbox!: Table<OutboxVenta, string>;
   conteo!: Table<ConteoBorrador, string>;
+  borradores!: Table<BorradorForm, string>;
 
   constructor() {
     super('grace_pos');
@@ -48,6 +59,9 @@ class GraceDB extends Dexie {
     });
     this.version(2).stores({
       conteo: 'key',
+    });
+    this.version(3).stores({
+      borradores: 'key',
     });
   }
 }
