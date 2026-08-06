@@ -26,14 +26,16 @@ function proximoMiercoles(): string {
 interface Fila {
   empleado: string;
   // Percepciones
-  sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string; vacaciones: string;
+  sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string;
+  vacaciones: string; prima_vacacional: string;
   // Deducciones
   isr_mes: string; isr_art174: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
   // Informativos (no suman)
   isr_antes_subsidio: string; infonavit_cf_corresp: string;
 }
 const filaVacia = (): Fila => ({
-  empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '', vacaciones: '',
+  empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '',
+  vacaciones: '', prima_vacacional: '',
   isr_mes: '', isr_art174: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
   isr_antes_subsidio: '', infonavit_cf_corresp: '',
 });
@@ -42,7 +44,7 @@ const filaVacia = (): Fila => ({
 const PERCEPCIONES: [keyof Fila, string][] = [
   ['sueldo', 'Sueldo'], ['septimo_dia', 'Séptimo día'],
   ['prima_dominical', 'Prima dominical'], ['gratificacion', 'Gratificación'],
-  ['vacaciones', 'Vacaciones'],
+  ['vacaciones', 'Vacaciones a tiempo'], ['prima_vacacional', 'Prima de vacaciones a tiempo'],
 ];
 const DEDUCCIONES: [keyof Fila, string][] = [
   ['isr_mes', 'ISR (mes)'], ['isr_art174', 'ISR Art. 174'], ['imss', 'IMSS'],
@@ -168,7 +170,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       empleado: r.empleado || '',
       sueldo: s(r.sueldo), septimo_dia: s(r.septimo_dia),
       prima_dominical: s(r.prima_dominical), gratificacion: s(r.gratificacion),
-      vacaciones: s(r.vacaciones),
+      vacaciones: s(r.vacaciones), prima_vacacional: s(r.prima_vacacional),
       isr_mes: s(r.isr_mes), isr_art174: s(r.isr_art174), imss: s(r.imss),
       prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
       isr_antes_subsidio: s(r.isr_antes_subsidio), infonavit_cf_corresp: s(r.infonavit_cf_corresp),
@@ -225,7 +227,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 
   const calc = (f: Fila) => {
     const n = (v: string) => Number(v || 0);
-    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion) + n(f.vacaciones);
+    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion)
+      + n(f.vacaciones) + n(f.prima_vacacional);
     const deducc = n(f.isr_mes) + n(f.isr_art174) + n(f.imss) + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
     // El efectivo es de la corrida completa, no del empleado: no entra aquí.
     return { bruto, deducc, neto: bruto - deducc, costo: bruto };
@@ -235,7 +238,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const totales = useMemo(() => {
     const n = (v: string) => Number(v || 0);
     const t = {
-      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0, bruto: 0,
+      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0,
+      prima_vacacional: 0, bruto: 0,
       isr_mes: 0, isr_art174: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
       efectivo: 0, neto: 0, costo: 0, impuestos: 0,
     };
@@ -243,7 +247,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       const c = calc(f);
       t.sueldo += n(f.sueldo); t.septimo_dia += n(f.septimo_dia);
       t.prima_dominical += n(f.prima_dominical); t.gratificacion += n(f.gratificacion);
-      t.vacaciones += n(f.vacaciones);
+      t.vacaciones += n(f.vacaciones); t.prima_vacacional += n(f.prima_vacacional);
       t.isr_mes += n(f.isr_mes); t.isr_art174 += n(f.isr_art174); t.imss += n(f.imss);
       t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
       t.bruto += c.bruto; t.deducc += c.deducc;
@@ -258,7 +262,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const conceptoTotales: [string, number][] = [
     ['Sueldo', totales.sueldo], ['Séptimo día', totales.septimo_dia],
     ['Prima dominical', totales.prima_dominical], ['Gratificación', totales.gratificacion],
-    ['Vacaciones', totales.vacaciones],
+    ['Vacaciones a tiempo', totales.vacaciones],
+    ['Prima de vacaciones a tiempo', totales.prima_vacacional],
     ['ISR', totales.isr_mes], ['ISR Art. 174', totales.isr_art174], ['IMSS', totales.imss],
     ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
     ['Efectivo', totales.efectivo],

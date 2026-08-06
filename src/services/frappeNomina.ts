@@ -60,6 +60,7 @@ export interface RenglonInput {
   prima_dominical?: number | string;
   gratificacion?: number | string;
   vacaciones?: number | string;
+  prima_vacacional?: number | string;
   isr_mes?: number | string;
   isr_art174?: number | string;
   imss?: number | string;
