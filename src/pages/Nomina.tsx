@@ -116,9 +116,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const [fechaPago, setFechaPago] = useState<string>(proximoMiercoles);
   const [semanaDel, setSemanaDel] = useState('');
   const [semanaAl, setSemanaAl] = useState('');
-  // Efectivo "por fuera" de TODA la corrida (~20,000 semanales por cada nómina).
-  // No se reparte entre empleados: nadie lleva ese desglose.
-  const [efectivo, setEfectivo] = useState('');
   const [filas, setFilas] = useState<Fila[]>([filaVacia()]);
   const [guardando, setGuardando] = useState(false);
   const [corridas, setCorridas] = useState<Corrida[]>([]);
@@ -155,7 +152,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const reimprimir = async (c: Corrida) => {
     try {
       const det = await nominaService.getCorrida(c.name);
-      const t = sumarTotales(det.renglones || [], det.efectivo || 0);
+      const t = sumarTotales(det.renglones || []);
       await imprimirNominaTermico(payloadTicketNomina(
         { folio: c.name, fecha_pago: c.fecha_pago, nomina_de: c.nomina_de,
           semana_del: det.semana_del || null, semana_al: det.semana_al || null },
@@ -238,7 +235,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       setFechaPago(det.fecha_pago || proximoMiercoles());
       setSemanaDel(det.semana_del || '');
       setSemanaAl(det.semana_al || '');
-      setEfectivo(det.efectivo ? String(det.efectivo) : '');
       setFilas((det.renglones || []).length ? det.renglones.map(filaDesde) : [filaVacia()]);
       setBorradorId(c.name);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -248,14 +244,14 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   // Limpia el form y sale del modo edición de borrador.
   const nuevaCorrida = () => {
     setBorradorId(null); setFilas([filaVacia()]);
-    setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setEfectivo(''); setFechaPago(proximoMiercoles());
+    setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setFechaPago(proximoMiercoles());
   };
 
   const calc = calcRenglon;
 
   // Totales por concepto + los 2 números del cliente. La aritmética vive en
   // utils/nominaTotales: la comparte con la reimpresión de corridas viejas.
-  const totales = useMemo(() => sumarTotales(filas, efectivo), [filas, efectivo]);
+  const totales = useMemo(() => sumarTotales(filas), [filas]);
 
   // Sumatoria dispersa: solo conceptos con valor (0 → no se muestra).
   const conceptoTotales: [string, number][] = [
@@ -265,7 +261,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     ['Prima de vacaciones a tiempo', totales.prima_vacacional],
     ['ISR', totales.isr_mes], ['ISR Art. 174', totales.isr_art174], ['IMSS', totales.imss],
     ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
-    ['Efectivo', totales.efectivo],
   ];
 
   // Los que CONTPAQi lista pero no suman. Van en su propia fila: mezclados con
@@ -286,7 +281,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       const res = await nominaService.crearCorrida({
         fecha_pago: fechaPago, nomina_de: nominaDe,
         semana_del: semanaDel || null, semana_al: semanaAl || null,
-        efectivo: Number(efectivo || 0),
         renglones, submit: submit ? 1 : 0,
         name: borradorId || undefined, // si editaba un borrador, lo actualiza
       });
@@ -327,10 +321,6 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
         <label>Fecha de pago<input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)} /></label>
         <label>Semana del<input type="date" value={semanaDel} onChange={e => setSemanaDel(e.target.value)} /></label>
         <label>al<input type="date" value={semanaAl} onChange={e => setSemanaAl(e.target.value)} /></label>
-        <label className="nom-efectivo">Efectivo (toda la corrida)
-          <input type="number" step="0.01" min="0" placeholder="0.00"
-                 value={efectivo} onChange={e => setEfectivo(e.target.value)} />
-        </label>
       </div>
 
       {/* Captura por empleado: cada tarjeta bento con percepciones + deducciones + informativos + efectivo. */}
@@ -644,8 +634,9 @@ function Reporte({ flash }: { flash: Flash }) {
   const [hasta, setDesde2] = useState(''); // Nota: dejé la variable original 'hasta' para no romper tu lógica
   const [hastaEstado, setHasta] = useState(''); 
   const [datos, setDatos] = useState<ReporteRow[]>([]);
-  // El efectivo no cabe en ningún renglón (es de la corrida, no del empleado),
-  // pero sí es costo de mano de obra: va como línea propia antes del total.
+  // El efectivo pagado por fuera se captura como Egreso NÓMINA/EFECTIVO; el
+  // endpoint lo suma de ahí. Sigue siendo costo de mano de obra, así que va
+  // como línea propia antes del total.
   const [efectivo, setEfectivo] = useState(0);
 
   const cargar = useCallback(async () => {
@@ -681,7 +672,7 @@ function Reporte({ flash }: { flash: Flash }) {
           {!datos.length && <tr><td colSpan={6} className="vacio">Sin datos en el rango</td></tr>}
         </tbody>
         <tfoot>
-          <tr><th colSpan={5}>Efectivo (toda la corrida, no por empleado)</th><th>{money(efectivo)}</th></tr>
+          <tr><th colSpan={5}>Efectivo por fuera (Egresos NÓMINA/EFECTIVO)</th><th>{money(efectivo)}</th></tr>
           <tr><th colSpan={5}>Costo real total</th><th>{money(total)}</th></tr>
         </tfoot>
       </table>

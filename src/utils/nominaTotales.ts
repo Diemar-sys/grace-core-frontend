@@ -42,12 +42,12 @@ export interface TotalesNomina {
   bruto: number;
   isr_mes: number; isr_art174: number; imss: number;
   infonavit_cf_corresp: number; ajuste_neto: number; deducc: number;
-  efectivo: number; neto: number; costo: number; impuestos: number;
+  neto: number; costo: number; impuestos: number;
   // Informativos: se acumulan solo para reproducir la Lista de Raya.
   isr_antes_subsidio: number; subsidio_empleo: number; prestamo_infonavit_cf: number;
 }
 
-/** Bruto/deducciones/neto de UN renglón. El efectivo es de la corrida, no entra. */
+/** Bruto/deducciones/neto de UN renglón. */
 export function calcRenglon(f: RenglonSumable) {
   const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion)
     + n(f.vacaciones) + n(f.prima_vacacional);
@@ -56,12 +56,12 @@ export function calcRenglon(f: RenglonSumable) {
   return { bruto, deducc, neto: bruto - deducc, costo: bruto };
 }
 
-export function sumarTotales(filas: RenglonSumable[], efectivo: unknown = 0): TotalesNomina {
+export function sumarTotales(filas: RenglonSumable[]): TotalesNomina {
   const t: TotalesNomina = {
     sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0,
     prima_vacacional: 0, bruto: 0,
     isr_mes: 0, isr_art174: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
-    efectivo: 0, neto: 0, costo: 0, impuestos: 0,
+    neto: 0, costo: 0, impuestos: 0,
     isr_antes_subsidio: 0, subsidio_empleo: 0, prestamo_infonavit_cf: 0,
   };
   for (const f of filas || []) {
@@ -81,8 +81,6 @@ export function sumarTotales(filas: RenglonSumable[], efectivo: unknown = 0): To
   // además el Infonavit, que no es impuesto sino descuento del crédito de
   // vivienda. Para cuadrar contra CONTPAQi el número es `deducc`.
   t.impuestos = t.isr_mes + t.isr_art174 + t.imss + t.ajuste_neto;
-  // El efectivo no sale de los renglones: se captura una vez por corrida.
-  t.efectivo = n(efectivo);
   return t;
 }
 
@@ -100,7 +98,9 @@ export interface MetaCorrida {
  * exactamente lo mismo: si se arman por separado, un día el papel de la
  * reimpresión deja de cuadrar con el original y nadie sabe cuál creer.
  *
- * El neto y el costo llevan el efectivo sumado; los renglones no lo traen.
+ * Solo lo declarado: el efectivo pagado por fuera se captura como Egreso
+ * NÓMINA/EFECTIVO y por eso ya no aparece aquí. Así el "Neto general" del ticket
+ * es el mismo que el de la Lista de Raya de CONTPAQi.
  */
 export function payloadTicketNomina(
   meta: MetaCorrida, t: TotalesNomina, empleados: number,
@@ -129,9 +129,8 @@ export function payloadTicketNomina(
     total_prestamo_infonavit: t.prestamo_infonavit_cf,
     total_subsidio_empleo: t.subsidio_empleo,
     total_isr_antes_subsidio: t.isr_antes_subsidio,
-    total_neto: t.neto + t.efectivo,
-    total_efectivo: t.efectivo,
-    total_costo: t.costo + t.efectivo,
+    total_neto: t.neto,
+    total_costo: t.costo,
     empleados,
   };
 }

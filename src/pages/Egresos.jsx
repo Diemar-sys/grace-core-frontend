@@ -95,7 +95,10 @@ const CATEGORIAS = [
   { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago camioneta'] },
   { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo'] },
-  { key: 'Nómina',       label: 'Nómina',      sub: 'Empleados',        icon: <IconNomina />,     color: '#059669', bg: '#d1fae5', subcategorias: ['Empleados'] },
+  // 'Efectivo' es el pago por fuera de la corrida. Vivía dentro de la Corrida de
+  // Nómina y sumaba a su Egreso, mezclado con lo declarado; ahora se captura
+  // aquí para que tenga su propio renglón en el reporte de gastos.
+  { key: 'Nómina',       label: 'Nómina',      sub: 'Empleados',        icon: <IconNomina />,     color: '#059669', bg: '#d1fae5', subcategorias: ['Empleados', 'Efectivo'] },
   // Lo que el negocio REALMENTE paga al fisco. El IVA no va: se traslada al
   // cliente y se compensa contra el acreditable, no es egreso propio.
   // IMSS y el 3% sobre nómina tampoco son impuestos en sentido estricto, pero

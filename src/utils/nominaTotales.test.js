@@ -30,12 +30,13 @@ describe('calcRenglon', () => {
 });
 
 describe('sumarTotales', () => {
-  it('el efectivo no se reparte entre renglones', () => {
-    const t = sumarTotales([RECIBO, RECIBO], 20000);
+  it('solo suma lo declarado: el efectivo por fuera ya no vive aquí', () => {
+    // Se captura como Egreso NÓMINA/EFECTIVO. Si volviera a entrar en la corrida
+    // se contaría dos veces en el reporte de gastos.
+    const t = sumarTotales([RECIBO, RECIBO]);
     expect(t.bruto).toBeCloseTo(14101.50, 2);
-    expect(t.efectivo).toBe(20000);
-    // El neto de los renglones sigue siendo solo lo suyo.
     expect(t.neto).toBeCloseTo(12631.60, 2);
+    expect(t.costo).toBeCloseTo(14101.50, 2);
   });
 
   it('impuestos = ISR ordinario + Art. 174 + IMSS + ajuste', () => {
@@ -63,12 +64,14 @@ describe('sumarTotales', () => {
 describe('payloadTicketNomina', () => {
   const meta = { folio: 'NOM-2026-0031', fecha_pago: '2026-08-05', nomina_de: 'ALMA RODRIGUEZ' };
 
-  it('el neto y el costo del ticket llevan el efectivo sumado', () => {
-    const t = sumarTotales([RECIBO, RECIBO], 20000);
+  it('el "Neto general" del ticket es el mismo de la Lista de Raya', () => {
+    // Con el efectivo dentro, este renglón decía 61,907.80 mientras CONTPAQi
+    // decía 41,907.80 con el mismo nombre.
+    const t = sumarTotales([RECIBO, RECIBO]);
     const p = payloadTicketNomina(meta, t, 2);
-    expect(p.total_neto).toBeCloseTo(32631.60, 2);
-    expect(p.total_costo).toBeCloseTo(34101.50, 2);
-    expect(p.total_efectivo).toBe(20000);
+    expect(p.total_neto).toBeCloseTo(12631.60, 2);
+    expect(p.total_costo).toBeCloseTo(14101.50, 2);
+    expect(p.total_efectivo).toBeUndefined();
   });
 
   it('lleva los informativos que la Lista de Raya imprime', () => {
