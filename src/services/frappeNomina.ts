@@ -67,6 +67,7 @@ export interface RenglonInput {
   prestamo_infonavit_cf?: number | string;
   ajuste_neto?: number | string;
   isr_antes_subsidio?: number | string;
+  subsidio_empleo?: number | string;
   infonavit_cf_corresp?: number | string;
 }
 
