@@ -43,6 +43,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const { sucursales_destino: sucursales } = useSucursales();
   const [warehouseDestino, setWarehouseDestino] = useState(sucursalDefault || '');
   const [origenes, setOrigenes] = useState([]);
+  const [camionetas, setCamionetas] = useState([]);
   const [warehouseOrigen, setWarehouseOrigen] = useState(BODEGA_CENTRAL);
 
   // Orígenes reales: Bodega Central + almacenes de producción (tipo Departamento).
@@ -50,6 +51,12 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     stockService.fetchAllWarehouses()
       .then(setOrigenes)
       .catch(err => console.error('cargar orígenes envío:', err));
+    // Las camionetas también reciben pan, pero no son sucursales: salen por
+    // warehouse_type. Su envío se valúa a precio de pueblos (ver
+    // stockService._tipoPrecioDestino).
+    stockService.fetchCamionetas()
+      .then(setCamionetas)
+      .catch(err => console.error('cargar camionetas:', err));
   }, []);
 
   // Inicializar warehouse cuando cargue config (si no vino sucursalDefault)
@@ -68,7 +75,14 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const inputRefs = useRef([]);
   const [hojaData, setHojaData] = useState(null);
 
-  const sucursalLabel = sucursales.find(s => s.warehouse === warehouseDestino)?.label || warehouseDestino;
+  // La camioneta también necesita nombre legible en la hoja de entrega y el
+  // ticket: se busca en las dos listas, no solo en sucursales.
+  const sucursalLabel =
+    sucursales.find(s => s.warehouse === warehouseDestino)?.label ||
+    camionetas.find(c => c.name === warehouseDestino)?.label ||
+    warehouseDestino;
+  const esCamioneta = camionetas.some(c => c.name === warehouseDestino);
+  const origenEsCamioneta = camionetas.some(c => c.name === warehouseOrigen);
 
   // ── Borrador local ──────────────────────────────────────────────────────
   // Cerrar el modal por accidente tiraba el envío a medias. Ahora se guarda en
@@ -239,19 +253,46 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
                 // lo capturado, así que se parte de una tabla limpia.
                 setFilas([FILA_VACIA()]);
               }}>
-              {origenes.map(o => (
-                <option key={o.name} value={o.name}>{o.label}</option>
-              ))}
+              <optgroup label="Bodega y producción">
+                {origenes.map(o => (
+                  <option key={o.name} value={o.name}>{o.label}</option>
+                ))}
+              </optgroup>
+              {camionetas.length > 0 && (
+                /* El pan dulce que sobra de la ruta vuelve como stock a la tienda
+                   (Santuarios, Paseos): vive un día más. El bolillo NO vuelve —
+                   ese se captura en Merma, que ya acepta camioneta como origen. */
+                <optgroup label="Camionetas (regreso de ruta)">
+                  {camionetas.map(c => (
+                    <option key={c.name} value={c.name}>{c.label}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {origenEsCamioneta && (
+              <small className="nc-th-hint">Regreso de ruta — el bolillo va por Merma</small>
+            )}
           </div>
           <div className="nc-field nc-field-proveedor">
-            <label>Sucursal destino *</label>
+            <label>Destino *</label>
             <select className="nc-input" value={warehouseDestino}
               onChange={e => setWarehouseDestino(e.target.value)}>
-              {sucursales.map(s => (
-                <option key={s.warehouse} value={s.warehouse}>{s.label}</option>
-              ))}
+              <optgroup label="Sucursales">
+                {sucursales.map(s => (
+                  <option key={s.warehouse} value={s.warehouse}>{s.label}</option>
+                ))}
+              </optgroup>
+              {camionetas.length > 0 && (
+                <optgroup label="Camionetas (precio de pueblos)">
+                  {camionetas.map(c => (
+                    <option key={c.name} value={c.name}>{c.label}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {esCamioneta && (
+              <small className="nc-th-hint">Se valúa a precio de pueblos</small>
+            )}
           </div>
           <div className="nc-field nc-fecha">
             <label>Fecha</label>

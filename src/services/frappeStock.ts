@@ -68,6 +68,17 @@ class FrappeStockService extends FrappeBase {
   }
 
   /**
+   * Camionetas de reparto. Son almacenes de verdad: el pan vive en la camioneta
+   * hasta que se liquida la ruta, por eso salen por tipo y NO por la allowlist
+   * de sucursales extendidas — estar en esa lista haría que el hook backend
+   * `validate_stock_entry_sucursal` pisara el precio de pueblos con el normal.
+   */
+  async fetchCamionetas(): Promise<Almacen[]> {
+    const todos = await this.fetchAlmacenes();
+    return todos.filter(w => w.warehouse_type === TIPO_CAMIONETA);
+  }
+
+  /**
    * Devuelve warehouses agrupados por warehouse_type, con orden estable
    * (Departamento → Sucursal → Camioneta → Punto de Venta → otros).
    */
@@ -628,12 +639,31 @@ class FrappeStockService extends FrappeBase {
    * Resuelve precio venta congelado desde catálogo. Prioridad espejo NuevaVentaB2B.
    * Retorna precio por stock_uom (peso real, ej. por Kg). Devuelve 0 si no hay datos.
    */
-  _resolverPrecioVenta(item: any): number {
+  _resolverPrecioVenta(item: any, tipoPrecio: 'normal' | 'pueblos' = 'normal'): number {
     const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
+    // El pan que sale en camioneta se vende en los pueblos a otro precio, ya
+    // capturado en el catálogo. Si el producto no lo tiene, cae al precio normal:
+    // congelar 0 dejaría la liquidación de la ruta sin con qué cobrar.
+    if (tipoPrecio === 'pueblos' && parseFloat(item.custom_precio_de_venta_pueblos) > 0) {
+      return parseFloat(item.custom_precio_de_venta_pueblos) / cantPres;
+    }
     if (item.custom_precio_por_kg) return parseFloat(item.custom_precio_por_kg);
     if (item.custom_precio_de_venta) return parseFloat(item.custom_precio_de_venta) / cantPres;
     if (item.standard_rate) return parseFloat(item.standard_rate) / cantPres;
     return 0;
+  }
+
+  /**
+   * Qué precio le toca al destino. La regla vive aquí y no en la pantalla para
+   * que valga igual venga de donde venga el envío.
+   *
+   * ponytail: `fetchAlmacenes` ya cachea, así que esto no cuesta una consulta
+   * extra por envío.
+   */
+  async _tipoPrecioDestino(warehouse: string): Promise<'normal' | 'pueblos'> {
+    const almacenes = await this.fetchAlmacenes();
+    const destino = almacenes.find(w => w.name === warehouse);
+    return destino?.warehouse_type === TIPO_CAMIONETA ? 'pueblos' : 'normal';
   }
 
   /**
@@ -649,11 +679,16 @@ class FrappeStockService extends FrappeBase {
     // Si no traen precio congelado, jalarlo del catálogo ahora.
     const sinPrecio = items.filter(it => !(parseFloat(it.precio_venta_congelado) >= 0)).map(it => it.item_code);
     let dictPrecios: Record<string, any> = {};
+    // Solo se averigua el tipo de precio si hay algo que resolver: quien ya mandó
+    // el precio congelado decidió por su cuenta y no se le pisa.
+    let tipoPrecio: 'normal' | 'pueblos' = 'normal';
     if (sinPrecio.length) {
+      tipoPrecio = await this._tipoPrecioDestino(warehouseDestino);
       const params = new URLSearchParams({
         fields: JSON.stringify([
           'item_code', 'custom_cantidad_por_presentación',
-          'custom_precio_por_kg', 'custom_precio_de_venta', 'standard_rate',
+          'custom_precio_por_kg', 'custom_precio_de_venta',
+          'custom_precio_de_venta_pueblos', 'standard_rate',
         ]),
         filters: JSON.stringify([['name', 'in', sinPrecio]]),
         limit_page_length: '200',
@@ -672,7 +707,7 @@ class FrappeStockService extends FrappeBase {
       remarks: notas || `Envio a sucursal ${warehouseDestino}`,
       items: items.map(it => {
         let precio = parseFloat(it.precio_venta_congelado);
-        if (!(precio >= 0)) precio = this._resolverPrecioVenta(dictPrecios[it.item_code] || {});
+        if (!(precio >= 0)) precio = this._resolverPrecioVenta(dictPrecios[it.item_code] || {}, tipoPrecio);
         return {
           item_code: it.item_code,
           item_name: it.item_name,
