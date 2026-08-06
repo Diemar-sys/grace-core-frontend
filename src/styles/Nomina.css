@@ -183,6 +183,10 @@
 .nomina-editar {
   padding: .3rem .85rem !important; font-size: .8rem !important; border-radius: var(--radius-pill) !important;
 }
+.nomina-imprimir {
+  padding: .3rem .6rem !important; font-size: .9rem !important;
+  border-radius: var(--radius-pill) !important; margin-right: .35rem;
+}
 .nomina-lista tbody tr.fila-editando { background: var(--color-brand-hover); }
 
 /* Barra de edición de borrador */
@@ -258,6 +262,16 @@
 }
 .nom-chip b { color: var(--color-text); font-variant-numeric: tabular-nums; }
 
+/* Informativos: se ven distintos de los que suman a propósito. Si parecieran
+   iguales, alguien intentaría cuadrar el neto con ellos dentro. */
+.nom-suma-info { margin-top: .5rem; align-items: center; }
+.nom-info-label {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--color-text-muted); margin-right: .1rem;
+}
+.nom-chip.info { background: transparent; border: 1px dashed var(--color-border); }
+.nom-chip.info b { color: var(--color-text-muted); font-weight: 600; }
+
 .nom-suma-hero {
   display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem;
 }
@@ -272,6 +286,10 @@
 .nom-hero.gasto b { color: #6d28d9; }
 .nom-hero.imp { background: #dbeafe; }
 .nom-hero.imp b { color: #1e40af; }
+/* Deducciones: es el número contra el que se cuadra el recibo, no un tercer
+   "impuestos". Tono propio para que no se lea como variante del azul de al lado. */
+.nom-hero.ded { background: #fee2e2; }
+.nom-hero.ded b { color: #b91c1c; }
 
 @media (max-width: 720px) {
   .nomina-empleados { grid-template-columns: 1fr; }

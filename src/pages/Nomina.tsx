@@ -9,6 +9,7 @@ import {
   type ReporteRow,
 } from '../services/frappeNomina';
 import { imprimirNominaTermico } from '../services/printService';
+import { calcRenglon, sumarTotales, payloadTicketNomina } from '../utils/nominaTotales';
 import '../styles/Nomina.css'; // <-- Tu CSS hace toda la magia aquí
 
 type Num = number | string | null | undefined;
@@ -32,13 +33,13 @@ interface Fila {
   // Deducciones
   isr_mes: string; isr_art174: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
   // Informativos (no suman)
-  isr_antes_subsidio: string; infonavit_cf_corresp: string;
+  isr_antes_subsidio: string; subsidio_empleo: string; infonavit_cf_corresp: string;
 }
 const filaVacia = (): Fila => ({
   empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '',
   vacaciones: '', prima_vacacional: '',
   isr_mes: '', isr_art174: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
-  isr_antes_subsidio: '', infonavit_cf_corresp: '',
+  isr_antes_subsidio: '', subsidio_empleo: '', infonavit_cf_corresp: '',
 });
 
 // Grupos de captura (label + campo). Informativos NO suman al neto.
@@ -52,7 +53,9 @@ const DEDUCCIONES: [keyof Fila, string][] = [
   ['infonavit_cf_corresp', 'Infonavit CF corresp.'], ['ajuste_neto', 'Ajuste al neto'],
 ];
 const INFORMATIVOS: [keyof Fila, string][] = [
-  ['isr_antes_subsidio', 'ISR antes de subsidio'], ['prestamo_infonavit_cf', 'Préstamo Infonavit CF (saldo)'],
+  ['isr_antes_subsidio', 'ISR antes de subsidio'],
+  ['subsidio_empleo', 'Subs al empleado acreditado'],
+  ['prestamo_infonavit_cf', 'Préstamo Infonavit CF (saldo)'],
 ];
 
 export default function Nomina() {
@@ -141,6 +144,27 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     return t;
   }, { neto: 0, costo: 0 }), [corridasFiltradas]);
 
+  /**
+   * Vuelve a sacar el ticket de una corrida ya confirmada. Sin esto, un papel
+   * atorado o la térmica apagada dejaban la corrida sin comprobante y no había
+   * de dónde sacarlo otra vez.
+   *
+   * Relee los renglones del servidor en vez de usar lo que haya en pantalla: al
+   * reimprimir una corrida vieja la captura de arriba es de otra semana.
+   */
+  const reimprimir = async (c: Corrida) => {
+    try {
+      const det = await nominaService.getCorrida(c.name);
+      const t = sumarTotales(det.renglones || [], det.efectivo || 0);
+      await imprimirNominaTermico(payloadTicketNomina(
+        { folio: c.name, fecha_pago: c.fecha_pago, nomina_de: c.nomina_de,
+          semana_del: det.semana_del || null, semana_al: det.semana_al || null },
+        t, (det.renglones || []).length,
+      ));
+      flash('ok', `Ticket de ${c.name} enviado a la térmica`);
+    } catch (e) { flash('error', (e as Error).message); }
+  };
+
   const cancelarCorrida = async (c: Corrida) => {
     if (!window.confirm(`Cancelar la corrida ${c.name}? Se borrará su gasto de nómina.`)) return;
     try {
@@ -174,7 +198,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       vacaciones: s(r.vacaciones), prima_vacacional: s(r.prima_vacacional),
       isr_mes: s(r.isr_mes), isr_art174: s(r.isr_art174), imss: s(r.imss),
       prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
-      isr_antes_subsidio: s(r.isr_antes_subsidio), infonavit_cf_corresp: s(r.infonavit_cf_corresp),
+      isr_antes_subsidio: s(r.isr_antes_subsidio), subsidio_empleo: s(r.subsidio_empleo),
+      infonavit_cf_corresp: s(r.infonavit_cf_corresp),
     };
   };
 
@@ -226,41 +251,11 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     setNominaDe(''); setSemanaDel(''); setSemanaAl(''); setEfectivo(''); setFechaPago(proximoMiercoles());
   };
 
-  const calc = (f: Fila) => {
-    const n = (v: string) => Number(v || 0);
-    const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion)
-      + n(f.vacaciones) + n(f.prima_vacacional);
-    const deducc = n(f.isr_mes) + n(f.isr_art174) + n(f.imss) + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
-    // El efectivo es de la corrida completa, no del empleado: no entra aquí.
-    return { bruto, deducc, neto: bruto - deducc, costo: bruto };
-  };
+  const calc = calcRenglon;
 
-  // Totales por concepto + los 2 números del cliente.
-  const totales = useMemo(() => {
-    const n = (v: string) => Number(v || 0);
-    const t = {
-      sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0,
-      prima_vacacional: 0, bruto: 0,
-      isr_mes: 0, isr_art174: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
-      efectivo: 0, neto: 0, costo: 0, impuestos: 0,
-    };
-    for (const f of filas) {
-      const c = calc(f);
-      t.sueldo += n(f.sueldo); t.septimo_dia += n(f.septimo_dia);
-      t.prima_dominical += n(f.prima_dominical); t.gratificacion += n(f.gratificacion);
-      t.vacaciones += n(f.vacaciones); t.prima_vacacional += n(f.prima_vacacional);
-      t.isr_mes += n(f.isr_mes); t.isr_art174 += n(f.isr_art174); t.imss += n(f.imss);
-      t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
-      t.bruto += c.bruto; t.deducc += c.deducc;
-      t.neto += c.neto; t.costo += c.costo;
-    }
-    // El Art. 174 es ISR de pagos extraordinarios: cuenta como impuesto igual que el ordinario.
-    t.impuestos = t.isr_mes + t.isr_art174 + t.imss + t.ajuste_neto; // + ajuste → cuadra con Total Deducciones del recibo
-    // El efectivo no sale de los renglones (es de la corrida) y se quedaba en 0:
-    // el desglose mostraba "Efectivo $0.00" con 20,000 capturados arriba.
-    t.efectivo = Number(efectivo || 0);
-    return t;
-  }, [filas, efectivo]);
+  // Totales por concepto + los 2 números del cliente. La aritmética vive en
+  // utils/nominaTotales: la comparte con la reimpresión de corridas viejas.
+  const totales = useMemo(() => sumarTotales(filas, efectivo), [filas, efectivo]);
 
   // Sumatoria dispersa: solo conceptos con valor (0 → no se muestra).
   const conceptoTotales: [string, number][] = [
@@ -271,6 +266,14 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     ['ISR', totales.isr_mes], ['ISR Art. 174', totales.isr_art174], ['IMSS', totales.imss],
     ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
     ['Efectivo', totales.efectivo],
+  ];
+
+  // Los que CONTPAQi lista pero no suman. Van en su propia fila: mezclados con
+  // los de arriba parecerían parte de la sumatoria y no cuadraría nada.
+  const conceptoInformativos: [string, number][] = [
+    ['Préstamo infonavit (FD)', totales.prestamo_infonavit_cf],
+    ['Subs al Empleo acreditado', totales.subsidio_empleo],
+    ['I.S.R. antes de Subs', totales.isr_antes_subsidio],
   ];
 
   const guardar = async (submit: boolean) => {
@@ -293,23 +296,11 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       // `calc()` replica el validate() del servidor, así que no hace falta
       // volver a leer la corrida solo para imprimirla.
       if (submit) {
-        imprimirNominaTermico({
-          folio: res.name, fecha_pago: fechaPago, nomina_de: nominaDe,
-          semana_del: semanaDel || null, semana_al: semanaAl || null,
-          total_sueldo: totales.sueldo, total_septimo_dia: totales.septimo_dia,
-          total_prima_dominical: totales.prima_dominical,
-          total_gratificacion: totales.gratificacion,
-          total_vacaciones: totales.vacaciones,
-          total_prima_vacacional: totales.prima_vacacional,
-          total_declarado: totales.bruto,
-          total_isr: totales.isr_mes, total_isr_art174: totales.isr_art174,
-          total_imss: totales.imss, total_infonavit: totales.infonavit_cf_corresp,
-          total_ajuste: totales.ajuste_neto, total_retenciones: totales.deducc,
-          total_neto: totales.neto + Number(efectivo || 0),
-          total_efectivo: Number(efectivo || 0),
-          total_costo: totales.costo + Number(efectivo || 0),
-          empleados: renglones.length,
-        });
+        imprimirNominaTermico(payloadTicketNomina(
+          { folio: res.name, fecha_pago: fechaPago, nomina_de: nominaDe,
+            semana_del: semanaDel || null, semana_al: semanaAl || null },
+          totales, renglones.length,
+        ));
       }
       nuevaCorrida();
       cargarCorridas();
@@ -390,9 +381,22 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
             <span key={label} className="nom-chip">{label}<b>{money(v)}</b></span>
           ))}
         </div>
+        {conceptoInformativos.some(([, v]) => v !== 0) && (
+          <div className="nom-suma-chips nom-suma-info">
+            <span className="nom-info-label">No suman:</span>
+            {conceptoInformativos.filter(([, v]) => v !== 0).map(([label, v]) => (
+              <span key={label} className="nom-chip info">{label}<b>{money(v)}</b></span>
+            ))}
+          </div>
+        )}
         <div className="nom-suma-hero">
           <div className="nom-hero"><span>Total neto</span><b>{money(totales.neto)}</b></div>
           <div className="nom-hero gasto"><span>💰 Gasto en empleados</span><b>{money(totales.costo)}</b></div>
+          {/* Este es el que cuadra con "Total Deducciones" del recibo: lleva el
+              Infonavit, que NO es impuesto (es el crédito de vivienda) y por eso
+              queda fuera del tile de al lado. Sin este número había que restar
+              a mano para comparar contra CONTPAQi. */}
+          <div className="nom-hero ded"><span>➖ Total deducciones</span><b>{money(totales.deducc)}</b></div>
           <div className="nom-hero imp"><span>🏛️ Total impuestos</span><b>{money(totales.impuestos)}</b></div>
         </div>
       </div>
@@ -442,7 +446,11 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
                     onClick={() => editarBorrador(c)}>Continuar</button>
                 )}
                 {c.docstatus === 1 && (
-                  <button className="nomina-del" title="Cancelar corrida" onClick={() => cancelarCorrida(c)}>×</button>
+                  <>
+                    <button className="nomina-imprimir" title="Volver a imprimir el ticket"
+                      onClick={() => reimprimir(c)}>🖨</button>
+                    <button className="nomina-del" title="Cancelar corrida" onClick={() => cancelarCorrida(c)}>×</button>
+                  </>
                 )}
               </td>
             </tr>
