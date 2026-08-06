@@ -1,0 +1,274 @@
+/* Reporte anual de gastos — tarjetas flotando sobre crema (bento), y una hoja
+   limpia al imprimir. Los colores de las series NO viven aquí: los asigna
+   asignarColores() en JS, porque son datos, no decoración. */
+
+.rga {
+  padding: 24px 28px 48px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Encabezado ─────────────────────────────────────── */
+.rga-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.rga-header h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0b0b0b;
+}
+
+.rga-sub { margin: 4px 0 0; font-size: 14px; color: #6b7280; }
+
+.rga-controles { display: flex; gap: 10px; align-items: center; }
+
+.rga-select {
+  border: 1px solid #e5e2d9;
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0b0b0b;
+  cursor: pointer;
+}
+
+.rga-btn-print {
+  border: none;
+  background: #0b0b0b;
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rga-btn-print:hover { background: #333; }
+
+.rga-error   { background: #feedeb; border: 1px solid #f97373; color: #b42318;
+               padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; }
+.rga-loading,
+.rga-vacio   { color: #6b7280; padding: 40px; text-align: center; font-size: 15px; }
+
+/* ── Totales ────────────────────────────────────────── */
+.rga-totales {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.rga-hero, .rga-tile {
+  background: #fff;
+  border-radius: 22px;
+  padding: 22px 26px;
+  box-shadow: 0 2px 14px rgba(11, 11, 11, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rga-hero-label, .rga-tile-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #898781;
+}
+
+/* La cifra grande no lleva tabular-nums: no se alinea con nada. */
+.rga-hero-valor { font-size: 38px; font-weight: 700; letter-spacing: -0.03em; color: #0b0b0b; }
+.rga-tile-valor { font-size: 22px; font-weight: 700; color: #0b0b0b; }
+.rga-tile small { font-size: 12px; color: #6b7280; }
+
+/* ── Tarjetas ───────────────────────────────────────── */
+.rga-card {
+  background: #fff;
+  border-radius: 22px;
+  padding: 22px 26px 26px;
+  box-shadow: 0 2px 14px rgba(11, 11, 11, 0.05);
+  margin-bottom: 18px;
+}
+
+.rga-card h2 { margin: 0 0 4px; font-size: 17px; font-weight: 700; color: #0b0b0b; }
+.rga-hint    { margin: 0 0 14px; font-size: 13px; color: #898781; }
+
+/* ── Leyenda ────────────────────────────────────────── */
+.rga-leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 12px 0 16px;
+  padding: 0;
+}
+.rga-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: #52514e;   /* la etiqueta va en tinta, no en el color de la serie */
+}
+
+.rga-punto {
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ── Gráfica ────────────────────────────────────────── */
+.rga-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.rga-grid { stroke: #e1e0d9; stroke-width: 1; }
+.rga-eje  { stroke: #c3c2b7; stroke-width: 1; }
+.rga-tick { fill: #898781; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.rga-barra { cursor: default; transition: opacity 0.12s; }
+.rga-barra:hover { opacity: 0.78; }
+
+.rga-tooltip {
+  position: fixed;
+  transform: translate(-50%, -110%);
+  background: #0b0b0b;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 60;
+  white-space: nowrap;
+}
+.rga-tooltip-valor { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── Tabla ──────────────────────────────────────────── */
+.rga-tabla-scroll { overflow-x: auto; }
+
+.rga-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rga-tabla th, .rga-tabla td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #f0efec;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rga-tabla thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #898781;
+  border-bottom: 1px solid #e1e0d9;
+}
+
+.rga-th-cat, .rga-td-cat {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: #fff;   /* la columna fija tapa lo que pasa por debajo al scrollear */
+  font-weight: 600;
+  color: #0b0b0b;
+}
+
+.rga-td-cat { display: table-cell; }
+.rga-td-cat .rga-punto { margin-right: 8px; vertical-align: middle; }
+
+/* tabular-nums SÍ aquí: son columnas que deben alinearse verticalmente. */
+.rga-td-num { font-variant-numeric: tabular-nums; color: #52514e; }
+.rga-td-cero { color: #c3c2b7; }
+.rga-td-total { font-weight: 700; color: #0b0b0b; }
+
+.rga-td-click { cursor: pointer; border-radius: 6px; }
+.rga-td-click:hover { background: #f9f9f7; color: #0b0b0b; }
+
+.rga-tabla tfoot th, .rga-tabla tfoot td {
+  border-top: 2px solid #e1e0d9;
+  border-bottom: none;
+  font-weight: 700;
+  color: #0b0b0b;
+  padding-top: 12px;
+}
+
+/* ── Modal de detalle ───────────────────────────────── */
+.rga-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(11, 11, 11, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 80;
+  padding: 24px;
+}
+
+.rga-modal {
+  background: #fff;
+  border-radius: 22px;
+  width: min(860px, 100%);
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: 22px 26px 26px;
+  box-shadow: 0 12px 48px rgba(11, 11, 11, 0.22);
+}
+
+.rga-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.rga-modal-header h3 { margin: 0; font-size: 17px; font-weight: 700; }
+
+.rga-modal-close {
+  border: none; background: none;
+  font-size: 26px; line-height: 1;
+  cursor: pointer; color: #898781;
+  padding: 0 4px;
+}
+
+.rga-tabla-detalle th:not(.rga-td-num),
+.rga-tabla-detalle td:not(.rga-td-num) { text-align: left; white-space: normal; }
+.rga-td-ref { color: #898781; font-size: 12px; }
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 900px) {
+  .rga { padding: 16px 14px 40px; }
+  .rga-totales { grid-template-columns: 1fr; }
+  .rga-hero-valor { font-size: 30px; }
+}
+
+/* ── Impresión (el PDF del gerente) ─────────────────── */
+@media print {
+  /* Fuera la navegación y todo lo que no se puede clicar en papel. */
+  .layout-navbar, .layout-menu, .rga-controles, .rga-hint,
+  .rga-modal-overlay, .rga-tooltip { display: none !important; }
+
+  .rga { padding: 0; max-width: none; }
+
+  .rga-card, .rga-hero, .rga-tile {
+    box-shadow: none;
+    border: 1px solid #e1e0d9;
+    border-radius: 12px;
+    break-inside: avoid;   /* que una tarjeta no quede partida entre dos hojas */
+  }
+
+  .rga-tabla-scroll { overflow: visible; }
+  .rga-tabla { font-size: 10px; }
+  .rga-tabla th, .rga-tabla td { padding: 5px 6px; }
+
+  /* Sin esto el navegador imprime las barras en blanco y la gráfica no dice nada. */
+  .rga-barra, .rga-punto { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page { size: landscape; margin: 12mm; }
+}

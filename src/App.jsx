@@ -15,6 +15,7 @@ import ConsultasPOS from './pages/ConsultasPOS';
 import Kardex from './pages/Kardex';
 import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
 import ReporteGastos from './pages/ReporteGastos';
+import ReporteGastosAnual from './pages/ReporteGastosAnual';
 import ReporteCompras from './pages/ReporteCompras';
 import ReporteCuentasPorPagar from './pages/ReporteCuentasPorPagar';
 import ReporteCuentasPorCobrar from './pages/ReporteCuentasPorCobrar';
@@ -142,6 +143,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ReporteGastos />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/gastos-anual"
+          element={
+            <ProtectedRoute>
+              <ReporteGastosAnual />
             </ProtectedRoute>
           }
         />
