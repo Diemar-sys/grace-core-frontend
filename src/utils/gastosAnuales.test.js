@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { consolidarGastos, mesDe, mesesConDatos, asignarColores, CAT_COMPRAS } from './gastosAnuales';
+import {
+  consolidarGastos, mesDe, mesesConDatos, asignarColores, etiquetaEgreso, CAT_COMPRAS,
+} from './gastosAnuales';
 
 /**
  * Este reporte va a manos del gerente y del contador. Un peso mal sumado aquí
@@ -130,6 +132,53 @@ describe('asignarColores', () => {
     const muchas = Array.from({ length: 10 }, (_, i) => `CAT${i}`);
     const m = asignarColores(muchas);
     expect(new Set(Object.values(m)).size).toBe(7);   // los 7 validados, ni uno más
+  });
+});
+
+describe('desglose por subcategoría', () => {
+  // "Gasto" es un cajón: agua, gas y gasolina caían en un solo renglón y el
+  // reporte no servía para decidir dónde se va el dinero.
+  const gasto = (fecha, monto, subcategoria) => ({ fecha, monto, categoria: 'Gasto', subcategoria });
+
+  it('la etiqueta lleva familia y subcategoría', () => {
+    expect(etiquetaEgreso({ categoria: 'Gasto', subcategoria: 'Agua' })).toBe('GASTO · AGUA');
+  });
+
+  it('sin subcategoría se queda solo la familia', () => {
+    expect(etiquetaEgreso({ categoria: 'Renta' })).toBe('RENTA');
+    expect(etiquetaEgreso({})).toBe('SIN CATEGORÍA');
+  });
+
+  it('cada subcategoría es su propio renglón', () => {
+    const g = consolidarGastos(2026, [], [
+      gasto('2026-07-05', 100, 'Agua'),
+      gasto('2026-07-06', 200, 'Gas'),
+      gasto('2026-07-07', 50, 'Agua'),
+    ]);
+    expect(g.categorias.map(c => c.categoria)).toEqual(['GASTO · GAS', 'GASTO · AGUA']);
+    expect(g.categorias.find(c => c.categoria === 'GASTO · AGUA').total).toBe(150);
+  });
+
+  it('la familia agrega a sus subcategorías sin duplicar el total', () => {
+    const g = consolidarGastos(2026, [], [
+      gasto('2026-07-05', 100, 'Agua'),
+      gasto('2026-07-06', 200, 'Gas'),
+    ]);
+    expect(g.familias.map(f => f.categoria)).toEqual(['GASTO']);
+    expect(g.familias[0].total).toBe(300);
+    expect(g.total).toBe(300);   // el detalle no se suma dos veces
+  });
+
+  it('las subcategorías de una familia quedan juntas, no desperdigadas', () => {
+    // RENTA (250) pesa más que cada subcategoría de GASTO por separado, pero
+    // menos que GASTO entero (300): no debe partir el bloque en dos.
+    const g = consolidarGastos(2026, [], [
+      gasto('2026-07-05', 100, 'Agua'),
+      gasto('2026-07-06', 200, 'Gas'),
+      { fecha: '2026-07-07', monto: 250, categoria: 'Renta' },
+    ]);
+    expect(g.categorias.map(c => c.categoria))
+      .toEqual(['GASTO · GAS', 'GASTO · AGUA', 'RENTA']);
   });
 });
 

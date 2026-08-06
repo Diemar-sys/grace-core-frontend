@@ -15,7 +15,7 @@ import { comprasService } from '../services/frappePurchase';
 import { egresosService } from '../services/frappeEgresos';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import {
-  consolidarGastos, asignarColores, mesDe, MESES, CAT_COMPRAS,
+  consolidarGastos, asignarColores, mesDe, etiquetaEgreso, MESES, CAT_COMPRAS,
 } from '../utils/gastosAnuales';
 import '../styles/global.css';
 import '../styles/ReporteGastosAnual.css';
@@ -62,7 +62,7 @@ function GraficaMensual({ datos, colores, onHover }) {
         // Las categorías se apilan en orden fijo: la misma categoría queda
         // siempre a la misma altura relativa y la barra se lee de un mes a otro.
         let acumulado = 0;
-        const segmentos = datos.categorias
+        const segmentos = datos.familias
           .map(cat => {
             const v = cat.meses[m];
             if (!(v > 0)) return null;
@@ -140,7 +140,7 @@ function ReporteGastosAnual() {
   }, [cargar]);
 
   const datos   = useMemo(() => consolidarGastos(anio, compras, egresos), [anio, compras, egresos]);
-  const colores = useMemo(() => asignarColores(datos.categorias.map(c => c.categoria)), [datos]);
+  const colores = useMemo(() => asignarColores(datos.familias.map(f => f.categoria)), [datos]);
 
   const mesesConMovimiento = datos.totalesMes.filter(t => t > 0).length;
   const promedio = mesesConMovimiento ? datos.total / mesesConMovimiento : 0;
@@ -161,11 +161,12 @@ function ReporteGastosAnual() {
         }));
     }
     return egresos
-      .filter(e => (e.categoria || 'SIN CATEGORÍA').toUpperCase() === categoria
-                && mesDe(e.fecha, anio) === mes)
+      .filter(e => etiquetaEgreso(e) === categoria && mesDe(e.fecha, anio) === mes)
       .map(e => ({
         fecha: e.fecha,
-        concepto: [e.subcategoria, e.concepto].filter(Boolean).join(' · ') || e.descripcion || '—',
+        // La subcategoría ya va en el título del modal; repetirla en cada renglón
+        // solo gasta ancho.
+        concepto: e.concepto || e.descripcion || '—',
         referencia: e.facturado_a || e.name,
         monto: parseFloat(e.monto) || 0,
       }));
@@ -210,8 +211,8 @@ function ReporteGastosAnual() {
               </div>
               <div className="rga-tile">
                 <span className="rga-tile-label">Categoría más pesada</span>
-                <strong className="rga-tile-valor">{datos.categorias[0]?.categoria}</strong>
-                <small>{fmtMoney(datos.categorias[0]?.total)} — {Math.round((datos.categorias[0]?.total / datos.total) * 100)}% del total</small>
+                <strong className="rga-tile-valor">{datos.familias[0]?.categoria}</strong>
+                <small>{fmtMoney(datos.familias[0]?.total)} — {Math.round((datos.familias[0]?.total / datos.total) * 100)}% del total</small>
               </div>
             </section>
 
@@ -219,10 +220,10 @@ function ReporteGastosAnual() {
               <h2>Gasto por mes</h2>
               {/* Leyenda siempre presente: la identidad no puede depender solo del color. */}
               <ul className="rga-leyenda">
-                {datos.categorias.map(c => (
-                  <li key={c.categoria}>
-                    <span className="rga-punto" style={{ background: colores[c.categoria] }} />
-                    {c.categoria}
+                {datos.familias.map(f => (
+                  <li key={f.categoria}>
+                    <span className="rga-punto" style={{ background: colores[f.categoria] }} />
+                    {f.categoria}
                   </li>
                 ))}
               </ul>
@@ -252,7 +253,7 @@ function ReporteGastosAnual() {
                     {datos.categorias.map(cat => (
                       <tr key={cat.categoria}>
                         <th scope="row" className="rga-td-cat">
-                          <span className="rga-punto" style={{ background: colores[cat.categoria] }} />
+                          <span className="rga-punto" style={{ background: colores[cat.familia] }} />
                           {cat.categoria}
                         </th>
                         {cat.meses.map((v, m) => (

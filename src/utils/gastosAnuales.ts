@@ -31,8 +31,30 @@ export const MESES = [
 /** Categoría con la que entran las compras de insumos al consolidado. */
 export const CAT_COMPRAS = 'COMPRAS (INSUMOS)';
 
+/** Separador entre familia y subcategoría en la etiqueta de una fila. */
+const SEP = ' · ';
+
+/**
+ * Etiqueta de la fila del reporte.
+ *
+ * `Gasto` en el Egreso es un cajón: mete agua, gas, gasolina, mantenimiento y
+ * papelería en el mismo renglón, y `Impuesto` hace lo mismo con IMSS e ISR. Lo
+ * que el gerente necesita leer es la subcategoría; la familia se conserva como
+ * prefijo para no perder de dónde viene ni de qué se suma con qué.
+ */
+export function etiquetaEgreso(egreso: any): string {
+  const familia = String(egreso?.categoria || 'SIN CATEGORÍA').toUpperCase();
+  const sub = String(egreso?.subcategoria || '').toUpperCase();
+  return sub && sub !== familia ? familia + SEP + sub : familia;
+}
+
+/** Familia de una etiqueta. Es la unidad de color y la que apila la gráfica. */
+export const familiaDe = (etiqueta: string): string => etiqueta.split(SEP)[0];
+
 export interface FilaCategoria {
   categoria: string;
+  /** Familia a la que pertenece; para las compras, ella misma. */
+  familia: string;
   /** 12 posiciones, índice 0 = enero. */
   meses: number[];
   total: number;
@@ -40,7 +62,13 @@ export interface FilaCategoria {
 
 export interface GastosAnuales {
   anio: number;
+  /** Filas de detalle: una por subcategoría. */
   categorias: FilaCategoria[];
+  /**
+   * Las mismas cifras agregadas por familia. La gráfica apila por aquí: una
+   * veintena de series repartidas en siete colores no se puede leer.
+   */
+  familias: FilaCategoria[];
   /** 12 posiciones con el total de cada mes. */
   totalesMes: number[];
   total: number;
@@ -64,9 +92,23 @@ export function mesDe(fecha?: string | null, anio?: number): number | null {
 
 const filaVacia = (categoria: string): FilaCategoria => ({
   categoria,
+  familia: familiaDe(categoria),
   meses: Array(12).fill(0),
   total: 0,
 });
+
+/** Suma filas en otra dimensión (detalle → familia) reusando la misma forma. */
+function agrupar(filas: FilaCategoria[], clave: (f: FilaCategoria) => string): FilaCategoria[] {
+  const mapa = new Map<string, FilaCategoria>();
+  for (const f of filas) {
+    const k = clave(f);
+    if (!mapa.has(k)) mapa.set(k, filaVacia(k));
+    const acc = mapa.get(k)!;
+    f.meses.forEach((v, m) => { acc.meses[m] = round2(acc.meses[m] + v); });
+    acc.total = round2(acc.total + f.total);
+  }
+  return [...mapa.values()];
+}
 
 /**
  * Arma la matriz categoría × mes.
@@ -99,24 +141,40 @@ export function consolidarGastos(
   for (const e of egresos) {
     const mes = mesDe(e.fecha, anio);
     if (mes == null) continue;
-    sumar((e.categoria || 'SIN CATEGORÍA').toUpperCase(), mes, parseFloat(e.monto) || 0);
+    sumar(etiquetaEgreso(e), mes, parseFloat(e.monto) || 0);
   }
+
+  const filas = [...porCategoria.values()]
+    .map(f => ({ ...f, total: round2(f.meses.reduce((s, n) => s + n, 0)) }));
 
   // Compras primero (suele ser la mayor), el resto por peso descendente: la
   // tabla se lee de arriba abajo en orden de importancia.
-  const categorias = [...porCategoria.values()]
-    .map(f => ({ ...f, total: round2(f.meses.reduce((s, n) => s + n, 0)) }))
-    .sort((a, b) =>
-      a.categoria === CAT_COMPRAS ? -1
-      : b.categoria === CAT_COMPRAS ? 1
-      : b.total - a.total);
+  const porPeso = (a: FilaCategoria, b: FilaCategoria) =>
+    a.categoria === CAT_COMPRAS ? -1
+    : b.categoria === CAT_COMPRAS ? 1
+    : b.total - a.total;
+
+  const familias = agrupar(filas, f => f.familia).sort(porPeso);
+
+  // Las filas de detalle se ordenan por el peso de SU FAMILIA primero: así las
+  // subcategorías de un mismo cajón quedan juntas en vez de desperdigarse entre
+  // familias ajenas, que es justo lo que hace ilegible una tabla larga.
+  const pesoFamilia = new Map(familias.map(f => [f.categoria, f.total]));
+  const categorias = filas.sort((a, b) =>
+    a.familia === b.familia
+      ? porPeso(a, b)
+      : porPeso(
+          { ...a, categoria: a.familia, total: pesoFamilia.get(a.familia) ?? 0 },
+          { ...b, categoria: b.familia, total: pesoFamilia.get(b.familia) ?? 0 },
+        ));
 
   const totalesMes = Array.from({ length: 12 }, (_, m) =>
-    round2(categorias.reduce((s, f) => s + f.meses[m], 0)));
+    round2(familias.reduce((s, f) => s + f.meses[m], 0)));
 
   return {
     anio,
     categorias,
+    familias,
     totalesMes,
     total: round2(totalesMes.reduce((s, n) => s + n, 0)),
   };
@@ -157,7 +215,9 @@ export const ORDEN_CATEGORIAS = [
 ];
 
 /**
- * Mapa categoría → color, estable. Las categorías desconocidas se acomodan
+ * Mapa familia → color, estable. El color pertenece a la familia, no a la
+ * subcategoría: las siete familias caben en la paleta y las filas de detalle
+ * heredan el tono de su cajón. Las desconocidas se acomodan
  * alfabéticamente después de las conocidas (no por peso, misma razón), y si se
  * acaban los tonos se repiten en vez de inventar colores nuevos: un tono
  * generado no está validado y puede volverse indistinguible.
