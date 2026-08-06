@@ -206,19 +206,23 @@
 }
 
 /* ── Modal de detalle ───────────────────────────────── */
+/* Mismo criterio que .edit-overlay (global.css): z-index por encima del
+   menubar sticky (90) o la barra se pinta encima del modal, y el título nace
+   bajo la barra con el mismo aire que deja abajo. */
 .rga-modal-overlay {
   position: fixed; inset: 0;
   background: rgba(11, 11, 11, 0.4);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 80;
-  padding: 24px;
+  display: flex; align-items: flex-start; justify-content: center;
+  z-index: 1000;
+  padding: 92px 8px 24px;
+  overflow-y: auto;
 }
 
 .rga-modal {
   background: #fff;
   border-radius: 22px;
   width: min(860px, 100%);
-  max-height: 82vh;
+  max-height: var(--modal-max-h);
   overflow-y: auto;
   padding: 22px 26px 26px;
   box-shadow: 0 12px 48px rgba(11, 11, 11, 0.22);
@@ -250,11 +254,26 @@
 
 /* ── Impresión (el PDF del gerente) ─────────────────── */
 @media print {
-  /* Fuera la navegación y todo lo que no se puede clicar en papel. */
-  .layout-navbar, .layout-menu, .rga-controles, .rga-hint,
-  .rga-modal-overlay, .rga-tooltip { display: none !important; }
+  /* El Layout encierra la app en un contenedor de 100vh con overflow oculto y
+     el contenido scrollea por dentro: en papel eso recorta la hoja y sale en
+     blanco. En vez de deshacer el overflow de cada ancestro (frágil y depende
+     del navegador), se apaga todo por visibility y el reporte se saca del
+     contenedor recortado con position:absolute — al colgar del bloque inicial
+     ya no lo clipa nadie. */
+  body * { visibility: hidden; }
+  .rga, .rga * { visibility: visible; }
+  .rga {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    padding: 0;
+    max-width: none;
+  }
+  html, body { height: auto !important; overflow: visible !important; }
 
-  .rga { padding: 0; max-width: none; }
+  /* Fuera lo que no se puede clicar en papel. */
+  .rga-controles, .rga-hint,
+  .rga-modal-overlay, .rga-tooltip { display: none !important; }
 
   .rga-card, .rga-hero, .rga-tile {
     box-shadow: none;

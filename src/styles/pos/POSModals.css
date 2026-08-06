@@ -607,7 +607,11 @@
 
 /* ══ IMPRESIÓN ════════════════════════════════════ */
 @media print {
-  body > * { display: none !important; }
+  /* El :has acota la regla al corte de caja. Sin él esto apaga el body de la
+     app ENTERA al imprimir — App.jsx importa POS estático, así que este archivo
+     entra al bundle de todas las pantallas y cualquier otra impresión (el
+     reporte anual de gastos, por ejemplo) salía en hoja blanca. */
+  body:has(#ticket-corte-imprimible) > * { display: none !important; }
   #ticket-corte-imprimible {
     display: block !important;
     position: fixed;
