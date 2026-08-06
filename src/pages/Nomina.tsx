@@ -8,6 +8,7 @@ import {
   type RenglonInput,
   type ReporteRow,
 } from '../services/frappeNomina';
+import { imprimirNominaTermico } from '../services/printService';
 import '../styles/Nomina.css'; // <-- Tu CSS hace toda la magia aquí
 
 type Num = number | string | null | undefined;
@@ -255,8 +256,11 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     }
     // El Art. 174 es ISR de pagos extraordinarios: cuenta como impuesto igual que el ordinario.
     t.impuestos = t.isr_mes + t.isr_art174 + t.imss + t.ajuste_neto; // + ajuste → cuadra con Total Deducciones del recibo
+    // El efectivo no sale de los renglones (es de la corrida) y se quedaba en 0:
+    // el desglose mostraba "Efectivo $0.00" con 20,000 capturados arriba.
+    t.efectivo = Number(efectivo || 0);
     return t;
-  }, [filas]);
+  }, [filas, efectivo]);
 
   // Sumatoria dispersa: solo conceptos con valor (0 → no se muestra).
   const conceptoTotales: [string, number][] = [
@@ -284,6 +288,29 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
         name: borradorId || undefined, // si editaba un borrador, lo actualiza
       });
       flash('ok', `Corrida ${res.name} ${submit ? 'confirmada' : 'guardada en borrador'}`);
+      // El ticket sale solo al CONFIRMAR: un borrador todavía se edita y el papel
+      // quedaría mintiendo. Va con los totales que ya están en pantalla —
+      // `calc()` replica el validate() del servidor, así que no hace falta
+      // volver a leer la corrida solo para imprimirla.
+      if (submit) {
+        imprimirNominaTermico({
+          folio: res.name, fecha_pago: fechaPago, nomina_de: nominaDe,
+          semana_del: semanaDel || null, semana_al: semanaAl || null,
+          total_sueldo: totales.sueldo, total_septimo_dia: totales.septimo_dia,
+          total_prima_dominical: totales.prima_dominical,
+          total_gratificacion: totales.gratificacion,
+          total_vacaciones: totales.vacaciones,
+          total_prima_vacacional: totales.prima_vacacional,
+          total_declarado: totales.bruto,
+          total_isr: totales.isr_mes, total_isr_art174: totales.isr_art174,
+          total_imss: totales.imss, total_infonavit: totales.infonavit_cf_corresp,
+          total_ajuste: totales.ajuste_neto, total_retenciones: totales.deducc,
+          total_neto: totales.neto + Number(efectivo || 0),
+          total_efectivo: Number(efectivo || 0),
+          total_costo: totales.costo + Number(efectivo || 0),
+          empleados: renglones.length,
+        });
+      }
       nuevaCorrida();
       cargarCorridas();
     } catch (e) { flash('error', (e as Error).message); }

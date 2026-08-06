@@ -123,6 +123,29 @@ export async function imprimirRegaloTermico({
   return data;
 }
 
+/**
+ * Ticket de una corrida de nómina confirmada. SOLO TOTALES, sin nombres ni el
+ * neto de cada quien: el papel se queda en el mostrador y ahí no puede estar lo
+ * que gana cada empleado. El desglose por persona vive en la pantalla, con permisos.
+ *
+ * Fire-and-forget: la corrida YA se confirmó cuando esto corre. Si la térmica
+ * está apagada no se puede deshacer un Egreso ya generado, así que el fallo se
+ * avisa y no se propaga — lo mismo que hace el ticket de regalo de proveedor.
+ */
+export async function imprimirNominaTermico(corrida: Record<string, any>) {
+  try {
+    const res = await fetch(`${PRINT_SERVER}/imprimir-nomina`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corrida),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al imprimir la corrida');
+  } catch (err) {
+    console.warn('No se pudo imprimir el ticket de nómina:', (err as Error).message);
+  }
+}
+
 const _fmt2 = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Precio unitario: hasta 6 decimales. El gas y la cuota IEPS se capturan asi y a
