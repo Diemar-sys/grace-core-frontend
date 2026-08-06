@@ -67,10 +67,10 @@ describe('crearTransferenciaSucursal — almacén de origen', () => {
 });
 
 /**
- * El pan que reparte la camioneta se vende en los pueblos a otro precio. El
- * precio se CONGELA en el traspaso, así que equivocarlo aquí desalinea la
- * liquidación de la ruta entera: se cobraría al precio de mostrador pan que se
- * vendió más barato.
+ * El mismo pan vale distinto según a dónde va: sucursal (urbano, el más alto),
+ * pueblos (puntos fijos) y camioneta (rutas a ranchos). El precio se CONGELA en
+ * el traspaso, así que equivocarlo aquí desalinea la liquidación de la ruta
+ * entera: se cobraría al precio de mostrador pan que se vendió más barato.
  */
 describe('crearTransferenciaSucursal — precio según el destino', () => {
   const CATALOGO = {
@@ -79,8 +79,9 @@ describe('crearTransferenciaSucursal — precio según el destino', () => {
       custom_cantidad_por_presentación: 1,
       custom_precio_de_venta: 4,
       custom_precio_de_venta_pueblos: 3.5,
+      custom_precio_de_venta_camioneta: 3,
     },
-    // Sin precio de pueblos capturado: tiene que caer al normal, no a 0.
+    // Sin precio propio capturado: tiene que caer al normal, no a 0.
     MP_CONCHA: {
       item_code: 'MP_CONCHA',
       custom_cantidad_por_presentación: 1,
@@ -95,8 +96,11 @@ describe('crearTransferenciaSucursal — precio según el destino', () => {
     svc = new FrappeStockService();
     payloads = [];
     svc.fetchAlmacenes = vi.fn(async () => [
-      { name: 'CAMIONETA - ISMA - PG', warehouse_type: 'CAMIONETA' },
-      { name: 'TIENDA - PUERTA - PG',  warehouse_type: 'SUCURSAL' },
+      { name: 'CAMIONETA - ISMA - PG',      warehouse_type: 'CAMIONETA' },
+      { name: 'PUNTO VENTA - MILAGRO - PG', warehouse_type: 'PUNTO DE VENTA' },
+      { name: 'TIENDA - PUERTA - PG',       warehouse_type: 'SUCURSAL' },
+      // Un almacén sin tipo: cae a precio normal. Es la trampa a vigilar.
+      { name: 'TIENDA - PANQUELERIA - PG',  warehouse_type: null },
     ]);
     svc._fetch = vi.fn(async (path, options) => {
       if (options?.body) { payloads.push(JSON.parse(options.body)); return { data: { name: 'MAT-STE-TEST-0001' } }; }
@@ -114,19 +118,33 @@ describe('crearTransferenciaSucursal — precio según el destino', () => {
       asBorrador: true,
     });
 
-  it('a camioneta congela el precio de pueblos', async () => {
+  it('a camioneta congela SU precio, no el de pueblos', async () => {
+    // Antes las camionetas usaban el precio de pueblos porque era el único campo
+    // que existía. Son canales distintos: la ruta cobra más barato que el punto fijo.
     await enviarA('CAMIONETA - ISMA - PG');
+    expect(payloads[0].items[0].custom_precio_venta).toBe(3);
+  });
+
+  it('a punto de venta de pueblo congela el precio de pueblos', async () => {
+    await enviarA('PUNTO VENTA - MILAGRO - PG');
     expect(payloads[0].items[0].custom_precio_venta).toBe(3.5);
   });
 
-  it('a sucursal congela el precio normal, no el de pueblos', async () => {
+  it('a sucursal congela el precio normal, el más alto', async () => {
     await enviarA('TIENDA - PUERTA - PG');
     expect(payloads[0].items[0].custom_precio_venta).toBe(4);
   });
 
-  it('sin precio de pueblos capturado cae al normal, nunca a 0', async () => {
+  it('sin precio propio capturado cae al normal, nunca a 0', async () => {
     await enviarA('CAMIONETA - ISMA - PG', 'MP_CONCHA');
     expect(payloads[0].items[0].custom_precio_venta).toBe(18);
+  });
+
+  it('un almacén SIN tipo cobra precio normal', async () => {
+    // No es lo deseable, pero es lo que pasa: por eso los almacenes nuevos hay
+    // que tiparlos o cobran de más sin que nadie lo note.
+    await enviarA('TIENDA - PANQUELERIA - PG');
+    expect(payloads[0].items[0].custom_precio_venta).toBe(4);
   });
 
   it('el precio que ya viene congelado manda sobre la regla del destino', async () => {

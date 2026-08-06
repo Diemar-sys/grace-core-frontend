@@ -312,11 +312,18 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Precio Pueblos-Camionetas ($)</label>
+                  <label>Precio Pueblos ($)</label>
                   <input type="number" name="custom_precio_de_venta_pueblos"
                     value={formData.custom_precio_de_venta_pueblos}
                     onChange={handleChange} placeholder="Ej: 18.00" min="0" step="0.01" />
-                  <small>Precio para el canal Pueblos/Camionetas. Si lo dejas vacío, ese canal usa el precio de Sucursal.</small>
+                  <small>Puntos de venta fijos en pueblos. Vacío = usa el precio de Sucursal.</small>
+                </div>
+                <div className="form-group">
+                  <label>Precio Camionetas ($)</label>
+                  <input type="number" name="custom_precio_de_venta_camioneta"
+                    value={formData.custom_precio_de_venta_camioneta}
+                    onChange={handleChange} placeholder="Ej: 17.00" min="0" step="0.01" />
+                  <small>Pan que sale a ruta. Vacío = usa el precio de Sucursal.</small>
                 </div>
                 <div className="form-group">
                   <label>Costo estimado por pieza ($)</label>
