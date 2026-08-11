@@ -67,7 +67,10 @@ const IconRenta = () => (
 
 // ── Catálogos fijos ───────────────────────────────────────────────
 const VEHICULOS   = ['Tornado Van 1', 'Tornado Van 2', 'Tornado Van 3', 'Tornado Van 4', 'Hilux', 'Avanza', 'BRV'];
-const SUCURSALES_GAS = ['Paseos del Bosque', 'Puerta Real', 'Pirámides', 'Santuarios', 'Casa'];
+// Las panaderías que reciben un recibo propio. Ya no es solo del gas: la luz
+// llega igual, un recibo por sucursal, y el gasto tiene que quedar donde se
+// consumió o el reporte por sucursal no dice nada.
+const SUCURSALES_RECIBO = ['Paseos del Bosque', 'Puerta Real', 'Pirámides', 'Santuarios', 'Casa'];
 const TELEFONOS   = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque'];
 const TIPOS_MANT  = ['Maquinaria', 'Camioneta', 'Infraestructura', 'Cómputo'];
 const TIPOS_REFAC = ['Camioneta', 'Maquinaria', 'Otro'];
@@ -85,13 +88,16 @@ export function autoAgua(label) {
 }
 
 // Subcategorías que por defecto llevan IVA 16% (servicios facturables).
-const SUBCAT_IVA = ['Control de plagas'];
+// La luz de un local comercial va con IVA — la tarifa doméstica no, pero las
+// panaderías no pagan doméstica. Es solo el valor por defecto: si un recibo
+// llega distinto, el impuesto se cambia en el renglón.
+const SUBCAT_IVA = ['Control de plagas', 'Luz'];
 const impuestoDefault = (subcat) => SUBCAT_IVA.includes(subcat) ? 'iva16' : 'tasa0';
 
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
   { key: 'Gasto',        label: 'Gastos',      sub: 'Operativos',       icon: <IconGasto />,      color: '#dc2626', bg: '#fee2e2',
-    subcategorias: ['Gasolina','Gas','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Otros gastos'] },
+    subcategorias: ['Gasolina','Gas','Luz','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Otros gastos'] },
   { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago camioneta'] },
   { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo'] },
@@ -266,7 +272,7 @@ function GasForm({ form, setForm, subcatField, proveedorField }) {
         <label>Sucursal
           <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
             <option value="">Seleccionar...</option>
-            {SUCURSALES_GAS.map(s => <option key={s}>{s}</option>)}
+            {SUCURSALES_RECIBO.map(s => <option key={s}>{s}</option>)}
           </select>
         </label>
         <label>Fecha
@@ -402,7 +408,9 @@ function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }
       {subcategoria === 'Mantenimiento'&& conceptoSelect(TIPOS_MANT,  'Seleccionar tipo...')}
       {subcategoria === 'Refacciones'  && conceptoSelect(TIPOS_REFAC, 'Seleccionar tipo...')}
       {subcategoria === 'Agua'         && conceptoSelect(TIPOS_AGUA,  'Seleccionar tipo...')}
-      {!['Gasolina','Teléfono','Mantenimiento','Refacciones','Agua'].includes(subcategoria) && (
+      {/* La luz llega por recibo de cada panadería, igual que el gas. */}
+      {subcategoria === 'Luz'          && conceptoSelect(SUCURSALES_RECIBO, 'Seleccionar panadería...')}
+      {!['Gasolina','Teléfono','Mantenimiento','Refacciones','Agua','Luz'].includes(subcategoria) && (
         <label>Concepto
           <input type="text" placeholder="Descripción breve" value={form.concepto} onChange={e => set('concepto', e.target.value)} />
         </label>
