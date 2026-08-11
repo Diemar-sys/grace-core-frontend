@@ -29,21 +29,9 @@ const qtyNum = (v: unknown, item: string): number => {
   return n;
 };
 
-/** Canal de precio. Uno por cada destino con tarifa propia. */
-export type TipoPrecio = 'normal' | 'pueblos' | 'camioneta';
-
-/** Campo del catálogo donde vive el precio de cada canal ('normal' usa el base). */
-const CAMPO_PRECIO: Record<TipoPrecio, string | null> = {
-  normal: null,
-  pueblos: 'custom_precio_de_venta_pueblos',
-  camioneta: 'custom_precio_de_venta_camioneta',
-};
-
-/** Tipo de almacén → canal de precio. Lo que no está aquí cobra precio normal. */
-const PRECIO_POR_TIPO: Record<string, TipoPrecio> = {
-  [TIPO_CAMIONETA]: 'camioneta',
-  [TIPO_PUNTO_VENTA]: 'pueblos',
-};
+// La resolución de precio por canal se movió a utils/precioCanal (pura, testeada).
+export type { TipoPrecio } from '../utils/precioCanal';
+import { type TipoPrecio, resolverPrecioVenta, tipoPrecioPorAlmacen } from '../utils/precioCanal';
 
 // Superficie limpia consumida por los selects de almacén en la UI.
 interface Almacen {
@@ -672,29 +660,14 @@ class FrappeStockService extends FrappeBase {
   // TRANSFERENCIA A SUCURSAL INTERNA (Puerta Real, etc.)
   // ─────────────────────────────────────────────
 
-  /**
-   * Resuelve precio venta congelado desde catálogo. Prioridad espejo NuevaVentaB2B.
-   * Retorna precio por stock_uom (peso real, ej. por Kg). Devuelve 0 si no hay datos.
-   */
+  /** Delega en utils/precioCanal.resolverPrecioVenta (pura, testeada). */
   _resolverPrecioVenta(item: any, tipoPrecio: TipoPrecio = 'normal'): number {
-    const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
-    // El mismo pan vale distinto según a dónde va: sucursal (urbano, el más
-    // alto), pueblos (puntos fijos) y camioneta (rutas a ranchos). Si el
-    // producto no tiene capturado el de su canal, cae al normal: congelar 0
-    // dejaría la liquidación de la ruta sin con qué cobrar.
-    const campoCanal = CAMPO_PRECIO[tipoPrecio];
-    if (campoCanal && parseFloat(item[campoCanal]) > 0) {
-      return parseFloat(item[campoCanal]) / cantPres;
-    }
-    if (item.custom_precio_por_kg) return parseFloat(item.custom_precio_por_kg);
-    if (item.custom_precio_de_venta) return parseFloat(item.custom_precio_de_venta) / cantPres;
-    if (item.standard_rate) return parseFloat(item.standard_rate) / cantPres;
-    return 0;
+    return resolverPrecioVenta(item, tipoPrecio);
   }
 
   /**
-   * Qué precio le toca al destino. La regla vive aquí y no en la pantalla para
-   * que valga igual venga de donde venga el envío.
+   * Qué precio le toca al destino según su TIPO de almacén. La regla vive en
+   * utils/precioCanal para que valga igual venga de donde venga el envío.
    *
    * ponytail: `fetchAlmacenes` ya cachea, así que esto no cuesta una consulta
    * extra por envío.
@@ -702,10 +675,7 @@ class FrappeStockService extends FrappeBase {
   async _tipoPrecioDestino(warehouse: string): Promise<TipoPrecio> {
     const almacenes = await this.fetchAlmacenes();
     const destino = almacenes.find(w => w.name === warehouse);
-    // La regla sale del TIPO de almacén, no de una lista de nombres: un almacén
-    // nuevo entra solo con marcarle su tipo. Ojo — un almacén SIN tipo cae a
-    // 'normal' y congelaría precio de sucursal sin que nadie lo note.
-    return PRECIO_POR_TIPO[destino?.warehouse_type || ''] || 'normal';
+    return tipoPrecioPorAlmacen(destino?.warehouse_type);
   }
 
   /**

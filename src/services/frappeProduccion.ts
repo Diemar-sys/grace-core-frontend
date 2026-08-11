@@ -8,6 +8,7 @@
 import FrappeBase from './FrappeBase';
 import { stockService } from './frappeStock';
 import { COMPANY } from '../config/constants';
+import { costearLineas, factorProduccion, escalarIngrediente } from '../utils/produccionCalc';
 
 interface BOMItemInput {
   item_code: string;
@@ -324,27 +325,24 @@ class FrappeProduccionService extends FrappeBase {
     const codes: string[] = [...new Set(items.map((i: any) => String(i.item_code)))];
     const precios = await this.getPreciosCosteo(codes);
 
-    let costoTotal = 0;
-    const ingredientes = items.map((i: any) => {
-      const precioFinal = precios[i.item_code]?.precio_final || 0;
-      const qty = parseFloat(i.qty) || 0;
-      const costo = precioFinal * qty;
-      costoTotal += costo;
-      return {
-        item_code: i.item_code,
-        item_name: i.item_name || i.description || i.item_code,
-        qty,
-        uom: i.stock_uom || i.uom,
-        precio_final: precioFinal,
-        costo,
-      };
-    });
-
     const cantidadProducida = parseFloat(bom.quantity) || 1;
+    const { costoTotal, costoPorUnidad, detalle } = costearLineas(
+      items.map((i: any) => ({ qty: i.qty, precio_final: precios[i.item_code]?.precio_final || 0 })),
+      cantidadProducida,
+    );
+    const ingredientes = items.map((i: any, idx: number) => ({
+      item_code: i.item_code,
+      item_name: i.item_name || i.description || i.item_code,
+      qty: detalle[idx].qty,
+      uom: i.stock_uom || i.uom,
+      precio_final: detalle[idx].precio_final,
+      costo: detalle[idx].costo,
+    }));
+
     return {
       bomName: bom.name,
       costoTotal,
-      costoPorUnidad: costoTotal / cantidadProducida,
+      costoPorUnidad,
       cantidadProducida,
       uom: bom.uom,
       ingredientes,
@@ -380,17 +378,17 @@ class FrappeProduccionService extends FrappeBase {
     const codes: string[] = [...new Set(validos.map(i => i.item_code))];
     const precios = await this.getPreciosCosteo(codes);
 
-    let costoTotal = 0;
-    const detalle = validos.map(i => {
-      const precioFinal = precios[i.item_code]?.precio_final || 0;
-      const qty = parseFloat(i.qty);
-      const costo = precioFinal * qty;
-      costoTotal += costo;
-      return { item_code: i.item_code, qty, precio_final: precioFinal, costo };
-    });
-
-    const cant = parseFloat(String(cantidadProducida)) || 1;
-    return { costoTotal, costoPorUnidad: costoTotal / cant, detalle };
+    const { costoTotal, costoPorUnidad, detalle } = costearLineas(
+      validos.map(i => ({ qty: i.qty, precio_final: precios[i.item_code]?.precio_final || 0 })),
+      cantidadProducida,
+    );
+    const detalleOut = validos.map((i, idx) => ({
+      item_code: i.item_code,
+      qty: detalle[idx].qty,
+      precio_final: detalle[idx].precio_final,
+      costo: detalle[idx].costo,
+    }));
+    return { costoTotal, costoPorUnidad, detalle: detalleOut };
   }
 
   // ─────────────────────────────────────────────
@@ -411,12 +409,12 @@ class FrappeProduccionService extends FrappeBase {
       { bomName: string; cantidadProducida: number | string; almacenOrigen: string },
   ) {
     const bom = await this.getBOMDetalle(bomName);
-    const factorProduccion = parseFloat(String(cantidadProducida)) / (parseFloat(bom.quantity) || 1);
+    const factor = factorProduccion(cantidadProducida, bom.quantity);
 
     const ingredientes = (bom.items || []).map((i: any) => ({
       item_code: i.item_code,
       item_name: i.item_name,
-      cantidad: (parseFloat(i.qty) * factorProduccion),
+      cantidad: escalarIngrediente(i.qty, factor),
       uom: i.stock_uom || i.uom,
       precio_promedio: parseFloat(i.rate) || 0,
     }));
