@@ -1,0 +1,219 @@
+/* Pestaña Pan del Catálogo — Light Bento. */
+
+/* ── Control segmentado Insumos / Pan ─────────────────────────────────── */
+/* Va DENTRO de la cabecera, entre el título y el contador. Como dos píldoras
+   sueltas se leía como un par de botones perdidos; la pista hundida las agrupa
+   y deja claro que son dos vistas de la misma página. */
+/* Solo la cabecera que lleva el switch necesita envolver: son tres bloques en
+   una fila pensada para dos. */
+.page-header:has(.cat-switch) {
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.cat-switch {
+  align-self: center;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface-sunk);
+  border-radius: var(--radius-pill);
+}
+.cat-switch-op {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: 600 14px/1 var(--font-body);
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.cat-switch-op svg { flex: 0 0 auto; opacity: .85; }
+.cat-switch-op:hover:not(.is-active) { color: var(--color-text); }
+.cat-switch-op.is-active {
+  background: var(--color-surface);
+  color: var(--color-brand);
+  box-shadow: var(--shadow-bento);
+}
+/* Conteo: dice si vale la pena entrar antes de entrar. */
+.cat-switch-op em {
+  font: 600 11.5px/1 var(--font-body);
+  font-style: normal;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, .05);
+  color: inherit;
+  opacity: .75;
+}
+.cat-switch-op.is-active em { background: var(--color-brand-hover); opacity: 1; }
+
+/* En angosto se va el conteo, nunca la etiqueta: un icono solo obliga a
+   adivinar, y adivinar es lo que no queremos en la caja. */
+@media (max-width: 860px) {
+  .cat-switch { align-self: flex-start; }
+  .cat-switch-op { padding: 10px 15px; }
+  .cat-switch-op em { display: none; }
+}
+
+/* ── Cabecera de la vista ─────────────────────────────────────────────── */
+.pan-vista { padding-bottom: var(--space-6); }
+.pan-vista-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 var(--space-5);
+}
+.pan-vista-head h2 {
+  margin: 0;
+  font: 700 21px/1.2 var(--font-display);
+  color: var(--color-text);
+}
+.pan-vista-head p {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+.pan-vista-acciones { display: flex; gap: var(--space-2); }
+.pan-vista-refrescar,
+.pan-vista-nuevo {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px 24px;
+  font: 600 14px/1 var(--font-body);
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.pan-vista-refrescar {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  box-shadow: var(--shadow-bento);
+}
+.pan-vista-refrescar:hover { transform: translateY(-2px); box-shadow: var(--shadow-bento-hover); }
+.pan-vista-nuevo {
+  background: var(--color-brand);
+  color: #fff;
+  box-shadow: var(--shadow-btn);
+}
+.pan-vista-nuevo:hover { transform: translateY(-2px); background: var(--color-brand-mid); }
+
+/* ── Vacío ────────────────────────────────────────────────────────────── */
+.pan-vacio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: var(--space-7) var(--space-5);
+}
+.pan-vacio strong { font: 600 17px/1.2 var(--font-display); color: var(--color-text); }
+.pan-vacio span { font-size: 14px; color: var(--color-text-muted); max-width: 460px; }
+
+/* ── Lista ────────────────────────────────────────────────────────────── */
+.pan-lista {
+  display: grid;
+  gap: var(--space-3);
+}
+.pan-item {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: var(--space-4) var(--space-5);
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.pan-item:hover { box-shadow: var(--shadow-bento-hover); transform: translateY(-2px); }
+
+.pan-item-id { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pan-item-id h3 {
+  margin: 0;
+  font: 600 16px/1.25 var(--font-display);
+  color: var(--color-text);
+}
+.pan-item-code {
+  font: 500 12px/1 var(--font-body);
+  color: var(--color-text-muted);
+  letter-spacing: .03em;
+}
+.pan-item-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pan-item-pendiente {
+  font: 600 11px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  cursor: help;
+}
+.pan-item-grupo {
+  align-self: flex-start;
+  font: 600 11px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunk);
+  color: var(--color-text-muted);
+}
+
+.pan-item-precios { display: flex; gap: var(--space-2); }
+.pan-precio {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 96px;
+  padding: 10px 14px;
+  border-radius: 14px;
+}
+.pan-precio-canal {
+  font: 600 10.5px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  opacity: .75;
+}
+.pan-precio-valor { font: 700 16px/1.15 var(--font-display); }
+
+.pan-precio.canal-sucursal  { background: #fbeee9; color: #a8402c; }
+.pan-precio.canal-pueblos   { background: #e6f4ec; color: #1e7a53; }
+.pan-precio.canal-camioneta { background: #e3f0ff; color: #1e40af; }
+
+/* Un canal sin precio no cobra $0: cobra el de sucursal. Se pinta apagado
+   para que se distinga de un precio capturado, sin gritar error. */
+.pan-precio-vacio {
+  background: var(--color-surface-sunk);
+  color: var(--color-text-muted);
+}
+.pan-precio-vacio .pan-precio-valor { font-weight: 500; font-size: 13px; font-style: italic; }
+
+.pan-item-editar {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-hover);
+  color: var(--color-brand);
+  font: 600 13px/1 var(--font-body);
+  padding: 11px 22px;
+  cursor: pointer;
+  transition: transform .2s ease, background .2s ease, color .2s ease;
+}
+.pan-item-editar:hover:not(:disabled) { transform: translateY(-2px); background: var(--color-brand); color: #fff; }
+.pan-item-editar:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pan-item { grid-template-columns: 1fr; align-items: stretch; }
+  .pan-item-precios { flex-wrap: wrap; }
+  .pan-precio { flex: 1 1 96px; }
+  .pan-item-editar { justify-self: stretch; }
+}

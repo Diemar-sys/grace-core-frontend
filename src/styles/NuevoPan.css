@@ -1,0 +1,350 @@
+/* Alta y precios del pan — Light Bento.
+   Deliberadamente distinto de NuevoInsumo.css: quien registra pan no debe
+   sentir que abrió la misma pantalla de siempre. Tarjetas blancas flotando
+   sobre harina, sin bordes duros, y los tres canales como bloques propios. */
+
+.pan-modal {
+  width: 100%;
+  padding: 0;
+}
+
+.pan-container {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: var(--color-brand-bg);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5) var(--space-5) var(--space-6);
+
+  max-height: var(--modal-max-h);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) var(--color-brand-bg);
+}
+.pan-container::-webkit-scrollbar { width: 6px; }
+.pan-container::-webkit-scrollbar-track { background: transparent; }
+.pan-container::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: var(--radius-pill);
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────── */
+.pan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.pan-eyebrow {
+  display: inline-block;
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--color-brand);
+  background: var(--color-brand-hover);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 10px;
+}
+.pan-header h2 {
+  margin: 0;
+  font: 700 26px/1.15 var(--font-display);
+  color: var(--color-text);
+}
+.pan-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.pan-close {
+  flex: 0 0 auto;
+  width: 38px; height: 38px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-bento);
+  transition: transform .2s ease, box-shadow .2s ease, color .2s ease;
+}
+.pan-close:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-bento-hover);
+  color: var(--color-brand);
+}
+
+/* ── Tarjetas ─────────────────────────────────────────────────────────── */
+.pan-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.pan-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: var(--space-5);
+  transition: box-shadow .2s ease;
+}
+.pan-card:hover { box-shadow: var(--shadow-bento-hover); }
+
+.pan-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.pan-card-head h3 {
+  margin: 0;
+  font: 600 17px/1.2 var(--font-display);
+  color: var(--color-text);
+}
+.pan-card-head span {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Campos ───────────────────────────────────────────────────────────── */
+.pan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+.pan-field:last-child { margin-bottom: 0; }
+.pan-field label {
+  font: 600 13px/1.2 var(--font-body);
+  color: var(--color-text);
+}
+.pan-field small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.pan-opcional {
+  font: 600 10.5px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 4px 9px;
+  margin-left: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunk);
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
+.pan-field input,
+.pan-field select,
+.pan-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  font: 400 15px/1.3 var(--font-body);
+  color: var(--color-text);
+  background: var(--color-brand-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-input);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.pan-field textarea { resize: vertical; }
+.pan-field input:focus,
+.pan-field select:focus,
+.pan-field textarea:focus {
+  outline: none;
+  background: var(--color-surface);
+  border-color: var(--color-brand-light);
+  box-shadow: 0 0 0 3px var(--color-brand-hover);
+}
+/* Las flechitas del number estorban al teclear precios rápido. */
+.pan-field input[type=number]::-webkit-outer-spin-button,
+.pan-field input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pan-field input[type=number] { -moz-appearance: textfield; }
+
+.pan-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.pan-input-group { display: flex; gap: var(--space-2); }
+.pan-input-group input { flex: 1; }
+.pan-btn-auto {
+  flex: 0 0 auto;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-hover);
+  color: var(--color-brand);
+  font: 600 13px/1 var(--font-body);
+  cursor: pointer;
+  transition: transform .2s ease, background .2s ease;
+}
+.pan-btn-auto:hover { transform: translateY(-2px); background: var(--color-brand-light); color: #fff; }
+
+/* Valor derivado: se ve calculado, no capturable. */
+.pan-derivado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--color-surface-sunk);
+  border-radius: var(--radius-input);
+  padding: var(--space-3) var(--space-4);
+}
+.pan-derivado-label {
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.pan-derivado-valor {
+  font: 600 16px/1.2 var(--font-display);
+  color: var(--color-text);
+}
+.pan-derivado-valor em { font-weight: 400; font-size: 14px; color: var(--color-text-muted); }
+.pan-derivado small { font-size: 12px; color: var(--color-text-muted); }
+
+/* ── Los tres canales ─────────────────────────────────────────────────── */
+.pan-canales {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.pan-canal {
+  border-radius: 18px;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform .2s ease;
+}
+.pan-canal:hover { transform: translateY(-2px); }
+.canal-sucursal  { background: #fbeee9; }
+.canal-pueblos   { background: #e6f4ec; }
+.canal-camioneta { background: #e3f0ff; }
+
+.pan-canal-head { display: flex; flex-direction: column; gap: 2px; }
+.pan-canal-head strong {
+  font: 700 15px/1.2 var(--font-display);
+  color: var(--color-text);
+}
+.canal-sucursal  .pan-canal-head strong { color: #a8402c; }
+.canal-pueblos   .pan-canal-head strong { color: #1e7a53; }
+.canal-camioneta .pan-canal-head strong { color: #1e40af; }
+.pan-canal-head span { font-size: 11.5px; line-height: 1.35; color: var(--color-text-muted); }
+
+.pan-canal-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-input);
+  padding: 4px 12px;
+}
+.pan-signo { font: 600 16px/1 var(--font-display); color: var(--color-text-muted); }
+.pan-canal-input input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 9px 0;
+  font: 600 19px/1.2 var(--font-display);
+  color: var(--color-text);
+}
+.pan-canal-input input:focus { outline: none; }
+.pan-canal-input input[type=number]::-webkit-outer-spin-button,
+.pan-canal-input input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pan-canal-input input[type=number] { -moz-appearance: textfield; }
+
+.pan-canal-hint { font-size: 11.5px; line-height: 1.4; color: var(--color-text-muted); }
+.pan-margen {
+  align-self: flex-start;
+  font: 600 11.5px/1 var(--font-body);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: #166534;
+}
+.pan-margen-mal { background: #fee2e2; color: #991b1b; }
+
+.pan-canal-avisos { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.pan-comparativa {
+  font: 600 11.5px/1.3 var(--font-body);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+/* Mismo precio que sucursal = el canal no hace nada. No es un error que
+   bloquee, pero tiene que verse. */
+.pan-comparativa-ojo { background: #ffedd5; color: #9a3412; }
+
+.pan-fiscal { margin-bottom: var(--space-3); }
+
+.pan-desglose {
+  background: var(--color-surface-sunk);
+  border-radius: var(--radius-input);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+.pan-desglose strong { color: var(--color-text); }
+
+/* ── Checkbox y acciones ──────────────────────────────────────────────── */
+.pan-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.pan-check input { width: 17px; height: 17px; accent-color: var(--color-brand); cursor: pointer; }
+
+.pan-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+.pan-btn-secundario,
+.pan-btn-primario {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 13px 30px;
+  font: 600 15px/1 var(--font-body);
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.pan-btn-secundario {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  box-shadow: var(--shadow-bento);
+}
+.pan-btn-secundario:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-bento-hover); }
+.pan-btn-primario {
+  background: var(--color-brand);
+  color: #fff;
+  box-shadow: var(--shadow-btn);
+}
+.pan-btn-primario:hover:not(:disabled) { transform: translateY(-2px); background: var(--color-brand-mid); }
+.pan-btn-secundario:disabled,
+.pan-btn-primario:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 820px) {
+  .pan-canales { grid-template-columns: 1fr; }
+  .pan-grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .pan-container { padding: var(--space-4); }
+  .pan-card { padding: var(--space-4); }
+  .pan-header h2 { font-size: 22px; }
+  .pan-actions { flex-direction: column-reverse; }
+  .pan-btn-secundario, .pan-btn-primario { width: 100%; }
+}

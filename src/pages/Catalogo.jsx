@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import NuevoInsumo from '../components/NuevoInsumo';
+import NuevoPan from '../components/NuevoPan';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import { inventory } from '../services/frappeInventory';
 import { produccionService } from '../services/frappeProduccion';
@@ -10,6 +11,7 @@ import useConfirmModal from '../hooks/useConfirmModal';
 import { fmtUom } from '../utils/uom';
 import '../styles/global.css';
 import '../styles/Panel.css';
+import '../styles/CatalogoPan.css';
 
 const VISTAS = [
   { key: 'registrado', label: 'REGISTRADOS', color: 'vista-registrado' },
@@ -58,6 +60,22 @@ const ICON_DISABLE = (
   </svg>
 );
 
+const ICON_INSUMOS = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 8v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8" />
+    <path d="M2 4h20v4H2z" /><path d="M10 12h4" />
+  </svg>
+);
+
+const ICON_PAN = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 13c0-4 3.6-6 8-6s8 2 8 6v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+    <path d="M9 9.5 7.5 12" /><path d="M12.5 9.2 11 11.7" /><path d="M16 9.5 14.5 12" />
+  </svg>
+);
+
 const ICON_ENABLE = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -86,6 +104,14 @@ function Catalogo() {
   const [editLoading, setEditLoading] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState('');
   const [costosBOM, setCostosBOM] = useState({});
+
+  // Pestaña Pan: catálogo aparte porque el pan se registra distinto (no tiene
+  // presentación ni precio de compra, y sí tres precios de venta).
+  const [pestana, setPestana] = useState('insumos');
+  const [panes, setPanes] = useState([]);
+  const [panesLoading, setPanesLoading] = useState(false);
+  const [panModal, setPanModal] = useState(false);
+  const [editPan, setEditPan] = useState(null);
 
   const abortRef = useRef(null);
 
@@ -152,6 +178,33 @@ function Catalogo() {
     return () => { cancel = true; };
   }, [items]);
 
+  const loadPanes = useCallback(async () => {
+    setPanesLoading(true);
+    try {
+      setPanes(await inventory.getProductosRegistrados({ tipoItem: 'PRODUCTO TERMINADO' }));
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error cargando panes:', err);
+    } finally {
+      setPanesLoading(false);
+    }
+  }, []);
+
+  // Se cargan al entrar, no al abrir la pestaña: el conteo va en el propio
+  // segmento, y un "Pan" sin número no dice si hay algo que ver ahí.
+  useEffect(() => { loadPanes(); }, [loadPanes]);
+
+  const handleNuevoPan = () => { setEditPan(null); setPanModal(true); };
+  const handlePanClose = () => { setPanModal(false); setEditPan(null); };
+  const handlePanSuccess = () => { handlePanClose(); loadPanes(); };
+  const handleEditPan = async (itemCode) => {
+    setEditLoading(true);
+    try {
+      setEditPan(await inventory.getItemCompleto(itemCode));
+      setPanModal(true);
+    } catch (err) { console.error('Error cargando pan:', err); }
+    finally { setEditLoading(false); }
+  };
+
   const handleVistaChange = (key) => { setVistaActiva(key); setSelectedGroup(''); };
   const handleNuevo = () => { setEditItem(null); setModalAbierto(true); };
   const handleModalClose = () => { setModalAbierto(false); setEditItem(null); };
@@ -191,18 +244,49 @@ function Catalogo() {
                   <path d="M6 12h2" /><path d="M6 8h2" />
                 </svg>
               </h1>
-              <span className="header-subtitle" style={{ display: 'block', marginTop: '4px' }}>Gestión centralizada de insumos y existencias</span>
+              <span className="header-subtitle" style={{ display: 'block', marginTop: '4px' }}>
+                {pestana === 'pan'
+                  ? 'El pan que se produce y sus precios por canal'
+                  : 'Gestión centralizada de insumos y existencias'}
+              </span>
             </div>
           </div>
+
+          {/* Control segmentado: dos vistas de la MISMA página, no dos botones
+              sueltos. La pista hundida las agrupa y la píldora blanca dice
+              cuál estás viendo sin tener que leer. */}
+          <div className="cat-switch" role="tablist" aria-label="Vista del catálogo">
+            <button type="button" role="tab" aria-selected={pestana === 'insumos'}
+              className={`cat-switch-op ${pestana === 'insumos' ? 'is-active' : ''}`}
+              onClick={() => setPestana('insumos')}>
+              {ICON_INSUMOS}
+              <span>Insumos</span>
+              <em>{filtered.length}</em>
+            </button>
+            <button type="button" role="tab" aria-selected={pestana === 'pan'}
+              className={`cat-switch-op ${pestana === 'pan' ? 'is-active' : ''}`}
+              onClick={() => setPestana('pan')}>
+              {ICON_PAN}
+              <span>Pan</span>
+              <em>{panes.length}</em>
+            </button>
+          </div>
+
           <div className="stats-cards">
             <div className="stat-card">
-              <span className="stat-number">{filtered.length}</span>
-              <span className="stat-label">Productos</span>
+              <span className="stat-number">{pestana === 'pan' ? panes.length : filtered.length}</span>
+              <span className="stat-label">{pestana === 'pan' ? 'Panes' : 'Productos'}</span>
             </div>
           </div>
         </div>
 
-        {accionActiva === 'menu' ? (
+        {pestana === 'pan' ? (
+          <VistaPan
+            panes={panes} loading={panesLoading} soloLectura={soloLectura}
+            onNuevo={handleNuevoPan} onEdit={handleEditPan} editLoading={editLoading}
+            onRefrescar={loadPanes}
+          />
+        ) : accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => handleNuevo()}>
               <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
@@ -301,6 +385,15 @@ function Catalogo() {
         )}
       </div>
 
+      {/* Modal pan */}
+      {panModal && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && handlePanClose()}>
+          <div className="edit-modal-wrapper">
+            <NuevoPan editItem={editPan} onSuccess={handlePanSuccess} onCancel={handlePanClose} />
+          </div>
+        </div>
+      )}
+
       {/* Modal editar */}
       {modalAbierto && (
         <div className="edit-overlay" onClick={e => e.target === e.currentTarget && handleModalClose()}>
@@ -364,6 +457,93 @@ function Catalogo() {
         />
       )}
     </Layout>
+  );
+}
+
+const fmtPrecio = (v) => {
+  const n = parseFloat(v) || 0;
+  return n > 0 ? `$${n.toFixed(2)}` : null;
+};
+
+/**
+ * Pestaña Pan del catálogo: los productos terminados con sus tres precios a la
+ * vista. Un canal en blanco se pinta como «hereda» a propósito — no cobra $0,
+ * cobra el precio de sucursal, y esa diferencia es la que se paga cara cuando
+ * nadie la ve.
+ */
+function VistaPan({ panes, loading, soloLectura, onNuevo, onEdit, editLoading, onRefrescar }) {
+  return (
+    <div className="pan-vista">
+      <div className="pan-vista-head">
+        <div>
+          <h2>Pan registrado</h2>
+          <p>El mismo pan vale distinto según a dónde va: sucursal, pueblos o camioneta.</p>
+        </div>
+        <div className="pan-vista-acciones">
+          <button type="button" className="pan-vista-refrescar" onClick={onRefrescar}>Actualizar</button>
+          {!soloLectura && (
+            <button type="button" className="pan-vista-nuevo" onClick={onNuevo}>+ Registrar pan</button>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="loading">Cargando pan…</div>
+      ) : panes.length === 0 ? (
+        <div className="pan-vacio">
+          <strong>Todavía no hay pan registrado</strong>
+          <span>Da de alta el primero para que la caja pueda cobrarlo y el reporte de ventas lo separe por departamento.</span>
+        </div>
+      ) : (
+        <div className="pan-lista">
+          {panes.map(pan => {
+            const sucursal = fmtPrecio(pan.custom_precio_de_venta);
+            const canales = [
+              { k: 'Sucursal',  v: sucursal, tono: 'canal-sucursal' },
+              { k: 'Pueblos',   v: fmtPrecio(pan.custom_precio_de_venta_pueblos), tono: 'canal-pueblos' },
+              { k: 'Camioneta', v: fmtPrecio(pan.custom_precio_de_venta_camioneta), tono: 'canal-camioneta' },
+            ];
+            return (
+              <article key={pan.item_code} className="pan-item">
+                <div className="pan-item-id">
+                  <h3>{pan.item_name}</h3>
+                  <span className="pan-item-code">{pan.item_code}</span>
+                  <div className="pan-item-chips">
+                    {pan.item_group && <span className="pan-item-grupo">{pan.item_group}</span>}
+                    {/* El costo se puede dejar pendiente al dar de alta. Sin esta
+                        marca, «lo saco después» se convierte en nunca: no habría
+                        forma de saber a cuáles les falta. */}
+                    {!(parseFloat(pan.custom_costo_estimado) > 0) && (
+                      <span className="pan-item-pendiente" title="Sin costo estimado no se calcula el margen y la entrada de pan lo pide cada vez">
+                        falta costo
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pan-item-precios">
+                  {canales.map(c => (
+                    <div key={c.k} className={`pan-precio ${c.tono} ${!c.v ? 'pan-precio-vacio' : ''}`}>
+                      <span className="pan-precio-canal">{c.k}</span>
+                      <span className="pan-precio-valor">
+                        {c.v || (c.k === 'Sucursal' ? 'sin precio' : 'hereda')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {!soloLectura && (
+                  <button type="button" className="pan-item-editar"
+                    onClick={() => onEdit(pan.item_code)} disabled={editLoading}>
+                    Editar
+                  </button>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -34,10 +34,18 @@ const ESTADO_INICIAL = {
   description: '',
 };
 
-export default function useInsumoForm({ editItem, onSuccess }: { editItem?: any; onSuccess?: (result: any) => void }) {
+/**
+ * `tipoFijo` clava el tipo de item y lo saca de la ecuación: la pantalla de Pan
+ * siempre da de alta PRODUCTO TERMINADO, así que no enseña el selector de tipo
+ * ni deja que se cambie. Misma creación de Item que Nuevo Insumo — una sola
+ * puerta al catálogo, dos formas de tocarla.
+ */
+export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editItem?: any; onSuccess?: (result: any) => void; tipoFijo?: string }) {
   const isEditing = !!editItem;
 
-  const [formData, setFormData] = useState<any>(ESTADO_INICIAL);
+  const [formData, setFormData] = useState<any>(
+    tipoFijo ? { ...ESTADO_INICIAL, custom_tipo_item: tipoFijo, stock_uom: 'PZA' } : ESTADO_INICIAL
+  );
   const [catalogos, setCatalogos] = useState<{ itemGroups: any[]; uoms: any[]; departamentos: any[]; presentaciones: any[]; warehouses: any[] }>({
     itemGroups: [], uoms: [], departamentos: [], presentaciones: [], warehouses: [],
   });
@@ -194,7 +202,11 @@ export default function useInsumoForm({ editItem, onSuccess }: { editItem?: any;
       setInfoModal({ isOpen: true, message: 'Primero ingresa el nombre del producto para generar su código', type: 'error' });
       return;
     }
-    const prefix = esAbarrotes ? 'ABR' : 'MP';
+    // El pan no es materia prima: nace PT_. Antes todo lo no-abarrote salía MP_,
+    // por eso en producción hay panes llamados MP_BOLILLO.
+    const prefix = esAbarrotes ? 'ABR'
+      : formData.custom_tipo_item === 'PRODUCTO TERMINADO' ? 'PT'
+        : 'MP';
     const code = `${prefix}_${formData.item_name}`
       .toUpperCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
