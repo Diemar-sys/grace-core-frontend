@@ -254,8 +254,8 @@ function Proveedores() {
                     {items.length === 0 ? (
                       <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay proveedores en esta vista</td></tr>
                     ) : (
-                      items.map((item, i) => (
-                        <FilaProveedor key={i} item={item} onEdit={handleEdit} editLoading={editLoading}
+                      items.map((item) => (
+                        <FilaProveedor key={item.name} item={item} onEdit={handleEdit} editLoading={editLoading}
                           soloLectura={soloLectura} accionActiva={accionActiva}
                           onDelete={deleteModal.open} />
                       ))

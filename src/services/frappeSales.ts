@@ -144,11 +144,15 @@ class FrappeSalesService extends FrappeBase {
   /**
    * Siguiente número de venta consecutivo (custom_no_de_venta).
    * Mismo patrón que comprasService.getSiguienteNumero.
+   * Incluye canceladas (docstatus 2): si el max solo mirara vivas, cancelar
+   * la venta más reciente liberaría su folio y el siguiente lo reutilizaría —
+   * dos ventas distintas con el mismo número en la libreta de cobros.
+   * TODO: mover a endpoint backend con lock, como get_siguiente_no_compra.
    */
   async getSiguienteNumero() {
     const params = new URLSearchParams({
       fields: JSON.stringify(['custom_no_de_venta']),
-      filters: JSON.stringify([['docstatus', 'in', [0, 1]]]),
+      filters: JSON.stringify([['docstatus', 'in', [0, 1, 2]]]),
       order_by: 'custom_no_de_venta desc',
       limit_page_length: '1',
     });
@@ -385,7 +389,9 @@ class FrappeSalesService extends FrappeBase {
       ]),
       filters: JSON.stringify(filters),
       order_by: 'custom_no_de_venta desc',
-      limit_page_length: '100',
+      // ponytail: 2000 = mismo techo que getCompras; con 100, un rango de
+      // fechas amplio truncaba lo viejo en silencio (bug ya mordido en julio).
+      limit_page_length: '2000',
     });
     const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
     return data?.data || [];

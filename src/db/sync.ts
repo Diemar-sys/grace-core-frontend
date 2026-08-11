@@ -82,8 +82,12 @@ let _draining = false;
  *  - respuesta OK (incluida duplicada=true) → delete del outbox.
  *  - null (sin red) → abortar el loop; las demás siguen 'pendiente' y las
  *    reintenta el próximo trigger (online / mount / post-venta).
- *  - throw (server la rechazó: datos malos, permisos) → estado 'error' y
- *    CONTINUAR; una venta podrida no debe bloquear la cola para siempre.
+ *  - throw con status 5xx o sin status (red rara) → TRANSITORIO: el server
+ *    está mal, no la venta. Abortar el loop, la fila sigue 'pendiente'.
+ *    Sin esta distinción, una venta buena capturada durante los ~2 min de un
+ *    deploy con migrate quedaba 'error' permanente — pérdida contable muda.
+ *  - throw con status 4xx (server la rechazó: datos malos, permisos) →
+ *    estado 'error' y CONTINUAR; una venta podrida no debe bloquear la cola.
  *
  * @returns ventas enviadas en esta pasada.
  */
@@ -99,6 +103,12 @@ async function drainOutbox({ posService = defaultPos, stockService = defaultStoc
                 res = await posService.crearVentaOffline(venta);
             } catch (error) {
                 logError(`drainOutbox ${venta.uuid}`, error);
+                const status = (error as { status?: number }).status;
+                // Solo un 4xx condena la fila: el server VIO la venta y la
+                // rechazó. Todo lo demás (5xx, throw sin status) es el server
+                // caído o a medias — se reintenta en el próximo trigger.
+                const rechazoReal = typeof status === 'number' && status >= 400 && status < 500;
+                if (!rechazoReal) break;
                 await db.outbox.update(venta.uuid, { estado: 'error', error: msg(error) });
                 continue;
             }
@@ -116,4 +126,19 @@ async function drainOutbox({ posService = defaultPos, stockService = defaultStoc
     }
 }
 
-export { seedCatalogo, seedStock, drainOutbox };
+/** Cuántas ventas quedaron rechazadas por el server (estado 'error'). */
+async function contarErrores({ db = defaultDb }: Deps = defaultDeps): Promise<number> {
+    return db.outbox.where('estado').equals('error').count();
+}
+
+/** Regresa las filas 'error' a 'pendiente' para que el próximo drain las
+ *  reintente. Para el caso "el server ya está arreglado, reenvía eso". */
+async function reintentarErrores({ db = defaultDb }: Deps = defaultDeps): Promise<number> {
+    const filas = await db.outbox.where('estado').equals('error').primaryKeys();
+    for (const uuid of filas) {
+        await db.outbox.update(uuid, { estado: 'pendiente', error: '' });
+    }
+    return filas.length;
+}
+
+export { seedCatalogo, seedStock, drainOutbox, contarErrores, reintentarErrores };

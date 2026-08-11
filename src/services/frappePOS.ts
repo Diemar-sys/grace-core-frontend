@@ -9,7 +9,7 @@
  */
 
 import FrappeBase from './FrappeBase';
-import { COMPANY, DEFAULT_CUSTOMER } from '../config/constants';
+import { DEFAULT_CUSTOMER } from '../config/constants';
 import { TENANT } from '../config/tenant';
 import type { OutboxVenta } from '../db/db';
 
@@ -36,7 +36,13 @@ interface ItemInput {
   precio: number | string;
   stock_uom?: string;
 }
-interface CrearVentaArgs { items: ItemInput[]; customer?: string; pagos?: PagoInput[]; }
+/**
+ * Fecha LOCAL en formato YYYY-MM-DD ('sv' = sueco, da ISO por locale).
+ * NUNCA usar toISOString().split('T')[0] para fechas contables: eso es UTC,
+ * y en México (UTC-6) toda venta después de ~18:00 caería al día siguiente —
+ * el corte de caja no cuadraría. Misma familia del bug tabSessions.lastupdate.
+ */
+const fechaLocal = (d: Date = new Date()): string => d.toLocaleDateString('sv');
 
 class FrappePOSService extends FrappeBase {
   _posProfileData: PosProfileData | null = null;
@@ -90,64 +96,9 @@ class FrappePOSService extends FrappeBase {
   // ─────────────────────────────────────────────
   // REGISTRO DE VENTA
   // ─────────────────────────────────────────────
-
-  /**
-   * Crea y envía (docstatus=1) una Sales Invoice en ERPNext.
-   * @param {Object} args
-   * @param {Array}  args.items  - Artículos del ticket [{item_code, item_name, qty, precio, stock_uom}].
-   * @param {string} [args.customer] - Nombre del cliente.
-   * @param {Array}  args.pagos  - [{metodo: 'Efectivo'|'Tarjeta'|'Transferencia', monto: number}]
-   * @returns {Promise<Object>} Documento Sales Invoice creado.
-   */
-  async crearVenta({ items, customer = DEFAULT_CUSTOMER, pagos = [] }: CrearVentaArgs) {
-    const today = new Date().toISOString().split('T')[0];
-    const posProfile = await this.getPOSProfile();
-
-    const payments = pagos
-      .filter(p => p.monto > 0)
-      .map(p => ({
-        mode_of_payment: FORMAS_PAGO_MAP[p.metodo] || 'Cash',
-        amount: p.monto,
-      }));
-
-    // Si no se especificó ningún pago, usar efectivo por el total
-    if (payments.length === 0) {
-      const total = items.reduce((s, i) => s + i.qty * (parseFloat(String(i.precio)) || 0), 0);
-      payments.push({ mode_of_payment: 'Cash', amount: total });
-    }
-
-    const payload = {
-      doctype:      'Sales Invoice',
-      customer,
-      posting_date: today,
-      company:      COMPANY,
-      is_pos:       1,
-      pos_profile:  posProfile,
-      items: items.map(i => ({
-        item_code: i.item_code,
-        item_name: i.item_name,
-        qty:       i.qty,
-        rate:      parseFloat(String(i.precio)) || 0,
-        uom:       i.stock_uom || 'Nos',
-      })),
-      payments,
-    };
-
-    // 1) Crear en borrador
-    const data = await this._fetch('/api/resource/Sales Invoice', {
-      method: 'POST',
-      body:   JSON.stringify(payload),
-    });
-
-    // 2) Enviar (docstatus 0 → 1)
-    const name = data.data.name;
-    await this._fetch(`/api/resource/Sales Invoice/${encodeURIComponent(name)}`, {
-      method: 'PUT',
-      body:   JSON.stringify({ docstatus: 1 }),
-    });
-
-    return data.data;
-  }
+  // NOTA: el antiguo crearVenta() (camino online directo, SIN uuid de
+  // idempotencia) se eliminó a propósito: no tenía callers y revivirlo
+  // reabriría la puerta a ventas duplicadas. TODA venta pasa por el outbox.
 
   /**
    * Empuja una venta del outbox al endpoint idempotente del backend.
@@ -174,14 +125,25 @@ class FrappePOSService extends FrappeBase {
       body: JSON.stringify({
         uuid:         venta.uuid,
         customer:     venta.cliente || DEFAULT_CUSTOMER,
-        // La venta conserva SU fecha aunque se drene días después
-        posting_date: (venta.created_at || '').split('T')[0] || undefined,
-        items: items.map(i => ({
-          item_code: i.item_code,
-          qty:       i.qty,
-          rate:      parseFloat(String(i.precio)) || 0,
-          uom:       i.stock_uom || 'Nos',
-        })),
+        // La venta conserva SU fecha aunque se drene días después.
+        // created_at es toISOString() (UTC): convertir a fecha LOCAL o toda
+        // venta vespertina se contabiliza al día siguiente. Convertir aquí
+        // (y no al encolar) corrige también las filas ya encoladas.
+        posting_date: venta.created_at ? fechaLocal(new Date(venta.created_at as string)) : undefined,
+        items: items.map(i => {
+          // En dinero, `|| 0` es el default equivocado: un precio malformado
+          // vendería el producto en $0 y quedaría submitted en ERPNext.
+          const rate = parseFloat(String(i.precio));
+          const qty  = parseFloat(String(i.qty));
+          if (!(rate >= 0)) throw new Error(`Precio inválido en ${i.item_code}`);
+          if (!(qty > 0))   throw new Error(`Cantidad inválida en ${i.item_code}`);
+          return {
+            item_code: i.item_code,
+            qty,
+            rate,
+            uom:       i.stock_uom || 'Nos',
+          };
+        }),
         payments,
       }),
     });
@@ -229,7 +191,8 @@ class FrappePOSService extends FrappeBase {
    * @returns {Promise<Array>} Lista de Sales Invoices.
    */
   async getVentasDelDia(fechaInicio: string | null = null, fechaFin: string | null = null): Promise<any[]> {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaLocal(); // local, no UTC: después de las 18:00 "hoy" ya no sería hoy
+
     const desde = fechaInicio || hoy;
     const hasta = fechaFin || desde;
     const posProfile = await this.getPOSProfile();

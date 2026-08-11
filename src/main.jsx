@@ -13,13 +13,12 @@ import { FrappeProvider } from 'frappe-react-sdk'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    {/* Auth por cookie de sesión (login propio). NUNCA volver a tokenParams
+        con VITE_API_KEY/SECRET: todo lo VITE_ se hornea en el bundle público
+        y las llaves quedan descargables por cualquier navegador de la LAN. */}
     <FrappeProvider
       url={import.meta.env.VITE_FRAPPE_URL}
       enableSocket={false}
-      tokenParams={{
-        useToken: true,
-        token: () => `${import.meta.env.VITE_API_KEY}:${import.meta.env.VITE_API_SECRET}`
-      }}
     >
       <App />
     </FrappeProvider>

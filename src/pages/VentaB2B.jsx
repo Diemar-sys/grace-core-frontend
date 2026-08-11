@@ -169,12 +169,19 @@ function VentaB2B() {
     }
   };
 
+  // Guard de doble-toque, mismo patrón que useCompras: dos taps antes del
+  // refresh dispararían dos confirmaciones del mismo borrador.
+  const [confirmando, setConfirmando] = useState(() => new Set());
   const handleConfirmarBorrador = async (name) => {
+    if (confirmando.has(name)) return;
+    setConfirmando(s => new Set(s).add(name));
     try {
       await ventasService.confirmarBorrador(name);
       cargar();
     } catch (err) {
-      console.error(err);
+      alert(err.message || 'Error al confirmar la venta');
+    } finally {
+      setConfirmando(s => { const n = new Set(s); n.delete(name); return n; });
     }
   };
 
@@ -387,7 +394,7 @@ function VentaB2B() {
                                   {v.docstatus === 0 && (
                                     <>
                                       {accionActiva === 'confirmar' && (
-                                        <button className="comp-btn-confirmar" onClick={() => handleConfirmarBorrador(v.name)}
+                                        <button className="comp-btn-confirmar" disabled={confirmando.has(v.name)} onClick={() => handleConfirmarBorrador(v.name)}
                                           title="Confirmar venta">
                                           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                         </button>

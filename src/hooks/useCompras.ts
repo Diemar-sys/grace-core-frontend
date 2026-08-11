@@ -227,11 +227,23 @@ export default function useCompras() {
     catch (err) { console.error('Error imprimiendo egreso:', err); }
   };
 
+  // Guard de doble-toque (pantalla táctil): dos taps al mismo botón antes de
+  // que cargar() refresque la lista dispararían dos confirmaciones del mismo
+  // borrador. Se trackea el name en curso y el botón se apaga mientras dura.
+  const [confirmando, setConfirmando] = useState<Set<string>>(() => new Set());
   const handleConfirmarBorrador = async (name: string) => {
+    if (confirmando.has(name)) return;
+    setConfirmando(s => new Set(s).add(name));
     try {
       await comprasService.confirmarBorrador(name);
       cargar();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      // El error se muestra: un catch mudo invita al segundo tap, que es
+      // justo el gatillo del doble-submit.
+      alert((err as Error).message || 'Error al confirmar la compra');
+    } finally {
+      setConfirmando(s => { const n = new Set(s); n.delete(name); return n; });
+    }
   };
 
   const handleModalSuccess = () => { setModal(null); setBorradorEditar(null); cargar(); };
@@ -310,7 +322,7 @@ export default function useCompras() {
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar,
     handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,
-    handleConfirmarBorrador, handleModalSuccess, handleModalCancel,
+    handleConfirmarBorrador, confirmando, handleModalSuccess, handleModalCancel,
     reimprimirConsolidado,
   };
 }

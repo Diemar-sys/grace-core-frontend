@@ -57,6 +57,25 @@ describe('posUtils — calcularCobro (dinero POS)', () => {
   });
 });
 
+describe('posUtils — calcularCobro con flotantes sucios', () => {
+  it('pago exacto con cantidades fraccionarias (pan por kilo) → importeOk', () => {
+    // 0.35 kg × $28.90 + 1.2 kg × $45.50 = 10.115 + 54.6: suma con residuo binario.
+    // Antes del round2, pendiente quedaba en ~5e-15 y el botón moría.
+    const ticket = [{ qty: 0.35, precio: 28.9 }, { qty: 1.2, precio: 45.5 }];
+    const r = calcularCobro(ticket, { Efectivo: '64.72' });
+    expect(r.pendiente).toBe(0);
+    expect(r.importeOk).toBe(true);
+  });
+
+  it('precios con centavos arbitrarios → pago exacto siempre desbloquea', () => {
+    const ticket = [{ qty: 3, precio: 3.33 }, { qty: 7, precio: 1.13 }]; // 9.99 + 7.91 = 17.90
+    const r = calcularCobro(ticket, { Efectivo: '17.90' });
+    expect(r.pendiente).toBe(0);
+    expect(r.cambio).toBe(0);
+    expect(r.importeOk).toBe(true);
+  });
+});
+
 describe('posUtils — helpers de UI', () => {
   it('deptColor matchea por substring case-insensitive', () => {
     expect(deptColor('pan dulce especial')).toBe('#f97316');

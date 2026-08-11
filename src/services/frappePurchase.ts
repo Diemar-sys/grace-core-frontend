@@ -435,25 +435,38 @@ class FrappeComprasService extends FrappeBase {
     const desde = `${año}-01-01`;
     const hasta  = `${año}-12-31`;
 
-    // Lista de receipts confirmados del año
+    // Lista de receipts confirmados del año. limit 0 = SIN tope: con '500' el
+    // reporte descartaba en silencio las compras viejas del año (~768/año a
+    // ritmo real) y los meses de enero-abril reportaban IVA/IEPS de menos.
     const lista = await this._fetch(`/api/resource/Purchase Receipt?${new URLSearchParams({
       fields: JSON.stringify(["name","posting_date","grand_total","custom_facturado_a"]),
       filters: JSON.stringify([["docstatus","=",1],["posting_date",">=",desde],["posting_date","<=",hasta]]),
-      limit_page_length: '500',
+      limit_page_length: '0',
     })}`);
 
     const entries = lista?.data || [];
     if (!entries.length) return [];
 
-    // Documentos completos en paralelo — incluyen items[] y taxes[] embebidos
-    // sin necesitar permisos directos en los child doctypes
-    const docs = await Promise.all(
-      entries.map((e: any) =>
-        this._fetch(`/api/resource/Purchase Receipt/${encodeURIComponent(e.name)}`)
-          .then((r: any) => ({ ...r.data, posting_date: e.posting_date, custom_facturado_a: e.custom_facturado_a }))
-          .catch(() => null)
-      )
-    );
+    // Documentos completos en lotes de 8 — incluyen items[] y taxes[] embebidos
+    // sin necesitar permisos directos en los child doctypes. En lotes para no
+    // dispararle cientos de requests simultáneos al server.
+    const docs: any[] = [];
+    let perdidos = 0;
+    for (let i = 0; i < entries.length; i += 8) {
+      const lote = await Promise.all(
+        entries.slice(i, i + 8).map((e: any) =>
+          this._fetch(`/api/resource/Purchase Receipt/${encodeURIComponent(e.name)}`)
+            .then((r: any) => ({ ...r.data, posting_date: e.posting_date, custom_facturado_a: e.custom_facturado_a }))
+            .catch(() => null)
+        )
+      );
+      for (const d of lote) d ? docs.push(d) : perdidos++;
+    }
+    // Un reporte fiscal incompleto que no avisa es peor que uno que truena:
+    // antes los docs fallidos se tragaban con catch(() => null) y no sumaban.
+    if (perdidos > 0) {
+      throw new Error(`${perdidos} compra(s) no se pudieron leer; el reporte saldría incompleto. Reintenta.`);
+    }
 
     // Clave de agrupación por responsable fiscal
     const facturadoKey = (v: any) => {

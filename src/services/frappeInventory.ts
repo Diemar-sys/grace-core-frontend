@@ -138,6 +138,10 @@ class FrappeInventoryService extends FrappeBase {
         console.warn("Error cargando presentaciones desde ERPNext", e);
         return [];
       }
+      // Respuesta OK pero sin options: sin este return la función devolvía
+      // undefined → el .map del caller truena y #cachedFetch guarda undefined
+      // (refetch en cada llamada).
+      return [];
     });
   }
 

@@ -14,7 +14,7 @@ import '../styles/pos/POS.css';
 import '../styles/pos/POSModals.css';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { seedCatalogo, seedStock, drainOutbox } from '../db/sync';
+import { seedCatalogo, seedStock, drainOutbox, contarErrores, reintentarErrores } from '../db/sync';
 import { generateUUID } from '../db/uuid';
 import { DEFAULT_CUSTOMER } from '../config/constants';
 
@@ -86,16 +86,30 @@ function POS() {
 
   useEffect(() => { cargarProductos(); }, [cargarProductos]);
 
+  // Ventas rechazadas por el server (outbox estado='error'): sin este contador
+  // una venta cobrada en mostrador podía morir invisible en la cola. El badge
+  // la hace visible y el botón la regresa a 'pendiente' para reintentar.
+  const [ventasError, setVentasError] = useState(0);
+  const refrescarErrores = useCallback(() => {
+    contarErrores().then(setVentasError).catch(() => {});
+  }, []);
+
   // Drain del outbox: al montar (por si quedaron ventas offline de una sesión
   // anterior) y cada vez que vuelve la red. El tercer trigger es post-venta,
   // dentro de confirmarVenta. Wrapper: el listener recibe un Event y
   // drainOutbox espera un objeto de deps.
   useEffect(() => {
-    drainOutbox();
-    const onOnline = () => drainOutbox();
+    drainOutbox().finally(refrescarErrores);
+    const onOnline = () => drainOutbox().finally(refrescarErrores);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
-  }, []);
+  }, [refrescarErrores]);
+
+  const reintentarVentasError = useCallback(async () => {
+    await reintentarErrores();
+    await drainOutbox();
+    refrescarErrores();
+  }, [refrescarErrores]);
 
   // ─────────────────────────────────────────────
   // FILTRADO EN CLIENTE
@@ -283,7 +297,7 @@ function POS() {
 
       // 3) Empujar a ERPNext en segundo plano; la UI no espera la red.
       //    Sin red el drain aborta solo y la venta queda 'pendiente' en outbox.
-      drainOutbox();
+      drainOutbox().finally(refrescarErrores);
 
       // 4) Impresión — no toca red
       try {
@@ -300,13 +314,19 @@ function POS() {
     } finally {
       setLoadingCobro(false);
     }
-  }, [ticket, importeOk, cliente, pagos, cambio, total, showToast, limpiarTicket]);
+  }, [ticket, importeOk, cliente, pagos, cambio, total, showToast, limpiarTicket, refrescarErrores]);
 
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
   return (
     <Layout>
+      {ventasError > 0 && (
+        <div className="pos-outbox-error" role="alert">
+          ⚠ {ventasError} venta{ventasError > 1 ? 's' : ''} rechazada{ventasError > 1 ? 's' : ''} por el servidor — no está{ventasError > 1 ? 'n' : ''} en ERPNext
+          <button type="button" onClick={reintentarVentasError}>Reintentar</button>
+        </div>
+      )}
       <div className="pos-view">
         <POSCatalogo
           productosFiltrados={productosFiltrados}

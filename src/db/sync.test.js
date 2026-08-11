@@ -101,16 +101,35 @@ describe('sync — drainOutbox (DI)', () => {
     expect(stockService.getStockPorAlmacen).not.toHaveBeenCalled();
   });
 
-  it('rechazo del server → marca error y CONTINÚA con la siguiente (no bloquea la cola)', async () => {
+  it('rechazo real (4xx) → marca error y CONTINÚA con la siguiente (no bloquea la cola)', async () => {
     const db = fakeDbOutbox([venta('mala'), venta('buena')]);
+    const err417 = Object.assign(new Error('item no existe'), { status: 417 });
     const posService = fakePos(
       vi.fn()
-        .mockRejectedValueOnce(new Error('item no existe'))
+        .mockRejectedValueOnce(err417)
         .mockResolvedValueOnce({ name: 'SI-002', duplicada: false })
     );
     const n = await drainOutbox({ posService, stockService: fakeStockSvc(), db });
     expect(n).toBe(1);
     expect(db.outbox.update).toHaveBeenCalledWith('mala', expect.objectContaining({ estado: 'error' }));
     expect(db.outbox.delete).toHaveBeenCalledWith('buena');
+  });
+
+  it('5xx transitorio (deploy, nginx caído) → NO condena la fila; aborta y reintenta luego', async () => {
+    const db = fakeDbOutbox([venta('a'), venta('b')]);
+    const err502 = Object.assign(new Error('HTTP 502: Bad Gateway'), { status: 502 });
+    const posService = fakePos(vi.fn().mockRejectedValue(err502));
+    const n = await drainOutbox({ posService, stockService: fakeStockSvc(), db });
+    expect(n).toBe(0);
+    expect(db.outbox.update).not.toHaveBeenCalled(); // sigue 'pendiente'
+    expect(db.outbox.delete).not.toHaveBeenCalled();
+  });
+
+  it('throw sin status (red rara) → también transitorio, nada se condena', async () => {
+    const db = fakeDbOutbox([venta('a')]);
+    const posService = fakePos(vi.fn().mockRejectedValue(new Error('boom')));
+    const n = await drainOutbox({ posService, stockService: fakeStockSvc(), db });
+    expect(n).toBe(0);
+    expect(db.outbox.update).not.toHaveBeenCalled();
   });
 });

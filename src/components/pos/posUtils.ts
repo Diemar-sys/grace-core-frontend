@@ -37,13 +37,20 @@ interface Cobro {
   pendiente: number; cambio: number; importeOk: boolean;
 }
 
+// Redondeo a centavos ANTES de comparar, no al mostrar. Sin esto,
+// `pendiente === 0` es una igualdad exacta de flotantes sobre qty*precio:
+// con cantidades fraccionarias (pan por kilo) el pago exacto deja residuo
+// tipo 5.5e-17, la pantalla pinta "$0.00 pendiente" y el botón Confirmar
+// queda muerto — el clásico "a veces no me deja cobrar".
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
 /** Calcula los totales de un cobro de POS. Función pura — sin estado ni efectos. */
 export const calcularCobro = (ticket: TicketLinea[] = [], pagos: Pagos = {}): Cobro => {
-  const total       = ticket.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.precio) || 0), 0);
+  const total       = round2(ticket.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.precio) || 0), 0));
   const totalQty    = ticket.reduce((s, i) => s + (Number(i.qty) || 0), 0);
-  const totalPagado = Object.values(pagos).reduce<number>((s, v) => s + (parseFloat(String(v)) || 0), 0);
-  const pendiente   = Math.max(0, total - totalPagado);
-  const cambio      = Math.max(0, totalPagado - total);
+  const totalPagado = round2(Object.values(pagos).reduce<number>((s, v) => s + (parseFloat(String(v)) || 0), 0));
+  const pendiente   = round2(Math.max(0, total - totalPagado));
+  const cambio      = round2(Math.max(0, totalPagado - total));
   const importeOk   = pendiente === 0 && totalPagado > 0;
   return { total, totalQty, totalPagado, pendiente, cambio, importeOk };
 };

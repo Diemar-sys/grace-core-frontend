@@ -1,5 +1,33 @@
 /* POS.css — Layout principal del módulo POS */
 
+/* ══ VENTAS RECHAZADAS (outbox estado=error) ═════════ */
+/* Banda de alerta arriba del POS: una venta cobrada que el server rechazó
+   NO puede quedar invisible — es dinero que no llegó a ERPNext. */
+.pos-outbox-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 16px;
+  border-radius: var(--radius-card);
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-weight: 600;
+}
+.pos-outbox-error button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 40px; /* táctil */
+}
+.pos-outbox-error button:active { background: #b91c1c; }
+
 /* ══ LAYOUT PRINCIPAL ════════════════════════════════ */
 .pos-view {
   display: flex;

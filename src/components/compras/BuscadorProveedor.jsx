@@ -29,7 +29,12 @@ function BuscadorProveedor({ value, onChange, grande = false }) {
     if (!texto) { onChange({ name: '', label: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
+      // Guard de respuesta fuera de orden (mismo patrón que BuscadorCliente):
+      // si el usuario siguió tecleando, esta respuesta ya es de una búsqueda
+      // vieja y no debe pisar las sugerencias de la nueva.
+      const miTimer = timerRef.current;
       const res = await comprasService.buscarProveedores(texto);
+      if (timerRef.current !== miTimer) return;
       setSugerencias(res); setAbierto(true);
     }, 500);
   };

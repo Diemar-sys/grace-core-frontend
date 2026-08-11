@@ -18,6 +18,17 @@ const TIPO_PUNTO_VENTA    = 'PUNTO DE VENTA';
 
 const ORDEN_TIPOS = [TIPO_BODEGA, TIPO_DEPARTAMENTO, TIPO_SUCURSAL, TIPO_CAMIONETA, TIPO_PUNTO_VENTA];
 
+/**
+ * parseFloat con guard: un NaN se serializa como `null` en JSON y Frappe lo
+ * convierte en qty 0 EN SILENCIO — un movimiento de inventario que no mueve
+ * nada. En cantidades, tronar con nombre es mejor que degradar a 0.
+ */
+const qtyNum = (v: unknown, item: string): number => {
+  const n = parseFloat(String(v));
+  if (!(n > 0)) throw new Error(`Cantidad inválida en ${item}`);
+  return n;
+};
+
 /** Canal de precio. Uno por cada destino con tarifa propia. */
 export type TipoPrecio = 'normal' | 'pueblos' | 'camioneta';
 
@@ -219,9 +230,14 @@ class FrappeStockService extends FrappeBase {
    * @param warehouse - ID Almacén.
    */
   async getStockActual(itemCode: string, warehouse: string) {
-    const response = await this._fetch(
-      `/api/resource/Bin?fields=["actual_qty","reserved_qty","projected_qty"]&filters=[["item_code","=","${itemCode}"],["warehouse","=","${warehouse}"]]`
-    );
+    // URLSearchParams, NUNCA interpolar itemCode crudo: un `#` en el código
+    // (velas "No. 8") truncaba el query string → Frappe recibía la consulta
+    // SIN filtros → el primer Bin de la tabla pintado como stock de este item.
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["actual_qty", "reserved_qty", "projected_qty"]),
+      filters: JSON.stringify([["item_code", "=", itemCode], ["warehouse", "=", warehouse]]),
+    });
+    const response = await this._fetch(`/api/resource/Bin?${params}`);
     return response.data?.[0] || { actual_qty: 0, reserved_qty: 0, projected_qty: 0 };
   }
 
@@ -232,9 +248,14 @@ class FrappeStockService extends FrappeBase {
    * @param limit - Cantidad de movimientos a cargar.
    */
   async getMovimientos(itemCode: string, limit = 50): Promise<any[]> {
-    const response = await this._fetch(
-      `/api/resource/Stock Ledger Entry?fields=["posting_date","warehouse","actual_qty","qty_after_transaction","voucher_type","voucher_no"]&filters=[["item_code","=","${itemCode}"]]&order_by=creation desc&limit_page_length=${limit}`
-    );
+    // Mismo motivo que getStockActual: itemCode va por URLSearchParams.
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["posting_date", "warehouse", "actual_qty", "qty_after_transaction", "voucher_type", "voucher_no"]),
+      filters: JSON.stringify([["item_code", "=", itemCode]]),
+      order_by: "creation desc",
+      limit_page_length: String(limit),
+    });
+    const response = await this._fetch(`/api/resource/Stock Ledger Entry?${params}`);
     return response.data || [];
   }
 
@@ -279,11 +300,11 @@ class FrappeStockService extends FrappeBase {
         const row: any = {
           item_code:         item.item_code,
           t_warehouse:       item.almacen || destino,
-          qty:               parseFloat(item.qty),
+          qty:               qtyNum(item.qty, item.item_code),
           uom:               item.uom,
           stock_uom:         item.uom,
           conversion_factor: 1,
-          transfer_qty:      parseFloat(item.qty),
+          transfer_qty:      qtyNum(item.qty, item.item_code),
         };
         const rate = parseFloat(item.basic_rate);
         if (rate > 0) row.basic_rate = rate;
@@ -306,12 +327,12 @@ class FrappeStockService extends FrappeBase {
       items: datos.items.map((item: any) => ({
         item_code:         item.item_code,
         t_warehouse:       item.almacen_destino || BODEGA_CENTRAL,
-        qty:               parseFloat(item.cantidad),
+        qty:               qtyNum(item.cantidad, item.item_code),
         basic_rate:        parseFloat(item.precio_unitario) || 0,
         uom:               item.uom,
         stock_uom:         item.uom,
         conversion_factor: 1,
-        transfer_qty:      parseFloat(item.cantidad),
+        transfer_qty:      qtyNum(item.cantidad, item.item_code),
       })),
     });
   }
@@ -330,7 +351,7 @@ class FrappeStockService extends FrappeBase {
       items: datos.items.map((item: any) => ({
         item_code:         item.item_code,
         t_warehouse:       item.almacen || BODEGA_CENTRAL,
-        qty:               parseFloat(item.cantidad),
+        qty:               qtyNum(item.cantidad, item.item_code),
         basic_rate:        parseFloat(item.precio_unitario) || 0,
         uom:               item.uom,
         stock_uom:         item.uom,
@@ -361,11 +382,11 @@ class FrappeStockService extends FrappeBase {
         item_code:         item.item_code,
         s_warehouse:       BODEGA_CENTRAL,
         t_warehouse:       almacenDestino,
-        qty:               parseFloat(item.qty),
+        qty:               qtyNum(item.qty, item.item_code),
         uom:               item.uom,
         stock_uom:         item.uom,
         conversion_factor: 1,
-        transfer_qty:      parseFloat(item.qty),
+        transfer_qty:      qtyNum(item.qty, item.item_code),
       })),
     });
   }
@@ -385,7 +406,7 @@ class FrappeStockService extends FrappeBase {
       items: datos.items.map((item: any) => ({
         item_code:  item.item_code,
         s_warehouse: item.almacen_origen || BODEGA_CENTRAL,
-        qty:         parseFloat(item.cantidad),
+        qty:         qtyNum(item.cantidad, item.item_code),
         basic_rate:  parseFloat(item.precio_promedio) || 0,
         uom:         item.uom,
         stock_uom:   item.uom,
@@ -595,11 +616,11 @@ class FrappeStockService extends FrappeBase {
       items: items.map(item => ({
         item_code:         item.item_code,
         s_warehouse:       almacenOrigen,
-        qty:               parseFloat(item.qty),
+        qty:               qtyNum(item.qty, item.item_code),
         uom:               item.uom,
         stock_uom:         item.uom,
         conversion_factor: 1,
-        transfer_qty:      parseFloat(item.qty),
+        transfer_qty:      qtyNum(item.qty, item.item_code),
       })),
     });
   }
@@ -617,7 +638,7 @@ class FrappeStockService extends FrappeBase {
         items.push({
           item_code: item.item_code,
           s_warehouse: datos.almacen_produccion,
-          qty: parseFloat(item.cantidad),
+          qty: qtyNum(item.cantidad, item.item_code),
           uom: item.uom,
           stock_uom: item.uom,
         });
@@ -871,7 +892,7 @@ class FrappeStockService extends FrappeBase {
       items: datos.items.map((item: any) => ({
         item_code:   item.item_code,
         s_warehouse: item.almacen_origen || BODEGA_CENTRAL,
-        qty:         parseFloat(item.cantidad),
+        qty:         qtyNum(item.cantidad, item.item_code),
         basic_rate:  parseFloat(item.costo) || 0,
         uom:         item.uom,
         stock_uom:   item.uom,
@@ -893,7 +914,7 @@ class FrappeStockService extends FrappeBase {
       items: datos.items.map((item: any) => ({
         item_code:   item.item_code,
         s_warehouse: item.almacen || BODEGA_CENTRAL,
-        qty:         parseFloat(item.cantidad),
+        qty:         qtyNum(item.cantidad, item.item_code),
         basic_rate:  parseFloat(item.costo_promedio) || 0,
         uom:         item.uom,
         stock_uom:   item.uom,

@@ -4,3 +4,7 @@ dist
 *.log
 msg_commit.txt
 # NO ignorar .env: contiene las VITE_* que se hornean en el build
+# Backups de env y residuos de curl: nunca al build context
+.env.backup
+.env.*.backup
+cookies.txt

@@ -370,8 +370,8 @@ function Catalogo() {
                   <tbody>
                     {filtered.length === 0
                       ? <tr><td colSpan={COLUMNAS[vistaActiva].length} className="no-data">No hay productos en esta vista</td></tr>
-                      : filtered.map((item, i) => (
-                        <FilaItem key={i} item={item} vista={vistaActiva}
+                      : filtered.map((item) => (
+                        <FilaItem key={item.item_code} item={item} vista={vistaActiva}
                           onEdit={handleEdit} editLoading={editLoading}
                           onDelete={deleteModal.open} onDisable={disableModal.open} onEnable={enableModal.open} soloLectura={soloLectura} accionActiva={accionActiva}
                           costoBOM={costosBOM[item.item_code]} />

@@ -38,6 +38,16 @@ class FrappeBase {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
 
+      // El status viaja en el Error: quien atrape (p.ej. el drain del outbox)
+      // necesita distinguir un 5xx transitorio (deploy, nginx reiniciando) de
+      // un 4xx de datos malos. Sin esto son indistinguibles y una venta buena
+      // se marcaba "error" permanente por un 502 de dos minutos.
+      const throwWithStatus = (msg: string): never => {
+        const e = new Error(msg) as Error & { status?: number };
+        e.status = response.status;
+        throw e;
+      };
+
       // Parsear mensajes de error de Frappe sin que el throw sea engullido
       if (err._server_messages) {
         let userMessage = 'Error interno del servidor Frappe';
@@ -48,11 +58,11 @@ class FrappeBase {
         } catch {
           // parsing fallido — usar mensaje genérico
         }
-        throw new Error(userMessage);
+        throwWithStatus(userMessage);
       }
 
       // Error HTTP genérico (4xx / 5xx sin body Frappe)
-      throw new Error(
+      throwWithStatus(
         err.exc_type || `HTTP ${response.status}: ${response.statusText}`
       );
     }

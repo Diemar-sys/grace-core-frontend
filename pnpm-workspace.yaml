@@ -1,2 +1,12 @@
 allowBuilds:
   esbuild: true
+
+# axios llega vía frappe-react-sdk→frappe-js-sdk con versión vulnerable
+# (<1.15.1, GHSA-xhjh-pmcv-23jw entre otros). Transporta TODAS las llamadas
+# HTTP de la app: se fuerza la parchada hasta que el SDK la suba solo.
+overrides:
+  axios: 1.19.0
+  # socket.io ni se usa (enableSocket=false en main.jsx), pero parchar las
+  # transitivas vulnerables cuesta dos líneas.
+  socket.io-parser: '>=4.2.7'
+  ws: '>=8.21.0'

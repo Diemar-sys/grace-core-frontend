@@ -94,12 +94,16 @@ class FrappeProveedoresService extends FrappeBase {
    * @returns {Promise<number>} Número secuencial disponible.
    */
   async #getSiguienteNumero() {
-    const res = await this._fetch(
-      `/api/resource/Supplier?fields=${encodeURIComponent(JSON.stringify(["custom_no_de_proveedor"]))}&limit_page_length=500`
-    );
-    const lista = res.data || [];
-    const max = lista.reduce((m: number, s: any) => Math.max(m, s.custom_no_de_proveedor || 0), 0);
-    return max + 1;
+    // El max lo saca el server (order_by desc + limit 1), no un reduce sobre
+    // una página de 500: pasando 500 proveedores la página quedaba parcial y
+    // el folio se duplicaba garantizado.
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["custom_no_de_proveedor"]),
+      order_by: "custom_no_de_proveedor desc",
+      limit_page_length: "1",
+    });
+    const res = await this._fetch(`/api/resource/Supplier?${params}`);
+    return (res.data?.[0]?.custom_no_de_proveedor || 0) + 1;
   }
 
   // ─────────────────────────────────────────────
