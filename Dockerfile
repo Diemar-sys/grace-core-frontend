@@ -2,12 +2,17 @@
 # Stage 1: compila el bundle Vite. Stage 2: nginx sirve dist + proxy al backend ERPNext.
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS build
+# node 22 LTS: pnpm 11 (el del packageManager) truena en node 20
+FROM node:22-alpine AS build
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@10 --activate
+# corepack lee el campo packageManager de package.json — no clavar la versión
+# aquí o divergen (ya pasó: pnpm@10 clavado vs packageManager 11).
+RUN corepack enable
 
-# Cache de deps: solo manifiestos primero
-COPY package.json pnpm-lock.yaml ./
+# Cache de deps: solo manifiestos primero. pnpm-workspace.yaml VA: ahí viven
+# los overrides (axios, socket.io) que el lockfile ya tiene resueltos — sin él
+# --frozen-lockfile no cuadra y el build truena.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Resto del código (.env con VITE_* se hornea en el bundle)

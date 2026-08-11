@@ -118,10 +118,11 @@ mandaba `token: "undefined:undefined"` (código muerto).
   lo reutilizaba (dos ventas con el mismo número en la libreta). Fix: el max
   ahora incluye canceladas. (El endpoint server-side con lock, como ya tiene
   compras, queda como mejora futura.)
-- ✅ **`Renglon Nomina.sucursal` nunca se llenaba** → `reporte_costo_real`
-  agrupaba el 100% bajo "(Sin sucursal)". Fix: `validate` congela
-  `Employee.branch` en cada renglón. Backfill de corridas viejas: one-shot
-  pendiente (correr en prod tras deploy).
+- ⚪ **`Renglon Nomina.sucursal` "nunca se llenaba" — hallazgo FALSO.**
+  Verificado en prod post-deploy: los 217 renglones tienen sucursal. El campo
+  trae `fetch_from: empleado.branch` en el doctype y Frappe lo llena solo al
+  guardar. El fill agregado en `validate` queda como red de seguridad (solo
+  actúa si viene vacío). Backfill innecesario (0 filas).
 - ✅ **Doble-tap en "Confirmar compra/venta" sin guard** (pantalla táctil):
   dos llamadas concurrentes antes del refresh = riesgo de documento duplicado,
   y el error solo iba a `console.error`. Fix: botón deshabilitado por `name`
