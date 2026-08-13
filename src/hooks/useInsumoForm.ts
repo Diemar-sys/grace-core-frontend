@@ -9,6 +9,27 @@ const IMPUESTOS = [
   { key: 'ieps',  label: 'IEPS 8%',           rate: 0.08 },
 ];
 
+/**
+ * `custom_código_interno` es obligatorio en Item (reqd en prod) pero la pantalla de
+ * Pan no lo pide: ahí el ID del pan ES el item_code. Se espeja al guardar para que
+ * ambos digan lo mismo desde el día uno — como BOLILLO (3001/3001) — en vez de pedir
+ * dos veces el mismo número.
+ *
+ * En insumos manda lo tecleado: ahí el código interno es la clave real del negocio y
+ * no tiene por qué parecerse al item_code (GALLETA es MP_GALLETA_SUR__MINI / 1023).
+ *
+ * @param interno         lo que trae el formulario
+ * @param itemCode        item_code que se va a guardar
+ * @param codigoOriginal  item_code previo, solo al renombrar
+ */
+export function resolverCodigoInterno(interno: string, itemCode: string, codigoOriginal?: string) {
+  const i    = (interno || '').trim();
+  const code = (itemCode || '').trim().toUpperCase();
+  if (!i) return code;                                     // pan: nunca se tecleó
+  if (codigoOriginal && i === codigoOriginal) return code;  // era espejo → sigue al rename
+  return i;                                                // número propio: no se toca
+}
+
 const ESTADO_INICIAL = {
   item_code: '',
   item_name: '',
@@ -232,14 +253,17 @@ export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editI
 
     try {
       let result;
-      const datosLimpios = sanitizarObjeto(formData);
+      const datosLimpios: any = sanitizarObjeto(formData);
+      datosLimpios.custom_código_interno = resolverCodigoInterno(
+        datosLimpios.custom_código_interno, datosLimpios.item_code);
       if (isEditing) {
         const codigoOriginal = editItem.item_code;
         const codigoNuevo    = datosLimpios.item_code?.trim().toUpperCase();
         if (codigoNuevo && codigoNuevo !== codigoOriginal) {
           await inventory.renameItem(codigoOriginal, codigoNuevo);
           setFormData((prev: any) => ({ ...prev, item_code: codigoNuevo }));
-          result = await inventory.updateItem(codigoNuevo, { ...datosLimpios, item_code: codigoNuevo });
+          const interno = resolverCodigoInterno(datosLimpios.custom_código_interno, codigoNuevo, codigoOriginal);
+          result = await inventory.updateItem(codigoNuevo, { ...datosLimpios, item_code: codigoNuevo, custom_código_interno: interno });
         } else {
           result = await inventory.updateItem(codigoOriginal, datosLimpios);
         }
