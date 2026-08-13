@@ -180,7 +180,7 @@ const MODULOS_CONSULTAS = [
   { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
   { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },
-  { key: "egresos",     path: "/reportes/gastos",           icon: <IconCompras />,     nombre: "Egresos",        sub: "Gasto por cuenta y periodo", color: "#b45309",   bg: "#fef3c7" },
+  { key: "egresos",     path: "/egresos?modo=consulta",     icon: <IconEgresos />,     nombre: "Egresos",        sub: "Ver registros",      color: "#dc2626",   bg: "#fee2e2" },
 ];
 
 // ── Módulos de Reportes ───────────────────────────────
@@ -193,6 +193,7 @@ const IconReporte = () => (
 );
 
 const MODULOS_REPORTES = [
+  { key: "egresos", path: "/reportes/gastos", icon: <IconReporte />, nombre: "Gastos", sub: "Gasto por cuenta y periodo", color: "#b45309", bg: "#fef3c7" },
   { key: "gastos_anual", path: "/reportes/gastos-anual", icon: <IconReporte />, nombre: "Gastos del Año", sub: "Todo el gasto por mes y categoría", color: "#b91c1c", bg: "#fee2e2" },
   { key: "ventas_categoria", path: "/reportes/ventas-categoria", icon: <IconReporte />, nombre: "Ventas por Categoría", sub: "B2B agrupado por item_group", color: "#7c2d12", bg: "#fed7aa" },
   { key: "compras_reporte", path: "/reportes/compras", icon: <IconReporte />, nombre: "Compras", sub: "Resumen fiscal mensual por proveedor", color: "#1565c0", bg: "#e3f0ff" },
@@ -270,13 +271,11 @@ function ContenidoConfiguracion() {
   );
 }
 
-function ContenidoConsultas({ modulosPermitidos, puedeReportes }) {
+function ContenidoConsultas({ modulosPermitidos }) {
   const fecha = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric"
   });
-  // La consulta de Egresos apunta a /reportes/gastos (un reporte): solo niveles con reportes.
-  const modulos = MODULOS_CONSULTAS.filter(m =>
-    modulosPermitidos.includes(m.key) && (m.key !== 'egresos' || puedeReportes));
+  const modulos = MODULOS_CONSULTAS.filter(m => modulosPermitidos.includes(m.key));
   return (
     <>
       <div className="panel-greeting">
@@ -390,17 +389,13 @@ function Panel() {
             </button>
           );
         })}
-        {roleConfig.rutas.includes('/egresos') && (
-          <button className="panel-menu-btn" onClick={() => navigate('/egresos')}>
-            Egresos
-          </button>
-        )}
+        {/* Egresos no lleva pestaña: entra por su tile dentro de Operaciones. */}
       </nav>
 
       {/* CONTENIDO */}
       <div className="panel-body">
         {seccion === "operaciones" && <ContenidoOperaciones modulosPermitidos={roleConfig.modulosPanel} />}
-        {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} puedeReportes={roleConfig.reportes} />}
+        {seccion === "consultas" && <ContenidoConsultas modulosPermitidos={roleConfig.modulosPanel} />}
         {seccion === "procesos" && <Proximamente titulo="Procesos" />}
         {seccion === "reportes" && (roleConfig.reportes
           ? <ContenidoReportes />

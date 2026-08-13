@@ -187,18 +187,22 @@ export function mezclarComprasYGastos(compras: any[], egresos: any[]) {
 }
 
 /**
- * Gasolina: el IEPS NO es un porcentaje, es una cuota fija por litro que fija
- * Hacienda (y cambia con los estímulos). El IVA va sobre base + IEPS, no sobre
- * la base sola — por eso capturar gasolina con "IEPS 8%" nunca cuadraba contra
- * el CFDI. La cuota se teclea de la factura: no se hardcodea porque se mueve.
+ * Gasolina: no se recalculan los impuestos, se COPIAN del CFDI.
+ * El IEPS es cuota fija por litro que Hacienda mueve con los estímulos, y el IVA
+ * va sobre base + IEPS — replicar esa aritmética siempre dejaba centavos de
+ * diferencia contra la factura. Ahora IVA y total se teclean tal cual vienen
+ * impresos y el IEPS sale por resta: cuadra por construcción.
+ * Sin total capturado (carga sin factura) se asume que no hubo IEPS.
  */
-export function calcGasolina({ litros, precio, cuota }: { litros?: any; precio?: any; cuota?: any }) {
+export function calcGasolina({ litros, precio, iva, total }: { litros?: any; precio?: any; iva?: any; total?: any }) {
   const num = (v: any) => parseFloat(v) || 0;
+  const vacio = (v: any) => v === '' || v == null;
   const base = num(litros) * num(precio);
-  const ieps = num(litros) * num(cuota);
-  const baseGravable = base + ieps;
-  const iva = baseGravable * 0.16;
-  return { base, ieps, baseGravable, iva, total: baseGravable + iva };
+  // Vacío = auto (carga sin IEPS al 16%). Con valor = override del CFDI, manda tal cual.
+  const ivaNum   = vacio(iva)   ? base * 0.16   : num(iva);
+  const totalNum = vacio(total) ? base + ivaNum : num(total);
+  const ieps = totalNum - base - ivaNum;   // derivado: lo que la factura cobró de más
+  return { base, ieps, baseGravable: totalNum - ivaNum, iva: ivaNum, total: totalNum };
 }
 
 /**
@@ -221,7 +225,8 @@ export function desgloseEgreso(egreso: any): { filas: any[]; texto: string | nul
       if (Number(d.aditivo_litros)) filas.push({ concepto: 'ADITIVO', cantidad: d.aditivo_litros, precio: d.aditivo_precio, importe: d.aditivo_subtotal });
       if (Number(d.gasolina_litros)) {
         filas.push({ concepto: 'GASOLINA', cantidad: d.gasolina_litros, precio: d.gasolina_precio, importe: d.gasolina_base });
-        if (Number(d.ieps_importe)) filas.push({ concepto: 'IEPS (cuota por litro)', cantidad: d.gasolina_litros, precio: d.ieps_cuota, importe: d.ieps_importe });
+        // ieps_cuota solo existe en gastos viejos (cuando se tecleaba la cuota).
+        if (Number(d.ieps_importe)) filas.push({ concepto: 'IEPS', cantidad: d.gasolina_litros, precio: d.ieps_cuota || '', importe: d.ieps_importe });
       }
       if (Number(d.descuento))      filas.push({ concepto: 'DESCUENTO', cantidad: '', precio: '', importe: -Number(d.descuento) });
       // JSON reconocido: nunca se muestra crudo, aunque no arme ningún renglón.

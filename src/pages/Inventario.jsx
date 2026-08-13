@@ -134,7 +134,7 @@ function Inventario() {
           /* Consultas → Inventario: 2 tarjetas */
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setAccionActiva('consultar')}>
-              <div className="module-icon" style={{ background: '#e8f5e9', color: '#2e7d32' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#e8f5e9', '--mod-color': '#2e7d32' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
@@ -145,7 +145,7 @@ function Inventario() {
               <p>Existencias actuales por almacén</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('historial')}>
-              <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#f3f4f6', '--mod-color': '#4b5563' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -160,28 +160,28 @@ function Inventario() {
           /* Operaciones → Inventario: 3 acciones */
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setModalConteo(true)}>
-              <div className="module-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#ecfdf5', '--mod-color': '#059669' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               </div>
               <h3>Conteo Físico</h3>
               <p>Ajuste por inventario real</p>
             </button>
             <button className="panel-module" onClick={() => setModalSalida(true)}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fef3c7', '--mod-color': '#d97706' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
               </div>
               <h3>Transferir Salida (→)</h3>
               <p>Traspaso interno a otro almacén</p>
             </button>
             <button className="panel-module" onClick={() => setModalMerma(true)}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fee2e2', '--mod-color': '#ef4444' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
               </div>
               <h3>Registrar Merma (-)</h3>
               <p>Pérdida permanente</p>
             </button>
             <button className="panel-module" onClick={() => setModalRegalo(true)}>
-              <div className="module-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#ecfdf5', '--mod-color': '#059669' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M2 8h20M12 8S9 2 6.5 4 9 8 12 8zM12 8s3-6 5.5-4-1.5 4-5.5 4z"/></svg>
               </div>
               <h3>Registrar Regalo (+)</h3>

@@ -242,7 +242,7 @@ function Produccion() {
       {vistaActiva === 'menu' && (
         <div className="panel-grid" style={{ padding: '20px 0' }}>
           <button className="panel-module" onClick={() => { cargarRecetas(); setVistaActiva('recetas'); }}>
-            <div className="module-icon" style={{ background: '#fff7ed', color: '#7a3f0a' }}>
+            <div className="panel-module-icon" style={{ '--mod-bg': '#fff7ed', '--mod-color': '#7a3f0a' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 11h.01" /><path d="M11 15h.01" />
                 <path d="M16 16h.01" />
@@ -255,7 +255,7 @@ function Produccion() {
           </button>
 
           <button className="panel-module" onClick={() => setVistaActiva('registro')}>
-            <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+            <div className="panel-module-icon" style={{ '--mod-bg': '#e0f2fe', '--mod-color': '#0284c7' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" />
                 <path d="M18 9v6" /><path d="M21 12h-6" />
@@ -268,7 +268,7 @@ function Produccion() {
           {/* Entrada sin receta: mientras los BOM no existan, es la puerta por la
               que el pan llega al inventario para poder repartirse. */}
           <button className="panel-module" onClick={() => setShowEntradaPan(true)}>
-            <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+            <div className="panel-module-icon" style={{ '--mod-bg': '#fef3c7', '--mod-color': '#d97706' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3v12" /><path d="m8 11 4 4 4-4" />
                 <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
@@ -286,21 +286,21 @@ function Produccion() {
           /* Submenú de acciones (tarjetas grandes, estilo Compras) */
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => { setEditBOM(null); setShowNuevaReceta(true); }}>
-              <div className="module-icon" style={{ background: '#dcfce7', color: '#16a34a' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#dcfce7', '--mod-color': '#16a34a' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Nueva Receta</h3>
               <p>Crear una receta nueva</p>
             </button>
             <button className="panel-module" onClick={() => { cargarRecetas(); setAccionReceta('editar'); }}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fef3c7', '--mod-color': '#d97706' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Receta</h3>
               <p>Modificar recetas existentes</p>
             </button>
             <button className="panel-module" onClick={() => { cargarRecetas(); setAccionReceta('borrar'); }}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fee2e2', '--mod-color': '#ef4444' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
               </div>
               <h3>Borrar Receta</h3>

@@ -408,30 +408,47 @@ describe('desgloseEgreso — detalle de un gasto', () => {
   });
 });
 
-describe('calcGasolina — IEPS de cuota fija por litro', () => {
-  // 38.5 L a $13.42/L con cuota IEPS $6.4556/L
-  const carga = { litros: '38.5', precio: '13.42', cuota: '6.4556' };
+describe('calcGasolina — IVA y total copiados del CFDI', () => {
+  // 38.5 L a $13.42/L; el CFDI trae IVA $122.43 y total $887.64
+  const carga = { litros: '38.5', precio: '13.42', iva: '122.43', total: '887.64' };
 
-  it('el IEPS es litros × cuota, no un porcentaje de la base', () => {
-    const { base, ieps } = calcGasolina(carga);
+  it('el total guardado es EXACTAMENTE el del CFDI (cero desfase)', () => {
+    const { total, iva } = calcGasolina(carga);
+    expect(total).toBe(887.64);
+    expect(iva).toBe(122.43);
+  });
+
+  it('el IEPS sale por resta, no se teclea', () => {
+    const { base, ieps, baseGravable } = calcGasolina(carga);
     expect(base).toBeCloseTo(516.67, 2);
-    expect(ieps).toBeCloseTo(248.5406, 4);
+    expect(ieps).toBeCloseTo(248.54, 2);          // 887.64 − 516.67 − 122.43
+    expect(baseGravable).toBeCloseTo(765.21, 2);  // total − IVA
     expect(ieps).not.toBeCloseTo(base * 0.08, 2); // el bug viejo: IEPS 8%
   });
 
-  it('el IVA va sobre base + IEPS, no sobre la base sola', () => {
-    const { base, iva, baseGravable, total } = calcGasolina(carga);
-    expect(baseGravable).toBeCloseTo(765.2106, 4);
-    expect(iva).toBeCloseTo(122.4337, 4);
-    expect(iva).not.toBeCloseTo(base * 0.16, 2);
-    expect(total).toBeCloseTo(887.6443, 4);
+  it('sin capturar nada de la factura: IVA 16% de la base y cero IEPS', () => {
+    const { iva, ieps, total } = calcGasolina({ litros: '10', precio: '20' });
+    expect(iva).toBeCloseTo(32, 6);
+    expect(ieps).toBe(0);
+    expect(total).toBeCloseTo(232, 6);
   });
 
-  it('sin cuota se comporta como un gasto normal con IVA', () => {
-    const { ieps, iva, total } = calcGasolina({ litros: '10', precio: '20', cuota: '' });
+  it('IVA en cero es un override válido, no un campo vacío', () => {
+    const { iva, total } = calcGasolina({ litros: '10', precio: '20', iva: '0' });
+    expect(iva).toBe(0);
+    expect(total).toBeCloseTo(200, 6);
+  });
+
+  it('sin total capturado asume que no hubo IEPS', () => {
+    const { ieps, baseGravable, total } = calcGasolina({ litros: '10', precio: '20', iva: '32' });
     expect(ieps).toBe(0);
-    expect(iva).toBeCloseTo(32, 6);
+    expect(baseGravable).toBeCloseTo(200, 6);
     expect(total).toBeCloseTo(232, 6);
+  });
+
+  it('total menor que base + IVA da IEPS negativo (la UI lo alerta)', () => {
+    const { ieps } = calcGasolina({ litros: '10', precio: '20', iva: '32', total: '200' });
+    expect(ieps).toBeLessThan(0);
   });
 
   it('campos vacíos no producen NaN', () => {
@@ -442,13 +459,21 @@ describe('calcGasolina — IEPS de cuota fija por litro', () => {
     const g = calcGasolina(carga);
     const descripcion = JSON.stringify({
       gasolina_litros: carga.litros, gasolina_precio: carga.precio, gasolina_base: g.base,
-      ieps_cuota: carga.cuota, ieps_importe: g.ieps,
-      base_gravable: g.baseGravable, iva: g.iva, total: g.total,
+      ieps_importe: g.ieps, base_gravable: g.baseGravable, iva: g.iva, total: g.total,
     });
     const { filas, texto } = desgloseEgreso({ subcategoria: 'GASOLINA', descripcion });
     expect(texto).toBeNull();
-    expect(filas.map(f => f.concepto)).toEqual(['GASOLINA', 'IEPS (cuota por litro)']);
+    expect(filas.map(f => f.concepto)).toEqual(['GASOLINA', 'IEPS']);
     expect(filas[0].importe).toBeCloseTo(516.67, 2);
-    expect(filas[1].importe).toBeCloseTo(248.5406, 4);
+    expect(filas[1].importe).toBeCloseTo(248.54, 2);
+  });
+
+  it('gastos viejos (con ieps_cuota) siguen mostrando la cuota por litro', () => {
+    const descripcion = JSON.stringify({
+      gasolina_litros: '38.5', gasolina_precio: '13.42', gasolina_base: 516.67,
+      ieps_cuota: '6.4556', ieps_importe: 248.5406,
+    });
+    const { filas } = desgloseEgreso({ subcategoria: 'GASOLINA', descripcion });
+    expect(filas[1].precio).toBe('6.4556');
   });
 });

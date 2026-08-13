@@ -148,21 +148,21 @@ function Proveedores() {
         {accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={handleNuevo}>
-              <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#e0f2fe', '--mod-color': '#0284c7' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Registrar Proveedor</h3>
               <p>Crear nuevo contacto comercial</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('editar')}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fef3c7', '--mod-color': '#d97706' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Proveedor</h3>
               <p>Modificar datos existentes</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('eliminar')}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fee2e2', '--mod-color': '#dc2626' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -174,7 +174,7 @@ function Proveedores() {
               <p>Borrar proveedor permanentemente</p>
             </button>
             {/*<button className="panel-module" onClick={() => setAccionActiva('consultar')}>
-              <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#f3f4f6', '--mod-color': '#4b5563' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               </div>
               <h3>Consultar Proveedores</h3>

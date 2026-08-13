@@ -289,28 +289,28 @@ function Catalogo() {
         ) : accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => handleNuevo()}>
-              <div className="module-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#e0f2fe', '--mod-color': '#0284c7' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
               </div>
               <h3>Crear Insumo</h3>
               <p>Registrar nuevo producto</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('editar')}>
-              <div className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fef3c7', '--mod-color': '#d97706' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Insumo</h3>
               <p>Modificar detalles o stock</p>
             </button>
             <button className="panel-module" onClick={() => { setVistaActiva('registrado'); setAccionActiva('deshabilitar'); }}>
-              <div className="module-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#fee2e2', '--mod-color': '#ef4444' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
               </div>
               <h3>Deshabilitar</h3>
               <p>Pausar uso de un insumo</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('eliminar')}>
-              <div className="module-icon" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+              <div className="panel-module-icon" style={{ '--mod-bg': '#f3f4f6', '--mod-color': '#4b5563' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
               </div>
               <h3>Eliminar</h3>

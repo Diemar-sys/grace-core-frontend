@@ -13,51 +13,9 @@
   letter-spacing: -0.01em;
 }
 
-.egresos-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
-}
-.egresos-tile {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  text-align: left;
-  background: var(--tv-surface);
-  border: 1px solid var(--tv-hairline);
-  border-left: 3px solid var(--tv-marca);
-  border-radius: 12px;
-  padding: 20px 22px;
-  cursor: pointer;
-  position: relative;
-  transition: border-color .15s, box-shadow .15s, transform .12s;
-}
-.egresos-tile:hover {
-  border-color: var(--tv-marca);
-  box-shadow: 0 6px 18px rgba(168,64,44,0.12);
-  transform: translateY(-2px);
-}
-.egresos-tile-icon {
-  flex-shrink: 0;
-  width: 52px; height: 52px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--tv-marca-wash);
-  color: var(--tv-marca);
-  border-radius: 12px;
-}
-.egresos-tile-text { display: flex; flex-direction: column; gap: 2px; }
-.egresos-tile-name {
-  font-family: var(--tv-display);
-  font-size: 17px; font-weight: 600;
-  color: var(--tv-carbon);
-}
-.egresos-tile-sub {
-  font-size: 12px;
-  color: var(--tv-ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+/* Las tiles usan .panel-grid/.panel-module (Panel.css) — el badge necesita ancla. */
+.egresos-page .panel-module { position: relative; }
+
 .egreso-vista-badge {
   position: absolute;
   top: 12px; right: 12px;
@@ -69,16 +27,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.egresos-list-title .egreso-vista-badge { position: static; }
 
-/* ── Header lista ─────────────────────────────────────────────── */
-.egresos-list-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 24px 0 20px;
-  flex-wrap: wrap;
-}
 .egresos-back {
   background: none;
   border: 1px solid var(--tv-hairline);
@@ -90,54 +39,6 @@
   transition: background .15s, border-color .15s;
 }
 .egresos-back:hover { background: var(--tv-marca-wash); border-color: var(--tv-marca); }
-
-.egresos-list-title {
-  font-family: var(--tv-display);
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--tv-marca);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.egresos-nuevo {
-  margin-left: auto;
-  background: var(--tv-marca);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 9px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s;
-}
-.egresos-nuevo:hover { background: var(--tv-marca-deep); }
-
-.egresos-buscar {
-  margin-left: auto;
-  min-width: 260px;
-  padding: 9px 14px;
-  border: 1px solid var(--tv-hairline);
-  border-radius: 8px;
-  font-size: 14px;
-  background: var(--tv-surface);
-  color: var(--tv-ink);
-}
-.egresos-buscar:focus {
-  outline: none;
-  border-color: var(--tv-marca);
-  box-shadow: 0 0 0 3px var(--tv-marca-wash);
-}
-/* Cuando hay buscador, el botón Nuevo ya no empuja con auto-margin */
-.egresos-buscar + .egresos-nuevo { margin-left: 10px; }
-
-.egresos-folio {
-  font-family: var(--tv-mono);
-  font-size: 11px;
-  color: var(--tv-ink-soft);
-  margin-top: 3px;
-}
 
 /* ── Modal (homologado con NuevaCompra) ───────────────────────── */
 .egresos-modal {
@@ -282,56 +183,17 @@
 }
 
 /* ── Tabla (Talavera: thead carbón, números mono) ─────────────── */
-.egresos-tabla-wrap {
-  background: var(--tv-surface);
-  border: 1px solid var(--tv-hairline);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.egresos-tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.egresos-tabla thead { background: var(--tv-carbon); }
-.egresos-tabla th {
-  text-align: left;
-  padding: 13px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--tv-cream);
-  border-bottom: 2px solid var(--tv-marca);
-}
-.egresos-tabla td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--tv-line);
-  color: var(--tv-ink);
-}
-.egresos-tabla tbody tr:nth-child(even) td { background: var(--tv-masa); }
-.egresos-tabla tr:last-child td { border-bottom: none; }
-.egresos-tabla tbody tr:hover td { background: var(--tv-marca-wash); }
 .cell-right { text-align: right; }
-.egresos-monto { font-family: var(--tv-mono); font-weight: 700; color: var(--tv-ink); }
-.egresos-nocompra { font-family: var(--tv-mono); font-weight: 700; color: var(--tv-marca); }
 
-.egresos-td-acciones { white-space: nowrap; text-align: right; }
-.egresos-print, .egresos-del {
-  background: none; border: 1px solid var(--tv-hairline);
-  border-radius: 7px; cursor: pointer;
-  padding: 6px; margin-left: 6px;
-  color: var(--tv-ink-soft);
-  vertical-align: middle;
-  transition: all .15s;
-}
-.egresos-print:hover { border-color: var(--tv-marca); color: var(--tv-marca); background: var(--tv-marca-wash); }
-.egresos-del:hover   { border-color: var(--tv-stop); color: var(--tv-stop); background: var(--tv-stop-bg); }
-
-.egresos-empty { color: var(--tv-ink-soft); margin-top: 48px; text-align: center; font-size: 15px; }
 .text-muted    { color: var(--tv-ink-soft); }
 
 /* Error bar */
+.egresos-ok-bar {
+  background: #dcfce7; color: #166534;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 13px; font-weight: 600;
+  margin-bottom: 16px;
+}
 .egresos-error-bar {
   display: flex; align-items: center; gap: 12px;
   background: var(--tv-stop-bg); border: 1px solid var(--tv-stop); border-radius: 8px;
@@ -344,28 +206,8 @@
 }
 
 /* Loading spinner */
-.egresos-loading {
-  display: flex; align-items: center; justify-content: center;
-  padding: 48px; color: var(--tv-ink-soft); font-size: 15px;
-}
-.egresos-spinner {
-  display: inline-block; width: 18px; height: 18px;
-  border: 2px solid var(--tv-hairline); border-top-color: var(--tv-marca);
-  border-radius: 50%; animation: egresos-spin .7s linear infinite;
-  margin-right: 10px; flex-shrink: 0;
-}
-@keyframes egresos-spin { to { transform: rotate(360deg); } }
 
 /* Badges factura en tabla */
-.egresos-factura-badge {
-  font-size: 12px; font-weight: 600;
-  background: var(--tv-ok-bg); color: var(--tv-ok);
-  border-radius: 4px; padding: 2px 8px;
-}
-.egresos-sinfactura-badge {
-  font-size: 12px; color: var(--tv-ink-soft);
-  background: var(--tv-sunk); border-radius: 4px; padding: 2px 8px;
-}
 
 /* Inline confirm eliminar */
 .egresos-confirm-del { font-size: 13px; white-space: nowrap; }
@@ -395,6 +237,11 @@
   text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--tv-marca); margin-bottom: -4px;
 }
+.gas-alerta {
+  font-size: 12px; font-weight: 600;
+  color: #b45309; background: #fef3c7;
+  border-radius: 8px; padding: 8px 12px;
+}
 .gas-linea-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -420,7 +267,36 @@
   display: flex; justify-content: space-between; align-items: center;
   font-size: 14px; color: var(--tv-ink);
 }
-.gas-total-row span:last-child { font-family: var(--tv-mono); }
+.gas-total-row > span:last-child { font-family: var(--tv-mono); }
+/* Cuadre manual contra el CFDI — mismo lenguaje visual que el resumen de Compras. */
+.gas-ajuste { display: flex; align-items: center; gap: 6px; }
+.gas-input-ajuste {
+  width: 130px; text-align: right;
+  padding: 5px 9px;
+  border: 1px dashed #d1bfae; border-radius: 6px;
+  background: var(--tv-surface); color: #995c1f;
+  font-size: 14px; font-weight: 600; font-family: var(--tv-mono);
+}
+.gas-input-ajuste:focus {
+  outline: none;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+.gas-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  letter-spacing: 0.4px; text-transform: uppercase;
+  font-family: inherit;
+}
+.gas-badge.auto   { background: #d1fae5; color: #065f46; }
+.gas-badge.manual { background: #fef3c7; color: #92400e; }
+.gas-btn-reset {
+  font-size: 11px; padding: 3px 8px;
+  border: 1px solid #d1bfae; border-radius: 5px;
+  background: #fff8f0; color: #995c1f;
+  cursor: pointer; white-space: nowrap;
+}
+.gas-btn-reset:hover { background: #fef3c7; border-color: #f59e0b; }
 .gas-descuento-input {
   width: 120px; text-align: right;
   padding: 5px 9px;
@@ -434,7 +310,7 @@
   padding-top: 10px; margin-top: 2px;
   color: var(--tv-marca);
 }
-.gas-total-final span:last-child { font-family: var(--tv-mono); }
+.gas-total-final > span:last-child { font-family: var(--tv-mono); }
 
 /* ── Partidas (desglose por artículo) — tarjeta enmarcada como Gas ── */
 .egresos-partidas {

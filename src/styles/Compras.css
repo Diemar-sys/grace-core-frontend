@@ -62,13 +62,13 @@
   border-color: var(--tv-marca);
   box-shadow: 0 10px 24px rgba(200, 80, 60, 0.14);
 }
-.comprasv2 .module-icon {
+.comprasv2 .panel-module-icon {
   background: var(--tv-marca-wash);
   color: var(--tv-marca);
   border-radius: 10px;
   transition: background 0.14s ease, color 0.14s ease;
 }
-.comprasv2 .panel-module:hover .module-icon {
+.comprasv2 .panel-module:hover .panel-module-icon {
   background: var(--tv-marca);
   color: #fff;
 }

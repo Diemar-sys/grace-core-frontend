@@ -34,16 +34,6 @@ const COLUMNAS = {
     { k: 'pagado',    label: 'Pagado' },
     { k: 'acciones',  label: 'Acciones' },
   ],
-  egresos: [
-    { k: 'no',        label: '# Compra' },
-    { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
-    { k: 'proveedor', label: 'Proveedor' },
-    { k: 'concepto',  label: 'Concepto' },
-    { k: 'facturado', label: 'Facturado a',  cls: 'col-facturado' },
-    { k: 'total',     label: 'Monto' },
-    { k: 'pagado',    label: 'Pagado' },
-    { k: 'acciones',  label: 'Acciones' },
-  ],
   total: [
     { k: 'no',        label: '# Compra' },
     { k: 'fecha',     label: 'Fecha',        cls: 'col-fecha' },
@@ -73,7 +63,7 @@ function Compras() {
     folioConsolidar, setFolioConsolidar,
     facturadoConsolidar, setFacturadoConsolidar,
     proveedoresUnicos, facturasAgrupadas, notasItems,
-    filteredEgresos, totalItems, handleImprimirEgreso, deleteEgresoModal,
+    totalItems, handleImprimirEgreso, deleteEgresoModal,
     deleteModal, cancelModal, pagoModal,
     consolidarModal, desagruparModal, cancelConsolidadoModal,
     cargar, handleEditar, handleFacturadoChange, handleFacturadoChangeGroup, handleImprimir,
@@ -84,7 +74,7 @@ function Compras() {
   const columnas = COLUMNAS[vista] || COLUMNAS.facturas;
   // Egresos y Total no tienen Subtotal ni Notas/Estado: en tablet se recorta
   // "Facturado a" en su lugar (ver Compras.css).
-  const vistaSimple = vista === 'egresos' || vista === 'total';
+  const vistaSimple = vista === 'total';
 
   return (
     <Layout>
@@ -101,35 +91,35 @@ function Compras() {
         {accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
             <button className="panel-module" onClick={() => setModal('nueva')}>
-              <div className="module-icon">
+              <div className="panel-module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               </div>
               <h3>Registrar Compra</h3>
               <p>Capturar mercancía recibida</p>
             </button>
             <button className="panel-module" onClick={() => { setAccionActiva('editar'); setEstadoFiltro('en_espera'); setVista('notas'); }}>
-              <div className="module-icon">
+              <div className="panel-module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
               </div>
               <h3>Editar Borrador</h3>
               <p>Modificar compras pendientes</p>
             </button>
             <button className="panel-module" onClick={() => { setAccionActiva('confirmar'); setEstadoFiltro('en_espera'); setVista('notas'); }}>
-              <div className="module-icon">
+              <div className="panel-module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
               <h3>Confirmar Borrador</h3>
               <p>Procesar definitivamente</p>
             </button>
             <button className="panel-module" onClick={() => { setAccionActiva('eliminar'); setEstadoFiltro('en_espera'); setVista('notas'); }}>
-              <div className="module-icon">
+              <div className="panel-module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
               </div>
               <h3>Eliminar Borrador</h3>
               <p>Descartar compras erradas</p>
             </button>
             <button className="panel-module" onClick={() => setAccionActiva('cancelar')}>
-              <div className="module-icon">
+              <div className="panel-module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
               <h3>Cancelar Compra</h3>
@@ -145,7 +135,9 @@ function Compras() {
                 <select className="comp-date-input" value={vista} onChange={e => setVista(e.target.value)}>
                   <option value="facturas">Facturas ({facturasAgrupadas.length})</option>
                   <option value="notas">Notas ({notasItems.length})</option>
-                  <option value="egresos">Egresos ({filteredEgresos.length})</option>
+                  {/* La lista de egresos vive en Consultas → Egresos. Aquí solo queda
+                      "Total", que es lo único que Compras aporta: la secuencia completa
+                      de folios (el consecutivo #compra es compartido con los egresos). */}
                   <option value="total">Total ({totalItems.length})</option>
                 </select>
               </div>
@@ -384,51 +376,6 @@ function Compras() {
                             </React.Fragment>
                           );
                         })
-                      )
-                    ) : vista === 'egresos' ? (
-                      filteredEgresos.length === 0 ? (
-                        <tr><td colSpan={columnas.length} className="no-data">No hay gastos registrados</td></tr>
-                      ) : (
-                        filteredEgresos.map(e => (
-                          <tr key={e.name} onClick={() => abrirDetalleEgreso(e.name)} style={{ cursor: 'pointer' }}>
-                            <td className="cell-code">{e.no_de_compra ? `#${e.no_de_compra}` : '—'}</td>
-                            <td className="col-fecha">{e.fecha}</td>
-                            <td className="comp-td-proveedor" title={e.proveedor || ''}>{e.proveedor || '—'}</td>
-                            <td>
-                              {e.concepto || '—'}
-                              {e.subcategoria && <div className="comp-subcat">{e.subcategoria}</div>}
-                            </td>
-                            <td className="col-facturado">
-                              <span className={(e.facturado_a && e.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
-                                {e.facturado_a || 'SIN FACTURA'}
-                              </span>
-                              {e.no_factura && <div className="comp-subcat">{e.no_factura}</div>}
-                            </td>
-                            <td className="cell-right cell-bold">${fmt(e.monto)}</td>
-                            <td style={{ textAlign: 'center' }} onClick={ev => ev.stopPropagation()}>
-                              <input type="checkbox" checked={!!e.pagado}
-                                disabled={soloLectura || !!e.pagado || pagoModal.loading}
-                                onChange={() => pagoModal.open({
-                                  name: e.name, value: 1, esGasto: true,
-                                  compra: { custom_no_de_compra: e.no_de_compra },
-                                })}
-                                title={e.pagado ? 'Pagado (bloqueado)' : 'Pendiente de pago'}
-                                style={{ width: 18, height: 18, cursor: e.pagado ? 'not-allowed' : 'pointer' }} />
-                            </td>
-                            <td className="comp-td-acciones" onClick={ev => ev.stopPropagation()}>
-                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                <button className="comp-btn-editar" onClick={() => handleImprimirEgreso(e)} title="Imprimir ticket del gasto">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 9h18"/><path d="M5 9v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg>
-                                </button>
-                                {!soloLectura && accionActiva === 'eliminar' && (
-                                  <button className="comp-btn-eliminar" onClick={() => deleteEgresoModal.open(e)} title="Eliminar gasto">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
                       )
                     ) : vista === 'total' ? (
                       totalItems.length === 0 ? (

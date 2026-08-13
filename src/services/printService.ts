@@ -161,7 +161,8 @@ const _fmtUnit = (n: number | string | null | undefined) =>
  */
 export async function imprimirEgresoTicket(egreso: EgresoRow) {
   // La gasolina guarda su desglose igual que el gas: JSON en descripcion.
-  // El IEPS es cuota por litro y el IVA va sobre base + IEPS (ver calcGasolina).
+  // IVA y total salen del CFDI; el IEPS es derivado (ver calcGasolina).
+  // `cuota` solo existe en gastos capturados con el formato viejo.
   let gasolina = null;
   if ((egreso.subcategoria || '').toUpperCase() === 'GASOLINA' && egreso.descripcion) {
     try {
@@ -229,9 +230,9 @@ function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null, ga
   const desglose = gasolina
     ? `
       <tr><td>COMBUSTIBLE — ${_fmt2(gasolina.litros)} L × $${_fmtUnit(gasolina.precio)}</td><td class="r">$${_fmt2(gasolina.base)}</td></tr>
-      ${Number(gasolina.ieps) > 0 ? `<tr><td>IEPS — ${_fmt2(gasolina.litros)} L × $${_fmtUnit(gasolina.cuota)}</td><td class="r">$${_fmt2(gasolina.ieps)}</td></tr>` : ''}
+      ${Number(gasolina.ieps) > 0 ? `<tr><td>IEPS${gasolina.cuota ? ` — ${_fmt2(gasolina.litros)} L × $${_fmtUnit(gasolina.cuota)}` : ''}</td><td class="r">$${_fmt2(gasolina.ieps)}</td></tr>` : ''}
       <tr><td>Base gravable</td><td class="r">$${_fmt2(gasolina.base_gravable)}</td></tr>
-      <tr><td>IVA 16%</td><td class="r">$${_fmt2(gasolina.iva)}</td></tr>`
+      <tr><td>IVA</td><td class="r">$${_fmt2(gasolina.iva)}</td></tr>`
     : gas
     ? `
       <tr><td>GAS — ${_fmt2(gas.litros)} L × $${_fmtUnit(gas.precio)}</td><td class="r">$${_fmt2(gas.subtotal_gas)}</td></tr>

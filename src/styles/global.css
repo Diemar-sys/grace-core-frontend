@@ -496,44 +496,17 @@
 .status-out       { background:#fee2e2; color:#991b1b; }
 .status-cancelled { background:#f3f4f6; color:#6b7280; text-decoration: line-through; }
 
-/* ══ ÍCONO DE MÓDULO (panel-module) ══════════════════════ */
-.module-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.2s, color 0.2s, transform 0.2s;
-  box-shadow: inset 0 1px 2px rgba(255,255,255,0.8);
-}
-.module-icon svg {
-  width: 40px;
-  height: 40px;
-  transition: transform 0.2s;
-}
-.panel-module:hover .module-icon {
-  filter: brightness(0.88);
-  transform: scale(1.05);
-}
-.panel-module:hover .module-icon svg {
-  transform: scale(1.08);
-}
+/* ══ ÍCONO DE MÓDULO ═════════════════════════════════════
+   El ícono vive en Panel.css como .panel-module-icon (con --mod-bg/--mod-color).
+   Antes había aquí una segunda versión, .module-icon, con los mismos media queries
+   duplicados y un hover distinto: por eso las tiles de las páginas de acciones no
+   se veían igual que las del panel. Un solo ícono para todo el sistema. */
 
 /* Tablet landscape (Galaxy A11+ DeX-off): compactar tarjetas de las
    vistas landing (Venta B2B, etc.) para que las filas quepan sin scroll */
 @media (min-width: 1081px) and (max-width: 1366px) {
-  .module-icon { width: 52px; height: 52px; border-radius: 14px; }
-  .module-icon svg { width: 26px; height: 26px; }
   .panel-module h3 { font-size: 15px; }
   .panel-module p  { font-size: 12px; }
-}
-
-/* Mobile */
-@media (max-width: 600px) {
-  .module-icon { width: 64px; height: 64px; border-radius: 16px; }
-  .module-icon svg { width: 32px; height: 32px; }
 }
 
 /* h3/p dentro de panel-module igualan tipografía Panel principal */

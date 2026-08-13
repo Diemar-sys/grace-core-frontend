@@ -40,7 +40,9 @@ function Layout({ children }) {
     '/catalogo', '/inventario', '/compras', '/venta-b2b',
     '/envio-sucursal', '/proveedores', '/pos', '/produccion',
   ]);
-  const enOperaciones = RUTAS_OPERACIONES.has(location.pathname) && !modoConsulta;
+  // Egresos vive como módulo de Operaciones (tile en /panel), ya no como pestaña propia.
+  const enOperaciones = (RUTAS_OPERACIONES.has(location.pathname)
+    || location.pathname.startsWith('/egresos')) && !modoConsulta;
 
   // Consultas: rutas /consultas/... O cualquier módulo con ?modo=consulta
   const enConsultas = location.pathname.startsWith('/consultas') || modoConsulta;
@@ -48,8 +50,6 @@ function Layout({ children }) {
   // Reportes
   const enReportes = location.pathname.startsWith('/reportes');
 
-  // Egresos
-  const enEgresos = location.pathname.startsWith('/egresos');
   const mostrarMenubar = roleConfig.rutas.includes('/panel');
 
   return (
@@ -111,14 +111,6 @@ function Layout({ children }) {
             <span className="layout-menu-btn disabled">Reportes</span>
           )}
           <span className="layout-menu-btn disabled">Estadísticas</span>
-          {roleConfig.rutas.includes('/egresos') && (
-            <Link
-              to="/egresos"
-              className={"layout-menu-btn" + (enEgresos ? " active" : "")}
-            >
-              Egresos
-            </Link>
-          )}
           <span className="layout-menu-btn disabled">Configuración</span>
         </nav>
       )}

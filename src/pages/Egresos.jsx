@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { getRoleConfig } from '../config/roles';
 import Layout from '../components/Layout';
@@ -9,6 +9,11 @@ import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../config/impuestos';
 import { calcularTotalesEfectivos, calcGasolina } from '../components/compras/compraUtils';
 import BuscadorProveedor from '../components/compras/BuscadorProveedor';
 import '../styles/NuevaCompra.css';
+import '../styles/Panel.css';   // .panel-grid / .panel-module: tiles compartidos con el resto
+// La lista usa la misma tabla y filtros que Compras. Todo ese CSS está scoped a
+// .comprasv2, por eso el contenedor de la lista lleva esa clase: reusar el lenguaje
+// visual entero en vez de mantener una segunda tabla propia.
+import '../styles/Compras.css';
 import '../styles/Egresos.css';
 
 // ── SVG Icons ────────────────────────────────────────────────────
@@ -152,18 +157,23 @@ const FORM_INIT = {
   factura_key: 'SIN FACTURA', no_factura: '',
   // Gas-specific
   gas_litros: '', gas_precio: '',
-  gasolina_litros: '', gasolina_precio: '', gasolina_cuota: '',
+  gasolina_litros: '', gasolina_precio: '', gasolina_iva: '', gasolina_total: '',
   aditivo_litros: '', aditivo_precio: '',
   descuento_gas: '',
 };
 
 // ── Formulario Gasolina ───────────────────────────────────────────
-// Litros × precio = base; IEPS = litros × cuota (fija por litro, del CFDI);
-// IVA 16% sobre base + IEPS. Ver calcGasolina en compraUtils.
+// Litros × precio = base. IVA y total se COPIAN del CFDI (no se recalculan) y
+// el IEPS sale por resta. Ver calcGasolina en compraUtils.
 function GasolinaForm({ form, setForm, subcatField, proveedorField }) {
   const { base, ieps, baseGravable, iva, total } = calcGasolina({
-    litros: form.gasolina_litros, precio: form.gasolina_precio, cuota: form.gasolina_cuota,
+    litros: form.gasolina_litros, precio: form.gasolina_precio,
+    iva: form.gasolina_iva, total: form.gasolina_total,
   });
+  // Campo vacío = auto. Con valor = cuadre manual contra el CFDI (igual que Compras).
+  const ivaManual   = form.gasolina_iva   !== '';
+  const totalManual = form.gasolina_total !== '';
+  const alerta = ieps < -0.005 ? 'El total es menor que base + IVA — revisa la factura' : null;
 
   useEffect(() => {
     setForm(f => ({
@@ -218,24 +228,32 @@ function GasolinaForm({ form, setForm, subcatField, proveedorField }) {
           </label>
         </div>
 
-        <div className="gas-linea-header">IEPS (cuota por litro)</div>
-        <div className="gas-linea-grid">
-          <label>Litros
-            <input type="text" readOnly value={form.gasolina_litros || '0'} className="gas-calc-field" />
-          </label>
-          <label>Cuota por litro
-            {/* Se teclea del CFDI: Hacienda la mueve con los estímulos, no se hardcodea. */}
-            <input type="number" step="0.000001" placeholder="0.000000" value={form.gasolina_cuota} onChange={e => set('gasolina_cuota', e.target.value)} />
-          </label>
-          <label>IEPS
-            <input type="text" readOnly value={fmtN(ieps)} className="gas-calc-field" />
-          </label>
-        </div>
+        {alerta && <div className="gas-alerta">⚠ {alerta}</div>}
 
+        {/* IVA y total se cuadran aquí contra el CFDI; el IEPS sale por resta. */}
         <div className="gas-totales">
           <div className="gas-total-row"><span>Base gravable</span><span>{fmtN(baseGravable)}</span></div>
-          <div className="gas-total-row"><span>IVA 16%</span><span>{fmtN(iva)}</span></div>
-          <div className="gas-total-row gas-total-final"><span>Total</span><span>{fmtN(total)}</span></div>
+          {Math.abs(ieps) > 0.005 && (
+            <div className="gas-total-row"><span>IEPS (derivado)</span><span>{fmtN(ieps)}</span></div>
+          )}
+          <div className="gas-total-row">
+            <span>IVA <span className={`gas-badge ${ivaManual ? 'manual' : 'auto'}`}>{ivaManual ? 'Manual' : 'Auto'}</span></span>
+            <span className="gas-ajuste">
+              {ivaManual && <button type="button" className="gas-btn-reset" title="Restaurar IVA calculado" onClick={() => set('gasolina_iva', '')}>↺</button>}
+              <input type="number" step="0.01" className="gas-input-ajuste"
+                     value={ivaManual ? form.gasolina_iva : iva.toFixed(2)}
+                     onChange={e => set('gasolina_iva', e.target.value)} />
+            </span>
+          </div>
+          <div className="gas-total-row gas-total-final">
+            <span>Total <span className={`gas-badge ${totalManual ? 'manual' : 'auto'}`}>{totalManual ? 'Manual' : 'Auto'}</span></span>
+            <span className="gas-ajuste">
+              {totalManual && <button type="button" className="gas-btn-reset" title="Restaurar total calculado" onClick={() => set('gasolina_total', '')}>↺</button>}
+              <input type="number" step="0.01" className="gas-input-ajuste"
+                     value={totalManual ? form.gasolina_total : total.toFixed(2)}
+                     onChange={e => set('gasolina_total', e.target.value)} />
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -528,6 +546,9 @@ function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }
 // ── Página principal ──────────────────────────────────────────────
 export default function Egresos() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Operaciones captura, Consultas ve: la misma regla que el resto de los módulos.
+  const modoConsulta = searchParams.get('modo') === 'consulta';
   const puedeNomina = getRoleConfig(auth.getUser()?.role).rutas.includes('/nomina');
   const [categoriaKey, setCategoriaKey] = useState(null);
   const [egresos, setEgresos]           = useState([]);
@@ -538,18 +559,28 @@ export default function Egresos() {
   const [guardando, setGuardando]       = useState(false);
   const [confirmDel, setConfirmDel]     = useState(null);
   const [busqueda, setBusqueda]         = useState('');
+  const [okMsg, setOkMsg]               = useState('');
+  const [subcatFiltro, setSubcatFiltro]       = useState('todas');
+  const [facturadoFiltro, setFacturadoFiltro] = useState('todas');
+  const [desde, setDesde]                     = useState('');
+  const [hasta, setHasta]                     = useState('');
 
   const cat = CATEGORIAS.find(c => c.key === categoriaKey);
 
   const egresosFiltrados = (() => {
     const t = busqueda.toLowerCase().trim();
     const tn = t.replace(/^#/, '');
-    const base = !t ? egresos : egresos.filter(e =>
+    let base = !t ? egresos : egresos.filter(e =>
       (e.no_factura || '').toLowerCase().includes(t) ||
+      (e.proveedor || '').toLowerCase().includes(t) ||
       (e.concepto || '').toLowerCase().includes(t) ||
       (e.subcategoria || '').toLowerCase().includes(t) ||
       String(e.no_de_compra ?? '').includes(tn)
     );
+    if (subcatFiltro !== 'todas')    base = base.filter(e => e.subcategoria === subcatFiltro);
+    if (facturadoFiltro !== 'todas') base = base.filter(e => (e.facturado_a || 'SIN FACTURA') === facturadoFiltro);
+    if (desde) base = base.filter(e => (e.fecha || '') >= desde);
+    if (hasta) base = base.filter(e => (e.fecha || '') <= hasta);
     // Ordena por No. de compra desc (los sin consecutivo van al final por fecha desc).
     return [...base].sort((a, b) =>
       (b.no_de_compra || 0) - (a.no_de_compra || 0) ||
@@ -574,11 +605,14 @@ export default function Egresos() {
     finally  { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (categoriaKey) cargar(categoriaKey); }, [categoriaKey, cargar]);
+  // En Operaciones no hay lista que llenar: se entra directo a capturar.
+  useEffect(() => { if (categoriaKey && modoConsulta) cargar(categoriaKey); }, [categoriaKey, modoConsulta, cargar]);
 
-  const initForm = (subcat) => {
-    const sc = subcat || cat?.subcategorias?.[0] || '';
+  // catObj explícito: al abrir el form desde el tile, `cat` todavía es el anterior.
+  const initForm = (subcat, catObj = cat) => {
+    const sc = subcat || catObj?.subcategorias?.[0] || '';
     setForm({ ...FORM_INIT, subcategoria: sc, impuesto_key: impuestoDefault(sc) });
+    setOkMsg('');
     setShowForm(true);
   };
 
@@ -589,14 +623,17 @@ export default function Egresos() {
     const prov = form.proveedor?.name || '';  // pagado se marca en la lista, no al crear
 
     if (form.subcategoria === 'Gasolina') {
-      const g = calcGasolina({ litros: form.gasolina_litros, precio: form.gasolina_precio, cuota: form.gasolina_cuota });
+      const g = calcGasolina({
+        litros: form.gasolina_litros, precio: form.gasolina_precio,
+        iva: form.gasolina_iva, total: form.gasolina_total,
+      });
       return {
         fecha: form.fecha, proveedor: prov, categoria: 'GASTO', subcategoria: 'GASOLINA',
         concepto: up(form.concepto),
         // Mismo trato que el gas: el desglose vive como JSON en descripcion.
         descripcion: JSON.stringify({
           gasolina_litros: form.gasolina_litros, gasolina_precio: form.gasolina_precio,
-          gasolina_base: g.base, ieps_cuota: form.gasolina_cuota, ieps_importe: g.ieps,
+          gasolina_base: g.base, ieps_importe: g.ieps,
           base_gravable: g.baseGravable, iva: g.iva, total: g.total,
         }),
         monto: g.total.toFixed(2), impuesto_tipo: g.iva > 0 ? 'IVA' : '', monto_impuesto: g.iva.toFixed(2),
@@ -684,8 +721,14 @@ export default function Egresos() {
     setGuardando(true);
     try {
       const creado = await egresosService.crearEgreso(payload);
-      setShowForm(false); setForm(FORM_INIT);
-      cargar(categoriaKey);
+      if (modoConsulta) {
+        setShowForm(false); setForm(FORM_INIT);
+        cargar(categoriaKey);
+      } else {
+        // Captura en serie: el form se limpia y queda listo para el siguiente gasto.
+        initForm(form.subcategoria);
+        setOkMsg(`Egreso ${creado?.no_de_compra ? `#${creado.no_de_compra} ` : ''}guardado`);
+      }
       // Auto-imprime el ticket térmico al guardar (la reimpresión queda en Consultas).
       // ponytail: fire-and-forget; crearEgreso devuelve {name, no_de_compra}, el resto sale del payload.
       imprimirEgresoTicket({ ...payload, name: creado?.name, no_de_compra: creado?.no_de_compra })
@@ -710,49 +753,154 @@ export default function Egresos() {
     try { await egresosService.marcarPagado(e.name, nuevo); }
     catch { setError('Error al marcar pagado'); cargar(categoriaKey); }
   };
+  // ── Formulario (modal) ────────────────────────────────────────
+  // Se monta igual desde el tile de Operaciones y desde la lista de Consultas.
+  const subcats = cat?.subcategorias || [];
+  const cerrarForm = () => { setShowForm(false); setOkMsg(''); if (!modoConsulta) setCategoriaKey(null); };
+
+  const formModal = (
+    <div className="egresos-modal" onMouseDown={e => { if (e.target === e.currentTarget) cerrarForm(); }}>
+      <div className="egresos-modal-card">
+        <div className="egresos-modal-header">
+          <h3>Nuevo egreso — {cat?.label}</h3>
+          <button className="egresos-modal-close" onClick={cerrarForm} title="Cerrar">✕</button>
+        </div>
+
+        <div className="egresos-modal-body">
+          {okMsg && <div className="egresos-ok-bar">✓ {okMsg} — captura el siguiente o cierra</div>}
+          {error && <div className="egresos-error-bar"><span>⚠ {error}</span></div>}
+          {(() => {
+            const subcatField = subcats.length > 1 ? (
+              <label className="egresos-subcat-field">Subcategoría
+                <select value={form.subcategoria}
+                  onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, impuesto_key: impuestoDefault(e.target.value), fecha: f.fecha, factura_key: f.factura_key, proveedor: f.proveedor }))}>
+                  {subcats.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+            ) : null;
+            const proveedorField = (
+              <label className="egresos-prov-field">Proveedor
+                <BuscadorProveedor value={form.proveedor}
+                  onChange={v => setForm(f => {
+                    const auto = categoriaKey === 'Gasto' ? autoAgua(v.label) : null;
+                    return { ...f, proveedor: v, ...(auto || {}) };
+                  })} />
+              </label>
+            );
+            if (form.subcategoria === 'Gas')
+              return <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+            if (form.subcategoria === 'Gasolina')
+              return <GasolinaForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+            return <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+          })()}
+        </div>
+
+        <div className="egresos-form-actions">
+          <button className="egresos-cancel" onClick={cerrarForm}>Cerrar</button>
+          <button className="egresos-guardar" onClick={handleGuardar} disabled={guardando}>
+            {guardando ? 'Guardando...' : 'Guardar egreso'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   // ── Tiles ─────────────────────────────────────────────────────
-  if (!categoriaKey) {
+  // En Operaciones el tile abre el formulario directo (las vistas filtradas no
+  // capturan nada, así que solo salen en Consultas). En Consultas abre la lista.
+  const categoriasVisibles = CATEGORIAS.filter(c =>
+    (c.key !== 'Nómina' || puedeNomina) && (modoConsulta || !c.esVista));
+
+  const abrirCategoria = (c) => {
+    if (c.key === 'Nómina' && !modoConsulta) { navigate('/nomina'); return; }
+    setCategoriaKey(c.key);
+    setSubcatFiltro('todas'); setFacturadoFiltro('todas'); setBusqueda('');
+    if (!modoConsulta) initForm(null, c);
+  };
+
+  if (!categoriaKey || !modoConsulta) {
     const fecha = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     return (
       <Layout>
         <div className="egresos-page">
-          <div className="panel-greeting"><h2>Egresos</h2><p>{fecha}</p></div>
-          <div className="egresos-tiles">
-            {CATEGORIAS.filter(c => c.key !== 'Nómina' || puedeNomina).map(c => (
-              <button key={c.key} className="egresos-tile"
-                onClick={() => c.key === 'Nómina' ? navigate('/nomina') : setCategoriaKey(c.key)}>
-                <div className="egresos-tile-icon">{c.icon}</div>
-                <div className="egresos-tile-text">
-                  <span className="egresos-tile-name">{c.label}</span>
-                  <span className="egresos-tile-sub">{c.sub}</span>
-                </div>
+          <div className="panel-greeting">
+            <h2>Egresos</h2>
+            <p>{modoConsulta ? fecha : 'Elige qué vas a registrar'}</p>
+          </div>
+          {/* Mismo tile que el resto del sistema (.panel-module): un solo lenguaje visual. */}
+          <div className="panel-grid">
+            {categoriasVisibles.map(c => (
+              <button key={c.key} className="panel-module"
+                style={{ '--mod-color': c.color, '--mod-bg': c.bg }}
+                onClick={() => abrirCategoria(c)}>
+                <div className="panel-module-icon">{c.icon}</div>
+                <span className="panel-module-name">{c.label}</span>
+                <span className="panel-module-sub">{c.sub}</span>
                 {c.esVista && <span className="egreso-vista-badge">vista</span>}
               </button>
             ))}
           </div>
         </div>
+        {showForm && formModal}
       </Layout>
     );
   }
 
-  // ── Lista + form ──────────────────────────────────────────────
-  const subcats = cat?.subcategorias || [];
+  // ── Lista (solo Consultas) ────────────────────────────────────
+  // Misma tabla y misma barra de filtros que Compras: .sys-table + .filtros-section.
+  const subcatsPresentes = [...new Set(egresos.map(e => e.subcategoria).filter(Boolean))].sort();
+  const totalListado = egresosFiltrados.reduce((a, e) => a + parseFloat(e.monto || 0), 0);
 
   return (
     <Layout>
-      <div className="egresos-page">
-        <div className="egresos-list-header">
-          <button className="egresos-back" onClick={() => { setCategoriaKey(null); setShowForm(false); setError(''); }}>← Egresos</button>
-          <div className="egresos-list-title">{cat?.label}
+      <div className="page-container comprasv2">
+
+        <div className="page-header">
+          <div className="title-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="egresos-back" onClick={() => { setCategoriaKey(null); setError(''); }}>← Egresos</button>
+            <h1 style={{ margin: 0 }}>{cat?.label}</h1>
+            <span className="header-subtitle">{cat?.sub}</span>
             {cat?.esVista && <span className="egreso-vista-badge">vista</span>}
           </div>
-          <input className="egresos-buscar" type="search"
-            placeholder="Buscar factura, concepto, #compra…"
-            value={busqueda} onChange={e => setBusqueda(e.target.value)} />
-          {!cat?.esVista && (
-            <button className="egresos-nuevo" onClick={() => initForm()}>+ Nuevo egreso</button>
+        </div>
+
+        {/* FILTROS */}
+        <div className="filtros-section">
+          {subcatsPresentes.length > 1 && (
+            <div className="filtro-group filtro-sm">
+              <label>Subcategoría</label>
+              <select className="comp-date-input" value={subcatFiltro} onChange={e => setSubcatFiltro(e.target.value)}>
+                <option value="todas">Todas ({egresos.length})</option>
+                {subcatsPresentes.map(s => (
+                  <option key={s} value={s}>{s} ({egresos.filter(e => e.subcategoria === s).length})</option>
+                ))}
+              </select>
+            </div>
           )}
+          <div className="filtro-group filtro-sm">
+            <label>Facturado a</label>
+            <select className="comp-date-input" value={facturadoFiltro} onChange={e => setFacturadoFiltro(e.target.value)}>
+              <option value="todas">Todas</option>
+              <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
+              <option value="LUIS TORRES">Luis Torres</option>
+              <option value="SIN FACTURA">Sin factura</option>
+            </select>
+          </div>
+          <div className="filtro-group filtro-sm">
+            <label>Desde</label>
+            <input type="date" className="comp-date-input" value={desde} onChange={e => setDesde(e.target.value)} />
+          </div>
+          <div className="filtro-group filtro-sm">
+            <label>Hasta</label>
+            <input type="date" className="comp-date-input" value={hasta} onChange={e => setHasta(e.target.value)} />
+          </div>
+          <div className="filtro-group search filtro-sm">
+            <label>Buscar concepto / proveedor / #</label>
+            <input type="text" placeholder="Ej: GASOLINA, #175" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          </div>
+          <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+            <button className="btn-refresh btn-compacto" onClick={() => cargar(categoriaKey)}>Actualizar</button>
+          </div>
         </div>
 
         {error && (
@@ -762,37 +910,47 @@ export default function Egresos() {
           </div>
         )}
 
-        {/* Tabla */}
-        {loading
-          ? <div className="egresos-loading"><span className="egresos-spinner" />Cargando...</div>
-          : egresos.length === 0
-            ? <p className="egresos-empty">Sin egresos registrados.</p>
-            : (
-          <div className="egresos-tabla-wrap">
-            <table className="egresos-tabla">
+        {/* TABLA */}
+        {loading ? (
+          <div className="loading">Cargando egresos...</div>
+        ) : (
+          <div className="table-container">
+            <table className="sys-table vista-simple">
               <thead>
                 <tr>
-                  <th>No. compra</th><th>Fecha</th><th>Proveedor</th><th>Subcategoría</th><th>Concepto</th>
-                  <th className="cell-right">Monto</th><th>Impuesto</th><th>Factura</th><th>Pago</th><th></th>
+                  <th># Compra</th>
+                  <th className="col-fecha">Fecha</th>
+                  <th>Proveedor</th>
+                  <th>Concepto</th>
+                  <th className="col-facturado">Facturado a</th>
+                  <th className="cell-right">Monto</th>
+                  <th>Pago</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {egresosFiltrados.length === 0
-                  ? <tr><td colSpan={10} className="egresos-empty" style={{ padding: '32px' }}>Sin resultados para “{busqueda}”.</td></tr>
-                  : egresosFiltrados.map(e => (
+                {egresosFiltrados.length === 0 ? (
+                  <tr><td colSpan={8} className="no-data">
+                    {egresos.length === 0 ? 'Sin egresos registrados.' : 'Ningún egreso coincide con los filtros.'}
+                  </td></tr>
+                ) : egresosFiltrados.map(e => (
                   <tr key={e.name}>
-                    <td className="egresos-nocompra">{e.no_de_compra ? `#${e.no_de_compra}` : <span className="text-muted">—</span>}</td>
-                    <td>{e.fecha}</td>
-                    <td>{e.proveedor || <span className="text-muted">—</span>}</td>
-                    <td>{e.subcategoria || '—'}</td>
-                    <td>{e.concepto || <span className="text-muted">{e.descripcion ? '(ver detalle)' : '—'}</span>}</td>
-                    <td className="egresos-monto cell-right">{fmtN(e.monto)}</td>
-                    <td className="text-muted">{e.impuesto_tipo ? `${e.impuesto_tipo} ${fmtN(e.monto_impuesto)}` : '—'}</td>
+                    <td className="cell-code">{e.no_de_compra ? `#${e.no_de_compra}` : '—'}</td>
+                    <td className="col-fecha">{e.fecha}</td>
+                    <td className="comp-td-proveedor" title={e.proveedor || ''}>{e.proveedor || '—'}</td>
                     <td>
-                      {e.facturado_a && e.facturado_a !== 'SIN FACTURA'
-                        ? <span className="egresos-factura-badge">{e.facturado_a}</span>
-                        : <span className="egresos-sinfactura-badge">Sin factura</span>}
-                      {e.no_factura && <div className="egresos-folio">{e.no_factura}</div>}
+                      {e.concepto || (e.descripcion ? '(ver detalle)' : '—')}
+                      {e.subcategoria && <div className="comp-subcat">{e.subcategoria}</div>}
+                    </td>
+                    <td className="col-facturado">
+                      <span className={(e.facturado_a && e.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
+                        {e.facturado_a || 'SIN FACTURA'}
+                      </span>
+                      {e.no_factura && <div className="comp-subcat">{e.no_factura}</div>}
+                    </td>
+                    <td className="cell-right cell-bold">
+                      {fmtN(e.monto)}
+                      {e.impuesto_tipo && <div className="comp-subcat">{e.impuesto_tipo} {fmtN(e.monto_impuesto)}</div>}
                     </td>
                     <td>
                       <button className={'egresos-pago-toggle' + (e.pagado ? ' pagado' : '')}
@@ -801,73 +959,41 @@ export default function Egresos() {
                         {e.pagado ? '✓ Pagado' : 'Por pagar'}
                       </button>
                     </td>
-                    <td className="egresos-td-acciones">
-                      <button className="egresos-print" title="Imprimir ticket" onClick={() => handleImprimir(e)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                      </button>
-                      {confirmDel === e.name
-                        ? <span className="egresos-confirm-del">
-                            ¿Seguro?{' '}
-                            <button className="egresos-del-si" onClick={() => handleEliminar(e.name)}>Sí</button>
-                            <button className="egresos-del-no" onClick={() => setConfirmDel(null)}>No</button>
-                          </span>
-                        : <button className="egresos-del" title="Eliminar" onClick={() => setConfirmDel(e.name)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                          </button>
-                      }
+                    <td className="comp-td-acciones">
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button className="comp-btn-editar" title="Imprimir ticket" onClick={() => handleImprimir(e)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        </button>
+                        {confirmDel === e.name
+                          ? <span className="egresos-confirm-del">
+                              ¿Seguro?{' '}
+                              <button className="egresos-del-si" onClick={() => handleEliminar(e.name)}>Sí</button>
+                              <button className="egresos-del-no" onClick={() => setConfirmDel(null)}>No</button>
+                            </span>
+                          : <button className="comp-btn-eliminar" title="Eliminar" onClick={() => setConfirmDel(e.name)}>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            </button>
+                        }
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
+              {egresosFiltrados.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={5} className="cell-right">{egresosFiltrados.length} egreso(s)</td>
+                    <td className="cell-right cell-bold">{fmtN(totalListado)}</td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
       </div>
 
-      {showForm && (
-        <div className="egresos-modal" onMouseDown={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
-          <div className="egresos-modal-card">
-            <div className="egresos-modal-header">
-              <h3>Nuevo egreso — {cat?.label}</h3>
-              <button className="egresos-modal-close" onClick={() => setShowForm(false)} title="Cerrar">✕</button>
-            </div>
-
-            <div className="egresos-modal-body">
-              {(() => {
-                const subcatField = subcats.length > 1 ? (
-                  <label className="egresos-subcat-field">Subcategoría
-                    <select value={form.subcategoria}
-                      onChange={e => setForm(f => ({ ...FORM_INIT, subcategoria: e.target.value, impuesto_key: impuestoDefault(e.target.value), fecha: f.fecha, factura_key: f.factura_key, proveedor: f.proveedor }))}>
-                      {subcats.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </label>
-                ) : null;
-                const proveedorField = (
-                  <label className="egresos-prov-field">Proveedor
-                    <BuscadorProveedor value={form.proveedor}
-                      onChange={v => setForm(f => {
-                        const auto = categoriaKey === 'Gasto' ? autoAgua(v.label) : null;
-                        return { ...f, proveedor: v, ...(auto || {}) };
-                      })} />
-                  </label>
-                );
-                if (form.subcategoria === 'Gas')
-                  return <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
-                if (form.subcategoria === 'Gasolina')
-                  return <GasolinaForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
-                return <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
-              })()}
-            </div>
-
-            <div className="egresos-form-actions">
-              <button className="egresos-cancel" onClick={() => setShowForm(false)}>Cancelar</button>
-              <button className="egresos-guardar" onClick={handleGuardar} disabled={guardando}>
-                {guardando ? 'Guardando...' : 'Guardar egreso'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showForm && formModal}
     </Layout>
   );
 }
