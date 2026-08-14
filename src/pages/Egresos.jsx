@@ -5,7 +5,7 @@ import { getRoleConfig } from '../config/roles';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
-import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../config/impuestos';
+import { IMPUESTOS_LIST, IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
 import { calcularTotalesEfectivos, calcGasolina } from '../components/compras/compraUtils';
 import BuscadorProveedor from '../components/compras/BuscadorProveedor';
 import '../styles/NuevaCompra.css';
@@ -138,11 +138,12 @@ export function calcTotalesPartidas(partidas, ajuste, ajusteManual) {
   const calc = (partidas || []).reduce((a, p) => {
     const base = n(p.cantidad) * n(p.precio);
     const key  = p.impuesto_key || 'tasa0';
-    const rate = IMPUESTOS_MAP[key]?.rate || 0;
+    // Misma aritmética que Compras y B2B: la cascada IEPS → IVA vive en un solo lado.
+    const { ieps, iva } = desglosarImpuesto(base, key);
     a.subtotal += base;
-    if (key === 'iva16')     { a.iva  += base * rate; a.subtotalIva16 += base; }
-    else if (key === 'ieps') { a.ieps += base * rate; a.subtotalIeps  += base; }
-    else                       a.subtotalTasa0 += base;
+    a.iva  += iva;
+    a.ieps += ieps;
+    a[grupoSubtotal(key)] += base;
     return a;
   }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0 });
   const ef = calcularTotalesEfectivos({ calc, manual: { ajuste: !!ajusteManual }, ajuste: ajuste || 0 });

@@ -2,6 +2,7 @@ import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from './ticketTemplate';
 import { escHTML } from './escHTML';
 import { horaFrappe, horaLocal } from '../hora';
+import { grupoSubtotal } from '../../config/impuestos';
 
 const fmt2 = (n: any) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -50,12 +51,15 @@ export function docToDatosImpresion(doc: any) {
 
   // Leer custom fields guardados al registrar — fuente de verdad exacta (ajustada manualmente)
   // Fallback a cálculo desde items para compras anteriores sin custom fields
-  const calcIva16 = filas.filter((f: any) => f.impuesto_key === 'iva16')
-    .reduce((s: number, f: any) => s + parseFloat(f.bultos || 0) * parseFloat(f.rate || 0), 0);
-  const calcIeps = filas.filter((f: any) => f.impuesto_key === 'ieps')
-    .reduce((s: number, f: any) => s + parseFloat(f.bultos || 0) * parseFloat(f.rate || 0), 0);
-  const calcTasa0 = filas.filter((f: any) => f.impuesto_key === 'tasa0')
-    .reduce((s: number, f: any) => s + parseFloat(f.bultos || 0) * parseFloat(f.rate || 0), 0);
+  // Agrupa por el MISMO criterio que la captura (grupoSubtotal): una fila con
+  // IVA+IEPS cuenta bajo IVA, no se parte en dos ni se cae a tasa 0.
+  const baseFila = (f: any) => parseFloat(f.bultos || 0) * parseFloat(f.rate || 0);
+  const sumaGrupo = (grupo: string) => filas
+    .filter((f: any) => grupoSubtotal(f.impuesto_key) === grupo)
+    .reduce((s: number, f: any) => s + baseFila(f), 0);
+  const calcIva16 = sumaGrupo('subtotalIva16');
+  const calcIeps  = sumaGrupo('subtotalIeps');
+  const calcTasa0 = sumaGrupo('subtotalTasa0');
 
   totales.subtotalIva16 = doc.custom_subtotal_iva_16  != null ? parseFloat(doc.custom_subtotal_iva_16)  : calcIva16;
   totales.subtotalIeps  = doc.custom_subtotal_ieps_8  != null ? parseFloat(doc.custom_subtotal_ieps_8)  : calcIeps;

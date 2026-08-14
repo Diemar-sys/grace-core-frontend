@@ -1,6 +1,7 @@
 import ModalError from './modals/ModalError';
 import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoPan.css';
+import { claveImpuesto } from '../config/impuestos';
 
 /**
  * Alta y precios del pan.
@@ -84,6 +85,12 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
   } = useInsumoForm({ editItem, onSuccess, tipoFijo: 'PRODUCTO TERMINADO' });
 
   const costo = formData.custom_costo_estimado;
+  // El campo guarda UNA clave; las casillas son la cara amable de esa clave.
+  const conIva  = formData.custom_impuesto === 'iva16' || formData.custom_impuesto === 'iva16_ieps';
+  const conIeps = formData.custom_impuesto === 'ieps'  || formData.custom_impuesto === 'iva16_ieps';
+  const setImpuestos = (iva, ieps) => handleChange({
+    target: { name: 'custom_impuesto', type: 'select-one', value: claveImpuesto(iva, ieps) },
+  });
   const impuesto = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
   const tasa = impuesto?.rate ?? 0;
   const precioPublico = parseFloat(formData.custom_precio_de_venta) || 0;
@@ -250,15 +257,32 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
             </div>
 
             <div className="pan-grid-2 pan-fiscal">
+              {/* Un pan puede causar los dos: IEPS 8% si pasa de 275 kcal/100 g, y el
+                  IVA según cómo se venda. Por eso son casillas y no un select: sin
+                  ninguna marcada es tasa 0, que no es un impuesto sino su ausencia. */}
               <div className="pan-field">
-                <label htmlFor="pan-impuesto">Impuesto incluido en el precio</label>
-                <select id="pan-impuesto" name="custom_impuesto"
-                  value={formData.custom_impuesto} onChange={handleChange}>
-                  {IMPUESTOS.map(imp => (
-                    <option key={imp.key} value={imp.key}>{imp.label}</option>
-                  ))}
-                </select>
-                <small>El pan de caja normalmente va en tasa 0.</small>
+                <label>Impuestos incluidos en el precio</label>
+                <div className="pan-impuestos">
+                  <label className="pan-check">
+                    <input type="checkbox" checked={conIva}
+                      onChange={e => setImpuestos(e.target.checked, conIeps)} />
+                    IVA 16%
+                  </label>
+                  <label className="pan-check">
+                    <input type="checkbox" checked={conIeps}
+                      onChange={e => setImpuestos(conIva, e.target.checked)} />
+                    IEPS 8%
+                  </label>
+                </div>
+                <small>
+                  {!conIva && !conIeps
+                    ? 'Sin marcar nada es tasa 0: el bolillo y el pan blanco van así.'
+                    : conIva && conIeps
+                      ? 'El IEPS entra primero y el IVA se calcula sobre base + IEPS: 25.28% en total, no 24%.'
+                      : conIeps
+                        ? 'IEPS 8%: pan de más de 275 kcal por cada 100 g.'
+                        : 'IVA 16%: pan para consumo en el local.'}
+                </small>
               </div>
 
               <div className="pan-field">

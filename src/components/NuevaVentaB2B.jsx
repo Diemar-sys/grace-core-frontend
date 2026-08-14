@@ -10,7 +10,7 @@ import BuscadorCliente from './BuscadorCliente';
 import ModalReciboPDF from './modals/ModalReciboPDF';
 import { imprimirVentaB2BTermico } from '../services/printService';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
-import { IMPUESTOS_MAP } from '../config/impuestos';
+import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
 
 const FILA_VACIA = () => ({
@@ -181,11 +181,12 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
   // ── Totales (todos automáticos — sin overrides fiscales en venta B2B) ──
   const totales = filas.reduce((acc, fila) => {
     const base = subtotalFila(fila);
-    const imp = base * parseFloat(fila.impuesto_rate || 0);
+    // Misma aritmética que Compras: la cascada vive en desglosarImpuesto.
+    const { ieps, iva } = desglosarImpuesto(base, fila.impuesto_key);
     acc.subtotal += base;
-    if (fila.impuesto_key === 'iva16') { acc.iva += imp; acc.subtotalIva16 += base; }
-    else if (fila.impuesto_key === 'ieps') { acc.ieps += imp; acc.subtotalIeps += base; }
-    else { acc.subtotalTasa0 += base; }
+    acc.iva  += iva;
+    acc.ieps += ieps;
+    acc[grupoSubtotal(fila.impuesto_key)] += base;
     return acc;
   }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0 });
 

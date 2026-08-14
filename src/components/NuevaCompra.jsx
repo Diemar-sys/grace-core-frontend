@@ -6,6 +6,7 @@ import ModalSugerenciaPrecios from './compras/ModalSugerenciaPrecios';
 import ModalReciboPDF from './compras/ModalReciboPDF';
 import { docToDatosImpresion, imprimirCompraTicket } from '../utils/print/comprasPrint';
 import BuscadorProveedor from './compras/BuscadorProveedor';
+import { desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import FilaProducto from './compras/FilaProducto';
 import {
@@ -209,11 +210,13 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   // ── Totales ───────────────────────────────────────────────────────────────
   const totales = filas.reduce((acc, fila) => {
     const base = subtotalFila(fila);
-    const imp  = base * parseFloat(fila.impuesto_rate || 0);
+    // desglosarImpuesto conoce la cascada IEPS → IVA; grupoSubtotal decide en qué
+    // columna cae la base (una sola, o el subtotal se contaría doble).
+    const { ieps, iva } = desglosarImpuesto(base, fila.impuesto_key);
     acc.subtotal += base;
-    if (fila.impuesto_key === 'iva16')  { acc.iva += imp;  acc.subtotalIva16 += base; }
-    else if (fila.impuesto_key === 'ieps') { acc.ieps += imp; acc.subtotalIeps += base; }
-    else { acc.subtotalTasa0 += base; }
+    acc.iva  += iva;
+    acc.ieps += ieps;
+    acc[grupoSubtotal(fila.impuesto_key)] += base;
     return acc;
   }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalTasa0: 0, subtotalIeps: 0 });
 
