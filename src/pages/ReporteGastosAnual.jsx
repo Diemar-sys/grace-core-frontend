@@ -9,13 +9,14 @@
  * y ~600 egresos, muy debajo del tope de 2000 de getCompras. Si algún día se
  * vuelve lento o se pide varios años juntos, esto se mueve a un GROUP BY en SQL.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import Layout from '../components/Layout';
 import { comprasService } from '../services/frappePurchase';
 import { egresosService } from '../services/frappeEgresos';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import {
-  consolidarGastos, asignarColores, mesDe, etiquetaEgreso, MESES, CAT_COMPRAS,
+  consolidarGastos, asignarColores, mesDe, etiquetaEgreso, bloqueDe,
+  MESES, CAT_COMPRAS, CON_FACTURA, SIN_FACTURA,
 } from '../utils/gastosAnuales';
 import '../styles/global.css';
 import '../styles/ReporteGastosAnual.css';
@@ -112,7 +113,16 @@ function ReporteGastosAnual() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hover, setHover] = useState(null);
-  const [detalle, setDetalle] = useState(null);   // { categoria, mes }
+  const [detalle, setDetalle] = useState(null);   // { categoria, fiscal, mes }
+  // La tabla abre plegada: dos renglones, no veinte. Quien quiera el desglose
+  // pica la flecha del bloque que le interesa.
+  const [abiertos, setAbiertos] = useState(() => new Set());
+
+  const toggleBloque = (b) => setAbiertos(prev => {
+    const s = new Set(prev);
+    s.has(b) ? s.delete(b) : s.add(b);
+    return s;
+  });
 
   const cargar = useCallback(async (signal) => {
     setLoading(true); setError('');
@@ -144,15 +154,17 @@ function ReporteGastosAnual() {
 
   const mesesConMovimiento = datos.totalesMes.filter(t => t > 0).length;
   const promedio = mesesConMovimiento ? datos.total / mesesConMovimiento : 0;
+  const sinFactura = datos.bloques.find(b => b.categoria === SIN_FACTURA)?.total || 0;
 
   // Documentos detrás de una celda. Se filtra lo ya cargado: no hace falta ir al
   // servidor otra vez para algo que ya está en memoria.
   const docsDetalle = useMemo(() => {
     if (!detalle) return [];
-    const { categoria, mes } = detalle;
+    const { categoria, fiscal, mes } = detalle;
     if (categoria === CAT_COMPRAS) {
       return compras
-        .filter(c => Number(c.docstatus) === 1 && mesDe(c.posting_date, anio) === mes)
+        .filter(c => Number(c.docstatus) === 1 && mesDe(c.posting_date, anio) === mes
+          && bloqueDe(c) === fiscal)
         .map(c => ({
           fecha: c.posting_date,
           concepto: c.supplier_name || c.supplier,
@@ -161,7 +173,8 @@ function ReporteGastosAnual() {
         }));
     }
     return egresos
-      .filter(e => etiquetaEgreso(e) === categoria && mesDe(e.fecha, anio) === mes)
+      .filter(e => etiquetaEgreso(e) === categoria && mesDe(e.fecha, anio) === mes
+        && bloqueDe(e) === fiscal)
       .map(e => ({
         fecha: e.fecha,
         // La subcategoría ya va en el título del modal; repetirla en cada renglón
@@ -214,6 +227,11 @@ function ReporteGastosAnual() {
                 <strong className="rga-tile-valor">{datos.familias[0]?.categoria}</strong>
                 <small>{fmtMoney(datos.familias[0]?.total)} — {Math.round((datos.familias[0]?.total / datos.total) * 100)}% del total</small>
               </div>
+              <div className="rga-tile">
+                <span className="rga-tile-label">Sin factura</span>
+                <strong className="rga-tile-valor">{fmtMoney(sinFactura)}</strong>
+                <small>{Math.round((sinFactura / datos.total) * 100)}% del año salió sin CFDI</small>
+              </div>
             </section>
 
             <section className="rga-card">
@@ -238,8 +256,11 @@ function ReporteGastosAnual() {
             </section>
 
             <section className="rga-card">
-              <h2>Detalle por categoría</h2>
-              <p className="rga-hint">Haz clic en cualquier cantidad para ver los documentos que la forman.</p>
+              <h2>Detalle fiscal</h2>
+              <p className="rga-hint">
+                Pica la flecha para desglosar el bloque; luego cualquier cantidad
+                para ver los documentos que la forman.
+              </p>
               <div className="rga-tabla-scroll">
                 <table className="rga-tabla">
                   <thead>
@@ -250,22 +271,52 @@ function ReporteGastosAnual() {
                     </tr>
                   </thead>
                   <tbody>
-                    {datos.categorias.map(cat => (
-                      <tr key={cat.categoria}>
-                        <th scope="row" className="rga-td-cat">
-                          <span className="rga-punto" style={{ background: colores[cat.familia] }} />
-                          {cat.categoria}
-                        </th>
-                        {cat.meses.map((v, m) => (
-                          <td key={m} className={v > 0 ? 'rga-td-num rga-td-click' : 'rga-td-num rga-td-cero'}
-                            onClick={v > 0 ? () => setDetalle({ categoria: cat.categoria, mes: m }) : undefined}
-                            title={v > 0 ? `Ver ${cat.categoria} de ${MESES[m]}` : ''}>
-                            {v > 0 ? fmtMoney(v) : '—'}
-                          </td>
-                        ))}
-                        <td className="rga-td-num rga-td-total">{fmtMoney(cat.total)}</td>
-                      </tr>
-                    ))}
+                    {datos.bloques.map(bloque => {
+                      const abierto = abiertos.has(bloque.categoria);
+                      const filas = datos.categorias.filter(c => c.fiscal === bloque.categoria);
+                      const esCon = bloque.categoria === CON_FACTURA;
+                      return (
+                        <Fragment key={bloque.categoria}>
+                          <tr className={`rga-tr-bloque ${esCon ? 'rga-bloque-con' : 'rga-bloque-sin'}`}>
+                            <th scope="row" className="rga-td-cat">
+                              <button type="button" className="rga-toggle"
+                                aria-expanded={abierto}
+                                onClick={() => toggleBloque(bloque.categoria)}>
+                                <span className={`rga-flecha ${abierto ? 'rga-flecha-abierta' : ''}`}
+                                  aria-hidden="true">▶</span>
+                                {bloque.categoria}
+                                <small>{filas.length} {filas.length === 1 ? 'categoría' : 'categorías'}</small>
+                              </button>
+                            </th>
+                            {bloque.meses.map((v, m) => (
+                              <td key={m} className={v > 0 ? 'rga-td-num' : 'rga-td-num rga-td-cero'}>
+                                {v > 0 ? fmtMoney(v) : '—'}
+                              </td>
+                            ))}
+                            <td className="rga-td-num rga-td-total">{fmtMoney(bloque.total)}</td>
+                          </tr>
+
+                          {/* Las filas siempre se montan y se ocultan por CSS: así el
+                              PDF impreso sale completo aunque la pantalla esté plegada. */}
+                          {filas.map(cat => (
+                            <tr key={cat.categoria} className={abierto ? 'rga-tr-detalle' : 'rga-tr-detalle rga-oculto'}>
+                              <th scope="row" className="rga-td-cat">
+                                <span className="rga-punto" style={{ background: colores[cat.familia] }} />
+                                {cat.categoria}
+                              </th>
+                              {cat.meses.map((v, m) => (
+                                <td key={m} className={v > 0 ? 'rga-td-num rga-td-click' : 'rga-td-num rga-td-cero'}
+                                  onClick={v > 0 ? () => setDetalle({ categoria: cat.categoria, fiscal: cat.fiscal, mes: m }) : undefined}
+                                  title={v > 0 ? `Ver ${cat.categoria} de ${MESES[m]}` : ''}>
+                                  {v > 0 ? fmtMoney(v) : '—'}
+                                </td>
+                              ))}
+                              <td className="rga-td-num rga-td-total">{fmtMoney(cat.total)}</td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr>
@@ -286,7 +337,8 @@ function ReporteGastosAnual() {
           <div className="rga-modal-overlay" onClick={() => setDetalle(null)}>
             <div className="rga-modal" onClick={e => e.stopPropagation()}>
               <div className="rga-modal-header">
-                <h3>{detalle.categoria} — {MESES[detalle.mes]} {anio}</h3>
+                <h3>{detalle.categoria} — {MESES[detalle.mes]} {anio}
+                  <span className="rga-modal-bloque">{detalle.fiscal}</span></h3>
                 <button className="rga-modal-close" onClick={() => setDetalle(null)}>×</button>
               </div>
               <table className="rga-tabla rga-tabla-detalle">

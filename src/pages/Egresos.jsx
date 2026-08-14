@@ -96,13 +96,13 @@ export function autoAgua(label) {
 // La luz de un local comercial va con IVA — la tarifa doméstica no, pero las
 // panaderías no pagan doméstica. Es solo el valor por defecto: si un recibo
 // llega distinto, el impuesto se cambia en el renglón.
-const SUBCAT_IVA = ['Control de plagas', 'Luz'];
+const SUBCAT_IVA = ['Control de plagas', 'Luz', 'Comisión por tarjetas de crédito'];
 const impuestoDefault = (subcat) => SUBCAT_IVA.includes(subcat) ? 'iva16' : 'tasa0';
 
 // ── Categorías ────────────────────────────────────────────────────
 const CATEGORIAS = [
   { key: 'Gasto',        label: 'Gastos',      sub: 'Operativos',       icon: <IconGasto />,      color: '#dc2626', bg: '#fee2e2',
-    subcategorias: ['Gasolina','Gas','Luz','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Otros gastos'] },
+    subcategorias: ['Gasolina','Gas','Luz','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Comisión por tarjetas de crédito','Otros gastos'] },
   { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
   { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago Camioneta'] },
   // 'Pago camioneta' aparece en dos categorías a propósito y con la MISMA opción del

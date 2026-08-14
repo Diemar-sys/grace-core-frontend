@@ -35,6 +35,37 @@ export const CAT_COMPRAS = 'COMPRAS (INSUMOS)';
 const SEP = ' · ';
 
 /**
+ * Bloque fiscal. El contador necesita leer aparte lo que tiene CFDI de lo que no:
+ * una talacha o una refacción de la calle se registra igual (el dinero salió),
+ * pero no es deducible y no puede sumarse con lo facturado en el mismo renglón.
+ * CON FACTURA va primero: es el bloque que se declara.
+ */
+export const CON_FACTURA = 'CON FACTURA';
+export const SIN_FACTURA = 'SIN FACTURA';
+export const BLOQUES = [CON_FACTURA, SIN_FACTURA];
+
+/**
+ * ¿Este documento respalda con CFDI?
+ *
+ * Dos fuentes con campos distintos, un solo criterio:
+ *   - `Egreso` trae `con_factura`, que el formulario deriva de `facturado_a`.
+ *   - `Purchase Receipt` no lo tiene: vale como facturado si el comprobante ES
+ *     una factura, o si es una nota **consolidada** con folio — esa nota terminó
+ *     dentro de un CFDI aunque ella misma no lo sea (ver `agruparFacturas`).
+ * El nombre en `facturado_a` es el último recurso, para documentos viejos.
+ */
+export function conFactura(doc: any): boolean {
+  if (doc?.con_factura != null && doc.con_factura !== '') return Number(doc.con_factura) === 1;
+  if (doc?.custom_tipo_comprobante === 'Factura') return true;
+  if (doc?.custom_consolidado && doc?.supplier_delivery_note) return true;
+  const a = String(doc?.custom_facturado_a ?? doc?.facturado_a ?? SIN_FACTURA).toUpperCase();
+  return a !== SIN_FACTURA && a !== '';
+}
+
+/** Bloque fiscal de un documento, como etiqueta de fila. */
+export const bloqueDe = (doc: any): string => (conFactura(doc) ? CON_FACTURA : SIN_FACTURA);
+
+/**
  * Etiqueta de la fila del reporte.
  *
  * `Gasto` en el Egreso es un cajón: mete agua, gas, gasolina, mantenimiento y
@@ -55,6 +86,8 @@ export interface FilaCategoria {
   categoria: string;
   /** Familia a la que pertenece; para las compras, ella misma. */
   familia: string;
+  /** `CON FACTURA` | `SIN FACTURA`. Vacío en las filas ya agregadas. */
+  fiscal: string;
   /** 12 posiciones, índice 0 = enero. */
   meses: number[];
   total: number;
@@ -69,6 +102,11 @@ export interface GastosAnuales {
    * veintena de series repartidas en siete colores no se puede leer.
    */
   familias: FilaCategoria[];
+  /**
+   * Las mismas cifras agregadas por bloque fiscal, en orden `BLOQUES`. Es lo
+   * que la tabla muestra plegado: dos renglones en vez de veinte.
+   */
+  bloques: FilaCategoria[];
   /** 12 posiciones con el total de cada mes. */
   totalesMes: number[];
   total: number;
@@ -90,9 +128,10 @@ export function mesDe(fecha?: string | null, anio?: number): number | null {
   return mes >= 0 && mes <= 11 ? mes : null;
 }
 
-const filaVacia = (categoria: string): FilaCategoria => ({
+const filaVacia = (categoria: string, fiscal = ''): FilaCategoria => ({
   categoria,
   familia: familiaDe(categoria),
+  fiscal,
   meses: Array(12).fill(0),
   total: 0,
 });
@@ -124,10 +163,14 @@ export function consolidarGastos(
 ): GastosAnuales {
   const porCategoria = new Map<string, FilaCategoria>();
 
-  const sumar = (categoria: string, mes: number, monto: number) => {
+  // La fila se identifica por bloque fiscal + categoría, no solo por categoría:
+  // la misma gasolina puede venir facturada una vez y de la calle la siguiente,
+  // y el contador necesita esos dos pesos en renglones distintos.
+  const sumar = (categoria: string, fiscal: string, mes: number, monto: number) => {
     if (!(monto > 0)) return;
-    if (!porCategoria.has(categoria)) porCategoria.set(categoria, filaVacia(categoria));
-    const fila = porCategoria.get(categoria)!;
+    const clave = fiscal + '|' + categoria;
+    if (!porCategoria.has(clave)) porCategoria.set(clave, filaVacia(categoria, fiscal));
+    const fila = porCategoria.get(clave)!;
     fila.meses[mes] = round2(fila.meses[mes] + monto);
   };
 
@@ -135,13 +178,13 @@ export function consolidarGastos(
     if (Number(c.docstatus) !== 1) continue;
     const mes = mesDe(c.posting_date, anio);
     if (mes == null) continue;
-    sumar(CAT_COMPRAS, mes, parseFloat(c.grand_total) || 0);
+    sumar(CAT_COMPRAS, bloqueDe(c), mes, parseFloat(c.grand_total) || 0);
   }
 
   for (const e of egresos) {
     const mes = mesDe(e.fecha, anio);
     if (mes == null) continue;
-    sumar(etiquetaEgreso(e), mes, parseFloat(e.monto) || 0);
+    sumar(etiquetaEgreso(e), bloqueDe(e), mes, parseFloat(e.monto) || 0);
   }
 
   const filas = [...porCategoria.values()]
@@ -156,12 +199,21 @@ export function consolidarGastos(
 
   const familias = agrupar(filas, f => f.familia).sort(porPeso);
 
-  // Las filas de detalle se ordenan por el peso de SU FAMILIA primero: así las
-  // subcategorías de un mismo cajón quedan juntas en vez de desperdigarse entre
-  // familias ajenas, que es justo lo que hace ilegible una tabla larga.
+  // Bloques fiscales en orden fijo (CON FACTURA primero), no por peso: el
+  // contador siempre busca lo deducible en el mismo lugar. Solo los que existen.
+  const porBloque = agrupar(filas, f => f.fiscal).map(f => ({ ...f, fiscal: f.categoria }));
+  const bloques = BLOQUES
+    .map(b => porBloque.find(f => f.categoria === b))
+    .filter(Boolean) as FilaCategoria[];
+
+  // Las filas de detalle se ordenan por bloque fiscal primero y luego por el peso
+  // de SU FAMILIA: así las subcategorías de un mismo cajón quedan juntas en vez
+  // de desperdigarse entre familias ajenas, que es lo que hace ilegible la tabla.
   const pesoFamilia = new Map(familias.map(f => [f.categoria, f.total]));
   const categorias = filas.sort((a, b) =>
-    a.familia === b.familia
+    a.fiscal !== b.fiscal
+      ? BLOQUES.indexOf(a.fiscal) - BLOQUES.indexOf(b.fiscal)
+    : a.familia === b.familia
       ? porPeso(a, b)
       : porPeso(
           { ...a, categoria: a.familia, total: pesoFamilia.get(a.familia) ?? 0 },
@@ -175,6 +227,7 @@ export function consolidarGastos(
     anio,
     categorias,
     familias,
+    bloques,
     totalesMes,
     total: round2(totalesMes.reduce((s, n) => s + n, 0)),
   };

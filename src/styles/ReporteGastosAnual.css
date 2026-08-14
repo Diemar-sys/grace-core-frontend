@@ -61,9 +61,16 @@
 /* ── Totales ────────────────────────────────────────── */
 .rga-totales {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+/* A 1280px las cuatro no caben sin apretujar la cifra grande: el hero se lleva
+   el renglón completo y las tres tarjetas se reparten el de abajo. */
+@media (max-width: 1280px) {
+  .rga-totales { grid-template-columns: repeat(3, 1fr); }
+  .rga-hero { grid-column: 1 / -1; }
 }
 
 .rga-hero, .rga-tile {
@@ -197,6 +204,61 @@
 .rga-td-click { cursor: pointer; border-radius: 6px; }
 .rga-td-click:hover { background: #f9f9f7; color: #0b0b0b; }
 
+/* ── Bloques fiscales plegables ─────────────────────────────────────────── */
+/* El renglón del bloque pesa más que su detalle: la tabla se lee de golpe
+   aunque esté toda desplegada. */
+.rga-tr-bloque th, .rga-tr-bloque td {
+  background: #faf9f6;
+  font-weight: 700;
+  color: #0b0b0b;
+  border-bottom: 1px solid #e1e0d9;
+}
+.rga-tr-bloque .rga-td-cat { background: #faf9f6; }
+
+.rga-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.rga-toggle small { font-weight: 500; color: #898781; font-size: 11px; }
+.rga-toggle:hover { color: var(--color-primary, #b91c1c); }
+
+.rga-flecha {
+  display: inline-block;
+  font-size: 9px;
+  color: #898781;
+  transition: transform 0.15s ease;
+}
+.rga-flecha-abierta { transform: rotate(90deg); }
+
+/* Banda de color a la izquierda: deducible en verde, sin CFDI en ámbar.
+   No es solo el color — la etiqueta del renglón ya dice cuál es cuál. */
+.rga-bloque-con  .rga-td-cat { box-shadow: inset 3px 0 0 #1baf7a; }
+.rga-bloque-sin  .rga-td-cat { box-shadow: inset 3px 0 0 #eda100; }
+
+.rga-tr-detalle .rga-td-cat { padding-left: 26px; font-weight: 500; }
+
+/* Plegado por CSS, no por desmontaje: el detalle sigue en el DOM para que el
+   PDF salga completo (ver @media print). */
+.rga-oculto { display: none; }
+
+.rga-modal-bloque {
+  margin-left: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f2f1ed;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  vertical-align: middle;
+}
+
 .rga-tabla tfoot th, .rga-tabla tfoot td {
   border-top: 2px solid #e1e0d9;
   border-bottom: none;
@@ -288,6 +350,15 @@
 
   /* Sin esto el navegador imprime las barras en blanco y la gráfica no dice nada. */
   .rga-barra, .rga-punto { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* En papel no hay flechas que picar: el desglose sale completo, esté como esté
+     la pantalla. Por eso las filas se ocultan por CSS y no se desmontan. */
+  .rga-oculto { display: table-row; }
+  .rga-flecha { display: none; }
+  .rga-tr-bloque th, .rga-tr-bloque td { background: #f2f1ed; }
+  .rga-bloque-con .rga-td-cat, .rga-bloque-sin .rga-td-cat {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
 
   @page { size: landscape; margin: 12mm; }
 }

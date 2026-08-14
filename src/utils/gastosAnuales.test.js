@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  consolidarGastos, mesDe, mesesConDatos, asignarColores, etiquetaEgreso, CAT_COMPRAS,
+  consolidarGastos, mesDe, mesesConDatos, asignarColores, etiquetaEgreso,
+  conFactura, CAT_COMPRAS, CON_FACTURA, SIN_FACTURA,
 } from './gastosAnuales';
 
 /**
@@ -179,6 +180,94 @@ describe('desglose por subcategoría', () => {
     ]);
     expect(g.categorias.map(c => c.categoria))
       .toEqual(['GASTO · GAS', 'GASTO · AGUA', 'RENTA']);
+  });
+});
+
+describe('corte fiscal (con / sin factura)', () => {
+  // Lo que el contador pidió: lo deducible no puede sumarse con la talacha de
+  // la calle en el mismo renglón, aunque las dos hayan salido de la caja.
+
+  describe('conFactura', () => {
+    it('en el egreso manda con_factura, incluso si es 0 con nombre puesto', () => {
+      expect(conFactura({ con_factura: 1 })).toBe(true);
+      expect(conFactura({ con_factura: 0 })).toBe(false);
+      expect(conFactura({ con_factura: 0, facturado_a: 'ALMA RODRIGUEZ' })).toBe(false);
+    });
+
+    it('la compra vale por su comprobante', () => {
+      expect(conFactura({ custom_tipo_comprobante: 'Factura' })).toBe(true);
+      expect(conFactura({ custom_tipo_comprobante: 'Nota' })).toBe(false);
+    });
+
+    it('la nota consolidada CON folio sí cuenta: terminó dentro de un CFDI', () => {
+      expect(conFactura({
+        custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: 'FAC-X',
+      })).toBe(true);
+      // Consolidada pero sin folio todavía: aún no hay CFDI que la respalde.
+      expect(conFactura({
+        custom_tipo_comprobante: 'Nota', custom_consolidado: 1, supplier_delivery_note: '',
+      })).toBe(false);
+    });
+
+    it('sin ninguna de las dos señales cae en facturado_a, y el default es SIN', () => {
+      expect(conFactura({ facturado_a: 'LUIS TORRES' })).toBe(true);
+      expect(conFactura({ facturado_a: 'SIN FACTURA' })).toBe(false);
+      expect(conFactura({})).toBe(false);
+      expect(conFactura(null)).toBe(false);
+    });
+  });
+
+  it('la misma subcategoría se parte en dos renglones si viene de los dos lados', () => {
+    const g = consolidarGastos(2026, [], [
+      { fecha: '2026-07-01', monto: 100, categoria: 'Gasto', subcategoria: 'Gasolina', con_factura: 1 },
+      { fecha: '2026-07-02', monto: 40,  categoria: 'Gasto', subcategoria: 'Gasolina', con_factura: 0 },
+    ]);
+    const con = g.categorias.find(c => c.fiscal === CON_FACTURA);
+    const sin = g.categorias.find(c => c.fiscal === SIN_FACTURA);
+    expect(con.categoria).toBe('GASTO · GASOLINA');
+    expect(con.total).toBe(100);
+    expect(sin.total).toBe(40);
+    expect(g.total).toBe(140);   // el corte reparte, no duplica
+  });
+
+  it('los bloques suman el total y van con CON FACTURA primero', () => {
+    const g = consolidarGastos(
+      2026,
+      [{ posting_date: '2026-03-01', grand_total: 1000, docstatus: 1, custom_tipo_comprobante: 'Factura' }],
+      [{ fecha: '2026-03-02', monto: 250, categoria: 'Gasto', subcategoria: 'Refacciones', con_factura: 0 }],
+    );
+    expect(g.bloques.map(b => b.categoria)).toEqual([CON_FACTURA, SIN_FACTURA]);
+    expect(g.bloques[0].total).toBe(1000);
+    expect(g.bloques[1].total).toBe(250);
+    expect(g.bloques.reduce((s, b) => s + b.total, 0)).toBe(g.total);
+    expect(g.bloques[0].meses[2]).toBe(1000);
+  });
+
+  it('si todo está facturado no aparece el bloque vacío', () => {
+    const g = consolidarGastos(2026, [], [
+      { fecha: '2026-05-01', monto: 300, categoria: 'Renta', con_factura: 1 },
+    ]);
+    expect(g.bloques.map(b => b.categoria)).toEqual([CON_FACTURA]);
+  });
+
+  it('las filas salen agrupadas por bloque, no intercaladas', () => {
+    const g = consolidarGastos(2026, [], [
+      { fecha: '2026-05-01', monto: 900, categoria: 'Renta', con_factura: 1 },
+      { fecha: '2026-05-02', monto: 500, categoria: 'Gasto', subcategoria: 'Gas', con_factura: 0 },
+      { fecha: '2026-05-03', monto: 100, categoria: 'Gasto', subcategoria: 'Gas', con_factura: 1 },
+    ]);
+    expect(g.categorias.map(c => c.fiscal))
+      .toEqual([CON_FACTURA, CON_FACTURA, SIN_FACTURA]);
+  });
+
+  it('la gráfica no cambia: la familia sigue agregando los dos bloques', () => {
+    const g = consolidarGastos(2026, [], [
+      { fecha: '2026-05-02', monto: 500, categoria: 'Gasto', subcategoria: 'Gas', con_factura: 0 },
+      { fecha: '2026-05-03', monto: 100, categoria: 'Gasto', subcategoria: 'Gas', con_factura: 1 },
+    ]);
+    expect(g.familias.map(f => f.categoria)).toEqual(['GASTO']);
+    expect(g.familias[0].total).toBe(600);
+    expect(g.totalesMes[4]).toBe(600);
   });
 });
 
