@@ -65,13 +65,18 @@ class FrappeInventoryService extends FrappeBase {
   }
 
   /**
-   * Obtiene grupos de artículos de nivel hoja (no carpetas), incluyendo su padre.
+   * Obtiene el árbol de categorías COMPLETO: hojas y carpetas, con su nested set.
+   *
+   * Trae las carpetas a propósito. El árbol de producto terminado tiene dos
+   * niveles (departamento → categoría) y sin los nodos intermedios no se puede
+   * saber a qué rama pertenece una hoja. Quien solo quiera hojas filtra por
+   * `!is_group`; para separar por rama está `utils/itemGroups`.
    * @returns {Promise<Array<Object>>} Lista de Item Groups
    */
   async getItemGroups() {
     return this.#cachedFetch('itemGroups', async () => {
       const data = await this._fetch(
-        `/api/resource/Item Group?fields=["name","parent_item_group"]&filters=[["is_group","=",0]]&limit_page_length=100`
+        `/api/resource/Item Group?fields=["name","parent_item_group","is_group","lft","rgt"]&limit_page_length=200&order_by=lft`
       );
       return data.data || [];
     });

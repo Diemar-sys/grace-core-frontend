@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { inventory } from '../services/frappeInventory';
 import { sanitizarObjeto } from '../utils/security';
+import { bucketsCategorias } from '../utils/itemGroups';
 
 const IMPUESTOS = [
   { key: 'tasa0', label: 'Tasa 0 (Exento)', rate: 0 },
@@ -297,19 +298,19 @@ export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editI
   const precioPorKg         = parseFloat(formData.custom_precio_por_kg) || 0;
   const PADRE_PT            = 'PRODUCTOS TERMINADOS';
   const PADRE_IG            = 'INSUMOS GENERALES';
-  // 3 buckets por parent_item_group: PT → hijos de PT; INSUMO GENERAL → hijos de IG;
-  // MATERIA PRIMA → el resto (excluye PT e IG para no mezclar limpieza/papelería con materia prima)
+  // 3 buckets por RAMA del árbol (no por padre directo): PT → todo lo que cuelga
+  // de PRODUCTOS TERMINADOS a cualquier profundidad; INSUMO GENERAL → lo de IG;
+  // MATERIA PRIMA → el resto, para no mezclar limpieza/papelería con materia prima.
   // Unidad base = UOM que NO es presentación. stock_uom maneja Bin/valuación/BOM y
   // debe ser base (g/Kg/L/ml/PZA); las presentaciones (CAJA/BULTO…) solo van en el
   // picker de Presentación. Data-driven: una presentación nueva sale sola del picker.
   const nombresPresentacion = new Set(catalogos.presentaciones.map(p => p.name));
   const unidadesBase = catalogos.uoms.filter(u => !nombresPresentacion.has(u.name));
 
-  const categoriasFiltradas = esProductoTerminado
-    ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_PT)
-    : esInsumoGeneral
-      ? catalogos.itemGroups.filter(g => g.parent_item_group === PADRE_IG)
-      : catalogos.itemGroups.filter(g => g.parent_item_group !== PADRE_PT && g.parent_item_group !== PADRE_IG);
+  const buckets = bucketsCategorias(catalogos.itemGroups, PADRE_PT, PADRE_IG);
+  const categoriasFiltradas = esProductoTerminado ? buckets.pt
+    : esInsumoGeneral ? buckets.ig
+    : buckets.resto;
 
   return {
     formData, setFormData,

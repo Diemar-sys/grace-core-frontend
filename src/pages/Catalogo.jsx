@@ -330,7 +330,10 @@ function Catalogo() {
                 <label>Categoría</label>
                 <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
                   <option value="">Todas las categorías</option>
-                  {itemGroups.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
+                  {/* Solo hojas: un departamento (PAN DULCE) no tiene items
+                      propios, filtrar por él devolvería una lista vacía. */}
+                  {itemGroups.filter(g => !g.is_group)
+                    .map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
                 </select>
               </div>
               <div className="filtro-group filtro-sm">
