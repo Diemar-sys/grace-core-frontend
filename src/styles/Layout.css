@@ -32,3 +32,35 @@
   .main-content     { padding: var(--space-3) var(--space-2); }
   .layout-menubar, .panel-menubar { padding: 0 var(--space-2); gap: 2px; }
 }
+
+/* ── Aviso de versión nueva ─────────────────────────── */
+/* Franja arriba de todo, no un modal: informa sin bloquear lo que se esté
+   capturando. Ámbar y no rojo — es un aviso, no un error. */
+.version-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: 10px var(--space-4);
+  background: #fef3c7;
+  color: #78350f;
+  border-bottom: 1px solid #fcd34d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.version-banner button {
+  border: 0;
+  padding: 5px 16px;
+  border-radius: var(--radius-pill);
+  background: #78350f;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.version-banner button:hover { background: #92400e; }
+
+/* En papel no existe: no es parte del reporte que se está imprimiendo. */
+@media print { .version-banner { display: none; } }

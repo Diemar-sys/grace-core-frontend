@@ -1,10 +1,30 @@
 // src/components/Layout.jsx
 import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, RefreshCw } from "lucide-react";
 import { auth } from "../services/frappeAuth";
 import { getRoleConfig } from "../config/roles";
 import { TENANT } from "../config/tenant";
+import { useVersionNueva } from "../hooks/useVersionNueva";
 import "../styles/Layout.css";
+
+/**
+ * Aviso de deploy nuevo. Vive en el Layout porque debe salir en cualquier
+ * pantalla donde se haya quedado abierto el sistema, no solo en el inicio.
+ * Nunca recarga solo: quien está en medio de una venta decide cuándo.
+ */
+function BannerVersion() {
+  const hayNueva = useVersionNueva();
+  if (!hayNueva) return null;
+  return (
+    <div className="version-banner" role="status">
+      <RefreshCw size={15} aria-hidden="true" />
+      <span>Hay una versión nueva del sistema.</span>
+      <button type="button" onClick={() => window.location.reload()}>
+        Recargar
+      </button>
+    </div>
+  );
+}
 
 // ── Layout ────────────────────────────────────────────
 /**
@@ -54,6 +74,8 @@ function Layout({ children }) {
 
   return (
     <div className="layout-container">
+
+      <BannerVersion />
 
       {/* TOPBAR */}
       <header className="panel-topbar">
