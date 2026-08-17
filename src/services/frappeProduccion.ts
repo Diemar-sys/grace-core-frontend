@@ -434,6 +434,39 @@ class FrappeProduccionService extends FrappeBase {
     });
   }
 
+  /**
+   * Qué costaría el pan si su receta se costeara con los precios de HOY.
+   * Devuelve null si no tiene receta activa — el único caso en que el costo se
+   * captura a mano.
+   * @param {string} itemCode - Código del pan.
+   */
+  async costoRecetaHoy(itemCode: string) {
+    const res = await this._fetch(
+      '/api/method/gestion_panaderia.api.bom_costeo.costo_receta_hoy'
+      + `?item_code=${encodeURIComponent(itemCode)}`,
+    );
+    return res.message || null;
+  }
+
+  /**
+   * Recuesta un BOM confirmado con los precios de catálogo de hoy y propaga el
+   * costo por pieza al pan.
+   *
+   * Vive en el servidor porque en un documento confirmado Frappe descarta los
+   * campos que no son `allow_on_submit`: un `save()` corre el validate, no avisa
+   * de nada y deja `total_cost` intacto.
+   *
+   * @param {string} bomName - ID de la receta.
+   * @returns {Promise<Object>} { antes, ahora, lineas } para mostrar qué cambió.
+   */
+  async recostearBOM(bomName: string) {
+    const res = await this._fetch(
+      '/api/method/gestion_panaderia.api.bom_costeo.recostear_bom',
+      { method: 'POST', body: JSON.stringify({ name: bomName }) },
+    );
+    return res.message;
+  }
+
   // ─────────────────────────────────────────────
   // ALERTAS DE STOCK BAJO
   // ─────────────────────────────────────────────

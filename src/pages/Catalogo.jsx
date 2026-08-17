@@ -131,7 +131,12 @@ function Catalogo() {
       let data = [];
       if (vistaActiva === 'registrado') data = await inventory.getProductosRegistrados(filtros, signal);
       if (vistaActiva === 'deshabilitado') data = await inventory.getProductosDeshabilitados(filtros, signal);
-      setItems(data);
+      // El pan tiene su propia pestaña, con sus tres precios y su costo de receta.
+      // Aquí estorbaba: 227 panes sin presentación ni precio de compra diluían los
+      // insumos, que es lo que esta vista sirve para administrar.
+      // ponytail: se descarta en el cliente porque `get_inventory_view` filtra por
+      // UN tipo exacto y excluir uno pediría cambiar el endpoint.
+      setItems(data.filter(i => i.custom_tipo_item !== 'PRODUCTO TERMINADO'));
     } catch (err) {
       if (err.name !== 'AbortError') console.error('Error cargando inventario:', err);
     } finally {
@@ -372,8 +377,9 @@ function Catalogo() {
                 <select value={selectedTipo} onChange={e => setSelectedTipo(e.target.value)}>
                   <option value="">Todos los tipos</option>
                   <option value="MATERIA PRIMA">Materia Prima</option>
-                  <option value="PRODUCTO TERMINADO">Producto Terminado</option>
                   <option value="INSUMO GENERAL">Insumo General</option>
+                  {/* Producto Terminado no se ofrece: es la pestaña Pan. Dejarlo
+                      aquí devolvía una lista vacía y parecía que el filtro fallaba. */}
                 </select>
               </div>
               <div className="filtro-group search filtro-sm">

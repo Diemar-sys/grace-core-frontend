@@ -76,13 +76,25 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
   const updateFila = (id, campos) =>
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
 
-  // Al elegir producto se precarga su costo de catálogo (editable).
-  const elegirProducto = (id, texto) => {
+  // Al elegir producto se precarga su costo de catálogo. Editable SOLO si el pan
+  // no tiene receta: con receta el costo sale de los ingredientes y sus precios de
+  // compra, y el servidor ignora lo que se teclee aquí — pedirlo sería mentir.
+  const elegirProducto = async (id, texto) => {
     const prod = catalogo[resolverItemCode(texto, productos)];
     updateFila(id, {
       item_code: prod?.item_code || '',
       costo: prod?.custom_costo_estimado ? String(prod.custom_costo_estimado) : '',
+      conReceta: false,
     });
+    if (!prod?.item_code) return;
+    try {
+      const receta = await produccionService.costoRecetaHoy(prod.item_code);
+      if (receta) {
+        updateFila(id, { conReceta: true, costo: String(receta.hoy.por_pieza.toFixed(4)) });
+      }
+    } catch {
+      /* sin respuesta se queda editable: es el comportamiento de siempre */
+    }
   };
 
   const valorTotal = calcularValor(filas, catalogo);
@@ -172,7 +184,12 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
                     <input type="number" className="nc-input" min="0" step="0.01"
                       placeholder="Del catálogo"
                       value={fila.costo}
+                      readOnly={fila.conReceta}
+                      title={fila.conReceta
+                        ? 'Sale de la receta: se cambia editando la receta en Producción'
+                        : undefined}
                       onChange={e => updateFila(fila._id, { costo: e.target.value })} />
+                    {fila.conReceta && <small className="nc-hint">de la receta</small>}
                   </td>
                   <td>
                     <button className="nc-btn-eliminar"

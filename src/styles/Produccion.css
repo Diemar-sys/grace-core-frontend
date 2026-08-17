@@ -483,3 +483,32 @@
   .ingredientes-table thead tr th:nth-child(2),
   .ingredientes-table tbody tr td:nth-child(2) { display: none; }
 }
+
+/* ── Recosteo antes de producir ────────────────────────────────────────── */
+.prod-recosteo-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.prod-recosteo-tabla th,
+.prod-recosteo-tabla td { padding: 7px 10px; text-align: left; }
+.prod-recosteo-tabla thead th {
+  font: 600 10.5px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+.prod-recosteo-tabla td + td,
+.prod-recosteo-tabla th + th { text-align: right; }
+.prod-recosteo-tabla tbody tr + tr td { border-top: 1px solid var(--color-border-soft, #eee); }
+.prod-recosteo-tabla tfoot th,
+.prod-recosteo-tabla tfoot td {
+  border-top: 2px solid var(--color-border);
+  font-weight: 600;
+}
+/* El precio viejo no es un error: es lo que costaba. Se apaga, no se tacha. */
+.prod-recosteo-antes { color: var(--color-text-muted); }
+.prod-recosteo-hoy   { color: var(--color-text); font-weight: 600; }

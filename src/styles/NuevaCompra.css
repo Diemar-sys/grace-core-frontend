@@ -1409,3 +1409,13 @@ tr.nc-fila-alerta:hover td {
   color: var(--tv-marca);
   font-variant-numeric: tabular-nums;
 }
+
+/* Costo que viene de la receta: se muestra, no se teclea. */
+.nc-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}

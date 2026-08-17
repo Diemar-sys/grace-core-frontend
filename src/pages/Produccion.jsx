@@ -100,6 +100,13 @@ function Produccion() {
     }
   );
 
+  // Recostear la receta y seguir con la producción, en ese orden: el consumo se
+  // valúa con los rates del BOM, así que recostear después no serviría de nada.
+  const recosteoModal = useConfirmModal(async () => {
+    await produccionService.recostearBOM(regBOM);
+    await ejecutarProduccion();
+  });
+
   // Preview de consumo + costo estimado
   useEffect(() => {
     const cargarPreview = async () => {
@@ -129,7 +136,9 @@ function Produccion() {
             qty:       qty.toFixed(4),
             qtyNum:    qty,
             uom:       i.stock_uom || i.uom,
-            precio_und: precioPorUnd,
+            // El precio de HOY (catálogo) frente al que la receta trae guardado:
+            // la receta se costeó el día que se guardó, y los insumos suben.
+            precio_bom: parseFloat(i.rate) || 0,
             costo:      qty * precioPorUnd,
             disponible,
             insuficiente: regDepartamento ? disponible < qty : false,
@@ -140,11 +149,21 @@ function Produccion() {
         const costoTotal    = ingredientes.reduce((s, i) => s + i.costo, 0);
         const costoUnitario = costoTotal / parseFloat(regCantidad);
 
+        // Lo que costaría con los precios GUARDADOS en la receta. Si no coincide
+        // con el de arriba, la receta está costeada con precios viejos y hay que
+        // recostearla antes de registrar: `registrarProduccion` manda los rates
+        // del BOM, así que sin esto la pantalla muestra un costo y el inventario
+        // se valúa con otro.
+        const costoBOM   = ingredientes.reduce((s, i) => s + i.qtyNum * i.precio_bom, 0);
+        const desfasados = ingredientes.filter(
+          i => Math.abs(i.precio_und - i.precio_bom) > 0.0001);
+
         // Si la receta tiene precio de venta, calcular margen
         const recetaInfo    = recetas.find(r => r.name === regBOM);
         const precioVenta   = parseFloat(recetaInfo?.custom_precio_de_venta) || 0;
 
-        setPreview({ item_name: bom.item_name, ingredientes, costoTotal, costoUnitario, precioVenta, hayFaltantes });
+        setPreview({ item_name: bom.item_name, ingredientes, costoTotal, costoUnitario,
+                     precioVenta, hayFaltantes, costoBOM, desfasados });
       } catch { setPreview(null); }
     };
     cargarPreview();
@@ -163,6 +182,18 @@ function Produccion() {
       return;
     }
 
+    // La receta se costeó el día que se guardó. Si algún insumo cambió de precio,
+    // hay que recostearla ANTES de registrar: el consumo se valúa con los rates
+    // del BOM, así que producir con la receta vieja mete al inventario un pan que
+    // cuesta lo que costaba entonces.
+    if (preview?.desfasados?.length) {
+      recosteoModal.open(preview);
+      return;
+    }
+    await ejecutarProduccion();
+  };
+
+  const ejecutarProduccion = async () => {
     setLoadingReg(true);
     try {
       await produccionService.registrarProduccion({
@@ -226,6 +257,47 @@ function Produccion() {
           fallbackLabel="Solo desactivar"
           fallbackLoadingLabel="Desactivando..."
           fallbackDescription={<>No se puede borrar: la receta tiene producción registrada vinculada. Puedes <strong>desactivarla</strong> para ocultarla del registro de producción conservando el historial.</>}
+        />
+      )}
+
+      {/* Modal: la receta trae precios viejos */}
+      {recosteoModal.item && (
+        <ConfirmModal
+          title="Los insumos cambiaron de precio"
+          description={
+            <>
+              La receta de <strong>{recosteoModal.item.item_name}</strong> está costeada con
+              precios anteriores. Se va a recostear con los de hoy antes de producir.
+              <table className="prod-recosteo-tabla">
+                <thead>
+                  <tr><th>Insumo</th><th>Antes</th><th>Hoy</th></tr>
+                </thead>
+                <tbody>
+                  {recosteoModal.item.desfasados.map(i => (
+                    <tr key={i.item_code}>
+                      <td>{i.item_name}</td>
+                      <td className="prod-recosteo-antes">${i.precio_bom.toFixed(4)}</td>
+                      <td className="prod-recosteo-hoy">${i.precio_und.toFixed(4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Costo de la hornada</th>
+                    <td className="prod-recosteo-antes">${recosteoModal.item.costoBOM.toFixed(2)}</td>
+                    <td className="prod-recosteo-hoy">${recosteoModal.item.costoTotal.toFixed(2)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </>
+          }
+          subdescription="El pan entra al inventario valuado con este costo, así que se actualiza antes de registrar la producción."
+          confirmLabel="Actualizar costos y producir"
+          loadingLabel="Actualizando y produciendo..."
+          onConfirm={recosteoModal.confirm}
+          onCancel={recosteoModal.close}
+          loading={recosteoModal.loading}
+          error={recosteoModal.error}
         />
       )}
 
