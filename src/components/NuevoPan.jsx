@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import ModalError from './modals/ModalError';
 import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoPan.css';
 import { claveImpuesto } from '../config/impuestos';
+import { produccionService } from '../services/frappeProduccion';
 
 /**
  * Alta y precios del pan.
@@ -85,6 +87,23 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
   } = useInsumoForm({ editItem, onSuccess, tipoFijo: 'PRODUCTO TERMINADO' });
 
   const costo = formData.custom_costo_estimado;
+
+  // La receta es la fuente de la verdad del costo: si el pan tiene BOM activo,
+  // ese número sale de los ingredientes y sus precios de compra reales. Dejarlo
+  // editable daría dos costos para el mismo pan y nadie sabría cuál manda, así
+  // que el campo se bloquea y solo muestra lo que dice la receta.
+  // Aquí sí se puede consultar: es UN pan (3 peticiones), no los 227 de la lista.
+  const [costoReceta, setCostoReceta] = useState(null);
+  const codigoEditado = editItem?.item_code;
+
+  useEffect(() => {
+    if (!codigoEditado) { setCostoReceta(null); return; }
+    let cancel = false;
+    produccionService.calcularCostoBOM(codigoEditado)
+      .then(r => { if (!cancel) setCostoReceta(r); })
+      .catch(() => { /* sin receta o sin permiso: el campo queda editable */ });
+    return () => { cancel = true; };
+  }, [codigoEditado]);
   // El campo guarda UNA clave; las casillas son la cara amable de esa clave.
   const conIva  = formData.custom_impuesto === 'iva16' || formData.custom_impuesto === 'iva16_ieps';
   const conIeps = formData.custom_impuesto === 'ieps'  || formData.custom_impuesto === 'iva16_ieps';
@@ -287,15 +306,19 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
 
               <div className="pan-field">
                 <label htmlFor="pan-costo">
-                  Costo estimado por pieza ($) <span className="pan-opcional">opcional</span>
+                  Costo por pieza ($){' '}
+                  <span className="pan-opcional">{costoReceta ? 'de la receta' : 'opcional'}</span>
                 </label>
                 <input id="pan-costo" type="number" name="custom_costo_estimado"
-                  value={formData.custom_costo_estimado} onChange={handleChange}
+                  value={costoReceta ? costoReceta.costoPorUnidad.toFixed(2) : formData.custom_costo_estimado}
+                  onChange={handleChange} readOnly={Boolean(costoReceta)}
                   placeholder="Déjalo en blanco si aún no lo sabes" min="0" step="0.01" />
                 <small>
-                  {parseFloat(formData.custom_costo_estimado) > 0
-                    ? 'Lo que cuesta producir una pieza. Con esto se valúa la entrada de pan sin receta y se calcula el margen de arriba.'
-                    : 'Si todavía no lo sacas, guárdalo así y captúralo después en Editar. Mientras tanto: la entrada de pan te va a pedir el costo cada vez, y no se puede calcular el margen. El pan queda marcado en la lista como «falta costo» para que lo encuentres.'}
+                  {costoReceta
+                    ? `Sale de la receta: ${costoReceta.cantidadProducida} ${costoReceta.uom} cuestan $${costoReceta.costoTotal.toFixed(2)} de materia prima. Para cambiarlo, edita la receta en Producción — aquí no se toca para que no haya dos costos del mismo pan.`
+                    : parseFloat(formData.custom_costo_estimado) > 0
+                      ? 'Lo que cuesta producir una pieza. Con esto se valúa la entrada de pan sin receta y se calcula el margen de arriba. En cuanto el pan tenga receta, el costo sale de ahí y este campo se bloquea.'
+                      : 'Si todavía no lo sacas, guárdalo así y captúralo después en Editar. Mientras tanto: la entrada de pan te va a pedir el costo cada vez, y no se puede calcular el margen. El pan queda marcado en la lista como «falta costo» para que lo encuentres.'}
                 </small>
               </div>
             </div>

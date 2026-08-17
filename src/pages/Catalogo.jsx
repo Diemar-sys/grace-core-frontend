@@ -112,6 +112,11 @@ function Catalogo() {
   const [panesLoading, setPanesLoading] = useState(false);
   const [panModal, setPanModal] = useState(false);
   const [editPan, setEditPan] = useState(null);
+  // Viven aquí y no en VistaPan para que el contador de arriba baje al filtrar,
+  // igual que hace el de Insumos con `filtered`.
+  const [panGrupo, setPanGrupo] = useState('');
+  const [panBusca, setPanBusca] = useState('');
+  const [costosPan, setCostosPan] = useState({});
 
   const abortRef = useRef(null);
 
@@ -177,6 +182,27 @@ function Catalogo() {
       .catch(err => console.error('Error calculando costos BOM:', err));
     return () => { cancel = true; };
   }, [items]);
+
+  // El costo del pan sale de su receta, no de un campo capturado a mano: si hay
+  // BOM activo, ese número es el bueno. Pero cada costeo son 3 peticiones
+  // (BOM, detalle, precios), así que con los 227 panes serían ~680 de golpe.
+  // Se costea solo lo que está a la vista y solo cuando la lista está filtrada
+  // a un tamaño sano — la categoría más grande (PASTELES) tiene 33.
+  // ponytail: el arreglo de fondo es que la receta guarde su costo en el Item al
+  // activarse (un hook de backend, un campo, cero peticiones). Esto lo cubre
+  // mientras tanto sin tocar el servidor.
+  const panesVisibles = filtrarPanes(panes, panGrupo, panBusca);
+  const costeable = panesVisibles.length > 0 && panesVisibles.length <= LIMITE_COSTEO_PAN;
+  const codigosACostear = costeable ? panesVisibles.map(p => p.item_code).join(',') : '';
+
+  useEffect(() => {
+    if (!codigosACostear) { setCostosPan({}); return; }
+    let cancel = false;
+    produccionService.calcularCostosBOMBatch(codigosACostear.split(','))
+      .then(mapa => { if (!cancel) setCostosPan(mapa); })
+      .catch(err => console.error('Error calculando costos BOM del pan:', err));
+    return () => { cancel = true; };
+  }, [codigosACostear]);
 
   const loadPanes = useCallback(async () => {
     setPanesLoading(true);
@@ -274,7 +300,9 @@ function Catalogo() {
 
           <div className="stats-cards">
             <div className="stat-card">
-              <span className="stat-number">{pestana === 'pan' ? panes.length : filtered.length}</span>
+              <span className="stat-number">
+                {pestana === 'pan' ? filtrarPanes(panes, panGrupo, panBusca).length : filtered.length}
+              </span>
               <span className="stat-label">{pestana === 'pan' ? 'Panes' : 'Productos'}</span>
             </div>
           </div>
@@ -285,6 +313,9 @@ function Catalogo() {
             panes={panes} loading={panesLoading} soloLectura={soloLectura}
             onNuevo={handleNuevoPan} onEdit={handleEditPan} editLoading={editLoading}
             onRefrescar={loadPanes}
+            grupo={panGrupo} setGrupo={setPanGrupo}
+            busca={panBusca} setBusca={setPanBusca}
+            costosPan={costosPan} costeado={costeable}
           />
         ) : accionActiva === 'menu' ? (
           <div className="panel-grid" style={{ padding: '20px 0' }}>
@@ -468,27 +499,178 @@ const fmtPrecio = (v) => {
   return n > 0 ? `$${n.toFixed(2)}` : null;
 };
 
+const COLUMNAS_PAN = ['Código', 'Producto', 'Categoría', 'Sucursal', 'Pueblos',
+                      'Camioneta', 'Costo', 'Acciones'];
+
+/** Cuántos panes se costean de una vez. Cada costeo son 3 peticiones. */
+const LIMITE_COSTEO_PAN = 40;
+
+const APAGADO = { color: '#9ca3af', fontStyle: 'italic' };
+
+/**
+ * Qué pintar en la columna Costo. La receta manda: si hay BOM activo, su costo
+ * por pieza es el número real y el capturado a mano sobra. Casos:
+ *   receta      -> $3.06  (+ el desglose de la receta en el title)
+ *   a mano      -> $6.50 «capturado»
+ *   sin receta  -> «falta costo»  (ya se consultó y no hay de dónde sacarlo)
+ *   no medido   -> «—»  (la lista es muy grande para costearla, ver LIMITE)
+ */
+function celdaCostoPan({ costoBOM, manual, costeado }) {
+  if (costoBOM) {
+    return (
+      <span style={{ fontWeight: 600 }}
+        title={`Receta: ${costoBOM.cantidadProducida} ${costoBOM.uom} → $${costoBOM.costoTotal.toFixed(2)}`}>
+        ${costoBOM.costoPorUnidad.toFixed(2)}
+      </span>
+    );
+  }
+  if (manual > 0) {
+    return (
+      <span title="Capturado a mano, sin receta que lo respalde">
+        ${manual.toFixed(2)} <span style={{ ...APAGADO, fontSize: 12 }}>a mano</span>
+      </span>
+    );
+  }
+  if (!costeado) {
+    return <span style={APAGADO} title="Filtra por categoría para calcular el costo de la receta">—</span>;
+  }
+  return (
+    <span style={{ color: '#d97706', fontWeight: 500 }}
+      title="Sin receta ni costo capturado no se calcula el margen, y la entrada de pan lo pide cada vez">
+      falta costo
+    </span>
+  );
+}
+
+/**
+ * Una fila de pan. Los tres precios son el dato central: un canal en blanco NO
+ * cobra $0, cobra el de sucursal — por eso dice «hereda» y no un guion, que se
+ * leería como «no se vende ahí».
+ */
+function FilaPan({ pan, soloLectura, onEdit, editLoading, costoBOM, costeado }) {
+  const sucursal = fmtPrecio(pan.custom_precio_de_venta);
+  const pueblos = fmtPrecio(pan.custom_precio_de_venta_pueblos);
+  const camioneta = fmtPrecio(pan.custom_precio_de_venta_camioneta);
+  const manual = parseFloat(pan.custom_costo_estimado) || 0;
+
+  return (
+    <tr>
+      <td className="cell-code">{pan.item_code || '—'}</td>
+      <td className="cell-name">{pan.item_name}</td>
+      <td>{pan.item_group || '—'}</td>
+      <td>{sucursal || <span style={{ color: '#ef4444', fontWeight: 500 }}>sin precio</span>}</td>
+      <td>{pueblos || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>hereda</span>}</td>
+      <td>{camioneta || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>hereda</span>}</td>
+      {/* Tres estados distintos, y confundirlos es lo que hace que «lo saco
+          después» se vuelva nunca: la receta ya lo calcula, o se capturó a mano,
+          o de plano falta. Un cuarto caso es «no lo he consultado». */}
+      <td>{celdaCostoPan({ costoBOM, manual, costeado })}</td>
+      {!soloLectura && (
+        <td className="col-actions">
+          <button className="btn-edit-row" onClick={() => onEdit(pan.item_code)}
+            disabled={editLoading} title="Editar pan">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+            </svg>
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+}
+
+/**
+ * Categorías presentes en la lista, con cuántos panes tiene cada una.
+ * Salen de los panes ya cargados y no de otra consulta, así el select nunca
+ * ofrece una categoría que dejaría la pantalla vacía.
+ */
+export function categoriasDePanes(panes) {
+  const conteo = new Map();
+  (panes || []).forEach(p => {
+    if (p?.item_group) conteo.set(p.item_group, (conteo.get(p.item_group) || 0) + 1);
+  });
+  return [...conteo].sort((a, b) => a[0].localeCompare(b[0], 'es'));
+}
+
+/**
+ * Filtra por categoría y texto (nombre o clave). Función aparte porque un filtro
+ * mal hecho no truena: solo muestra la lista incompleta, y eso no se nota.
+ * ponytail: filtrado en cliente — son ~230 panes ya en memoria, volver a pedirlos
+ * al servidor en cada tecla sería más código y más lento.
+ */
+export function filtrarPanes(panes, grupo, busca) {
+  const q = (busca || '').trim().toLowerCase();
+  return (panes || []).filter(p =>
+    (!grupo || p.item_group === grupo) &&
+    (!q || p.item_name?.toLowerCase().includes(q) || p.item_code?.toLowerCase().includes(q))
+  );
+}
+
 /**
  * Pestaña Pan del catálogo: los productos terminados con sus tres precios a la
  * vista. Un canal en blanco se pinta como «hereda» a propósito — no cobra $0,
  * cobra el precio de sucursal, y esa diferencia es la que se paga cara cuando
  * nadie la ve.
  */
-function VistaPan({ panes, loading, soloLectura, onNuevo, onEdit, editLoading, onRefrescar }) {
+function VistaPan({ panes, loading, soloLectura, onNuevo, onEdit, editLoading, onRefrescar,
+                    grupo, setGrupo, busca, setBusca, costosPan = {}, costeado = false }) {
+  const categorias = categoriasDePanes(panes);
+  const visibles = filtrarPanes(panes, grupo, busca);
+  const filtrando = Boolean(grupo || busca.trim());
+
   return (
     <div className="pan-vista">
-      <div className="pan-vista-head">
-        <div>
-          <h2>Pan registrado</h2>
-          <p>El mismo pan vale distinto según a dónde va: sucursal, pueblos o camioneta.</p>
-        </div>
-        <div className="pan-vista-acciones">
-          <button type="button" className="pan-vista-refrescar" onClick={onRefrescar}>Actualizar</button>
-          {!soloLectura && (
-            <button type="button" className="pan-vista-nuevo" onClick={onNuevo}>+ Registrar pan</button>
+      {/* Sin encabezado propio: el título de la página y la pestaña activa ya
+          dicen que esto es Pan, y las columnas dicen que hay 3 precios. Esas dos
+          líneas costaban ~90px de alto, que aquí son tres panes menos a la vista.
+          Todo vive en una sola barra, alineado con Insumos. */}
+      {!loading && (
+        <div className="filtros-section">
+          {/* Los filtros solo con lista; los botones SIEMPRE — si no, con cero
+              panes no habría por dónde crear el primero. */}
+          {panes.length > 0 && (
+            <>
+              <div className="filtro-group filtro-sm">
+                <label htmlFor="pan-filtro-cat">Categoría</label>
+                <select id="pan-filtro-cat" value={grupo} onChange={e => setGrupo(e.target.value)}>
+                  <option value="">Todas las categorías ({panes.length})</option>
+                  {categorias.map(([nombre, n]) => (
+                    <option key={nombre} value={nombre}>{nombre} ({n})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="filtro-group search filtro-sm">
+                <label htmlFor="pan-filtro-busca">Buscar</label>
+                <input id="pan-filtro-busca" type="text" placeholder="Nombre o clave del pan..."
+                  value={busca} onChange={e => setBusca(e.target.value)} />
+              </div>
+            </>
           )}
+
+          <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+            {filtrando && (
+              <button type="button" className="btn-refresh btn-compacto"
+                onClick={() => { setGrupo(''); setBusca(''); }}>
+                Limpiar ({visibles.length} de {panes.length})
+              </button>
+            )}
+            <button className="btn-refresh btn-compacto" onClick={onRefrescar}>
+              Actualizar
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ marginLeft: '8px', verticalAlign: 'middle' }}>
+                <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
+              </svg>
+            </button>
+            {!soloLectura && (
+              <button type="button" className="pan-vista-nuevo" onClick={onNuevo}>+ Registrar pan</button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {loading ? (
         <div className="loading">Cargando pan…</div>
@@ -498,52 +680,32 @@ function VistaPan({ panes, loading, soloLectura, onNuevo, onEdit, editLoading, o
           <span>Da de alta el primero para que la caja pueda cobrarlo y el reporte de ventas lo separe por departamento.</span>
         </div>
       ) : (
-        <div className="pan-lista">
-          {panes.map(pan => {
-            const sucursal = fmtPrecio(pan.custom_precio_de_venta);
-            const canales = [
-              { k: 'Sucursal',  v: sucursal, tono: 'canal-sucursal' },
-              { k: 'Pueblos',   v: fmtPrecio(pan.custom_precio_de_venta_pueblos), tono: 'canal-pueblos' },
-              { k: 'Camioneta', v: fmtPrecio(pan.custom_precio_de_venta_camioneta), tono: 'canal-camioneta' },
-            ];
-            return (
-              <article key={pan.item_code} className="pan-item">
-                <div className="pan-item-id">
-                  <h3>{pan.item_name}</h3>
-                  <span className="pan-item-code">{pan.item_code}</span>
-                  <div className="pan-item-chips">
-                    {pan.item_group && <span className="pan-item-grupo">{pan.item_group}</span>}
-                    {/* El costo se puede dejar pendiente al dar de alta. Sin esta
-                        marca, «lo saco después» se convierte en nunca: no habría
-                        forma de saber a cuáles les falta. */}
-                    {!(parseFloat(pan.custom_costo_estimado) > 0) && (
-                      <span className="pan-item-pendiente" title="Sin costo estimado no se calcula el margen y la entrada de pan lo pide cada vez">
-                        falta costo
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pan-item-precios">
-                  {canales.map(c => (
-                    <div key={c.k} className={`pan-precio ${c.tono} ${!c.v ? 'pan-precio-vacio' : ''}`}>
-                      <span className="pan-precio-canal">{c.k}</span>
-                      <span className="pan-precio-valor">
-                        {c.v || (c.k === 'Sucursal' ? 'sin precio' : 'hereda')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {!soloLectura && (
-                  <button type="button" className="pan-item-editar"
-                    onClick={() => onEdit(pan.item_code)} disabled={editLoading}>
-                    Editar
-                  </button>
-                )}
-              </article>
-            );
-          })}
+        /* Misma tabla que Insumos (.sys-table): con 227 panes las tarjetas
+           obligaban a scrollear de 5 en 5. */
+        <div className="table-container">
+          <table className="sys-table">
+            <thead>
+              <tr>
+                {COLUMNAS_PAN.filter(c => !soloLectura || c !== 'Acciones')
+                  .map(col => <th key={col}>{col}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.length === 0 ? (
+                <tr>
+                  <td colSpan={COLUMNAS_PAN.length} className="no-data">
+                    Ningún pan coincide con el filtro
+                    {grupo && ` · categoría ${grupo}`}
+                    {busca.trim() && ` · búsqueda «${busca.trim()}»`}
+                  </td>
+                </tr>
+              ) : visibles.map(pan => (
+                <FilaPan key={pan.item_code} pan={pan} soloLectura={soloLectura}
+                  onEdit={onEdit} editLoading={editLoading}
+                  costoBOM={costosPan[pan.item_code]} costeado={costeado} />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
