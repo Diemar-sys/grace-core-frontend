@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   subtotalFila, impuestoFila, totalFila, calcVariacion, parseImpuesto, totalPorFila,
-  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion, mezclarComprasYGastos, desgloseEgreso, calcGasolina,
-} from './compraUtils';
+  calcularTotalesEfectivos, agruparFacturas, listarNotas, calcConversion, mezclarComprasYGastos, desgloseEgreso, calcGasolina, cambiosDePrecio } from './compraUtils';
 
 describe('compraUtils — subtotales e impuestos', () => {
   it('subtotalFila = bultos * rate', () => {
@@ -475,5 +474,58 @@ describe('calcGasolina — IVA y total copiados del CFDI', () => {
     });
     const { filas } = desgloseEgreso({ subcategoria: 'GASOLINA', descripcion });
     expect(filas[1].precio).toBe('6.4556');
+  });
+});
+
+describe('cambiosDePrecio', () => {
+  const CAT = { HARINA: { custom_precio_de_compra: 383, item_name: 'HARINA REAL ALTEÑA' } };
+
+  it('reporta el insumo que se compró más caro, con su precio anterior', () => {
+    const r = cambiosDePrecio([{ item_code: 'HARINA', item_name: 'HARINA', rate: '500' }], CAT);
+    expect(r).toEqual([{ item_code: 'HARINA', item_name: 'HARINA', antes: 383, ahora: 500 }]);
+  });
+
+  it('también reporta cuando BAJA: el catálogo sigue el precio pagado', () => {
+    const r = cambiosDePrecio([{ item_code: 'HARINA', item_name: 'HARINA', rate: '300' }], CAT);
+    expect(r[0]).toMatchObject({ antes: 383, ahora: 300 });
+  });
+
+  it('no depende de precio_catalogo en la fila: ese era el bug', () => {
+    // La fila viene SIN precio_catalogo (borrador restaurado, item recargado).
+    const r = cambiosDePrecio([{ item_code: 'HARINA', item_name: 'HARINA', rate: '500' }], CAT);
+    expect(r).toHaveLength(1);
+  });
+
+  it('mismo precio o diferencia sub-centavo no es un cambio', () => {
+    expect(cambiosDePrecio([{ item_code: 'HARINA', rate: '383' }], CAT)).toEqual([]);
+    expect(cambiosDePrecio([{ item_code: 'HARINA', rate: '383.004' }], CAT)).toEqual([]);
+  });
+
+  it('rate 0 no cuenta: el backend tampoco lo escribe', () => {
+    expect(cambiosDePrecio([{ item_code: 'HARINA', rate: '0' }], CAT)).toEqual([]);
+  });
+
+  it('sin precio previo no hay «antes» que mostrar', () => {
+    expect(cambiosDePrecio([{ item_code: 'NUEVO', rate: '100' }], CAT)).toEqual([]);
+    expect(cambiosDePrecio([{ item_code: 'X', rate: '100' }], { X: { custom_precio_de_compra: 0 } })).toEqual([]);
+  });
+
+  it('el mismo insumo en dos filas: gana la última, igual que el backend', () => {
+    const r = cambiosDePrecio([
+      { item_code: 'HARINA', item_name: 'HARINA', rate: '400' },
+      { item_code: 'HARINA', item_name: 'HARINA', rate: '500' },
+    ], CAT);
+    expect(r).toHaveLength(1);
+    expect(r[0].ahora).toBe(500);
+  });
+
+  it('toma el nombre del catálogo si la fila no lo trae', () => {
+    const r = cambiosDePrecio([{ item_code: 'HARINA', rate: '500' }], CAT);
+    expect(r[0].item_name).toBe('HARINA REAL ALTEÑA');
+  });
+
+  it('sin catálogo previo no truena', () => {
+    expect(cambiosDePrecio([{ item_code: 'HARINA', rate: '500' }], {})).toEqual([]);
+    expect(cambiosDePrecio(null, null)).toEqual([]);
   });
 });

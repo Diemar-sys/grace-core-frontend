@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { comprasService } from '../services/frappePurchase';
 import ModalError from './modals/ModalError';
 import { parseErrorFrappe } from '../utils/errorFrappe';
-import ModalSugerenciaPrecios from './compras/ModalSugerenciaPrecios';
+import ModalPreciosActualizados from './compras/ModalPreciosActualizados';
 import ModalReciboPDF from './compras/ModalReciboPDF';
 import { docToDatosImpresion, imprimirCompraTicket } from '../utils/print/comprasPrint';
 import BuscadorProveedor from './compras/BuscadorProveedor';
@@ -12,6 +12,7 @@ import FilaProducto from './compras/FilaProducto';
 import {
   FILA_VACIA, MARGEN_DEFAULT, fmt,
   parseImpuesto, subtotalFila, calcVariacion, calcularTotalesEfectivos,
+  cambiosDePrecio,
 } from './compras/compraUtils';
 import '../styles/NuevaCompra.css';
 
@@ -352,6 +353,17 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
 
     setLoading(true);
     try {
+      // El «antes» real, leído del servidor JUSTO antes de escribir. No se usa
+      // `fila.precio_catalogo` porque solo se llena al elegir el insumo del
+      // buscador: por cualquier otro camino quedaba vacío y el aviso no salía.
+      // Si esta consulta falla la compra sigue (el backend escribe el precio
+      // igual), solo se pierde el aviso.
+      let catalogoAntes = {};
+      try {
+        const codes = [...new Set(items.map(f => f.item_code))];
+        (await comprasService.getItemsCatalogo(codes)).forEach(it => { catalogoAntes[it.item_code] = it; });
+      } catch (err) { console.error('No se pudo leer el catálogo previo:', err); }
+
       let compraName;
       if (esEdicion) {
         await comprasService.actualizarBorrador(initialData.name, { supplier: proveedor.name, fecha, billNo, notaRemision, tipoComprobante, items, notas, ajuste: ajusteNum, descuento, facturadoA, taxOverrides, subtotalOverrides });
@@ -373,26 +385,13 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
           .then(full => imprimirCompraTicket(docToDatosImpresion(full)))
           .catch(err => console.error('Auto-print compra:', err));
       }
-      const conCambio = items.filter(f => calcVariacion(f)?.cambio);
-      if (conCambio.length > 0) { setCambiosPendientes(conCambio); } else { onSuccess?.(); }
+      // El backend ya escribió el precio en el Catálogo dentro de la misma
+      // transacción del submit (hook `sincronizar_precio_catalogo`). Esto solo
+      // reporta qué se movió: si la compra se confirmó, el precio se guardó.
+      const cambios = cambiosDePrecio(items, catalogoAntes);
+      if (cambios.length > 0) { setCambiosPendientes(cambios); } else { onSuccess?.(); }
     } catch (err) { setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }); }
     finally { setLoading(false); }
-  };
-
-  // ── Actualizar precios en catálogo ────────────────────────────────────────
-  const handleActualizarCatalogo = async (seleccionados) => {
-    setCambiosPendientes(null);
-    if (seleccionados.length > 0) {
-      try {
-        await Promise.all(seleccionados.map(f => {
-          const kgPorBulto    = parseFloat(f.kg_por_bulto || 0);
-          const nuevoPrecio   = parseFloat(f.rate);
-          const nuevoPrecioPorKg = kgPorBulto > 0 ? parseFloat((nuevoPrecio / kgPorBulto).toFixed(6)) : null;
-          return comprasService.actualizarPrecioCatalogo(f.item_code, nuevoPrecio, nuevoPrecioPorKg);
-        }));
-      } catch (err) { console.error('Error actualizando catálogo:', err); }
-    }
-    onSuccess?.();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -419,10 +418,9 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       />
 
       {cambiosPendientes && (
-        <ModalSugerenciaPrecios
+        <ModalPreciosActualizados
           cambios={cambiosPendientes}
-          onAceptar={handleActualizarCatalogo}
-          onOmitir={() => { setCambiosPendientes(null); onSuccess?.(); }}
+          onCerrar={() => { setCambiosPendientes(null); onSuccess?.(); }}
         />
       )}
 

@@ -506,12 +506,31 @@ const fmtPrecio = (v) => {
 };
 
 const COLUMNAS_PAN = ['Código', 'Producto', 'Categoría', 'Sucursal', 'Pueblos',
-                      'Camioneta', 'Costo', 'Acciones'];
+                      'Camioneta', 'Costo', 'Margen', 'Acciones'];
 
 /** Cuántos panes se costean de una vez. Cada costeo son 3 peticiones. */
 const LIMITE_COSTEO_PAN = 40;
 
 const APAGADO = { color: '#9ca3af', fontStyle: 'italic' };
+
+/**
+ * Margen de un pan: lo que deja cada pieza sobre lo que cuesta producirla.
+ *
+ * Devuelve null cuando falta cualquiera de los dos números, porque un margen
+ * inventado es peor que no tenerlo: «$0 de costo» se leería como 100% de
+ * ganancia justo en los panes que todavía no tienen receta.
+ *
+ * `bajoCosto` es la alerta que importa: se está vendiendo en menos de lo que
+ * cuesta. Pasó de verdad — 39 insumos costeados por debajo de su costo real
+ * (2026-08-17) hacían ver sano un pan que perdía dinero en cada pieza.
+ */
+export function calcularMargen(precioVenta, costo) {
+  const venta = parseFloat(precioVenta) || 0;
+  const cost  = parseFloat(costo) || 0;
+  if (venta <= 0 || cost <= 0) return null;
+  const pesos = venta - cost;
+  return { pesos, pct: (pesos / venta) * 100, bajoCosto: pesos < 0 };
+}
 
 /**
  * Qué pintar en la columna Costo. La receta manda: si hay BOM activo, su costo
@@ -548,6 +567,23 @@ function celdaCostoPan({ costoBOM, manual, costeado }) {
   );
 }
 
+/** Celda de Margen: en rojo si se vende bajo costo, apagada si no hay con qué. */
+function celdaMargenPan(margen) {
+  if (!margen) return <span style={APAGADO}>—</span>;
+  const color = margen.bajoCosto ? '#dc2626' : '#059669';
+  return (
+    <span style={{ color, fontWeight: 600 }}
+      title={margen.bajoCosto
+        ? 'Se vende por DEBAJO de lo que cuesta producirlo'
+        : `Deja $${margen.pesos.toFixed(2)} por pieza`}>
+      {margen.bajoCosto && '⚠ '}${margen.pesos.toFixed(2)}
+      <span style={{ ...APAGADO, fontSize: 12, marginLeft: 4 }}>
+        {margen.pct.toFixed(0)}%
+      </span>
+    </span>
+  );
+}
+
 /**
  * Una fila de pan. Los tres precios son el dato central: un canal en blanco NO
  * cobra $0, cobra el de sucursal — por eso dice «hereda» y no un guion, que se
@@ -558,6 +594,8 @@ function FilaPan({ pan, soloLectura, onEdit, editLoading, costoBOM, costeado }) 
   const pueblos = fmtPrecio(pan.custom_precio_de_venta_pueblos);
   const camioneta = fmtPrecio(pan.custom_precio_de_venta_camioneta);
   const manual = parseFloat(pan.custom_costo_estimado) || 0;
+  // La receta manda: si hay BOM se ignora el capturado, igual que en el costo.
+  const margen = calcularMargen(pan.custom_precio_de_venta, costoBOM?.costoPorUnidad || manual);
 
   return (
     <tr>
@@ -571,6 +609,7 @@ function FilaPan({ pan, soloLectura, onEdit, editLoading, costoBOM, costeado }) 
           después» se vuelva nunca: la receta ya lo calcula, o se capturó a mano,
           o de plano falta. Un cuarto caso es «no lo he consultado». */}
       <td>{celdaCostoPan({ costoBOM, manual, costeado })}</td>
+      <td>{celdaMargenPan(margen)}</td>
       {!soloLectura && (
         <td className="col-actions">
           <button className="btn-edit-row" onClick={() => onEdit(pan.item_code)}

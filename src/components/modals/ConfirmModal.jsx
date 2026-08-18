@@ -14,6 +14,9 @@ import { useEffect } from 'react';
  *  confirmClassName – Clase CSS del botón confirmar (default: 'del-btn-confirm')
  *  confirmStyle     – Style override del botón confirmar (opcional)
  *  cancelLabel      – Texto del botón cancelar (default: 'Cancelar')
+ *  hideCancel       – Oculta el botón cancelar. Para modales que AVISAN en vez
+ *                     de preguntar: si no hay decisión que tomar, ofrecer
+ *                     "Cancelar" es mentir sobre lo que ya pasó.
  *  onConfirm        – Callback al confirmar
  *  onCancel         – Callback al cancelar / click fuera
  *  loading          – Deshabilita botones y muestra loadingLabel
@@ -34,6 +37,7 @@ function ConfirmModal({
   confirmClassName,
   confirmStyle,
   cancelLabel = 'Cancelar',
+  hideCancel = false,
   onConfirm,
   onCancel,
   loading = false,
@@ -83,9 +87,11 @@ function ConfirmModal({
 
         {!error && (
           <div className="del-modal-actions">
-            <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>
-              {cancelLabel}
-            </button>
+            {!hideCancel && (
+              <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>
+                {cancelLabel}
+              </button>
+            )}
             <button
               className={confirmClassName || 'del-btn-confirm'}
               style={confirmStyle}

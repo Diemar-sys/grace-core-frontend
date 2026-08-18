@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filtrarPanes, categoriasDePanes } from './Catalogo.jsx';
+import { filtrarPanes, categoriasDePanes, calcularMargen } from './Catalogo.jsx';
 
 const PANES = [
   { item_code: '1001', item_name: 'MANTECADA GDE', item_group: 'PAN MANTECA' },
@@ -51,5 +51,37 @@ describe('categoriasDePanes', () => {
   it('ignora panes sin categoría en vez de inventar una vacía', () => {
     expect(categoriasDePanes([...PANES, { item_code: 'X', item_name: 'X' }]))
       .toHaveLength(3);
+  });
+});
+
+describe('calcularMargen', () => {
+  it('deja lo que sobra del precio de venta', () => {
+    const m = calcularMargen(10, 4);
+    expect(m.pesos).toBe(6);
+    expect(m.pct).toBe(60);
+    expect(m.bajoCosto).toBe(false);
+  });
+
+  it('marca bajoCosto cuando cuesta más de lo que se vende', () => {
+    const m = calcularMargen(4, 6);
+    expect(m.pesos).toBe(-2);
+    expect(m.bajoCosto).toBe(true);
+  });
+
+  it('sin costo devuelve null, no 100% de margen', () => {
+    expect(calcularMargen(10, 0)).toBeNull();
+    expect(calcularMargen(10, null)).toBeNull();
+    expect(calcularMargen(10, undefined)).toBeNull();
+  });
+
+  it('sin precio de venta devuelve null', () => {
+    expect(calcularMargen(0, 4)).toBeNull();
+    expect(calcularMargen(null, 4)).toBeNull();
+  });
+
+  it('vender exactamente al costo NO es bajo costo, pero deja 0', () => {
+    const m = calcularMargen(5, 5);
+    expect(m.pesos).toBe(0);
+    expect(m.bajoCosto).toBe(false);
   });
 });

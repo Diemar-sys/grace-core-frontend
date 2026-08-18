@@ -244,3 +244,39 @@ export const calcVariacion = (fila: any) => {
   const pct  = (diff / catalogo) * 100;
   return { diff, pct, actual, catalogo, cambio: Math.abs(diff) > 0.005 };
 };
+
+/**
+ * Qué precios movió esta compra en el Catálogo.
+ *
+ * El «antes» se lee del servidor justo antes de confirmar, NO de
+ * `fila.precio_catalogo`: ese campo solo se llena cuando el insumo se elige del
+ * buscador, así que por cualquier otro camino (borrador restaurado, fila
+ * recargada) quedaba vacío, `calcVariacion` devolvía null y el aviso no salía
+ * nunca — el precio cambiaba mudo.
+ *
+ * Espeja las mismas reglas que el hook `sincronizar_precio_catalogo` del
+ * backend, que es quien de verdad escribe: rate 0 no cuenta (regalo/ajuste),
+ * diferencias sub-centavo no cuentan, y si el insumo viene en varias filas gana
+ * la última. Si divergen, el modal mentiría sobre lo que pasó.
+ *
+ * @param items - Filas de la compra ({item_code, item_name, rate}).
+ * @param catalogoAntes - {item_code: {custom_precio_de_compra, item_name}} leído
+ *                        del servidor ANTES de confirmar.
+ */
+export const cambiosDePrecio = (items: any[], catalogoAntes: Record<string, any>) => {
+  const porItem = new Map<string, any>();
+  (items || []).forEach(f => {
+    const ahora = parseFloat(f.rate || 0);
+    if (!(ahora > 0)) return;
+    const prev = (catalogoAntes || {})[f.item_code];
+    const antes = parseFloat(prev?.custom_precio_de_compra || 0);
+    if (!(antes > 0)) return;               // sin precio previo no hay «antes» que mostrar
+    if (Math.abs(ahora - antes) < 0.005) return;
+    porItem.set(f.item_code, {
+      item_code: f.item_code,
+      item_name: f.item_name || prev.item_name || f.item_code,
+      antes, ahora,
+    });
+  });
+  return [...porItem.values()];
+};

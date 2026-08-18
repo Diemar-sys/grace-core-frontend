@@ -336,28 +336,6 @@ class FrappeComprasService extends FrappeBase {
     return updated.data;
   }
 
-  // ── Actualizar precio en Catálogo ────────────────────────────────────────
-
-  /**
-   * Actualiza únicamente los campos de precio de compra y precio por KG
-   * en el Catálogo de un Item, sin tocar otros campos.
-   * Se usa al confirmar una compra cuando el precio cambió dentro del margen permitido.
-   * @param itemCode - Código del item en ERPNext.
-   * @param nuevoPrecioCompra - Nuevo precio por empaque/bulto.
-   * @param nuevoPrecioPorKg - Nuevo precio por KG (null si no aplica).
-   */
-  async actualizarPrecioCatalogo(itemCode: string, nuevoPrecioCompra: number, nuevoPrecioPorKg: number | null = null) {
-    const payload: any = { custom_precio_de_compra: parseFloat(String(nuevoPrecioCompra)) };
-    if (nuevoPrecioPorKg !== null && nuevoPrecioPorKg !== undefined) {
-      payload.custom_precio_por_kg = parseFloat(String(nuevoPrecioPorKg));
-    }
-    const data = await this._fetch(
-      `/api/resource/Item/${encodeURIComponent(itemCode)}`,
-      { method: "PUT", body: JSON.stringify(payload) }
-    );
-    return data.data;
-  }
-
   // ── Cancelar compra confirmada (docstatus: 1 → 2) ───────────────────────
 
   /**
