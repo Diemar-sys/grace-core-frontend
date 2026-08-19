@@ -31,6 +31,19 @@ describe('buscarItems — búsqueda por varias palabras', () => {
     expect(f).toContainEqual(['disabled', '=', 0]);
   });
 
+  // El 17-ago se compraron 3 PZA de la PIZZA "ARRACHERA" en vez de kilos de la
+  // carne "ARRACHERA MARINADA A GRANEL". El pan y las pizzas se producen, no se
+  // compran: el buscador de compras no debe ofrecerlos nunca.
+  it('nunca ofrece productos terminados (pan y pizzas)', async () => {
+    await svc.buscarItems('arrachera');
+    expect(filtrosDe(urls[0])).toContainEqual(['custom_tipo_item', '!=', 'PRODUCTO TERMINADO']);
+  });
+
+  it('excluye productos terminados aunque no haya término de búsqueda', async () => {
+    await svc.buscarItems('');
+    expect(filtrosDe(urls[0])).toContainEqual(['custom_tipo_item', '!=', 'PRODUCTO TERMINADO']);
+  });
+
   it('ignora espacios de más', async () => {
     await svc.buscarItems('  velas   8 azul ');
     const likes = filtrosDe(urls[0]).filter(x => x[0] === 'item_name');

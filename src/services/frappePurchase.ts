@@ -102,7 +102,25 @@ class FrappeComprasService extends FrappeBase {
     if (this._abortItems) this._abortItems.abort();
     this._abortItems = new AbortController();
 
-    const filters = [["disabled", "=", 0]];
+        // El pan y las pizzas NO se compran, se producen. Sin este filtro el buscador
+    // ofrecía los 227 productos terminados del catálogo, y el 17-ago alguien
+    // compró 3 PZA de la PIZZA "ARRACHERA" ($116) queriendo kilos de la carne
+    // "ARRACHERA MARINADA A GRANEL": 3 pizzas fantasma en la bodega de insumos,
+    // el costo de la pizza pisado con el precio de un kilo de carne, y la carne
+    // real nunca entró. Quedan otros dos pares esperando su turno (PEPERONI y
+    // SALAMI, pizza contra granel).
+    // En 173 compras jamás se compró un producto terminado: no es un caso de uso
+    // que se esté cerrando, es un error que se está volviendo imposible.
+    //
+    // ponytail: se filtra por el CAMPO, no por la forma de la clave. La clave
+    // también lo dice (producto terminado 4-6 dígitos, insumo código de barras
+    // de 9-14, sin nada en medio), pero dos verdades sobre lo mismo terminan
+    // discrepando y ese es justo el bug de hoy con otra cara.
+    // Techo conocido: un `!=` en SQL no devuelve las filas con NULL, así que un
+    // item SIN tipo tampoco saldría en el buscador. Hoy los 486 lo tienen y el
+    // alta siempre pone "MATERIA PRIMA" por defecto; si algún día aparece uno
+    // vacío, se ve aquí primero.
+    const filters = [["disabled", "=", 0], ["custom_tipo_item", "!=", "PRODUCTO TERMINADO"]];
     // Cada palabra es un LIKE aparte (AND): "velas 8" encuentra
     // "VELAS ALEGRIA CONFETTY No. 8" aunque no sea texto contiguo. Antes un solo
     // LIKE "%velas%" traía las 22 velas y el límite dejaba fuera algunas.
