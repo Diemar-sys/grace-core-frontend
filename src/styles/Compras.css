@@ -194,6 +194,12 @@
   font-size: 16px;
   color: var(--tv-ink);
 }
+/* La misma trampa que ya se corrigio en global.css para .sys-table: el color
+   ink de .cell-right gana por especificidad sobre el thead carbon y deja los
+   encabezados derechos (CANTIDAD, PRECIO UNIT., SUBTOTAL) negro sobre negro.
+   Con .comprasv2 delante la regla de global ya no alcanza: hace falta esta. */
+.comprasv2 .sys-table thead th.cell-right { color: var(--tv-cream); }
+
 .comprasv2 .sys-table .cell-bold,
 .comprasv2 .comp-td-monto-total {
   font-weight: 700;

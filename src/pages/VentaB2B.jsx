@@ -211,14 +211,16 @@ function VentaB2B() {
 
   return (
     <Layout>
-      <div className="page-container">
+      {/* comprasv2: la piel moderna del sistema vive scopeada bajo esa clase
+          en Compras.css, que esta pantalla ya importaba sin usarla. */}
+      <div className="page-container comprasv2">
 
         <div className="page-header">
-          <div className="title-group" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {accionActiva !== 'menu' && (
+          <div className="title-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+            {accionActiva !== 'menu' && !soloLectura && (
               <button
                 className="btn-volver-icon"
-                onClick={() => setAccionActiva(soloLectura ? 'consultar' : 'menu')}
+                onClick={() => setAccionActiva('menu')}
                 title="Volver"
                 aria-label="Volver"
               >
@@ -228,14 +230,8 @@ function VentaB2B() {
                 </svg>
               </button>
             )}
-            <div>
-              <h1 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                Venta B2B
-              </h1>
-              <span className="header-subtitle" style={{ display: 'block', marginTop: '4px' }}>
-                Ventas mayoristas a clientes B2B externos
-              </span>
-            </div>
+            <h1 style={{ margin: 0 }}>Venta B2B</h1>
+            <span className="header-subtitle">Ventas mayoristas a clientes B2B externos</span>
           </div>
           <div className="stats-cards">
             <div className="stat-card">
@@ -384,8 +380,7 @@ function VentaB2B() {
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                               {(v.docstatus === 0 || v.docstatus === 1) && (
                                 <button className="comp-btn-editar" onClick={() => handleVerPDF(v)}
-                                  title="Ver / Imprimir PDF"
-                                  style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #d4af37' }}>
+                                  title="Ver / Imprimir PDF">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
                                 </button>
                               )}
