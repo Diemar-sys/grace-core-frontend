@@ -70,6 +70,33 @@ describe('compraUtils — calcularTotalesEfectivos (grand_total a ERPNext)', () 
     expect(r.ajusteSAT).toBeCloseTo(0.000001, 9);
   });
 
+  // Factura 11885 de MATERIAS PRIMAS PLASTICOS (18-ago-2026), capturada tal cual:
+  // dos precios del proveedor traen más de 2 decimales (97.5539 y 110.268), y ahí
+  // nace la cola. El papel dice 1,080.88; sumando crudo daban 1,080.87.
+  it('el total es el del CFDI: suma de renglones redondeados, no redondeo de la suma', () => {
+    const subtotalIva16 = 20 * 9.8 + 1 * 110.268 + 4 * 40 + 4 * 46.4;   // 651.868
+    const subtotalTasa0 = 2 * 97.5539;                                   // 195.1078
+    const subtotalIeps  = 3 * 40;                                        // 120
+    const calc = {
+      subtotal: subtotalIva16 + subtotalIeps + subtotalTasa0,
+      iva: subtotalIva16 * 0.16,        // 104.29888
+      ieps: subtotalIeps * 0.08,        // 9.6
+      subtotalIva16, subtotalIeps, subtotalTasa0,
+    };
+    const r = calcularTotalesEfectivos({ calc });
+
+    // Lo que se imprime, renglón por renglón, igual que la factura.
+    expect(Number(r.subtotalIva16.toFixed(2))).toBe(651.87);
+    expect(Number(r.subtotalTasa0.toFixed(2))).toBe(195.11);
+    expect(Number(r.subtotalIeps.toFixed(2))).toBe(120.00);
+    expect(Number(r.iva.toFixed(2))).toBe(104.30);
+    expect(Number(r.ieps.toFixed(2))).toBe(9.60);
+
+    // Y el total cuadra con esos renglones (966.98 + 104.30 + 9.60), no con la
+    // suma cruda 1080.87468 que se quedaba a 0.00032 del medio centavo.
+    expect(Number(r.total.toFixed(2))).toBe(1080.88);
+  });
+
   it('override de IVA manual reemplaza el calculado (solo si calc.iva > 0)', () => {
     const r = calcularTotalesEfectivos({
       calc: calcBase,

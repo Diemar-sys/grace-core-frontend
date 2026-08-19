@@ -84,8 +84,23 @@ export const calcularTotalesEfectivos = ({ calc, overrides = {}, manual = {}, aj
   const ieps = (manual.ieps && calc.ieps > 0) ? num(overrides.ieps) : calc.ieps;
 
   const rawTotal       = baseGravable + iva + ieps;
-  // Ajuste SAT: lleva el total (pre-descuento) a 2 decimales exactos sin redondeo intermedio.
-  const ajusteSAT      = Math.round((Math.round(rawTotal * 100) / 100 - rawTotal) * 1e6) / 1e6;
+
+  // Ajuste SAT: lleva el total (pre-descuento) al MISMO peso que imprime el CFDI.
+  //
+  // El proveedor redondea cada renglón a 2 decimales y suma esos redondeados; aquí
+  // se sumaba con precisión completa y se redondeaba al final. No es lo mismo:
+  // factura 11885 (18-ago) daba 1,080.87 contra 1,080.88 del papel, y la suma cruda
+  // —1,080.87468— se quedó a 0.00032 del medio centavo. Subtotales, IVA y IEPS
+  // cuadraban uno por uno; solo el total no, porque los renglones impresos no eran
+  // los que se estaban sumando. Un total que no es la suma de lo que está escrito
+  // arriba es un fantasma en pantalla.
+  //
+  // Ahora el objetivo es la suma de los renglones YA redondeados, que es tanto lo
+  // que se pinta como lo que el proveedor cobra. rawTotal sigue crudo: la
+  // diferencia viaja en el ajuste, que es justo para lo que existe.
+  const r2             = (n: number) => Math.round(n * 100) / 100;
+  const totalCfdi      = r2(r2(subtotalIva16) + r2(subtotalIeps) + r2(subtotalTasa0) + r2(iva) + r2(ieps));
+  const ajusteSAT      = Math.round((totalCfdi - rawTotal) * 1e6) / 1e6;
   const ajusteEfectivo = manual.ajuste ? num(ajuste) : ajusteSAT;
   const ajusteParaErp  = ajusteEfectivo + subtotalDiff;
 
