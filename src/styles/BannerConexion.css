@@ -1,0 +1,42 @@
+/* Franja de aviso de conexión. Estilos propios y no los de .version-banner:
+   este banner vive fuera de Layout y no puede depender de Layout.css. */
+.banner-conexion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: 10px var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid;
+}
+
+/* Rojo: se perdió la red, y lo que se guarde ahorita se pierde. */
+.banner-conexion.banner-sin-red {
+  background: #fee2e2;
+  color: #7f1d1d;
+  border-bottom-color: #fca5a5;
+}
+
+/* Verde: ya volvió, solo falta recargar. */
+.banner-conexion.banner-volvio {
+  background: #dcfce7;
+  color: #14532d;
+  border-bottom-color: #86efac;
+}
+
+.banner-conexion button {
+  border: 0;
+  padding: 5px 16px;
+  border-radius: var(--radius-pill);
+  background: #14532d;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.banner-conexion button:hover { background: #166534; }
+
+/* En papel no existe. */
+@media print { .banner-conexion { display: none; } }

@@ -24,6 +24,7 @@ import Nomina from './pages/Nomina';
 import Cuentas from './pages/Cuentas';
 import Auditoria from './pages/Auditoria';
 import ErrorBoundary from './components/ErrorBoundary';
+import BannerConexion from './components/BannerConexion';
 
 /**
  * Componente principal de la aplicación.
@@ -36,6 +37,9 @@ function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+      {/* Fuera de <Routes>: el aviso de red sale en cualquier pantalla,
+          incluido el Panel, que no pasa por Layout. */}
+      <BannerConexion />
       <Routes>
         {/* Ruta pública */}
         <Route path="/" element={<Navigate to="/login" />} />
