@@ -92,7 +92,8 @@ function ConteoFisico({ onSuccess, onCancel }) {
     setError(null);
     // Stock Reconciliation guarda qty en base y SOLO acepta ítems con diferencia real.
     if (!lineasAjuste(conteo, items).length) {
-      setError('El conteo coincide con el stock del sistema: no hay diferencias que ajustar.');
+      setError({ title: 'Sin diferencias',
+                 message: 'El conteo coincide con el stock del sistema: no hay diferencias que ajustar.' });
       return;
     }
     setPassword('');
@@ -295,7 +296,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
               placeholder="Tu contraseña"
               style={{ width: '100%', padding: '10px 14px', marginTop: 8, borderRadius: 12, border: '1px solid var(--tv-line, #e2ddd4)', boxSizing: 'border-box' }}
             />
-            {passError && <p style={{ color: 'var(--tv-stop)', marginTop: 10, fontSize: 14 }}>{passError}</p>}
+            {passError && <p style={{ color: 'var(--tv-stop)', marginTop: 10, fontSize: 14 }}>{passError.message}</p>}
             <div className="del-modal-actions" style={{ marginTop: 16 }}>
               <button className="del-btn-cancel" onClick={() => setPidiendoPass(false)} disabled={sending}>
                 Cancelar
@@ -308,7 +309,8 @@ function ConteoFisico({ onSuccess, onCancel }) {
         </div>
       )}
 
-      {error && <ModalError isOpen message={error} onClose={() => setError(null)} />}
+      {error && <ModalError isOpen title={error.title} message={error.message}
+                            onClose={() => setError(null)} />}
     </div>
   );
 }

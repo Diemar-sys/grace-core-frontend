@@ -9,13 +9,26 @@ import '../../styles/global.css';
  * @param {Object} props
  * @param {boolean} props.isOpen - Visibilidad del modal
  * @param {string} [props.title="ADVERTENCIA"] - Título rojo
- * @param {string} props.message - El mensaje central del error (acepta saltos de línea)
+ * @param {string|{message:string}} props.message - El mensaje central (acepta saltos de
+ *   línea). Si llega el objeto de `parseErrorFrappe` se usa su `.message` en vez
+ *   de tronar: un modal de error no debe poder tumbar la app.
  * @param {string} [props.type="error"] - "error", "success-create" (doble check), "success-update" (check en cuadro)
  * @param {Function} props.onClose - Handler invocado para descartar la alerta
  * @returns {JSX.Element|null} El contenedor o render null si `!isOpen`
  */
 function ModalError({ isOpen, title, message, type = "error", onClose, onConfirm, confirmLabel, cancelLabel }) {
   if (!isOpen) return null;
+
+  // El modal de error es el camino que MÁS robusto tiene que ser: si truena, se
+  // lleva la pantalla entera y encima esconde el error que iba a mostrar. Pasó
+  // en producción el 2026-08-21 — `parseErrorFrappe` devuelve {title, message}
+  // y alguien lo pasó completo como `message`; React lanza el error #31
+  // ("Objects are not valid as a React child") y el ErrorBoundary se comió el
+  // ajuste de inventario. Quien llame mal sigue estando mal, pero el usuario ve
+  // su mensaje en vez de una pantalla muerta.
+  const texto = typeof message === "string" || message == null
+    ? message
+    : (message.message ?? JSON.stringify(message));
 
   const isSuccess = type.startsWith("success");
   const defaultTitle = isSuccess ? "ÉXITO" : "ADVERTENCIA";
@@ -67,7 +80,7 @@ function ModalError({ isOpen, title, message, type = "error", onClose, onConfirm
           {renderIcon()}
         </div>
         <h3 style={{ color: titleColor }}>{title || defaultTitle}</h3>
-        <p className="modal-aviso-mensaje">{message}</p>
+        <p className="modal-aviso-mensaje">{texto}</p>
         <div className="del-modal-actions" style={{ marginTop: '24px' }}>
           {onConfirm ? (
             <>
