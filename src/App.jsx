@@ -10,6 +10,7 @@ import EnvioSucursal from './pages/EnvioSucursal';
 import POS from './pages/POS';
 import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
+import Pedido from './pages/Pedido';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
 import Kardex from './pages/Kardex';
@@ -51,6 +52,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Panel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pedido"
+          element={
+            <ProtectedRoute>
+              <Pedido />
             </ProtectedRoute>
           }
         />

@@ -58,7 +58,7 @@ function Layout({ children }) {
   // Rutas que pertenecen a Operaciones (todas las páginas de módulos sin ?modo=consulta)
   const RUTAS_OPERACIONES = new Set([
     '/catalogo', '/inventario', '/compras', '/venta-b2b',
-    '/envio-sucursal', '/proveedores', '/pos', '/produccion',
+    '/envio-sucursal', '/proveedores', '/pos', '/pedido', '/produccion',
   ]);
   // Egresos vive como módulo de Operaciones (tile en /panel), ya no como pestaña propia.
   const enOperaciones = (RUTAS_OPERACIONES.has(location.pathname)

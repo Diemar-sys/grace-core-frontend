@@ -12,7 +12,7 @@ export interface RoleConfig {
 const ROUTE: Record<string, string> = {
   catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
   venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
-  pos: '/pos', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
+  pos: '/pos', pedido: '/pedido', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
 };
 
 // Debe cubrir todo MODULOS_REPORTES de Panel.jsx: una tarjeta sin su ruta aquí
@@ -31,9 +31,9 @@ function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { rep
   ];
 }
 
-const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'egresos'];
-const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'egresos'];
-const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'produccion', 'egresos', 'nomina'];
+const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'pedido', 'egresos'];
+const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pedido', 'egresos'];
+const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'pedido', 'produccion', 'egresos', 'nomina'];
 
 export const ROLES: Record<string, RoleConfig> = {
   Vendedor: {
