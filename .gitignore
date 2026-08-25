@@ -33,3 +33,9 @@ __pycache__/
 
 # Config local Claude Code
 .claude/
+
+# Notas de trabajo locales, NO documentación del repo.
+# ESTADO.md cambia cada sesión y ARQUITECTURA.md duplicaría
+# erp-grace-infra/ARCHITECTURE.md, que es el mapa del sistema.
+ESTADO.md
+ARQUITECTURA.md
