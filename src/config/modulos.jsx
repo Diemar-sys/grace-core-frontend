@@ -48,6 +48,8 @@ export const MODULOS_CONSULTAS = [
   { key: "venta_b2b",   path: "/venta-b2b?modo=consulta",   icon: <IconVentaB2B />,    nombre: "Venta B2B",      sub: "Historial de ventas", color: "#388e3c",   bg: "#e8f5e9" },
   { key: "envio_sucursal", path: "/envio-sucursal?modo=consulta", icon: <IconEnvioSucursal />, nombre: "Envío a Sucursal", sub: "Ver registros", color: "#0891b2", bg: "#cffafe" },
   { key: "proveedores", path: "/proveedores?modo=consulta", icon: <IconProveedores />, nombre: "Proveedores",    sub: "Ver registros",      color: "#6a1b9a",   bg: "#f3e5f5" },
+  { key: "pedido",      path: "/consultas/pedido",          icon: <IconProduccion />,  nombre: "Pedido del día", sub: "Ver un pedido guardado", color: "#7c3aed", bg: "#ede9fe" },
+  { key: "pedido",      path: "/consultas/tablero",         icon: <IconEnvioSucursal />, nombre: "Tablero del reparto", sub: "Qué falta, qué sobró", color: "#c2410c", bg: "#ffedd5" },
   { key: "pos",         path: "/consultas/pos",             icon: <IconPOS />,         nombre: "Punto de Venta", sub: "Historial de ventas", color: "#bf360c",   bg: "#fbe9e7" },
   { key: "produccion",  path: "/produccion?modo=consulta",  icon: <IconProduccion />,  nombre: "Producción",     sub: "Ver registros",      color: "#3b848aff", bg: "#d1f0f3ff" },
   { key: "egresos",     path: "/egresos?modo=consulta",     icon: <IconEgresos />,     nombre: "Egresos",        sub: "Ver registros",      color: "#dc2626",   bg: "#fee2e2" },
@@ -61,6 +63,7 @@ export const MODULOS_REPORTES = [
   { key: "ventas_categoria", path: "/reportes/ventas-categoria", icon: <IconReporte />, nombre: "Ventas por Categoría", sub: "B2B agrupado por item_group", color: "#7c2d12", bg: "#fed7aa" },
   { key: "compras_reporte", path: "/reportes/compras", icon: <IconReporte />, nombre: "Compras", sub: "Resumen fiscal mensual por proveedor", color: "#1565c0", bg: "#e3f0ff" },
   { key: "cxp_reporte", path: "/reportes/cuentas-por-pagar", icon: <IconReporte />, nombre: "Cuentas por Pagar", sub: "Saldo de egresos por proveedor", color: "#b45309", bg: "#fef3c7" },
+  { key: "valorizacion", path: "/reportes/valorizacion", icon: <IconReporte />, nombre: "Valorización de Envíos", sub: "Cuánto se mandó y cuánto vale", color: "#0f766e", bg: "#ccfbf1" },
   { key: "cxc_reporte", path: "/reportes/cuentas-por-cobrar", icon: <IconReporte />, nombre: "Cuentas por Cobrar", sub: "Saldo de ventas B2B por cliente", color: "#15803d", bg: "#dcfce7" },
 ];
 

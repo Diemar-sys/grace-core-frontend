@@ -11,6 +11,8 @@ import POS from './pages/POS';
 import Inventario from './pages/Inventario';
 import Produccion from './pages/Produccion';
 import Pedido from './pages/Pedido';
+import ConsultaPedido from './pages/ConsultaPedido';
+import ConsultaTablero from './pages/ConsultaTablero';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsultasPOS from './pages/ConsultasPOS';
 import Kardex from './pages/Kardex';
@@ -18,6 +20,7 @@ import ReportesVentasCategoria from './pages/ReportesVentasCategoria';
 import ReporteGastos from './pages/ReporteGastos';
 import ReporteGastosAnual from './pages/ReporteGastosAnual';
 import ReporteCompras from './pages/ReporteCompras';
+import ReporteValorizacion from './pages/ReporteValorizacion';
 import ReporteCuentasPorPagar from './pages/ReporteCuentasPorPagar';
 import ReporteCuentasPorCobrar from './pages/ReporteCuentasPorCobrar';
 import Egresos from './pages/Egresos';
@@ -60,6 +63,30 @@ function App() {
           element={
             <ProtectedRoute>
               <Pedido />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/consultas/pedido"
+          element={
+            <ProtectedRoute>
+              <ConsultaPedido />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/valorizacion"
+          element={
+            <ProtectedRoute>
+              <ReporteValorizacion />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/consultas/tablero"
+          element={
+            <ProtectedRoute>
+              <ConsultaTablero />
             </ProtectedRoute>
           }
         />

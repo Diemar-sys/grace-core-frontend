@@ -1,6 +1,8 @@
 // src/components/NuevoEnvioSucursal.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { stockService } from '../services/frappeStock';
+import { pedidoService } from '../services/frappePedido';
+import { inventory } from '../services/frappeInventory';
 import { fmtUom } from '../utils/uom';
 import { BODEGA_CENTRAL } from '../config/constants';
 import useSucursales from '../hooks/useSucursales';
@@ -70,6 +72,8 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const [tipoItem, setTipoItem] = useState('');
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
+  const [jalando, setJalando] = useState(false);
+  const [avisoPedido, setAvisoPedido] = useState('');
   const [success, setSuccess] = useState('');
   const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '' });
   const inputRefs = useRef([]);
@@ -139,6 +143,88 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     }
   }, [agregarFila]);
 
+  // ── Traer lo que toca reponer ───────────────────────────────────────────
+  // El gemelo del botón de arriba, para los insumos. El sistema no sabe cuántas
+  // bolsas le quedan a la sucursal —usar una no genera movimiento— pero sí cada
+  // cuánto se le reponen, y eso basta para llenar la carga: lo vencido primero,
+  // con la cantidad que se le suele mandar. Sugerido, no mandado.
+  const traerReposicion = async () => {
+    setJalando(true);
+    setAvisoPedido('');
+    try {
+      const d = await inventory.getReposicion(true);
+      const delDestino = d.renglones.filter(r => r.almacen === warehouseDestino);
+      if (!delDestino.length) {
+        setAvisoPedido('A este destino no le toca reponer nada todavía.');
+        return;
+      }
+      setFilas(delDestino.map(r => {
+        // El mismo tope que el botón del pedido: min(lo que se suele mandar, lo
+        // que hay). Sugerir 5 Kg de polipapel cuando en bodega hay 1.18 manda a
+        // confirmar un traspaso que el servidor va a rechazar —el sitio no
+        // permite stock negativo— y quien surte no sabría por qué.
+        const sugerido = Math.min(r.cantidad_tipica || 0, r.disponible || 0);
+        return {
+          ...FILA_VACIA(),
+          item_code: r.clave,
+          item_name: r.producto,
+          // sin `uom` el renglón sale al Stock Entry con unidad vacía
+          uom: r.uom,
+          qty: sugerido ? String(sugerido) : '',
+          stock: r.disponible,
+        };
+      }));
+      const vencidos = delDestino.filter(r => r.estado === 'vencido').length;
+      const sinExistencia = delDestino.filter(r => !r.disponible).length;
+      setAvisoPedido(
+        `${delDestino.length} insumos por reponer`
+        + (vencidos ? ` · ${vencidos} ya le tocaban` : '')
+        + (sinExistencia ? ` · ${sinExistencia} sin existencia en bodega, van en cero` : ''),
+      );
+    } catch (err) {
+      setAvisoPedido(err.message);
+    } finally {
+      setJalando(false);
+    }
+  };
+
+  // ── Traer del pedido del día ────────────────────────────────────────────
+  // El pedido ya tiene, por destino y por producto, cuántas piezas van. Teclear
+  // esos mismos 70 renglones a mano es la forma más cara de equivocarse. Se
+  // prellenan, NO se mandan: la cantidad sugerida es min(lo que falta, lo que
+  // hay), y quien surte la corrige con lo que de verdad contó.
+  const traerDelPedido = async () => {
+    setJalando(true);
+    setAvisoPedido('');
+    try {
+      const d = await pedidoService.sugerenciaEnvio(fecha, warehouseDestino, warehouseOrigen);
+      const conPendiente = d.renglones.filter(r => r.falta > 0);
+      if (!conPendiente.length) {
+        setAvisoPedido(d.destino
+          ? `El pedido de hoy para ${d.destino} ya está surtido desde este almacén.`
+          : 'Ese destino no viene en el pedido de hoy; captúralo a mano.');
+        return;
+      }
+      setFilas(conPendiente.map(r => ({
+        ...FILA_VACIA(),
+        item_code: r.clave,
+        item_name: r.producto,
+        uom: 'PZA',
+        qty: r.sugerido ? String(r.sugerido) : '',
+        stock: r.disponible,
+      })));
+      const sinPan = conPendiente.filter(r => r.disponible <= 0).length;
+      setAvisoPedido(
+        `${conPendiente.length} productos del pedido de ${d.destino}`
+        + (sinPan ? ` · ${sinPan} sin pan en el almacén, van en cero` : ''),
+      );
+    } catch (err) {
+      setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
+    } finally {
+      setJalando(false);
+    }
+  };
+
   // ── Validación ──────────────────────────────────────────────────────────
   const validar = () => {
     if (!warehouseDestino) {
@@ -155,7 +241,10 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
       const lista = sinStock.map(f =>
         `• ${f.item_name}: pides ${f.qty} ${f.uom || ''}, hay ${f.stock} ${f.uom || ''}`
       ).join('\n');
-      setErrorModal({ isOpen: true, title: 'Stock insuficiente', message: `Bodega Central no tiene suficiente:\n\n${lista}` });
+      // El origen ya no siempre es Bodega Central: el pan sale del almacén de su
+      // departamento. Nombrar el almacén equivocado manda a buscar el pan al
+      // lugar donde no está.
+      setErrorModal({ isOpen: true, title: 'Stock insuficiente', message: `${warehouseOrigen} no tiene suficiente:\n\n${lista}` });
       return null;
     }
     return validos;
@@ -300,7 +389,30 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
           </div>
         </div>
 
-        <p className="nc-section-title">Productos a enviar</p>
+        <div className="nc-pedido-barra">
+          <p className="nc-section-title">Productos a enviar</p>
+          <button
+            type="button"
+            className="nc-btn-pedido"
+            onClick={traerDelPedido}
+            disabled={jalando || !warehouseDestino}
+            title="Llena los renglones con lo que este destino pidió hoy y aún no le llega"
+          >
+            {jalando ? 'Buscando…' : 'Traer del pedido del día'}
+          </button>
+          {warehouseOrigen === BODEGA_CENTRAL && (
+            <button
+              type="button"
+              className="nc-btn-pedido"
+              onClick={traerReposicion}
+              disabled={jalando || !warehouseDestino}
+              title="Llena los renglones con los insumos a los que ya se les pasó su ritmo de reposición"
+            >
+              {jalando ? 'Buscando…' : 'Traer lo que toca reponer'}
+            </button>
+          )}
+        </div>
+        {avisoPedido && <p className="nc-pedido-aviso">{avisoPedido}</p>}
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
             <colgroup>

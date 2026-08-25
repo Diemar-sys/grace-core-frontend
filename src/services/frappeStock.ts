@@ -699,7 +699,7 @@ class FrappeStockService extends FrappeBase {
       const params = new URLSearchParams({
         fields: JSON.stringify([
           'item_code', 'custom_cantidad_por_presentación',
-          'custom_precio_por_kg', 'custom_precio_de_venta',
+          'custom_precio_de_venta',
           'custom_precio_de_venta_pueblos', 'custom_precio_de_venta_camioneta',
           'standard_rate',
         ]),

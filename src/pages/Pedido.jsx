@@ -2,7 +2,6 @@
 // Importa el pedido diario desde la hoja de Drive del jefe.
 // El pedido se sigue capturando en Drive (a la 1 AM, sin conexión y sin depender
 // de la torre); aquí solo entra al sistema, ya cerrado, en la mañana.
-// ponytail: sin CSS propio, reusa las clases de Producción y global.
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
@@ -10,7 +9,7 @@ import { pedidoService, leerBase64, urlPdfPedido } from '../services/frappePedid
 import { hojaDelDia } from '../utils/pedidoDia';
 import { agruparDestinos, enOrden } from '../utils/gruposDestino';
 import '../styles/global.css';
-import '../styles/Produccion.css';
+import '../styles/Pedido.css';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const suma = (piezas) => Object.values(piezas).reduce((a, b) => a + b, 0);
@@ -31,12 +30,42 @@ export default function Pedido() {
   const [enviado, setEnviado] = useState('');
   const [aQuien, setAQuien] = useState('');
   const [aQuienes, setAQuienes] = useState([]);
+  // Cambiar la key vacía el <input type="file">: sin eso, volver a elegir el
+  // MISMO archivo después de quitarlo no dispara onChange y la pantalla se queda
+  // muda. ponytail: una key basta, no hace falta un ref.
+  const [nonce, setNonce] = useState(0);
+  // Lo guardado de ESA fecha, que es sobre lo que trabajan el PDF y Telegram.
+  // null mientras no se sabe: los botones arrancan apagados, no prendidos.
+  const [guardado, setGuardado] = useState(null);
 
   useEffect(() => {
     pedidoService.destinatarios()
       .then((lista) => { setAQuienes(lista); setAQuien((a) => a || lista[0] || ''); })
       .catch(() => {});   // sin bot configurado la pantalla sigue sirviendo
   }, []);
+
+  useEffect(() => {
+    let vigente = true;
+    setGuardado(null);
+    pedidoService.hayPedido(fecha)
+      .then((hay) => { if (vigente) setGuardado(hay); })
+      .catch(() => { if (vigente) setGuardado(false); });
+    return () => { vigente = false; };
+  }, [fecha]);
+
+  const limpiar = () => {
+    setArchivo(null);
+    setDatos('');
+    setHojas(null);
+    setCuadre(null);
+    setGrupos({});
+    setOrdenGrupos([]);
+    setElegidas([]);
+    setAbierta('');
+    setResultado(null);
+    setEnviado('');
+    setNonce((n) => n + 1);
+  };
 
   const elegirArchivo = async (e) => {
     const f = e.target.files?.[0];
@@ -57,7 +86,7 @@ export default function Pedido() {
       setAbierta('__todo__');   // arranca en el pedido del día completo
     } catch (err) {
       setError(err.message);
-      setArchivo(null);
+      limpiar();
     } finally {
       setCargando(false);
     }
@@ -72,6 +101,7 @@ export default function Pedido() {
     try {
       setResultado(await pedidoService.importar(datos, archivo.name, fecha, elegidas));
       setHojas(null);
+      setGuardado(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -93,30 +123,70 @@ export default function Pedido() {
 
   return (
     <Layout title="Pedido del día" subtitle="Importar la hoja de producción de Drive">
-      <div className="registro-form">
-        <h3>Subir la hoja</h3>
-        <div className="registro-grid">
-          <div className="registro-field">
-            <label>Archivo de la hoja *</label>
-            <input type="file" accept=".xlsx,.csv,text/csv" onChange={elegirArchivo} />
+      <div className="ped-card">
+        <div className="ped-card-head">
+          <h3>Subir la hoja</h3>
+          {archivo && <span className="ped-badge info">Hoja cargada</span>}
+        </div>
+
+        <div className="ped-grid">
+          <div className="ped-field ped-archivo">
+            <label htmlFor="ped-file">Archivo de la hoja *</label>
+            {archivo ? (
+              <span className="ped-archivo-puesto">
+                <span className="ped-archivo-nombre" title={archivo.name}>{archivo.name}</span>
+                <button
+                  type="button"
+                  className="ped-archivo-quitar"
+                  onClick={limpiar}
+                  title="Quitar el archivo"
+                  aria-label="Quitar el archivo"
+                >
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <>
+                <input
+                  key={nonce}
+                  id="ped-file"
+                  type="file"
+                  accept=".xlsx,.csv,text/csv"
+                  onChange={elegirArchivo}
+                />
+                <label className="ped-archivo-elegir" htmlFor="ped-file">
+                  Elegir el .xlsx de Drive
+                </label>
+              </>
+            )}
           </div>
-          <div className="registro-field">
-            <label>Fecha del pedido *</label>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <div className="ped-field">
+            <label htmlFor="ped-fecha">Fecha del pedido *</label>
+            <input
+              id="ped-fecha"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+            />
           </div>
         </div>
-        <p>
-          <button className="btn-primary" onClick={() => window.open(urlPdfPedido(fecha), '_blank')}>
+
+        <div className="ped-acciones">
+          <button
+            className="ped-btn secundario"
+            disabled={!guardado}
+            onClick={() => window.open(urlPdfPedido(fecha), '_blank')}
+          >
             Descargar el PDF
-          </button>{' '}
+          </button>
           {aQuienes.length > 1 && (
             <select value={aQuien} onChange={(e) => setAQuien(e.target.value)}>
               {aQuienes.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
-          )}{' '}
+          )}
           <button
-            className="btn-primary"
-            disabled={cargando || !aQuienes.length}
+            className="ped-btn primario"
+            disabled={cargando || !aQuienes.length || !guardado}
             onClick={async () => {
               setCargando(true);
               setEnviado('');
@@ -132,42 +202,57 @@ export default function Pedido() {
           >
             {aQuienes.length ? `Enviar a ${aQuien}` : 'Telegram sin configurar'}
           </button>
-          {enviado && <span> ✅ {enviado}</span>}
-        </p>
-        <p>
+          {enviado && <span className="ped-badge ok">{enviado}</span>}
+          {guardado === false && (
+            <span className="ped-hint">
+              No hay pedido guardado del {fecha}: impórtalo abajo y estos dos se prenden.
+            </span>
+          )}
+        </div>
+
+        <p className="ped-nota">
           Los dos botones mandan el pedido <strong>ya guardado</strong> de esa fecha,
           no lo que estés viendo abajo.
         </p>
-        <p>
+        <p className="ped-nota">
           En Drive: <strong>Archivo → Descargar → Microsoft Excel (.xlsx)</strong> y sube
           ese archivo: trae todas las pestañas de un jalón. El CSV también sirve, pero
           solo exporta la pestaña que tengas abierta.
         </p>
       </div>
 
-      {cargando && <div className="registro-form">Leyendo…</div>}
+      {cargando && <div className="ped-card ped-cargando">Leyendo la hoja…</div>}
 
       {resultado && (
-        <div className="registro-form">
-          <h3>✅ Pedido {resultado.pedido} guardado</h3>
-          <p>
-            {resultado.renglones} renglones · pestañas:{' '}
-            <strong>{resultado.pestanas.join(', ')}</strong> · destinos:{' '}
+        <div className="ped-card">
+          <div className="ped-card-head">
+            <h3>Pedido {resultado.pedido} guardado</h3>
+            <span className="ped-badge ok">{resultado.renglones} renglones</span>
+          </div>
+          <p className="ped-nota">
+            Pestañas: <strong>{resultado.pestanas.join(', ')}</strong> · destinos:{' '}
             <strong>{resultado.destinos.join(', ')}</strong>
           </p>
           {resultado.problemas.length > 0 && (
-            <div className="prod-stock-alert">
-              {resultado.problemas.length} renglones quedaron fuera por su clave.
-            </div>
+            <p className="ped-nota">
+              <span className="ped-badge bad">
+                {resultado.problemas.length} renglones quedaron fuera por su clave
+              </span>
+            </p>
           )}
         </div>
       )}
 
       {hojas && (
         <>
-          <div className="registro-form">
-            <h3>{archivo?.name}</h3>
-            <p>Elige qué pestañas entran al pedido del día:</p>
+          <div className="ped-card">
+            <div className="ped-card-head">
+              <h3>{archivo?.name}</h3>
+              <button className="ped-btn secundario" onClick={limpiar}>
+                Quitar el archivo
+              </button>
+            </div>
+            <p className="ped-nota">Elige qué pestañas entran al pedido del día:</p>
             <div className="table-container">
               <table className="sys-table">
                 <thead>
@@ -186,42 +271,61 @@ export default function Pedido() {
                       <td>
                         <input
                           type="checkbox"
+                          className="ped-check"
                           checked={elegidas.includes(h.pestana)}
                           onChange={() => alternar(h.pestana)}
                         />
                       </td>
                       <td>
-                        <button className="prod-tab-btn" onClick={() => setAbierta(h.pestana)}>
+                        <button
+                          className={`ped-tab${abierta === h.pestana ? ' is-active' : ''}`}
+                          onClick={() => setAbierta(h.pestana)}
+                        >
                           {h.pestana}
                         </button>
-                        {h.es_resumen && ' — resumen de las otras'}
-                        {!!h.duplica_a.length && ` — ya viene en ${h.duplica_a.join(', ')}`}
-                        {!h.renglones.length && ' — no pidió nada hoy'}
+                        {h.es_resumen && <span className="ped-hint"> — resumen de las otras</span>}
+                        {!!h.duplica_a.length && (
+                          <span className="ped-hint"> — ya viene en {h.duplica_a.join(', ')}</span>
+                        )}
+                        {!h.renglones.length && <span className="ped-hint"> — no pidió nada hoy</span>}
                       </td>
                       <td className="cell-right">{h.renglones.length}</td>
                       <td className="cell-right">{h.total_piezas.toLocaleString('es-MX')}</td>
                       <td>{h.destinos.join(', ')}</td>
-                      <td className="cell-right">{h.problemas.length || ''}</td>
+                      <td className="cell-right">
+                        {h.problemas.length
+                          ? <span className="ped-badge bad">{h.problemas.length}</span>
+                          : ''}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p>
-              Se van a importar <strong>{elegidas.length}</strong> pestañas ·{' '}
-              <strong>{totalElegido.toLocaleString('es-MX')}</strong> piezas
-            </p>
-            <button className="btn-primary" onClick={confirmar} disabled={cargando || !elegidas.length}>
-              ✓ Importar al sistema
-            </button>
+            <div className="ped-confirmar">
+              <span className="ped-resumen">
+                Se van a importar <strong>{elegidas.length}</strong> pestañas ·{' '}
+                <strong>{totalElegido.toLocaleString('es-MX')}</strong> piezas
+              </span>
+              <button
+                className="ped-btn primario"
+                onClick={confirmar}
+                disabled={cargando || !elegidas.length}
+              >
+                Importar al sistema
+              </button>
+            </div>
           </div>
 
           {cuadre && (
-            <div className="registro-form">
-              <h3>
-                {cuadre.diferencias.length ? '⚠️' : '✅'} Cuadre contra «{cuadre.pestana}»
-              </h3>
-              <p>
+            <div className="ped-card">
+              <div className="ped-card-head">
+                <h3>Cuadre contra «{cuadre.pestana}»</h3>
+                {cuadre.diferencias.length
+                  ? <span className="ped-badge warn">{cuadre.diferencias.length} no cuadran</span>
+                  : <span className="ped-badge ok">Cuadra</span>}
+              </div>
+              <p className="ped-nota">
                 {cuadre.comparados} productos cuadran con el resumen
                 {cuadre.diferencias.length
                   ? `, ${cuadre.diferencias.length} no. El resumen lleva la cuenta en charolas y el detalle en piezas: si no coinciden, falta una pestaña por marcar o alguien tecleó de más en una de las dos.`
@@ -256,8 +360,11 @@ export default function Pedido() {
           )}
 
           {hoja?.problemas.length > 0 && (
-            <div className="registro-form">
-              <h3>🔴 En «{hoja.pestana}» estos renglones NO se importan</h3>
+            <div className="ped-card">
+              <div className="ped-card-head">
+                <h3>En «{hoja.pestana}» estos renglones NO se importan</h3>
+                <span className="ped-badge bad">{hoja.problemas.length} fuera</span>
+              </div>
               <div className="table-container">
                 <table className="sys-table">
                   <thead>
@@ -278,19 +385,22 @@ export default function Pedido() {
           )}
 
           {avisos.length > 0 && (
-            <div className="registro-form">
-              <h3>⚠️ Sí entran, pero el nombre no coincide</h3>
-              <p>Manda la clave, no el nombre. Revisa que sea el pan que crees.</p>
-              <ul>{avisos.map((r, i) => <li key={i}>{r.aviso}</li>)}</ul>
+            <div className="ped-card">
+              <div className="ped-card-head">
+                <h3>Sí entran, pero el nombre no coincide</h3>
+                <span className="ped-badge warn">{avisos.length} por revisar</span>
+              </div>
+              <p className="ped-nota">Manda la clave, no el nombre. Revisa que sea el pan que crees.</p>
+              <ul className="ped-avisos">{avisos.map((r, i) => <li key={i}>{r.aviso}</li>)}</ul>
             </div>
           )}
 
           {hoja && (
-            <div className="registro-form">
-              <div className="registro-grid">
-                <div className="registro-field">
-                  <label>Ver el pedido de</label>
-                  <select value={abierta} onChange={(e) => setAbierta(e.target.value)}>
+            <div className="ped-card">
+              <div className="ped-grid">
+                <div className="ped-field">
+                  <label htmlFor="ped-ver">Ver el pedido de</label>
+                  <select id="ped-ver" value={abierta} onChange={(e) => setAbierta(e.target.value)}>
                     <option value={TODO}>
                       — TODO EL DÍA (las {elegidas.length} pestañas marcadas) —
                     </option>
@@ -303,12 +413,16 @@ export default function Pedido() {
                   </select>
                 </div>
               </div>
-              <h3>
-                {abierta === TODO
-                  ? `Pedido del día — ${hoja.renglones.length} productos, ${hoja.total_piezas.toLocaleString('es-MX')} piezas`
-                  : `«${hoja.pestana}» — lo que se va a importar`}
-              </h3>
-              {!hoja.renglones.length && <p>«{hoja.pestana}» no pidió nada hoy.</p>}
+              <div className="ped-card-head" style={{ marginTop: 'var(--space-5)' }}>
+                <h3>
+                  {abierta === TODO
+                    ? `Pedido del día — ${hoja.renglones.length} productos, ${hoja.total_piezas.toLocaleString('es-MX')} piezas`
+                    : `«${hoja.pestana}» — lo que se va a importar`}
+                </h3>
+              </div>
+              {!hoja.renglones.length && (
+                <p className="ped-nota">«{hoja.pestana}» no pidió nada hoy.</p>
+              )}
               <div className="table-container">
                 <table className="sys-table">
                   <thead>

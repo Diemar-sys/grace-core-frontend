@@ -1,0 +1,361 @@
+/* Pedido del día — Light Bento.
+   Antes reusaba .registro-form de Producción (borde duro, radio 12): se veía
+   pegado al resto del sistema pero no homologado con las vistas nuevas. */
+
+/* ── Tarjeta base ─────────────────────────────────────────────────────── */
+.ped-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.ped-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.ped-card-head h3 {
+  margin: 0;
+  font: 700 19px/1.25 var(--font-display);
+  color: var(--color-text);
+}
+.ped-nota {
+  margin: var(--space-3) 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+.ped-nota strong { color: var(--color-text); }
+
+/* ── Badges de estado ─────────────────────────────────────────────────── */
+/* Sustituyen a los emojis sueltos en los títulos: el color dice lo mismo de
+   lejos y no depende de cómo renderice cada equipo el emoji. */
+.ped-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font: 700 12px/1 var(--font-body);
+  white-space: nowrap;
+}
+.ped-badge.ok   { background: #dcfce7; color: #166534; }
+.ped-badge.warn { background: #ffedd5; color: #9a3412; }
+.ped-badge.bad  { background: #fee2e2; color: #991b1b; }
+.ped-badge.info { background: #dbeafe; color: #1e40af; }
+
+/* ── Campos ───────────────────────────────────────────────────────────── */
+.ped-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-4);
+  align-items: end;
+}
+.ped-field label {
+  display: block;
+  font: 700 12px/1 var(--font-body);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.ped-field input[type="date"],
+.ped-field select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  font: 400 15px/1.2 var(--font-body);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+.ped-field input[type="date"]:focus,
+.ped-field select:focus {
+  outline: none;
+  border-color: var(--color-brand-light);
+  box-shadow: 0 0 0 3px rgba(200, 80, 60, .14);
+}
+
+/* ── Selector de archivo ──────────────────────────────────────────────── */
+/* El input de archivo nativo no se puede peinar: se esconde y la etiqueta hace
+   de botón. Con archivo cargado se convierte en una píldora con su ✕, que es
+   la pieza que faltaba para poder cambiar de hoja sin recargar la página. */
+.ped-archivo input[type="file"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.ped-archivo-elegir {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-bg);
+  color: var(--color-brand);
+  border: 1px dashed var(--color-brand-light);
+  font: 600 14px/1 var(--font-body);
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease;
+}
+.ped-archivo-elegir:hover { background: var(--color-brand-hover); transform: translateY(-2px); }
+.ped-archivo input[type="file"]:focus-visible + .ped-archivo-elegir {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+.ped-archivo-puesto {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 9px 9px 9px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunk);
+  font: 600 14px/1.2 var(--font-body);
+  color: var(--color-text);
+}
+.ped-archivo-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ped-archivo-quitar {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .07);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+.ped-archivo-quitar:hover { background: var(--color-danger-bg); color: var(--color-danger); }
+
+/* ── Acciones ─────────────────────────────────────────────────────────── */
+.ped-acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-hairline);
+}
+.ped-btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px 24px;
+  font: 600 14px/1 var(--font-body);
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.ped-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+.ped-btn.primario {
+  background: var(--color-brand);
+  color: #fff;
+  box-shadow: var(--shadow-btn);
+}
+.ped-btn.primario:hover:not(:disabled) { transform: translateY(-2px); background: var(--color-brand-mid); }
+.ped-btn.secundario {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  box-shadow: var(--shadow-bento);
+}
+.ped-btn.secundario:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-bento-hover); }
+.ped-acciones select {
+  padding: 11px 14px;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: 500 14px/1 var(--font-body);
+  color: var(--color-text);
+}
+
+/* ── Tabla de pestañas ────────────────────────────────────────────────── */
+.ped-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font: 600 14px/1 var(--font-body);
+  color: var(--color-brand);
+  cursor: pointer;
+  transition: background .2s ease;
+}
+.ped-tab:hover { background: var(--color-brand-hover); }
+.ped-tab.is-active { background: var(--color-brand); color: #fff; }
+.ped-hint { font-size: 13px; color: var(--color-text-muted); }
+.ped-check { width: 17px; height: 17px; accent-color: var(--color-brand); cursor: pointer; }
+
+/* ── Pie de confirmación ──────────────────────────────────────────────── */
+.ped-confirmar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-hairline);
+}
+.ped-resumen { font-size: 14px; color: var(--color-text-muted); }
+.ped-resumen strong {
+  font: 700 18px/1 var(--font-display);
+  color: var(--color-text);
+}
+
+/* ── Lista de avisos ──────────────────────────────────────────────────── */
+.ped-avisos { margin: 0; padding-left: 20px; }
+.ped-avisos li { font-size: 14px; color: var(--color-text); margin-bottom: 6px; }
+
+/* ── Cargando ─────────────────────────────────────────────────────────── */
+.ped-cargando {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; color: var(--color-text-muted);
+}
+
+@media (max-width: 860px) {
+  .ped-card { padding: var(--space-4); }
+  .ped-grid { grid-template-columns: 1fr; }
+  .ped-confirmar { flex-direction: column; align-items: stretch; }
+  .ped-confirmar .ped-btn { width: 100%; }
+}
+
+/* ── Consulta: renglón separador de departamento ──────────────────────── */
+/* Mismo relieve que el PDF. Sin él, 70 renglones seguidos son una lista sin
+   forma y hay que leerla entera para encontrar la panquelería. */
+.sys-table tr.ped-fila-depto td {
+  background: var(--color-surface-sunk);
+  font: 700 12.5px/1 var(--font-body);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+/* ── Surtido: switch de vista y captura de cantidad ───────────────────── */
+.ped-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface-sunk);
+  border-radius: var(--radius-pill);
+}
+.ped-switch-op {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: 600 14px/1 var(--font-body);
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.ped-switch-op:hover:not(.is-active) { color: var(--color-text); }
+.ped-switch-op.is-active {
+  background: var(--color-surface);
+  color: var(--color-brand);
+  box-shadow: var(--shadow-bento);
+}
+/* El campo donde se teclea lo que de verdad se contó: ancho fijo para que la
+   columna no baile al cambiar de 8 a 120. */
+.ped-qty {
+  width: 84px;
+  padding: 8px 10px;
+  text-align: right;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  font: 600 15px/1 var(--font-body);
+  color: var(--color-text);
+}
+.ped-qty:focus {
+  outline: none;
+  border-color: var(--color-brand-light);
+  box-shadow: 0 0 0 3px rgba(200, 80, 60, .14);
+}
+
+/* ── Valorización: periodo ────────────────────────────────────────────── */
+/* Dos fechas son dos campos IGUALES. `.ped-grid` es 2fr/1fr —hecho para el
+   archivo + la fecha del Pedido— y aquí estiraba «Desde» a todo lo ancho de la
+   pantalla, que en un monitor grande son 1200px de campo para 10 caracteres. */
+.val-fechas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 240px));
+  gap: var(--space-4);
+}
+
+/* ── Valorización: tarjetas de total ──────────────────────────────────── */
+/* Los cuatro números que se leen de un vistazo antes de bajar al detalle.
+   Hundidas DENTRO de la tarjeta blanca, no flotando encima de ella: apilar dos
+   sombras bento una sobre otra ensucia el efecto. Así es como el resto del
+   sistema separa «resumen» de «detalle». */
+.val-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3);
+}
+/* Con dos tarjetas, `1fr` las estira a media pantalla cada una y un número de
+   6 dígitos flota perdido en 700px de fondo. Se topan y el resto queda en aire. */
+.val-tiles.is-duo {
+  grid-template-columns: repeat(2, minmax(190px, 320px));
+}
+.val-tile {
+  background: var(--color-surface-sunk);
+  border-radius: var(--radius-card);
+  padding: var(--space-4) var(--space-5);
+  transition: background 0.2s ease;
+}
+.val-tile span {
+  display: block;
+  font: 700 11.5px/1 var(--font-body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+.val-tile strong {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font: 700 22px/1.15 var(--font-display);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+/* El porcentaje acompaña al peso, no compite con él. */
+.val-tile strong em {
+  font: 700 13px/1 var(--font-body);
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+/* El margen es la conclusión del reporte, no un dato más: se pinta en pastel
+   —verde si ganó, rojo si perdió— con el mismo patrón fondo-claro + texto-oscuro
+   de los badges del sistema. Es la única tarjeta con color: si todas lo tuvieran,
+   ninguna resaltaría. */
+.val-tile.is-margen           { background: #dcfce7; }
+.val-tile.is-margen span      { color: #166534; opacity: 0.75; }
+.val-tile.is-margen strong    { color: #166534; }
+.val-tile.is-margen strong em { color: #166534; opacity: 0.75; }
+.val-tile.is-margen.is-neg           { background: #fee2e2; }
+.val-tile.is-margen.is-neg span,
+.val-tile.is-margen.is-neg strong,
+.val-tile.is-margen.is-neg strong em { color: #991b1b; }
+
+/* Rojo solo cuando el margen es negativo de verdad: si todo se pinta, nada
+   resalta, y este reporte existe justo para que ese caso salte. */
+.ped-neg { color: var(--color-danger); font-variant-numeric: tabular-nums; }
+.sys-table td .ped-badge { margin-left: var(--space-2); }
+
+@media (max-width: 640px) {
+  .val-fechas { grid-template-columns: 1fr; }
+  .val-tiles  { grid-template-columns: 1fr 1fr; }
+}

@@ -436,3 +436,45 @@
 .comp-detalle-tabla thead th { background: var(--tv-carbon, #3a3835) !important; color: #fff !important; position: sticky; top: 0; z-index: 2; }
 .comp-detalle-footer { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1.25rem; border-top: 1px solid var(--tv-hairline, #e5d2b8); font-size: .9rem; color: #666; flex-shrink: 0; }
 .comp-detalle-total { color: var(--tv-coral, #e05a2b); font-size: 1.05rem; }
+
+/* ── Reposición dentro de Envío a Sucursal ───────────────────────────────── */
+/* Es la otra cara del mismo módulo: no lo que ya mandé, sino lo que falta.
+   Vive aquí y no en una pantalla aparte porque la pregunta se contesta justo
+   antes de abrir un envío. */
+.rep-bloque { margin-bottom: 22px; }
+.rep-bloque:first-of-type { margin-top: 18px; }
+.rep-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+/* La nota va en la MISMA barra de filtros que el dropdown de vista, alineada
+   con los selects. El párrafo largo se comía tres renglones y empujaba la
+   tabla —que es lo que se viene a ver— fuera de la primera pantalla. */
+.rep-explica {
+  align-self: center;
+  max-width: 62ch;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+/* Advertencia de configuración, no parte del filtro: va sobre las tablas, en
+   chico, y solo cuando de verdad hay un almacén sin tipo. */
+.rep-fuera {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: #92400e;
+}
+/* Por qué un renglón dice «sin ritmo todavía»: con un solo envío no hay
+   intervalo que medir. Va bajo el badge y no como columna, que estaría vacía
+   en el 80% de los renglones. */
+.rep-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #6b7280;
+}

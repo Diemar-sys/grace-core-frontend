@@ -29,15 +29,19 @@ describe('precioCanal — resolverPrecioVenta (congela el precio del envío)', (
     expect(resolverPrecioVenta(item, 'camioneta')).toBe(3);
   });
   it('canal SIN precio propio → cae al normal, NUNCA a 0 (o la ruta no cobra)', () => {
-    // camioneta sin precio, pero hay precio_por_kg
-    const item = { custom_precio_de_venta_camioneta: 0, custom_precio_por_kg: 7 };
+    const item = { custom_precio_de_venta_camioneta: 0, custom_precio_de_venta: 7 };
     expect(resolverPrecioVenta(item, 'camioneta')).toBe(7);
   });
-  it('precio_por_kg gana sobre precio_de_venta (ya viene por unidad base)', () => {
-    const item = { custom_precio_por_kg: 8, custom_precio_de_venta: 200, custom_cantidad_por_presentación: 25 };
+  it('precio_por_kg NO es precio de venta: se ignora aunque esté capturado', () => {
+    // es un campo de COMPRA que la compra reescribe; usarlo congelaba
+    // la materia prima a precio == costo y fabricaba márgenes negativos
+    const item = { custom_precio_por_kg: 99, custom_precio_de_venta: 200, custom_cantidad_por_presentación: 25 };
     expect(resolverPrecioVenta(item, 'normal')).toBe(8);
   });
-  it('sin precio_por_kg usa precio_de_venta / presentación', () => {
+  it('lo que solo tiene precio_por_kg (materia prima) → 0, «no se vende»', () => {
+    expect(resolverPrecioVenta({ custom_precio_por_kg: 21.68 }, 'normal')).toBe(0);
+  });
+  it('usa precio_de_venta / presentación', () => {
     const item = { custom_precio_de_venta: 200, custom_cantidad_por_presentación: 25 };
     expect(resolverPrecioVenta(item, 'normal')).toBe(8);
   });

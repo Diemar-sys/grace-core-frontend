@@ -42,6 +42,124 @@ export interface HojaPedido {
   sugerida: boolean;
 }
 
+/** Un pedido ya guardado, tal como sale en el PDF. */
+export interface RenglonGuardado {
+  clave: string;
+  producto: string;
+  depto: string;
+  piezas: Record<string, number>;
+  total: number;
+  por_charola: number;
+  charolas_texto: string;
+}
+
+export interface PedidoGuardado {
+  pedido: string;
+  fecha: string;
+  dia: string;
+  total_piezas: number;
+  tramos: { grupo: string; destinos: string[] }[];
+  renglones: RenglonGuardado[];
+}
+
+export interface FechaPedido {
+  name: string;
+  fecha: string;
+  dia: string;
+  total_piezas: number;
+  destinos: string;
+}
+
+/** Un producto del pedido frente a lo que ya le llegó al destino. */
+export interface RenglonSurtido {
+  clave: string;
+  producto: string;
+  pedido: number;
+  enviado: number;
+  falta: number;
+  disponible: number;
+  origen: string;
+  sugerido: number;
+  estado: 'cuadra' | 'falta_hay' | 'falta_no_hay' | 'de_mas';
+}
+
+export interface Surtido {
+  destino: string;
+  almacen: string;
+  fecha?: string;
+  renglones: RenglonSurtido[];
+}
+
+/** Cómo va el reparto del día: avance por destino y lo que quedó descuadrado. */
+export interface FilaTablero {
+  destino: string;
+  clave: string;
+  producto: string;
+  pedido: number;
+  enviado: number;
+  diferencia: number;
+  disponible: number;
+}
+
+export interface Sobra {
+  clave: string;
+  producto: string;
+  disponible: number;
+  pedido: number;
+  almacen: string;
+}
+
+export interface Tablero {
+  fecha: string;
+  destinos: {
+    destino: string;
+    almacen: string | null;
+    estado: 'almacen' | 'por_definir' | 'cliente';
+    pedido: number;
+    enviado: number;
+  }[];
+  pendientes: FilaTablero[];
+  sin_pan: FilaTablero[];
+  de_mas: FilaTablero[];
+  sobras: Sobra[];
+}
+
+/** Un renglón del reporte de valorización. Lo que no se vende trae precio y
+ *  margen en null: su «precio congelado» era el costo disfrazado. */
+export interface RenglonValor {
+  clave: string;
+  producto: string;
+  destino: string;
+  grupo: string;
+  vendible: boolean;
+  /** el pan sin receta se valúa a un % del precio: su margen es aritmética, no medición */
+  costo_estimado: boolean;
+  sin_precio: boolean;
+  piezas: number;
+  costo: number;
+  precio: number | null;
+  margen: number | null;
+  margen_pct: number | null;
+}
+
+export interface TotalValor {
+  piezas: number;
+  costo: number;
+  precio: number | null;
+  margen: number | null;
+  margen_pct: number | null;
+}
+
+export interface Valorizacion {
+  desde: string;
+  hasta: string;
+  destinos: (TotalValor & { destino: string; grupo: string })[];
+  renglones: RenglonValor[];
+  vendible: TotalValor;
+  insumo: TotalValor;
+  hay_costo_estimado: boolean;
+}
+
 export interface Cuadre {
   pestana: string;
   comparados: number;
@@ -99,6 +217,73 @@ class FrappePedidoService extends FrappeBase {
       grupos: r.message?.grupos ?? {},
       ordenGrupos: r.message?.orden_grupos ?? [],
     };
+  }
+
+  /** Los pedidos ya guardados, del más nuevo al más viejo. */
+  async fechas(limite = 40): Promise<FechaPedido[]> {
+    const r = await this._fetch(`${RUTA}.fechas`, {
+      method: 'POST',
+      body: JSON.stringify({ limite }),
+    });
+    return r?.message ?? [];
+  }
+
+  /** El pedido guardado de esa fecha, o null si no hay. */
+  async consultar(fecha: string): Promise<PedidoGuardado | null> {
+    const r = await this._fetch(`${RUTA}.consultar`, {
+      method: 'POST',
+      body: JSON.stringify({ fecha }),
+    });
+    return r?.message ?? null;
+  }
+
+  /** Renglones con que se prellena un envío a sucursal, desde el pedido del día. */
+  async sugerenciaEnvio(fecha: string, almacenDestino: string, almacenOrigen?: string): Promise<Surtido> {
+    const r = await this._fetch(`${RUTA}.sugerencia_envio`, {
+      method: 'POST',
+      body: JSON.stringify({ fecha, almacen_destino: almacenDestino, almacen_origen: almacenOrigen }),
+    });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return { destino: '', almacen: almacenDestino, renglones: [], ...(r.message ?? {}) };
+  }
+
+  /** Cómo va el reparto de ese día contra el pedido guardado. */
+  async tablero(fecha: string): Promise<Tablero> {
+    const r = await this._fetch(`${RUTA}.tablero`, {
+      method: 'POST',
+      body: JSON.stringify({ fecha }),
+    });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    // el borde con el servidor es el único lugar donde se rellena lo que falte:
+    // adentro la pantalla puede recorrer las listas sin preguntar si existen
+    return {
+      fecha, destinos: [], pendientes: [], sin_pan: [], de_mas: [], sobras: [],
+      ...(r.message ?? {}),
+    };
+  }
+
+  /** Cuánto se mandó en el periodo y cuánto vale, al costo y a precio de venta. */
+  async valorizacion(desde: string, hasta?: string, destino?: string): Promise<Valorizacion> {
+    const r = await this._fetch(`${RUTA}.valorizacion_envios`, {
+      method: 'POST',
+      body: JSON.stringify({ desde, hasta, destino }),
+    });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    const vacio = { piezas: 0, costo: 0, precio: null, margen: null, margen_pct: null };
+    return {
+      desde, hasta: hasta || desde, destinos: [], renglones: [],
+      vendible: vacio, insumo: vacio, hay_costo_estimado: false,
+      ...(r.message ?? {}),
+    };
+  }
+
+  /** ¿Ya está guardado el pedido de esa fecha? El PDF y el envío leen lo guardado. */
+  async hayPedido(fecha: string): Promise<boolean> {
+    const r = await this._fetch(`${RUTA}.hay_pedido`, {
+      method: 'POST',
+      body: JSON.stringify({ fecha }),
+    });
+    return Boolean(r?.message);
   }
 
   /** Etiquetas de quienes pueden recibir el pedido (los chat_id no salen del servidor). */

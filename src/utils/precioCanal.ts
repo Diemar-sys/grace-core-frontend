@@ -36,6 +36,12 @@ export function tipoPrecioPorAlmacen(warehouseType: string | null | undefined): 
  * por Kg). Prioridad espejo de NuevaVentaB2B. Si el producto no tiene capturado
  * el precio de su canal, cae al normal — congelar 0 dejaría la liquidación de
  * la ruta sin con qué cobrar. Devuelve 0 solo si no hay ningún dato.
+ *
+ * 🔴 `custom_precio_por_kg` estaba en la cadena y NO es precio de venta: se
+ * deriva del precio de COMPRA y la compra lo reescribe. Con él adentro, la
+ * materia prima se congelaba a precio == costo y el reporte leía «venta con
+ * pérdida» donde solo había ruido del promedio móvil. Lo que no se vende
+ * devuelve 0, y 0 significa «no se vende», no «vale cero».
  */
 export function resolverPrecioVenta(item: any, tipoPrecio: TipoPrecio = 'normal'): number {
   const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
@@ -43,7 +49,6 @@ export function resolverPrecioVenta(item: any, tipoPrecio: TipoPrecio = 'normal'
   if (campoCanal && parseFloat(item[campoCanal]) > 0) {
     return parseFloat(item[campoCanal]) / cantPres;
   }
-  if (item.custom_precio_por_kg) return parseFloat(item.custom_precio_por_kg);
   if (item.custom_precio_de_venta) return parseFloat(item.custom_precio_de_venta) / cantPres;
   if (item.standard_rate) return parseFloat(item.standard_rate) / cantPres;
   return 0;

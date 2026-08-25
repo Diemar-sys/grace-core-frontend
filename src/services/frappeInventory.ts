@@ -26,7 +26,47 @@ interface InventoryFiltros {
 }
 type ItemForm = Record<string, any>; // dict del formulario NuevoInsumo (muchos custom_*)
 
+/** Un insumo de una sucursal frente al ritmo con que se le repone. */
+export interface RenglonReposicion {
+  almacen: string;
+  sucursal: string;
+  clave: string;
+  producto: string;
+  /** unidad base del item: sin ella el renglón sale al Stock Entry en blanco */
+  uom: string;
+  /** lo que hay en Bodega Central, para topar la sugerencia */
+  disponible: number;
+  envios: number;
+  ultima: string;
+  dias: number;
+  /** cada cuántos días se repone, en mediana. null = menos de 2 envíos, no se sabe */
+  ritmo: number | null;
+  cantidad_tipica: number;
+  estado: 'vencido' | 'pronto' | 'al_dia' | 'sin_ritmo';
+}
+
+export interface Reposicion {
+  renglones: RenglonReposicion[];
+  /** almacenes que reciben insumo pero no tienen tipo: quedan fuera del cálculo */
+  sin_tipo: string[];
+}
+
 class FrappeInventoryService extends FrappeBase {
+  /** Cuándo le toca a cada sucursal su siguiente carga de insumos.
+   *
+   * El saldo de bolsas es ficción —solo hay entradas, usar una bolsa no genera
+   * movimiento—, pero el ritmo con que se reponen sí es real y contesta la
+   * pregunta que importa: a quién se le está por acabar.
+   */
+  async getReposicion(soloPendientes = false): Promise<Reposicion> {
+    const r = await this._fetch(
+      `/api/method/gestion_panaderia.api.inventory_api.reposicion_insumos`,
+      { method: 'POST', body: JSON.stringify({ solo_pendientes: soloPendientes ? 1 : 0 }) },
+    );
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return { renglones: [], sin_tipo: [], ...(r.message ?? {}) };
+  }
+
   #cache: Record<string, any> = {};
 
   async #cachedFetch(key: string, fetchFn: () => Promise<any>): Promise<any> {

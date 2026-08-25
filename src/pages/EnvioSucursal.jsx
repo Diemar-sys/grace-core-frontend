@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
+import ReposicionInsumos from "../components/ReposicionInsumos";
 import NuevoEnvioSucursal from "../components/NuevoEnvioSucursal";
 import ModalHojaEntrega from "../components/modals/ModalHojaEntrega";
 import ConfirmModal from "../components/modals/ConfirmModal";
@@ -49,6 +50,14 @@ function EnvioSucursal() {
   const [filaExpandida, setFilaExpandida] = useState({});
 
   const [modal, setModal] = useState(null); // null | 'nuevo'
+  // Las dos caras del mismo tema: lo que ya mandé y lo que me falta mandar.
+  // Vive aquí y no en una pantalla aparte porque la pregunta «¿a quién le toca?»
+  // se contesta justo antes de abrir un envío, no en otro rincón del menú.
+  const [vista, setVista] = useState('historial');
+  const [soloPendientes, setSoloPendientes] = useState(true);
+  // Lo cuenta la vista de reposición al cargar. Null = todavía no se ha abierto,
+  // y entonces la opción va sin número en vez de mentir un cero.
+  const [porReponer, setPorReponer] = useState(null);
   const [hojaData, setHojaData] = useState(null);
 
   const sucursalLabel = sucursales.find(s => s.warehouse === sucursalSel)?.label || sucursalSel;
@@ -176,6 +185,36 @@ function EnvioSucursal() {
 
         <div className="filtros-section">
           <div className="filtro-group filtro-sm">
+            <label>Vista</label>
+            <select value={vista} onChange={e => setVista(e.target.value)}>
+              <option value="historial">Envíos hechos ({envios.length})</option>
+              <option value="reposicion">
+                Qué toca reponer{porReponer === null ? '' : ` (${porReponer})`}
+              </option>
+            </select>
+          </div>
+
+          {vista === 'reposicion' && (<>
+            <div className="filtro-group filtro-sm">
+              <label>Mostrar</label>
+              <select value={soloPendientes ? 'urge' : 'todo'}
+                onChange={e => setSoloPendientes(e.target.value === 'urge')}>
+                <option value="urge">Solo lo que urge</option>
+                <option value="todo">Todo</option>
+              </select>
+            </div>
+            {/* El matiz completo —que un vencido puede ser un faltante real o un
+                envío hecho por fuera— vive en el title: son tres renglones de
+                prosa que le robarían la primera pantalla a la tabla. */}
+            <p className="rep-explica"
+              title="Un «ya le tocaba» significa una de dos, y las dos importan: o de verdad se quedaron sin el insumo, o se mandó por fuera del sistema y no consta.">
+              Se mide el <strong>ritmo</strong>, no la existencia: usar una bolsa no
+              genera movimiento y el saldo nunca baja.
+            </p>
+          </>)}
+
+          {vista === 'historial' && (<>
+          <div className="filtro-group filtro-sm">
             <label>Estado</label>
             <select value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}>
               <option value="enviada">Enviada ({envios.filter(e => e.docstatus === ESTADO_DOCSTATUS.enviada).length})</option>
@@ -208,13 +247,17 @@ function EnvioSucursal() {
               value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
 
+          </>)}
+
           <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '4px' }}>
-            <button className="btn-refresh"
-              style={verCuentas ? { background: '#1e3a5f', color: '#fff' } : {}}
-              onClick={() => setVerCuentas(v => !v)}
-              title="Mostrar/ocultar montos">
-              {verCuentas ? '🙈 Ocultar cuentas' : '💰 Ver cuentas'}
-            </button>
+            {vista === 'historial' && (
+              <button className="btn-refresh"
+                style={verCuentas ? { background: '#1e3a5f', color: '#fff' } : {}}
+                onClick={() => setVerCuentas(v => !v)}
+                title="Mostrar/ocultar montos">
+                {verCuentas ? '🙈 Ocultar cuentas' : '💰 Ver cuentas'}
+              </button>
+            )}
             {!soloLectura && (
               <button className="btn-refresh" style={{ background: '#16a34a', color: '#fff' }}
                 onClick={() => setModal('nuevo')}>
@@ -233,6 +276,11 @@ function EnvioSucursal() {
           </div>
         </div>
 
+        {vista === 'reposicion' && (
+          <ReposicionInsumos soloPendientes={soloPendientes} onTotal={setPorReponer} />
+        )}
+
+        {vista === 'historial' && (<>
         {loading ? (
           <div className="loading">Cargando envíos...</div>
         ) : filteredEnvios.length === 0 ? (
@@ -346,6 +394,7 @@ function EnvioSucursal() {
             })}
           </div>
         )}
+        </>)}
       </div>
 
       {modal === 'nuevo' && (
