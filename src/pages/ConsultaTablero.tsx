@@ -1,4 +1,4 @@
-// src/pages/ConsultaTablero.jsx
+// src/pages/ConsultaTablero.tsx
 // Consultas → Tablero del reparto: cómo va el día contra el pedido guardado.
 // Contesta las cuatro preguntas del que reparte —a quién le falta y hay pan, a
 // quién le falta y no hay, a quién le mandé de más, y qué pan quedó sin dueño—
@@ -8,16 +8,20 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
 import { pedidoService } from '../services/frappePedido';
+import type { FechaPedido, FilaTablero, Sobra, Tablero } from '../services/frappePedido';
 import '../styles/global.css';
 import '../styles/Pedido.css';
 
-const DIA_MES = { day: '2-digit', month: 'short' };
-const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', DIA_MES);
-const num = (n) => Number(n || 0).toLocaleString('es-MX');
+const DIA_MES: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+const fechaCorta = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', DIA_MES);
+const num = (n: number | null | undefined) => Number(n || 0).toLocaleString('es-MX');
+
+/** Las llaves de `Tablero` que son cubetas de renglones, no metadatos. */
+type CubetaKey = 'pendientes' | 'sin_pan' | 'de_mas' | 'sobras';
 
 // Las cuatro cubetas, en el orden en que se atienden: primero lo que sí se puede
 // resolver, al final lo que solo se puede reportar.
-const CUBETAS = [
+const CUBETAS: { key: CubetaKey; nombre: string; badge: string; nota: string }[] = [
   { key: 'pendientes', nombre: 'Falta y hay pan', badge: 'warn',
     nota: 'Se puede surtir ahora mismo desde el almacén.' },
   { key: 'sin_pan', nombre: 'Falta y no hay', badge: 'bad',
@@ -29,10 +33,10 @@ const CUBETAS = [
 ];
 
 export default function ConsultaTablero() {
-  const [fechas, setFechas] = useState([]);
+  const [fechas, setFechas] = useState<FechaPedido[]>([]);
   const [fecha, setFecha] = useState('');
-  const [tablero, setTablero] = useState(null);
-  const [cubeta, setCubeta] = useState('pendientes');
+  const [tablero, setTablero] = useState<Tablero | null>(null);
+  const [cubeta, setCubeta] = useState<CubetaKey>('pendientes');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,7 +47,7 @@ export default function ConsultaTablero() {
         setFecha((f) => f || lista[0]?.fecha || '');
         if (!lista.length) setCargando(false);
       })
-      .catch((err) => { setError(err.message); setCargando(false); });
+      .catch((err: any) => { setError(err.message); setCargando(false); });
   }, []);
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function ConsultaTablero() {
     setCargando(true);
     pedidoService.tablero(fecha)
       .then((t) => { if (vigente) setTablero(t); })
-      .catch((err) => { if (vigente) { setError(err.message); setTablero(null); } })
+      .catch((err: any) => { if (vigente) { setError(err.message); setTablero(null); } })
       .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
   }, [fecha]);
@@ -61,10 +65,10 @@ export default function ConsultaTablero() {
   const pedido = conAlmacen.reduce((a, d) => a + d.pedido, 0);
   const enviado = conAlmacen.reduce((a, d) => a + d.enviado, 0);
   const avance = pedido ? Math.round((enviado / pedido) * 100) : 0;
-  const filas = tablero?.[cubeta] ?? [];
+  const filas: (FilaTablero | Sobra)[] = tablero?.[cubeta] ?? [];
 
   return (
-    <Layout title="Tablero del reparto" subtitle="Cómo va el día contra el pedido">
+    <Layout>
       <div className="ped-card">
         <div className="ped-card-head">
           <h3>Elegir el día</h3>
@@ -172,7 +176,7 @@ export default function ConsultaTablero() {
               ))}
             </div>
 
-            <p className="ped-nota">{CUBETAS.find((c) => c.key === cubeta).nota}</p>
+            <p className="ped-nota">{CUBETAS.find((c) => c.key === cubeta)?.nota}</p>
 
             {!filas.length ? (
               <p className="ped-nota"><strong>Nada aquí.</strong> Esta cubeta está vacía.</p>
@@ -201,7 +205,9 @@ export default function ConsultaTablero() {
                     )}
                   </thead>
                   <tbody>
-                    {filas.map((f) => (cubeta === 'sobras' ? (
+                    {/* `almacen` solo existe en las sobras: es el discriminante real
+                        de la cubeta, y así el compilador verifica cada columna. */}
+                    {filas.map((f) => ('almacen' in f ? (
                       <tr key={`${f.clave}-${f.almacen}`}>
                         <td>{f.clave}</td>
                         <td>{f.producto}</td>

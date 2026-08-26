@@ -1,4 +1,4 @@
-// src/pages/ReporteValorizacion.jsx
+// src/pages/ReporteValorizacion.tsx
 // Reportes → Valorización de envíos: cuánto se mandó a las sucursales en un
 // periodo y cuánto vale, al costo y a precio de venta.
 //
@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
 import { pedidoService } from '../services/frappePedido';
+import type { Valorizacion } from '../services/frappePedido';
 import '../styles/global.css';
 import '../styles/Pedido.css';
 
@@ -19,8 +20,11 @@ const hoy = () => new Date().toISOString().split('T')[0];
  * null y 0 no son lo mismo y aquí la diferencia cuesta: la materia prima llega
  * con precio y margen en null porque no se vende, y pintarla como $0.00 diría
  * que se regaló. Se exporta para poder probarlo: es la clase de detalle que solo
- * se nota cuando alguien ya tomó una decisión con el número mal. */
-export const pesos = (n) => {
+ * se nota cuando alguien ya tomó una decisión con el número mal.
+ *
+ * Recibe `unknown` a propósito: el backend puede mandar cualquier cosa y el
+ * punto de la función es que ninguna se escape a la pantalla como NaN. */
+export const pesos = (n: unknown): string => {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—';
   const v = Number(n);
   // El signo va ANTES del $, no pegado al número: toLocaleString da «$-100.50»
@@ -29,12 +33,13 @@ export const pesos = (n) => {
   return `${v < 0 ? '-' : ''}$${cifra}`;
 };
 
-export const piezas = (n) => Number(n || 0).toLocaleString('es-MX');
+export const piezas = (n: number | null | undefined): string =>
+  Number(n || 0).toLocaleString('es-MX');
 
 export default function ReporteValorizacion() {
   const [desde, setDesde] = useState(hoy());
   const [hasta, setHasta] = useState(hoy());
-  const [datos, setDatos] = useState(null);
+  const [datos, setDatos] = useState<Valorizacion | null>(null);
   const [verInsumos, setVerInsumos] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -45,16 +50,15 @@ export default function ReporteValorizacion() {
     setCargando(true);
     pedidoService.valorizacion(desde, hasta)
       .then((d) => { if (vigente) setDatos(d); })
-      .catch((err) => { if (vigente) { setError(err.message); setDatos(null); } })
+      .catch((err: any) => { if (vigente) { setError(err.message); setDatos(null); } })
       .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
   }, [desde, hasta]);
 
-  const v = datos?.vendible;
   const renglones = (datos?.renglones ?? []).filter((r) => r.vendible !== verInsumos);
 
   return (
-    <Layout title="Valorización de envíos" subtitle="Cuánto se mandó y cuánto vale">
+    <Layout>
       <div className="ped-card">
         <div className="ped-card-head">
           <h3>Periodo</h3>
@@ -86,14 +90,14 @@ export default function ReporteValorizacion() {
               )}
             </div>
             <div className="val-tiles">
-              <div className="val-tile"><span>Piezas</span><strong>{piezas(v.piezas)}</strong></div>
-              <div className="val-tile"><span>Al costo</span><strong>{pesos(v.costo)}</strong></div>
-              <div className="val-tile"><span>A precio de venta</span><strong>{pesos(v.precio)}</strong></div>
-              <div className={`val-tile is-margen${v.margen < 0 ? ' is-neg' : ''}`}>
+              <div className="val-tile"><span>Piezas</span><strong>{piezas(datos.vendible.piezas)}</strong></div>
+              <div className="val-tile"><span>Al costo</span><strong>{pesos(datos.vendible.costo)}</strong></div>
+              <div className="val-tile"><span>A precio de venta</span><strong>{pesos(datos.vendible.precio)}</strong></div>
+              <div className={`val-tile is-margen${(datos.vendible.margen ?? 0) < 0 ? ' is-neg' : ''}`}>
                 <span>Margen</span>
                 <strong>
-                  {pesos(v.margen)}
-                  {v.margen_pct !== null && <em>{v.margen_pct}%</em>}
+                  {pesos(datos.vendible.margen)}
+                  {datos.vendible.margen_pct !== null && <em>{datos.vendible.margen_pct}%</em>}
                 </strong>
               </div>
             </div>
@@ -145,7 +149,7 @@ export default function ReporteValorizacion() {
                         <td className="cell-right">{piezas(d.piezas)}</td>
                         <td className="cell-right">{pesos(d.costo)}</td>
                         <td className="cell-right">{pesos(d.precio)}</td>
-                        <td className={`cell-right${d.margen < 0 ? ' ped-neg' : ''}`}>
+                        <td className={`cell-right${(d.margen ?? 0) < 0 ? ' ped-neg' : ''}`}>
                           {pesos(d.margen)}{d.margen_pct !== null && ` · ${d.margen_pct}%`}
                         </td>
                       </tr>
@@ -195,7 +199,7 @@ export default function ReporteValorizacion() {
                         <td className="cell-right">{piezas(r.piezas)}</td>
                         <td className="cell-right">{pesos(r.costo)}</td>
                         <td className="cell-right">{pesos(r.precio)}</td>
-                        <td className={`cell-right${r.margen < 0 ? ' ped-neg' : ''}`}>
+                        <td className={`cell-right${(r.margen ?? 0) < 0 ? ' ped-neg' : ''}`}>
                           {pesos(r.margen)}
                         </td>
                       </tr>

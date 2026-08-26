@@ -1,4 +1,4 @@
-// src/components/ReposicionInsumos.jsx
+// src/components/ReposicionInsumos.tsx
 // La otra cara de Envío a Sucursal: no lo que ya mandé, sino lo que me falta.
 //
 // El saldo de bolsas de una sucursal es ficción —solo hay entradas, usar una no
@@ -7,23 +7,36 @@
 // la pregunta sin que nadie capture nada nuevo, que es la parte que nunca sale.
 import { useEffect, useState } from 'react';
 import { inventory } from '../services/frappeInventory';
+import type { Reposicion, RenglonReposicion } from '../services/frappeInventory';
 
-const BADGE = { vencido: 'bad', pronto: 'warn', al_dia: 'ok', sin_ritmo: 'info' };
-const ETIQUETA = {
+type Estado = RenglonReposicion['estado'];
+
+const BADGE: Record<Estado, string> = {
+  vencido: 'bad',
+  pronto: 'warn',
+  al_dia: 'ok',
+  sin_ritmo: 'info',
+};
+const ETIQUETA: Record<Estado, string> = {
   vencido: 'Ya le tocaba',
   pronto: 'Le toca pronto',
   al_dia: 'Al día',
   sin_ritmo: 'Sin ritmo todavía',
 };
 
-const dias = (n) => (n === 1 ? '1 día' : `${n} días`);
-const fechaCorta = (iso) =>
+const dias = (n: number) => (n === 1 ? '1 día' : `${n} días`);
+const fechaCorta = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+
+interface Props {
+  soloPendientes?: boolean;
+  onTotal?: (total: number) => void;
+}
 
 /** El filtro y el conteo viven en la barra de la página, junto a los del
  *  historial: son la misma barra, como en Compras. Aquí solo se pinta. */
-export default function ReposicionInsumos({ soloPendientes = true, onTotal }) {
-  const [datos, setDatos] = useState(null);
+export default function ReposicionInsumos({ soloPendientes = true, onTotal }: Props) {
+  const [datos, setDatos] = useState<Reposicion | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -37,7 +50,7 @@ export default function ReposicionInsumos({ soloPendientes = true, onTotal }) {
         // la página lo pinta en la opción del dropdown, como los conteos de Compras
         if (onTotal) onTotal(d.renglones.length);
       })
-      .catch((err) => { if (vigente) { setError(err.message); setDatos(null); } })
+      .catch((err: any) => { if (vigente) { setError(err.message); setDatos(null); } })
       .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
   }, [soloPendientes, onTotal]);
@@ -46,10 +59,10 @@ export default function ReposicionInsumos({ soloPendientes = true, onTotal }) {
 
   // Una tarjeta por sucursal: la pregunta es «¿a quién le mando?», y una lista
   // plana de 67 renglones obliga a reconstruir esa agrupación de cabeza.
-  const porSucursal = new Map();
+  const porSucursal = new Map<string, RenglonReposicion[]>();
   for (const r of renglones) {
     if (!porSucursal.has(r.sucursal)) porSucursal.set(r.sucursal, []);
-    porSucursal.get(r.sucursal).push(r);
+    porSucursal.get(r.sucursal)!.push(r);
   }
 
   if (error) {

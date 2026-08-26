@@ -1,4 +1,4 @@
-// src/pages/ConsultaPedido.jsx
+// src/pages/ConsultaPedido.tsx
 // Consultas → Pedido del día: ver un pedido YA guardado y bajar su PDF.
 // La pantalla de Operaciones importa; esta solo lee. La tabla la arma el backend
 // con el mismo orden que el PDF (`_orden_producto`) para que papel y pantalla no
@@ -7,22 +7,45 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
 import { pedidoService, urlPdfPedido } from '../services/frappePedido';
+import type { FechaPedido, PedidoGuardado, RenglonGuardado } from '../services/frappePedido';
 import '../styles/global.css';
 import '../styles/Pedido.css';
 
-const DIA_MES = { day: '2-digit', month: 'short' };
-const fechaCorta = (iso) =>
+const DIA_MES: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+const fechaCorta = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', DIA_MES);
 
+/** El renglón de encabezado de departamento. `clave` nunca existe aquí: es lo
+ *  que distingue un encabezado de un producto al pintar la tabla. */
+type FilaDepto = { depto: string; total: number; clave?: undefined };
+
+/** Los dos totales del pie de la tabla, en UNA pasada sobre los renglones.
+ *
+ * Antes el total del departamento era un `.filter()` dentro del loop que arma
+ * las filas y el del destino un `.reduce()` por columna: dos ciclos anidados
+ * sobre el mismo arreglo. Se exporta porque son los números que se leen en voz
+ * alta —«el día fueron 13,890 piezas»— y un total mal sumado no se ve mal. */
+export function totalesPedido(renglones: RenglonGuardado[]) {
+  const porDepto = new Map<string, number>();
+  const porDestino: Record<string, number> = {};
+  for (const r of renglones) {
+    porDepto.set(r.depto, (porDepto.get(r.depto) ?? 0) + r.total);
+    for (const [d, n] of Object.entries(r.piezas)) {
+      porDestino[d] = (porDestino[d] ?? 0) + n;
+    }
+  }
+  return { porDepto, porDestino };
+}
+
 export default function ConsultaPedido() {
-  const [fechas, setFechas] = useState([]);
+  const [fechas, setFechas] = useState<FechaPedido[]>([]);
   const [fecha, setFecha] = useState('');
-  const [pedido, setPedido] = useState(null);
+  const [pedido, setPedido] = useState<PedidoGuardado | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [enviado, setEnviado] = useState('');
   const [aQuien, setAQuien] = useState('');
-  const [aQuienes, setAQuienes] = useState([]);
+  const [aQuienes, setAQuienes] = useState<string[]>([]);
 
   useEffect(() => {
     pedidoService.fechas()
@@ -31,7 +54,7 @@ export default function ConsultaPedido() {
         setFecha((f) => f || lista[0]?.fecha || '');
         if (!lista.length) setCargando(false);
       })
-      .catch((err) => { setError(err.message); setCargando(false); });
+      .catch((err: any) => { setError(err.message); setCargando(false); });
     pedidoService.destinatarios()
       .then((lista) => { setAQuienes(lista); setAQuien((a) => a || lista[0] || ''); })
       .catch(() => {});   // sin bot configurado la pantalla sigue sirviendo
@@ -44,33 +67,29 @@ export default function ConsultaPedido() {
     setEnviado('');
     pedidoService.consultar(fecha)
       .then((p) => { if (vigente) setPedido(p); })
-      .catch((err) => { if (vigente) { setError(err.message); setPedido(null); } })
+      .catch((err: any) => { if (vigente) { setError(err.message); setPedido(null); } })
       .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
   }, [fecha]);
 
   const destinos = pedido ? pedido.tramos.flatMap((t) => t.destinos) : [];
-  const totalDe = (d) => (pedido?.renglones ?? []).reduce((a, r) => a + (r.piezas[d] || 0), 0);
+
+  const { porDepto, porDestino } = totalesPedido(pedido?.renglones ?? []);
 
   // Un renglón de departamento antes del primer producto de cada uno, igual que
   // el PDF: sin eso una tabla de 70 renglones es una lista sin relieve.
-  const filas = [];
-  let deptoActual = null;
+  const filas: (FilaDepto | RenglonGuardado)[] = [];
+  let deptoActual: string | null = null;
   for (const r of pedido?.renglones ?? []) {
     if (r.depto !== deptoActual) {
       deptoActual = r.depto;
-      filas.push({
-        depto: r.depto,
-        total: pedido.renglones
-          .filter((q) => q.depto === r.depto)
-          .reduce((a, q) => a + q.total, 0),
-      });
+      filas.push({ depto: r.depto, total: porDepto.get(r.depto) ?? 0 });
     }
     filas.push(r);
   }
 
   return (
-    <Layout title="Pedido del día" subtitle="Consultar un pedido guardado">
+    <Layout>
       <div className="ped-card">
         <div className="ped-card-head">
           <h3>Elegir el día</h3>
@@ -122,7 +141,7 @@ export default function ConsultaPedido() {
               try {
                 const r = await pedidoService.enviar(fecha, aQuien);
                 setEnviado(`Enviado a ${r.enviado_a} (${Math.round(r.bytes / 1024)} KB)`);
-              } catch (err) {
+              } catch (err: any) {
                 setError(err.message);
               } finally {
                 setCargando(false);
@@ -173,7 +192,7 @@ export default function ConsultaPedido() {
                 </tr>
               </thead>
               <tbody>
-                {filas.map((f) => (f.depto !== undefined && f.clave === undefined ? (
+                {filas.map((f) => (f.clave === undefined ? (
                   <tr key={`d-${f.depto}`} className="ped-fila-depto">
                     <td colSpan={destinos.length + 3}>{f.depto}</td>
                     <td className="cell-right">{f.total.toLocaleString('es-MX')}</td>
@@ -199,7 +218,9 @@ export default function ConsultaPedido() {
                 <tr>
                   <th colSpan={2}>TOTAL DEL DÍA</th>
                   {destinos.map((d) => (
-                    <th key={d} className="cell-right">{totalDe(d).toLocaleString('es-MX')}</th>
+                    <th key={d} className="cell-right">
+                      {(porDestino[d] ?? 0).toLocaleString('es-MX')}
+                    </th>
                   ))}
                   <th className="cell-right">{pedido.total_piezas.toLocaleString('es-MX')}</th>
                   <th />
