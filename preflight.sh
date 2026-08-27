@@ -19,6 +19,11 @@ git archive HEAD | tar -x -C "$tmp"
 cd "$tmp"
 pnpm install --frozen-lockfile --prefer-offline
 pnpm typecheck
+# 🔴 lint NO es cosmético aquí: tsconfig tiene checkJs:false, así que `tsc` NO
+# revisa los .jsx. El 27-ago un refactor dejó `LIMITE_COSTEO_PAN` usado pero sin
+# declarar y la pantalla de Catálogo murió EN PRODUCCIÓN. typecheck, tests y build
+# pasaron los tres; eslint lo cachaba con no-undef y nadie lo corría.
+pnpm lint
 pnpm test
 pnpm build
 

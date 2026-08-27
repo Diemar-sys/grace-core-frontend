@@ -8,7 +8,6 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import { inventory } from '../services/frappeInventory';
 import { produccionService } from '../services/frappeProduccion';
 import useConfirmModal from '../hooks/useConfirmModal';
-import { fmtUom } from '../utils/uom';
 import { calcularMargen, categoriasDePanes, filtrarPanes } from '../utils/catalogoUtils';
 export { calcularMargen, categoriasDePanes, filtrarPanes };
 import { VistaPan } from '../components/catalogo/VistaPan';
@@ -26,26 +25,10 @@ const COLUMNAS = {
   deshabilitado: ['Código', 'Código Interno', 'Producto', 'Cantidad por presentación', 'Total', 'Precio por Unidad', 'Costo MP', 'Stock', 'Acciones'],
 };
 
-/**
- * Formatea el stock de un ítem mostrando la cantidad en unidades naturales
- * y opcionalmente el equivalente en empaques (bultos, costales, etc.).
- * @param {Object} item - Datos del ítem con actual_qty, stock_uom, custom_cantidad_por_presentación.
- * @returns {{ total: string, paquetes: string|null }} Textos formateados.
- */
-function fmtStock(item) {
-  const actual     = parseFloat(item.actual_qty) || 0;
-  const cantPres   = parseFloat(item.custom_cantidad_por_presentación) || 0;
-  const presentacion = item.custom_presentación || '';
-  const uom        = fmtUom(item.stock_uom || '');
-
-  // actual_qty ya viene en unidad base (stock_uom). La presentación (empaques) se
-  // deriva dividiendo. Ej: 400 Kg / 25 Kg-por-bulto = 16 bultos.
-  const totalStr   = `${actual.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-  const paqStr     = cantPres > 0 && presentacion
-    ? `${(actual / cantPres).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${presentacion}`
-    : null;
-  return { actual, totalStr, paqStr };
-}
+// Cuántos panes se costean de golpe. La categoría más grande (PASTELES) tiene 33,
+// así que 40 cubre cualquier filtro por categoría sin disparar 227 peticiones.
+// Vivía al final del archivo y se quedó fuera al partir la pantalla en componentes.
+const LIMITE_COSTEO_PAN = 40;
 
 const ICON_TRASH = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
