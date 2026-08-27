@@ -10,12 +10,27 @@ class FrappeBase {
     this.baseUrl = baseUrl;
   }
 
+  /** La cabecera va solo si HAY token, igual que el SDK oficial
+   *  (`frappe-react-sdk` la omite cuando `window.csrf_token` está vacío).
+   *
+   *  Antes se mandaba `'fetch'` como relleno. Era inofensivo pero mentía: aquí
+   *  el index.html lo sirve Caddy, no Frappe, así que `window.csrf_token` nunca
+   *  se inyecta, y en prod NINGUNA sesión trae `csrf_token` (son sesiones de
+   *  API por `sid`, no de escritorio) — Frappe sale temprano de su validación y
+   *  la cabecera se ignoraba. Mandar un valor falso donde no hace falta esconde
+   *  la pregunta de si el token existe.
+   *
+   *  No lleva `as any`: `csrf_token?: string` ya está declarado en el Window de
+   *  `vite-env.d.ts`, que es la forma correcta de tipar un global. */
   getHeaders(): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'X-Frappe-CSRF-Token': window.csrf_token || 'fetch',
     };
+    if (window.csrf_token) {
+      headers['X-Frappe-CSRF-Token'] = window.csrf_token;
+    }
+    return headers;
   }
 
   // Respuestas Frappe heterogéneas → any deliberado; cada servicio tipa su superficie.

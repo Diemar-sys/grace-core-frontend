@@ -114,6 +114,15 @@ function ReporteGastos() {
           </div>
         )}
 
+        {/* El backend oculta NÓMINA a quien no es Gerente. Sin decirlo, este
+            total no cuadra contra otros reportes y nadie sabe por qué. */}
+        {data?.nomina_oculta && (
+          <div style={{ background: '#fef3c7', color: '#92400e', padding: 12, borderRadius: 8, marginBottom: 12 }}>
+            Este reporte <strong>no incluye la categoría Nómina</strong>. Solo un Gerente la ve,
+            así que los totales de abajo son menores que el gasto real del periodo.
+          </div>
+        )}
+
         <div className="table-container">
           <table className="sys-table">
             <thead>

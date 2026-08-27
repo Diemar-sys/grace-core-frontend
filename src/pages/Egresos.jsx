@@ -5,547 +5,22 @@ import { getRoleConfig } from '../config/roles';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import { imprimirEgresoTicket } from '../services/printService';
-import { IMPUESTOS_LIST, IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
-import { calcularTotalesEfectivos, calcGasolina } from '../components/compras/compraUtils';
+import { IMPUESTOS_MAP } from '../config/impuestos';
+import { calcGasolina } from '../components/compras/compraUtils';
 import BuscadorProveedor from '../components/compras/BuscadorProveedor';
+import { autoAgua, calcTotalesPartidas } from '../utils/egresosUtils';
+export { autoAgua, calcTotalesPartidas };
+
+import { CATEGORIAS, FACTURA_OPTIONS, FORM_INIT, IMP_ERPNEXT, IVA_RATE, impuestoDefault, n } from '../components/egresos/egresosConstants';
+import { GasolinaForm } from '../components/egresos/GasolinaForm';
+import { GasForm } from '../components/egresos/GasForm';
+import { SubcatForm } from '../components/egresos/SubcatForm';
+import { EgresosTabla } from '../components/egresos/EgresosTabla';
+
 import '../styles/NuevaCompra.css';
-import '../styles/Panel.css';   // .panel-grid / .panel-module: tiles compartidos con el resto
-// La lista usa la misma tabla y filtros que Compras. Todo ese CSS está scoped a
-// .comprasv2, por eso el contenedor de la lista lleva esa clase: reusar el lenguaje
-// visual entero en vez de mantener una segunda tabla propia.
+import '../styles/Panel.css';
 import '../styles/Compras.css';
 import '../styles/Egresos.css';
-
-// ── SVG Icons ────────────────────────────────────────────────────
-const IconGasto = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>
-  </svg>
-);
-const IconCamioneta = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11v12H5Z"/>
-    <path d="M12 3h4l3 3v6h-7V3Z"/>
-    <circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>
-    <path d="M17 17H9v-2"/>
-  </svg>
-);
-const IconActivoFijo = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-  </svg>
-);
-const IconPrestamo = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 22V12h18v10M2 12l10-9 10 9"/>
-    <path d="M10 22v-5h4v5"/>
-  </svg>
-);
-const IconNomina = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-    <circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-  </svg>
-);
-const IconImpuesto = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/>
-  </svg>
-);
-const IconRenta = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-  </svg>
-);
-
-// ── Catálogos fijos ───────────────────────────────────────────────
-const VEHICULOS   = ['Tornado Van 1', 'Tornado Van 2', 'Tornado Van 3', 'Tornado Van 4', 'Hilux', 'Avanza', 'BRV'];
-// Las panaderías que reciben un recibo propio. Ya no es solo del gas: la luz
-// llega igual, un recibo por sucursal, y el gasto tiene que quedar donde se
-// consumió o el reporte por sucursal no dice nada.
-const SUCURSALES_RECIBO = ['Paseos del Bosque', 'Puerta Real', 'Pirámides', 'Santuarios', 'Casa'];
-const TELEFONOS   = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque'];
-const TIPOS_MANT  = ['Maquinaria', 'Camioneta', 'Infraestructura', 'Cómputo'];
-const TIPOS_REFAC = ['Camioneta', 'Maquinaria', 'Otro'];
-const TIPOS_AGUA  = ['Agua para consumo humano', 'Pipa de agua', 'Agua de uso diario - CEA'];
-
-// Proveedor (supplier_name) → autocompleta Agua. Match por substring, sin acentos/caso.
-const AUTO_AGUA = [
-  { match: 'bonafont',          concepto: 'Agua para consumo humano' },
-  { match: 'pipa de agua',      concepto: 'Pipa de agua' },
-];
-export function autoAgua(label) {
-  const t = (label || '').toLowerCase();
-  const hit = AUTO_AGUA.find(a => t.includes(a.match));
-  return hit ? { subcategoria: 'Agua', concepto: hit.concepto } : null;
-}
-
-// Subcategorías que por defecto llevan IVA 16% (servicios facturables).
-// La luz de un local comercial va con IVA — la tarifa doméstica no, pero las
-// panaderías no pagan doméstica. Es solo el valor por defecto: si un recibo
-// llega distinto, el impuesto se cambia en el renglón.
-const SUBCAT_IVA = ['Control de plagas', 'Luz', 'Comisión por tarjetas de crédito'];
-const impuestoDefault = (subcat) => SUBCAT_IVA.includes(subcat) ? 'iva16' : 'tasa0';
-
-// ── Categorías ────────────────────────────────────────────────────
-const CATEGORIAS = [
-  { key: 'Gasto',        label: 'Gastos',      sub: 'Operativos',       icon: <IconGasto />,      color: '#dc2626', bg: '#fee2e2',
-    subcategorias: ['Gasolina','Gas','Luz','Agua','Internet','Teléfono','Mantenimiento','Uniformes','Papelería','Artículos de limpieza','Refacciones','Control de plagas','Comisión por tarjetas de crédito','Otros gastos'] },
-  { key: 'camioneta_view', label: 'Camioneta', sub: 'Vista filtrada',   icon: <IconCamioneta />,  color: '#0891b2', bg: '#cffafe', esVista: true, subcategorias: [] },
-  { key: 'Activo Fijo',  label: 'Activo Fijo', sub: 'Inversiones',      icon: <IconActivoFijo />, color: '#7c3aed', bg: '#ede9fe', subcategorias: ['Pago Camioneta'] },
-  // 'Pago camioneta' aparece en dos categorías a propósito y con la MISMA opción del
-  // doctype (PAGO CAMIONETA): en Activo Fijo cuando se compró de contado, aquí cuando
-  // se está pagando financiada. La categoría es la que las separa en el reporte.
-  { key: 'Préstamo',     label: 'Préstamos',   sub: 'Financiamiento',   icon: <IconPrestamo />,   color: '#d97706', bg: '#fef3c7', subcategorias: ['Paneles','Pago Guillermo','Pago Camioneta'] },
-  // 'Efectivo' es el pago por fuera de la corrida. Vivía dentro de la Corrida de
-  // Nómina y sumaba a su Egreso, mezclado con lo declarado; ahora se captura
-  // aquí para que tenga su propio renglón en el reporte de gastos.
-  { key: 'Nómina',       label: 'Nómina',      sub: 'Empleados',        icon: <IconNomina />,     color: '#059669', bg: '#d1fae5', subcategorias: ['Empleados', 'Efectivo'] },
-  // Lo que el negocio REALMENTE paga al fisco. El IVA no va: se traslada al
-  // cliente y se compensa contra el acreditable, no es egreso propio.
-  // IMSS y el 3% sobre nómina tampoco son impuestos en sentido estricto, pero
-  // salen de la misma bolsa y aquí es donde se buscan.
-  { key: 'Impuesto',     label: 'Impuestos',   sub: 'IMSS · ISR · IEPS · 3% Nómina', icon: <IconImpuesto />,   color: '#1565c0', bg: '#e3f0ff', subcategorias: ['IMSS','ISR','IEPS','3% Nómina'] },
-  { key: 'Renta',        label: 'Renta',       sub: 'Locales',          icon: <IconRenta />,      color: '#be185d', bg: '#fce7f3', subcategorias: [] },
-];
-
-const FACTURA_OPTIONS = [
-  { label: 'Sin factura',   facturado_a: 'SIN FACTURA',  con_factura: false },
-  { label: 'Alma Rodríguez', facturado_a: 'ALMA RODRIGUEZ', con_factura: true  },
-  { label: 'Luis Torres',   facturado_a: 'LUIS TORRES',  con_factura: true  },
-];
-const IMP_ERPNEXT = { tasa0: '', iva16: 'IVA', ieps: 'IEPS' };
-const IVA_RATE = 0.16;
-
-function fmtN(n) { return Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }); }
-function n(v)    { return parseFloat(v) || 0; }
-
-// Agrupa bases por tasa (estilo Compras) y deriva total + ajuste SAT vía la
-// misma función pura que usa Compras. ajusteManual sobrescribe el redondeo auto.
-export function calcTotalesPartidas(partidas, ajuste, ajusteManual) {
-  const calc = (partidas || []).reduce((a, p) => {
-    const base = n(p.cantidad) * n(p.precio);
-    const key  = p.impuesto_key || 'tasa0';
-    // Misma aritmética que Compras y B2B: la cascada IEPS → IVA vive en un solo lado.
-    const { ieps, iva } = desglosarImpuesto(base, key);
-    a.subtotal += base;
-    a.iva  += iva;
-    a.ieps += ieps;
-    a[grupoSubtotal(key)] += base;
-    return a;
-  }, { subtotal: 0, iva: 0, ieps: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0 });
-  const ef = calcularTotalesEfectivos({ calc, manual: { ajuste: !!ajusteManual }, ajuste: ajuste || 0 });
-  return { calc, ef };
-}
-
-// ── FORM_INIT ─────────────────────────────────────────────────────
-const FORM_INIT = {
-  fecha: new Date().toISOString().split('T')[0],
-  proveedor: { name: '', label: '' },
-  subcategoria: '', concepto: '', descripcion: '',
-  partidas: [],
-  ajuste: '', ajuste_manual: false,
-  monto: '', impuesto_key: 'tasa0', impuesto_tipo: '', monto_impuesto: '',
-  factura_key: 'SIN FACTURA', no_factura: '',
-  // Gas-specific
-  gas_litros: '', gas_precio: '',
-  gasolina_litros: '', gasolina_precio: '', gasolina_iva: '', gasolina_total: '',
-  aditivo_litros: '', aditivo_precio: '',
-  descuento_gas: '',
-};
-
-// ── Formulario Gasolina ───────────────────────────────────────────
-// Litros × precio = base. IVA y total se COPIAN del CFDI (no se recalculan) y
-// el IEPS sale por resta. Ver calcGasolina en compraUtils.
-function GasolinaForm({ form, setForm, subcatField, proveedorField }) {
-  const { base, ieps, baseGravable, iva, total } = calcGasolina({
-    litros: form.gasolina_litros, precio: form.gasolina_precio,
-    iva: form.gasolina_iva, total: form.gasolina_total,
-  });
-  // Campo vacío = auto. Con valor = cuadre manual contra el CFDI (igual que Compras).
-  const ivaManual   = form.gasolina_iva   !== '';
-  const totalManual = form.gasolina_total !== '';
-  const alerta = ieps < -0.005 ? 'El total es menor que base + IVA — revisa la factura' : null;
-
-  useEffect(() => {
-    setForm(f => ({
-      ...f,
-      monto: total.toFixed(2),
-      monto_impuesto: iva.toFixed(2),
-      impuesto_tipo: iva > 0 ? 'IVA' : '',
-    }));
-  }, [total, iva]); // eslint-disable-line
-
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  return (
-    <div className="gas-form">
-      <div className="gas-form-grid">
-        {proveedorField}
-        {subcatField}
-        <label>Vehículo
-          <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
-            <option value="">Seleccionar...</option>
-            {VEHICULOS.map(v => <option key={v}>{v}</option>)}
-          </select>
-        </label>
-        <label>Fecha
-          <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
-        </label>
-        <label>Factura
-          <select value={form.factura_key || 'SIN FACTURA'} onChange={e => set('factura_key', e.target.value)}>
-            {FACTURA_OPTIONS.map(o => (
-              <option key={o.label} value={o.facturado_a}>{o.label}</option>
-            ))}
-          </select>
-        </label>
-        {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
-          <label>No. Factura
-            <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
-          </label>
-        )}
-      </div>
-
-      <div className="gas-lineas">
-        <div className="gas-linea-header">Combustible</div>
-        <div className="gas-linea-grid">
-          <label>Litros
-            <input type="number" step="0.001" placeholder="0.000" value={form.gasolina_litros} onChange={e => set('gasolina_litros', e.target.value)} />
-          </label>
-          <label>Precio unitario
-            <input type="number" step="0.000001" placeholder="0.000000" value={form.gasolina_precio} onChange={e => set('gasolina_precio', e.target.value)} />
-          </label>
-          <label>Base
-            <input type="text" readOnly value={fmtN(base)} className="gas-calc-field" />
-          </label>
-        </div>
-
-        {alerta && <div className="gas-alerta">⚠ {alerta}</div>}
-
-        {/* IVA y total se cuadran aquí contra el CFDI; el IEPS sale por resta. */}
-        <div className="gas-totales">
-          <div className="gas-total-row"><span>Base gravable</span><span>{fmtN(baseGravable)}</span></div>
-          {Math.abs(ieps) > 0.005 && (
-            <div className="gas-total-row"><span>IEPS (derivado)</span><span>{fmtN(ieps)}</span></div>
-          )}
-          <div className="gas-total-row">
-            <span>IVA <span className={`gas-badge ${ivaManual ? 'manual' : 'auto'}`}>{ivaManual ? 'Manual' : 'Auto'}</span></span>
-            <span className="gas-ajuste">
-              {ivaManual && <button type="button" className="gas-btn-reset" title="Restaurar IVA calculado" onClick={() => set('gasolina_iva', '')}>↺</button>}
-              <input type="number" step="0.01" className="gas-input-ajuste"
-                     value={ivaManual ? form.gasolina_iva : iva.toFixed(2)}
-                     onChange={e => set('gasolina_iva', e.target.value)} />
-            </span>
-          </div>
-          <div className="gas-total-row gas-total-final">
-            <span>Total <span className={`gas-badge ${totalManual ? 'manual' : 'auto'}`}>{totalManual ? 'Manual' : 'Auto'}</span></span>
-            <span className="gas-ajuste">
-              {totalManual && <button type="button" className="gas-btn-reset" title="Restaurar total calculado" onClick={() => set('gasolina_total', '')}>↺</button>}
-              <input type="number" step="0.01" className="gas-input-ajuste"
-                     value={totalManual ? form.gasolina_total : total.toFixed(2)}
-                     onChange={e => set('gasolina_total', e.target.value)} />
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Formulario Gas con cálculo automático ─────────────────────────
-function GasForm({ form, setForm, subcatField, proveedorField }) {
-  const gasSubtotal    = n(form.gas_litros) * n(form.gas_precio);
-  const aditivoSubtotal = n(form.aditivo_litros) * n(form.aditivo_precio);
-  const subtotal       = gasSubtotal + aditivoSubtotal;
-  const descuento      = n(form.descuento_gas);
-  const baseGravable   = subtotal - descuento;
-  const iva            = baseGravable * IVA_RATE;
-  const total          = baseGravable + iva;
-
-  // Sync calculated totals to form for saving
-  useEffect(() => {
-    setForm(f => ({
-      ...f,
-      monto: total.toFixed(2),
-      monto_impuesto: iva.toFixed(2),
-      impuesto_tipo: 'IVA',
-    }));
-  }, [total, iva]); // eslint-disable-line
-
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  return (
-    <div className="gas-form">
-      <div className="gas-form-grid">
-        {proveedorField}
-        {subcatField}
-        <label>Sucursal
-          <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
-            <option value="">Seleccionar...</option>
-            {SUCURSALES_RECIBO.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </label>
-        <label>Fecha
-          <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
-        </label>
-        <label>Factura
-          <select value={form.factura_key || 'SIN FACTURA'} onChange={e => set('factura_key', e.target.value)}>
-            {FACTURA_OPTIONS.map(o => (
-              <option key={o.label} value={o.facturado_a}>{o.label}</option>
-            ))}
-          </select>
-        </label>
-        {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
-          <label>No. Factura
-            <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
-          </label>
-        )}
-      </div>
-
-      <div className="gas-lineas">
-        {/* Línea Gas */}
-        <div className="gas-linea-header">Gas</div>
-        <div className="gas-linea-grid">
-          <label>Litros
-            <input type="number" step="0.001" placeholder="0.000" value={form.gas_litros} onChange={e => set('gas_litros', e.target.value)} />
-          </label>
-          <label>Precio unitario
-            <input type="number" step="0.000001" placeholder="0.000000" value={form.gas_precio} onChange={e => set('gas_precio', e.target.value)} />
-          </label>
-          <label>Subtotal
-            <input type="text" readOnly value={fmtN(gasSubtotal)} className="gas-calc-field" />
-          </label>
-        </div>
-
-        {/* Línea Aditivo */}
-        <div className="gas-linea-header">Aditivo</div>
-        <div className="gas-linea-grid">
-          <label>Litros
-            <input type="number" step="0.001" placeholder="0.000" value={form.aditivo_litros} onChange={e => set('aditivo_litros', e.target.value)} />
-          </label>
-          <label>Precio unitario
-            <input type="number" step="0.000001" placeholder="0.000000" value={form.aditivo_precio} onChange={e => set('aditivo_precio', e.target.value)} />
-          </label>
-          <label>Subtotal
-            <input type="text" readOnly value={fmtN(aditivoSubtotal)} className="gas-calc-field" />
-          </label>
-        </div>
-
-        {/* Totales */}
-        <div className="gas-totales">
-          <div className="gas-total-row">
-            <span>Subtotal</span>
-            <span>{fmtN(subtotal)}</span>
-          </div>
-          <div className="gas-total-row">
-            <span>Descuento</span>
-            <input type="number" step="0.01" placeholder="0.00" value={form.descuento_gas}
-              onChange={e => set('descuento_gas', e.target.value)} className="gas-descuento-input" />
-          </div>
-          <div className="gas-total-row">
-            <span>Base gravable</span>
-            <span>{fmtN(baseGravable)}</span>
-          </div>
-          <div className="gas-total-row">
-            <span>IVA (16%)</span>
-            <span>{fmtN(iva)}</span>
-          </div>
-          <div className="gas-total-row gas-total-final">
-            <span>Total</span>
-            <span>{fmtN(total)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Formulario genérico por subcategoría ──────────────────────────
-function SubcatForm({ subcategoria, form, setForm, subcatField, proveedorField }) {
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  // ── Partidas (desglose opcional) ──
-  const partidas    = form.partidas || [];
-  const usaPartidas = partidas.length > 0;
-  const sumPartidas = partidas.reduce((s, p) => s + n(p.cantidad) * n(p.precio), 0);
-  const setPartida  = (i, k, v) => setForm(f => {
-    const arr = [...(f.partidas || [])];
-    arr[i] = { ...arr[i], [k]: v };
-    return { ...f, partidas: arr };
-  });
-  const addPartida = () => setForm(f => ({ ...f, partidas: [...(f.partidas || []), { concepto: '', cantidad: 1, precio: '', impuesto_key: 'tasa0' }] }));
-  const delPartida = i => setForm(f => ({ ...f, partidas: (f.partidas || []).filter((_, j) => j !== i) }));
-
-  // Con partidas: desglose por tasa estilo Compras + ajuste global (cuadrar CFDI).
-  const { calc, ef } = calcTotalesPartidas(partidas, form.ajuste, form.ajuste_manual);
-  const ajusteShown  = form.ajuste_manual ? form.ajuste : (ef.ajusteSAT ? ef.ajusteSAT.toFixed(2) : '0.00');
-
-  // Ruta simple (sin partidas): un solo impuesto sobre el monto.
-  const impKey   = form.impuesto_key || 'tasa0';
-  const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
-  const montoImp = n(form.monto) * impEntry.rate;
-  const total    = n(form.monto) + montoImp;
-
-  // Sync impuesto calculado SOLO en ruta simple (con partidas lo arma buildPayload).
-  useEffect(() => {
-    if (usaPartidas) return;
-    setForm(f => ({
-      ...f,
-      monto_impuesto: montoImp > 0 ? montoImp.toFixed(2) : '',
-      impuesto_tipo:  impKey === 'tasa0' ? '' : impEntry.label,
-    }));
-  }, [form.monto, usaPartidas, impKey]); // eslint-disable-line
-
-  const conceptoSelect = (opciones, placeholder) => (
-    <label>Concepto
-      <select value={form.concepto} onChange={e => set('concepto', e.target.value)}>
-        <option value="">{placeholder}</option>
-        {opciones.map(o => <option key={o}>{o}</option>)}
-      </select>
-    </label>
-  );
-
-  return (
-    <div className="egresos-form-grid">
-      {proveedorField}
-      {subcatField}
-      <label>Fecha
-        <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} />
-      </label>
-
-      {subcategoria === 'Gasolina'     && conceptoSelect(VEHICULOS,   'Seleccionar vehículo...')}
-      {subcategoria === 'Teléfono'     && conceptoSelect(TELEFONOS,   'Seleccionar persona...')}
-      {subcategoria === 'Mantenimiento'&& conceptoSelect(TIPOS_MANT,  'Seleccionar tipo...')}
-      {subcategoria === 'Refacciones'  && conceptoSelect(TIPOS_REFAC, 'Seleccionar tipo...')}
-      {subcategoria === 'Agua'         && conceptoSelect(TIPOS_AGUA,  'Seleccionar tipo...')}
-      {/* La luz llega por recibo de cada panadería, igual que el gas. */}
-      {subcategoria === 'Luz'          && conceptoSelect(SUCURSALES_RECIBO, 'Seleccionar panadería...')}
-      {!['Gasolina','Teléfono','Mantenimiento','Refacciones','Agua','Luz'].includes(subcategoria) && (
-        <label>Concepto
-          <input type="text" placeholder="Descripción breve" value={form.concepto} onChange={e => set('concepto', e.target.value)} />
-        </label>
-      )}
-
-      <label>Factura
-        <select value={form.factura_key || 'SIN FACTURA'} onChange={e => set('factura_key', e.target.value)}>
-          {FACTURA_OPTIONS.map(o => (
-            <option key={o.label} value={o.facturado_a}>{o.label}</option>
-          ))}
-        </select>
-      </label>
-
-      {form.factura_key && form.factura_key !== 'SIN FACTURA' && (
-        <label>No. Factura
-          <input type="text" placeholder="Folio CFDI" value={form.no_factura} onChange={e => set('no_factura', e.target.value)} />
-        </label>
-      )}
-
-      {/* Desglose por partidas (opcional). Si hay partidas, el monto base = suma. */}
-      <div className="egresos-form-full egresos-partidas">
-        <div className="egresos-partidas-head">
-          <span>Desglose por artículo {usaPartidas && <em>(monto = suma de partidas)</em>}</span>
-          <button type="button" className="egresos-partida-add" onClick={addPartida}>+ Agregar partida</button>
-        </div>
-        {usaPartidas && (
-          <table className="egresos-partidas-tabla">
-            <thead>
-              <tr><th>Cant.</th><th>Concepto</th><th>Precio</th><th>Impuesto</th><th className="cell-right">Importe</th><th></th></tr>
-            </thead>
-            <tbody>
-              {partidas.map((p, i) => (
-                <tr key={i}>
-                  <td><input type="number" min="0" step="0.001" value={p.cantidad} onChange={e => setPartida(i, 'cantidad', e.target.value)} className="egresos-partida-num" /></td>
-                  <td><input type="text" placeholder="Artículo" value={p.concepto} onChange={e => setPartida(i, 'concepto', e.target.value)} /></td>
-                  <td><input type="number" min="0" step="0.01" placeholder="0.00" value={p.precio} onChange={e => setPartida(i, 'precio', e.target.value)} className="egresos-partida-num" /></td>
-                  <td>
-                    <select value={p.impuesto_key || 'tasa0'} onChange={e => setPartida(i, 'impuesto_key', e.target.value)}>
-                      {IMPUESTOS_LIST.map(imp => <option key={imp.key} value={imp.key}>{imp.label}</option>)}
-                    </select>
-                  </td>
-                  <td className="cell-right egresos-partida-imp">{fmtN(n(p.cantidad) * n(p.precio))}</td>
-                  <td><button type="button" className="egresos-partida-del" title="Quitar" onClick={() => delPartida(i)}>✕</button></td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr><td colSpan={4} className="cell-right">Subtotal partidas</td><td className="cell-right egresos-partida-sub">{fmtN(sumPartidas)}</td><td></td></tr>
-            </tfoot>
-          </table>
-        )}
-        {!usaPartidas && (
-          <p className="egresos-partidas-hint">Sin partidas — captura el monto abajo, o agrega artículos uno por uno.</p>
-        )}
-      </div>
-
-      <label className="egresos-form-full">Descripción / Justificación
-        <textarea rows={2} placeholder="Nota adicional (opcional)" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
-      </label>
-
-      {!usaPartidas && (
-        <label>Monto base
-          <input type="number" min="0" step="0.01" placeholder="0.00" value={form.monto} onChange={e => set('monto', e.target.value)} />
-        </label>
-      )}
-
-      {!usaPartidas && (
-        <label>Impuesto
-          <select value={impKey} onChange={e => set('impuesto_key', e.target.value)}>
-            {IMPUESTOS_LIST.map(imp => (
-              <option key={imp.key} value={imp.key}>{imp.label}</option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {!usaPartidas && montoImp > 0 && (
-        <label>Monto impuesto
-          <input type="text" readOnly value={fmtN(montoImp)} className="gas-calc-field" />
-        </label>
-      )}
-
-      {!usaPartidas && n(form.monto) > 0 && (
-        <label>Total
-          <input type="text" readOnly value={fmtN(total)} className="gas-calc-field" style={{ fontWeight: 700, color: 'var(--tv-marca)' }} />
-        </label>
-      )}
-
-      {usaPartidas && (
-        <div className="egresos-form-full egresos-totales">
-          {calc.subtotalIva16 > 0 && (
-            <div className="egresos-total-row muted"><span>Subtotal IVA 16%</span><span>{fmtN(calc.subtotalIva16)}</span></div>
-          )}
-          {calc.subtotalIeps > 0 && (
-            <div className="egresos-total-row muted"><span>Subtotal IEPS 8%</span><span>{fmtN(calc.subtotalIeps)}</span></div>
-          )}
-          {calc.subtotalTasa0 > 0 && (
-            <div className="egresos-total-row muted"><span>Subtotal Tasa 0</span><span>{fmtN(calc.subtotalTasa0)}</span></div>
-          )}
-          <div className="egresos-total-row"><span>Subtotal</span><span>{fmtN(ef.subtotalEfectivo)}</span></div>
-          {ef.iva  > 0 && <div className="egresos-total-row"><span>IVA 16%</span><span>{fmtN(ef.iva)}</span></div>}
-          {ef.ieps > 0 && <div className="egresos-total-row"><span>IEPS 8%</span><span>{fmtN(ef.ieps)}</span></div>}
-          <div className="egresos-total-row egresos-ajuste-row">
-            <span>Ajuste (cuadre CFDI)</span>
-            <input type="number" step="0.01" className="egresos-ajuste-input" value={ajusteShown}
-              onChange={e => setForm(f => ({ ...f, ajuste: e.target.value, ajuste_manual: true }))} />
-          </div>
-          <div className="egresos-total-row final"><span>Total</span><span>{fmtN(ef.total)}</span></div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Página principal ──────────────────────────────────────────────
 export default function Egresos() {
@@ -634,7 +109,6 @@ export default function Egresos() {
       return {
         fecha: form.fecha, proveedor: prov, categoria: 'GASTO', subcategoria: 'GASOLINA',
         concepto: up(form.concepto),
-        // Mismo trato que el gas: el desglose vive como JSON en descripcion.
         descripcion: JSON.stringify({
           gasolina_litros: form.gasolina_litros, gasolina_precio: form.gasolina_precio,
           gasolina_base: g.base, ieps_importe: g.ieps,
@@ -670,15 +144,12 @@ export default function Egresos() {
     const catKey   = categoriaKey === 'camioneta_view' ? 'GASTO' : up(categoriaKey);
     const rawPart  = (form.partidas || []).filter(p => (p.concepto || '').trim() || n(p.precio));
 
-    // Ruta partidas: impuesto por renglón + desglose por tasa + ajuste global (estilo Compras).
     if (rawPart.length) {
       const { ef } = calcTotalesPartidas(rawPart, form.ajuste, form.ajuste_manual);
       const partidas = rawPart.map(p => ({
         concepto: up(p.concepto), cantidad: n(p.cantidad), precio: n(p.precio),
         impuesto: (IMPUESTOS_MAP[p.impuesto_key || 'tasa0'] || {}).label || 'Tasa 0',
       }));
-      // impuesto_tipo es Select acotado en el doctype → un solo valor válido (la verdad
-      // por renglón vive en cada partida).
       const tipo = ef.iva > 0 ? 'IVA' : ef.ieps > 0 ? 'IEPS' : '';
       return {
         fecha: form.fecha, proveedor: prov, categoria: catKey,
@@ -693,7 +164,6 @@ export default function Egresos() {
       };
     }
 
-    // Ruta simple: un solo impuesto sobre el monto.
     const impKey   = form.impuesto_key || 'tasa0';
     const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
     const base     = n(form.monto);
@@ -729,12 +199,9 @@ export default function Egresos() {
         setShowForm(false); setForm(FORM_INIT);
         cargar(categoriaKey);
       } else {
-        // Captura en serie: el form se limpia y queda listo para el siguiente gasto.
         initForm(form.subcategoria);
         setOkMsg(`Egreso ${creado?.no_de_compra ? `#${creado.no_de_compra} ` : ''}guardado`);
       }
-      // Auto-imprime el ticket térmico al guardar (la reimpresión queda en Consultas).
-      // ponytail: fire-and-forget; crearEgreso devuelve {name, no_de_compra}, el resto sale del payload.
       imprimirEgresoTicket({ ...payload, name: creado?.name, no_de_compra: creado?.no_de_compra })
         .catch(err => console.error('Auto-print egreso:', err));
     } catch(e) { setError(e?.message || 'Error al guardar'); }
@@ -753,12 +220,11 @@ export default function Egresos() {
 
   const handlePagado = async (e) => {
     const nuevo = e.pagado ? 0 : 1;
-    setEgresos(prev => prev.map(x => x.name === e.name ? { ...x, pagado: nuevo } : x)); // optimista
+    setEgresos(prev => prev.map(x => x.name === e.name ? { ...x, pagado: nuevo } : x));
     try { await egresosService.marcarPagado(e.name, nuevo); }
     catch { setError('Error al marcar pagado'); cargar(categoriaKey); }
   };
-  // ── Formulario (modal) ────────────────────────────────────────
-  // Se monta igual desde el tile de Operaciones y desde la lista de Consultas.
+
   const subcats = cat?.subcategorias || [];
   const cerrarForm = () => { setShowForm(false); setOkMsg(''); if (!modoConsulta) setCategoriaKey(null); };
 
@@ -809,9 +275,6 @@ export default function Egresos() {
     </div>
   );
 
-  // ── Tiles ─────────────────────────────────────────────────────
-  // En Operaciones el tile abre el formulario directo (las vistas filtradas no
-  // capturan nada, así que solo salen en Consultas). En Consultas abre la lista.
   const categoriasVisibles = CATEGORIAS.filter(c =>
     (c.key !== 'Nómina' || puedeNomina) && (modoConsulta || !c.esVista));
 
@@ -831,7 +294,6 @@ export default function Egresos() {
             <h2>Egresos</h2>
             <p>{modoConsulta ? fecha : 'Elige qué vas a registrar'}</p>
           </div>
-          {/* Mismo tile que el resto del sistema (.panel-module): un solo lenguaje visual. */}
           <div className="panel-grid">
             {categoriasVisibles.map(c => (
               <button key={c.key} className="panel-module"
@@ -850,153 +312,37 @@ export default function Egresos() {
     );
   }
 
-  // ── Lista (solo Consultas) ────────────────────────────────────
-  // Misma tabla y misma barra de filtros que Compras: .sys-table + .filtros-section.
   const subcatsPresentes = [...new Set(egresos.map(e => e.subcategoria).filter(Boolean))].sort();
-  const totalListado = egresosFiltrados.reduce((a, e) => a + parseFloat(e.monto || 0), 0);
 
   return (
     <Layout>
-      <div className="page-container comprasv2">
-
-        <div className="page-header">
-          <div className="title-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-            <button className="egresos-back" onClick={() => { setCategoriaKey(null); setError(''); }}>← Egresos</button>
-            <h1 style={{ margin: 0 }}>{cat?.label}</h1>
-            <span className="header-subtitle">{cat?.sub}</span>
-            {cat?.esVista && <span className="egreso-vista-badge">vista</span>}
-          </div>
-        </div>
-
-        {/* FILTROS */}
-        <div className="filtros-section">
-          {subcatsPresentes.length > 1 && (
-            <div className="filtro-group filtro-sm">
-              <label>Subcategoría</label>
-              <select className="comp-date-input" value={subcatFiltro} onChange={e => setSubcatFiltro(e.target.value)}>
-                <option value="todas">Todas ({egresos.length})</option>
-                {subcatsPresentes.map(s => (
-                  <option key={s} value={s}>{s} ({egresos.filter(e => e.subcategoria === s).length})</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="filtro-group filtro-sm">
-            <label>Facturado a</label>
-            <select className="comp-date-input" value={facturadoFiltro} onChange={e => setFacturadoFiltro(e.target.value)}>
-              <option value="todas">Todas</option>
-              <option value="ALMA RODRIGUEZ">Alma Rodríguez</option>
-              <option value="LUIS TORRES">Luis Torres</option>
-              <option value="SIN FACTURA">Sin factura</option>
-            </select>
-          </div>
-          <div className="filtro-group filtro-sm">
-            <label>Desde</label>
-            <input type="date" className="comp-date-input" value={desde} onChange={e => setDesde(e.target.value)} />
-          </div>
-          <div className="filtro-group filtro-sm">
-            <label>Hasta</label>
-            <input type="date" className="comp-date-input" value={hasta} onChange={e => setHasta(e.target.value)} />
-          </div>
-          <div className="filtro-group search filtro-sm">
-            <label>Buscar concepto / proveedor / #</label>
-            <input type="text" placeholder="Ej: GASOLINA, #175" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
-          </div>
-          <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-            <button className="btn-refresh btn-compacto" onClick={() => cargar(categoriaKey)}>Actualizar</button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="egresos-error-bar">
-            <span>⚠ {error}</span>
-            <button onClick={() => { setError(''); cargar(categoriaKey); }}>Reintentar</button>
-          </div>
-        )}
-
-        {/* TABLA */}
-        {loading ? (
-          <div className="loading">Cargando egresos...</div>
-        ) : (
-          <div className="table-container">
-            <table className="sys-table vista-simple">
-              <thead>
-                <tr>
-                  <th># Compra</th>
-                  <th className="col-fecha">Fecha</th>
-                  <th>Proveedor</th>
-                  <th>Concepto</th>
-                  <th className="col-facturado">Facturado a</th>
-                  <th className="cell-right">Monto</th>
-                  <th>Pago</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {egresosFiltrados.length === 0 ? (
-                  <tr><td colSpan={8} className="no-data">
-                    {egresos.length === 0 ? 'Sin egresos registrados.' : 'Ningún egreso coincide con los filtros.'}
-                  </td></tr>
-                ) : egresosFiltrados.map(e => (
-                  <tr key={e.name}>
-                    <td className="cell-code">{e.no_de_compra ? `#${e.no_de_compra}` : '—'}</td>
-                    <td className="col-fecha">{e.fecha}</td>
-                    <td className="comp-td-proveedor" title={e.proveedor || ''}>{e.proveedor || '—'}</td>
-                    <td>
-                      {e.concepto || (e.descripcion ? '(ver detalle)' : '—')}
-                      {e.subcategoria && <div className="comp-subcat">{e.subcategoria}</div>}
-                    </td>
-                    <td className="col-facturado">
-                      <span className={(e.facturado_a && e.facturado_a !== 'SIN FACTURA') ? 'comp-facturado-badge' : 'comp-sinfactura-badge'}>
-                        {e.facturado_a || 'SIN FACTURA'}
-                      </span>
-                      {e.no_factura && <div className="comp-subcat">{e.no_factura}</div>}
-                    </td>
-                    <td className="cell-right cell-bold">
-                      {fmtN(e.monto)}
-                      {e.impuesto_tipo && <div className="comp-subcat">{e.impuesto_tipo} {fmtN(e.monto_impuesto)}</div>}
-                    </td>
-                    <td>
-                      <button className={'egresos-pago-toggle' + (e.pagado ? ' pagado' : '')}
-                        onClick={() => handlePagado(e)}
-                        title={e.pagado ? 'Pagado — clic para revertir' : 'Marcar como pagado'}>
-                        {e.pagado ? '✓ Pagado' : 'Por pagar'}
-                      </button>
-                    </td>
-                    <td className="comp-td-acciones">
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <button className="comp-btn-editar" title="Imprimir ticket" onClick={() => handleImprimir(e)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                        </button>
-                        {confirmDel === e.name
-                          ? <span className="egresos-confirm-del">
-                              ¿Seguro?{' '}
-                              <button className="egresos-del-si" onClick={() => handleEliminar(e.name)}>Sí</button>
-                              <button className="egresos-del-no" onClick={() => setConfirmDel(null)}>No</button>
-                            </span>
-                          : <button className="comp-btn-eliminar" title="Eliminar" onClick={() => setConfirmDel(e.name)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                            </button>
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {egresosFiltrados.length > 0 && (
-                <tfoot>
-                  <tr>
-                    <td colSpan={5} className="cell-right">{egresosFiltrados.length} egreso(s)</td>
-                    <td className="cell-right cell-bold">{fmtN(totalListado)}</td>
-                    <td colSpan={2}></td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        )}
-      </div>
-
+      <EgresosTabla
+        cat={cat}
+        categoriaKey={categoriaKey}
+        egresos={egresos}
+        egresosFiltrados={egresosFiltrados}
+        subcatsPresentes={subcatsPresentes}
+        subcatFiltro={subcatFiltro}
+        setSubcatFiltro={setSubcatFiltro}
+        facturadoFiltro={facturadoFiltro}
+        setFacturadoFiltro={setFacturadoFiltro}
+        desde={desde}
+        setDesde={setDesde}
+        hasta={hasta}
+        setHasta={setHasta}
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        loading={loading}
+        error={error}
+        setError={setError}
+        confirmDel={confirmDel}
+        setConfirmDel={setConfirmDel}
+        onVolver={() => { setCategoriaKey(null); setError(''); }}
+        onCargar={cargar}
+        onPagado={handlePagado}
+        onImprimir={handleImprimir}
+        onEliminar={handleEliminar}
+      />
       {showForm && formModal}
     </Layout>
   );

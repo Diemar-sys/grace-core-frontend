@@ -47,19 +47,22 @@ function ConteoFisico({ onSuccess, onCancel }) {
   const [passError, setPassError]       = useState(null);
 
   useEffect(() => {
+    let active = true;
     // El ajuste escribe en BODEGA_CENTRAL, así que el stock de referencia tiene
     // que ser el de ESE almacén. Sumar todos mostraba existencias de las tiendas.
     // ponytail: almacén fijo. Cuando cada admin ajuste el suyo, sale de la sesión.
     inventory.getProductosRegistrados({ warehouse: BODEGA_CENTRAL })
-      .then(data => setItems(data.filter(i => !i.disabled)))
-      .catch(e => setError(parseErrorFrappe(e)))
-      .finally(() => setLoading(false));
+      .then(data => { if (active) setItems(data.filter(i => !i.disabled)); })
+      .catch(e => { if (active) setError(parseErrorFrappe(e)); })
+      .finally(() => { if (active) setLoading(false); });
 
     // Lo capturado antes de cerrar el modal (o de que muriera la tablet).
     cargarBorrador(BODEGA_CENTRAL)
-      .then(prev => { if (prev) { setConteo(prev); setRestaurado(Object.keys(prev).length); } })
+      .then(prev => { if (active && prev) { setConteo(prev); setRestaurado(Object.keys(prev).length); } })
       .catch(e => console.error('borrador conteo:', e))
-      .finally(() => { hidratado.current = true; });
+      .finally(() => { if (active) hidratado.current = true; });
+
+    return () => { active = false; };
   }, []);
 
   // Persistir mientras se teclea. El guard evita que el {} inicial pise el

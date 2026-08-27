@@ -14,6 +14,21 @@ export default defineConfig({
   build: {
     // assets de React a /static → evita colisión con /assets de ERPNext (proxy)
     assetsDir: 'static',
+    rollupOptions: {
+      output: {
+        // El orden IMPORTA: son `if` en cascada sobre la misma ruta y varios
+        // paquetes traen «react» en el nombre. `dexie-react-hooks` caía en
+        // vendor-react, que entonces importaba dexie de vendor-db → ciclo
+        // («Circular chunk: vendor-db -> vendor-react -> vendor-db»).
+        // Regla: del nombre más específico al más genérico.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          if (id.includes('dexie')) return 'vendor-db';
+          if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
+        },
+      },
+    },
   },
   server: {
     host: true,
