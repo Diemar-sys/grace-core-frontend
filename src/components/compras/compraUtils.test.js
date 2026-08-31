@@ -472,9 +472,33 @@ describe('calcGasolina — IVA y total copiados del CFDI', () => {
     expect(total).toBeCloseTo(232, 6);
   });
 
-  it('total menor que base + IVA da IEPS negativo (la UI lo alerta)', () => {
-    const { ieps } = calcGasolina({ litros: '10', precio: '20', iva: '32', total: '200' });
-    expect(ieps).toBeLessThan(0);
+  it('precio de bomba (impuestos adentro) no produce IEPS negativo', () => {
+    const { ieps, base } = calcGasolina({ litros: '10', precio: '20', iva: '32', total: '200' });
+    expect(ieps).toBe(0);                 // un IEPS negativo no existe
+    expect(base).toBeCloseTo(168, 6);     // total - IVA, no los 200 del producto
+  });
+
+  // NOTA 605482 del 30-ago-2026, ticket de bomba SIN factura:
+  //   17.675 L a $28.29  ->  subtotal 432.79 + IVA 67.21 = 500.00
+  // El precio de bomba ya trae impuestos, asi que litros*precio = 500.03 es el
+  // TOTAL, no la base. Antes salia ieps = -67.24 y el ticket impreso mostraba un
+  // renglon de IEPS negativo.
+  it('ticket de bomba real: base correcta y sin renglon de IEPS', () => {
+    const g = calcGasolina({ litros: '17.675', precio: '28.29', iva: '67.21', total: '500' });
+    expect(g.ieps).toBe(0);
+    expect(g.base).toBeCloseTo(432.79, 2);
+    expect(g.baseGravable).toBeCloseTo(432.79, 2);
+    expect(g.total).toBe(500);
+    expect(g.iva).toBe(67.21);
+    expect(g.base + g.iva).toBeCloseTo(g.total, 2);
+
+    const descripcion = JSON.stringify({
+      gasolina_litros: '17.675', gasolina_precio: '28.29', gasolina_base: g.base,
+      ieps_importe: g.ieps, base_gravable: g.baseGravable, iva: g.iva, total: g.total,
+    });
+    const { filas } = desgloseEgreso({ subcategoria: 'GASOLINA', descripcion });
+    expect(filas.map(f => f.concepto)).toEqual(['GASOLINA']);
+    expect(filas[0].importe).toBeCloseTo(432.79, 2);
   });
 
   it('campos vacíos no producen NaN', () => {

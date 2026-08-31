@@ -26,7 +26,6 @@ export const GasolinaForm: React.FC<GasolinaFormProps> = ({
 
   const ivaManual = form.gasolina_iva !== '';
   const totalManual = form.gasolina_total !== '';
-  const alerta = ieps < -0.005 ? 'El total es menor que base + IVA — revisa la factura' : null;
 
   const set = (k: keyof EgresoFormState, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
@@ -103,7 +102,6 @@ export const GasolinaForm: React.FC<GasolinaFormProps> = ({
           </label>
         </div>
 
-        {alerta && <div className="gas-alerta">⚠ {alerta}</div>}
 
         <div className="gas-totales">
           <div className="gas-total-row">

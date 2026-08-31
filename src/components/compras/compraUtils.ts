@@ -216,8 +216,16 @@ export function calcGasolina({ litros, precio, iva, total }: { litros?: any; pre
   // Vacío = auto (carga sin IEPS al 16%). Con valor = override del CFDI, manda tal cual.
   const ivaNum   = vacio(iva)   ? base * 0.16   : num(iva);
   const totalNum = vacio(total) ? base + ivaNum : num(total);
-  const ieps = totalNum - base - ivaNum;   // derivado: lo que la factura cobró de más
-  return { base, ieps, baseGravable: totalNum - ivaNum, iva: ivaNum, total: totalNum };
+  const iepsCrudo = totalNum - base - ivaNum;   // derivado: lo que la factura cobró de más
+  // Un IEPS negativo no existe: es cuota fija por litro, nunca baja de cero. Cuando
+  // sale negativo significa que `precio` era el de la BOMBA (impuestos adentro), no
+  // el del CFDI. Ahí litros*precio ya es el total y la base real es total - IVA.
+  const precioConImpuestos = iepsCrudo < -0.005;
+  const ieps = precioConImpuestos ? 0 : iepsCrudo;
+  return {
+    base: precioConImpuestos ? totalNum - ivaNum : base,
+    ieps, baseGravable: totalNum - ivaNum, iva: ivaNum, total: totalNum,
+  };
 }
 
 /**
