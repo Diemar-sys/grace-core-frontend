@@ -29,7 +29,7 @@ export const SUCURSALES_RECIBO: string[] = [
   'Casa',
 ];
 
-export const TELEFONOS: string[] = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque'];
+export const TELEFONOS: string[] = ['Héctor', 'Luis', 'Alma', 'Paseos del Bosque', 'Santuarios'];
 export const TIPOS_MANT: string[] = ['Maquinaria', 'Camioneta', 'Infraestructura', 'Cómputo'];
 export const TIPOS_REFAC: string[] = ['Camioneta', 'Maquinaria', 'Otro'];
 export const TIPOS_AGUA: string[] = [
@@ -163,6 +163,13 @@ export const FORM_INIT: EgresoFormState = {
   no_factura: '',
   gas_litros: '',
   gas_precio: '',
+  impuesto_manual: '',
+  total_manual: '',
+  totales_override: {},
+  luz_energia: '',
+  luz_dap: '',
+  luz_iva: '',
+  luz_total: '',
   gasolina_litros: '',
   gasolina_precio: '',
   gasolina_iva: '',

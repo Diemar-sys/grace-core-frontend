@@ -15,6 +15,9 @@ import { CATEGORIAS, FACTURA_OPTIONS, FORM_INIT, IMP_ERPNEXT, IVA_RATE, impuesto
 import { GasolinaForm } from '../components/egresos/GasolinaForm';
 import { GasForm } from '../components/egresos/GasForm';
 import { SubcatForm } from '../components/egresos/SubcatForm';
+import { LuzForm } from '../components/egresos/LuzForm';
+import { calcLuz } from '../components/egresos/luzCalc';
+import { calcSimple } from '../components/egresos/simpleCalc';
 import { EgresosTabla } from '../components/egresos/EgresosTabla';
 
 import '../styles/NuevaCompra.css';
@@ -142,10 +145,45 @@ export default function Egresos() {
       };
     }
     const catKey   = categoriaKey === 'camioneta_view' ? 'GASTO' : up(categoriaKey);
+
+    if (form.subcategoria === 'Luz') {
+      const l = calcLuz({
+        energia: form.luz_energia, dap: form.luz_dap,
+        iva: form.luz_iva, totalPagar: form.luz_total,
+      });
+      // Cada concepto conserva el numero del recibo y la diferencia por el
+      // truncado va como partida PROPIA. Escondida dentro de energia o del DAP,
+      // esos renglones dejarian de cuadrar con el papel y en tres meses nadie
+      // sabria por que. Asi el desglose siempre suma el monto guardado.
+      // El campo `impuesto` de la partida guarda la ETIQUETA, no la clave: asi lo
+      // hace la ruta generica y asi lo tienen todos los egresos existentes.
+      // Guardar 'iva16' en vez de 'IVA 16%' rompe la consistencia del historico.
+      const etiqueta = k => (IMPUESTOS_MAP[k] || {}).label || 'Tasa 0';
+      const partidas = [{ concepto: 'ENERGÍA', cantidad: 1, precio: l.energia, impuesto: etiqueta('iva16') }];
+      if (l.dap) partidas.push({ concepto: 'DAP (ALUMBRADO PÚBLICO)', cantidad: 1, precio: l.dap, impuesto: etiqueta('tasa0') });
+      // Mismo nombre que la cuenta que usa Compras ('AJUSTE POR REDONDEO - PG',
+      // config.py). Aqui NO va al mayor: el Egreso es `class Egreso(Document): pass`
+      // y no genera asientos. Se llama igual para que ambos modulos hablen igual y
+      // el mapeo sea obvio el dia que el Egreso si sea documento contable.
+      if (Math.abs(l.redondeo) >= 0.005) partidas.push({ concepto: 'AJUSTE POR REDONDEO', cantidad: 1, precio: l.redondeo, impuesto: etiqueta('tasa0') });
+      return {
+        fecha: form.fecha, proveedor: prov, categoria: catKey, subcategoria: 'LUZ',
+        concepto: up(form.concepto), partidas,
+        // El monto es lo que SALE DEL BANCO, no el total del recibo: CFE cobra
+        // pesos cerrados. El IVA va aparte e intacto, que es lo que se acredita.
+        monto: l.totalPagar.toFixed(2),
+        impuesto_tipo: l.iva > 0 ? 'IVA' : '', monto_impuesto: l.iva.toFixed(2),
+        facturado_a: facturaOpt.facturado_a,
+        con_factura: facturaOpt.con_factura ? 1 : 0,
+        no_factura: facturaOpt.con_factura ? (form.no_factura || '').trim() : '',
+      };
+    }
+
     const rawPart  = (form.partidas || []).filter(p => (p.concepto || '').trim() || n(p.precio));
 
     if (rawPart.length) {
-      const { ef } = calcTotalesPartidas(rawPart, form.ajuste, form.ajuste_manual);
+      // Los mismos overrides que pinta SubcatForm: lo que se ve es lo que se guarda.
+      const { ef } = calcTotalesPartidas(rawPart, form.ajuste, form.ajuste_manual, form.totales_override || {});
       const partidas = rawPart.map(p => ({
         concepto: up(p.concepto), cantidad: n(p.cantidad), precio: n(p.precio),
         impuesto: (IMPUESTOS_MAP[p.impuesto_key || 'tasa0'] || {}).label || 'Tasa 0',
@@ -164,11 +202,23 @@ export default function Egresos() {
       };
     }
 
-    const impKey   = form.impuesto_key || 'tasa0';
-    const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
-    const base     = n(form.monto);
-    const impMonto = base * impEntry.rate;
-    const total    = base + impMonto;
+    const impKey = form.impuesto_key || 'tasa0';
+    // MISMA funcion que pinta SubcatForm: lo que se ve es lo que se guarda,
+    // incluidos los ajustes manuales que antes ni siquiera llegaban aqui.
+    const { impuesto: impMonto, total } = calcSimple({
+      monto: form.monto, impuestoKey: impKey,
+      impuestoManual: form.impuesto_manual, totalManual: form.total_manual,
+    });
+    // Si el total se ajusto a mano, la base capturada YA NO se puede reconstruir
+    // desde monto - impuesto. Se guardan dos partidas para que el desglose siga
+    // cuadrando y la diferencia quede a la vista, igual que en Luz.
+    const baseCapturada = n(form.monto);
+    const dif = Math.round((total - baseCapturada - impMonto) * 100) / 100;
+    const partidasSimples = Math.abs(dif) < 0.005 ? [] : [
+      { concepto: up(form.subcategoria) || 'MONTO', cantidad: 1, precio: baseCapturada,
+        impuesto: (IMPUESTOS_MAP[impKey] || {}).label || 'Tasa 0' },
+      { concepto: 'AJUSTE', cantidad: 1, precio: dif, impuesto: 'Tasa 0' },
+    ];
     return {
       fecha: form.fecha,
       proveedor: prov,
@@ -176,7 +226,7 @@ export default function Egresos() {
       subcategoria: up(form.subcategoria),
       concepto: up(form.concepto),
       descripcion: up(form.descripcion),
-      partidas: [],
+      partidas: partidasSimples,
       monto: total.toFixed(2),
       impuesto_tipo: IMP_ERPNEXT[impKey] || '',
       monto_impuesto: impMonto > 0 ? impMonto.toFixed(2) : 0,
@@ -214,7 +264,15 @@ export default function Egresos() {
   };
 
   const handleImprimir = async (egreso) => {
-    try { await imprimirEgresoTicket(egreso); }
+    try {
+      // La LISTA no trae partidas (pesan de mas), asi que al reimprimir hay que
+      // pedir el detalle o el ticket sale sin desglose. Al crear si vienen en el
+      // payload, por eso solo se pide cuando faltan.
+      const completo = egreso?.partidas?.length || !egreso?.name
+        ? egreso
+        : { ...egreso, ...(await egresosService.getEgreso(egreso.name)) };
+      await imprimirEgresoTicket(completo);
+    }
     catch (err) { setError(err?.message || 'Error al imprimir'); }
   };
 
@@ -261,6 +319,8 @@ export default function Egresos() {
               return <GasForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
             if (form.subcategoria === 'Gasolina')
               return <GasolinaForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
+            if (form.subcategoria === 'Luz')
+              return <LuzForm form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
             return <SubcatForm subcategoria={form.subcategoria} form={form} setForm={setForm} subcatField={subcatField} proveedorField={proveedorField} />;
           })()}
         </div>

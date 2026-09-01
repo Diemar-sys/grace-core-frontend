@@ -44,6 +44,16 @@ export interface EgresoFormState {
   aditivo_litros: string;
   aditivo_precio: string;
   descuento_gas: string;
+  // Overrides del gasto simple: el calculo es suposicion, el papel es la verdad.
+  impuesto_manual: string;
+  total_manual: string;
+  /** Overrides de los totales de la ruta con partidas. Vacio = auto. */
+  totales_override: Record<string, string>;
+  // Luz (CFE): el IVA grava solo la energia y el pago va en pesos cerrados.
+  luz_energia: string;
+  luz_dap: string;
+  luz_iva: string;
+  luz_total: string;
 }
 
 export interface CategoriaConfig {

@@ -1,6 +1,7 @@
 // Ruta relativa: el nginx del frontend proxya /print → print-server del host (torre).
 // Mismo origen → sin CORS, sin IP hardcodeada. En dev, vite.config proxya /print a localhost:6789.
 import { escHTML } from '../utils/print/escHTML';
+import { agruparPorTasa, subtotalPartidas, importePartida, ajusteDerivado } from '../utils/print/egresoDesglose';
 
 const PRINT_SERVER = '/print';
 
@@ -202,6 +203,9 @@ export async function imprimirEgresoTicket(egreso: EgresoRow) {
     monto: egreso.monto || 0,
     impuesto_tipo: egreso.impuesto_tipo || '',
     monto_impuesto: egreso.monto_impuesto || 0,
+    // Van al payload para que la termica pueda desglosarlas cuando ese servicio
+    // se actualice; hoy solo las usa el HTML del navegador.
+    partidas: (egreso as any).partidas || [],
     gas,
     gasolina,
   };
@@ -241,6 +245,34 @@ function _htmlEgreso(p: Record<string, any>, gas: Record<string, any> | null, ga
       ${Number(gas.descuento) > 0 ? `<tr><td>Descuento</td><td class="r">-$${_fmt2(gas.descuento)}</td></tr>` : ''}
       <tr><td>Base gravable</td><td class="r">$${_fmt2(gas.base)}</td></tr>
       <tr><td>IVA 16%</td><td class="r">$${_fmt2(gas.iva)}</td></tr>`
+    : (p.partidas || []).length
+    ? (() => {
+        // Con partidas se listan una por una y el subtotal se parte POR TASA. Un
+        // egreso de tasa mixta (CFE: energia gravada + DAP exento) etiquetado con
+        // un solo subtotal miente sobre cual es la base del impuesto.
+        const imp = Number(p.monto_impuesto || 0);
+        const grupos = agruparPorTasa(p.partidas);
+        const lineas = p.partidas.map((it: any) =>
+          `<tr><td>${escHTML(it.concepto || '')}</td><td class="r">$${_fmt2(importePartida(it))}</td></tr>`
+        ).join('');
+        const subs = grupos.map(g =>
+          `<tr><td>SUBTOTAL ${escHTML(g.label.toUpperCase())}</td><td class="r">$${_fmt2(g.subtotal)}</td></tr>`
+        ).join('');
+        const tasaImp = p.impuesto_tipo === 'IVA' ? 'IVA 16%'
+                      : p.impuesto_tipo === 'IEPS' ? 'IEPS 8%' : '';
+        // El ajuste NO se guarda como campo: se deriva de lo que ya esta en la
+        // base. Si el total no es la suma de lo escrito arriba, hay que decir por
+        // que — un total que no cuadra con sus renglones es un fantasma.
+        const sub = subtotalPartidas(p.partidas);
+        const ajuste = ajusteDerivado(total, sub, imp);
+        return `
+      ${lineas}
+      <tr><td colspan="2"><hr/></td></tr>
+      ${subs}
+      <tr><td>SUBTOTAL</td><td class="r">$${_fmt2(sub)}</td></tr>
+      ${imp > 0 && tasaImp ? `<tr><td>${tasaImp}</td><td class="r">$${_fmt2(imp)}</td></tr>` : ''}
+      ${Math.abs(ajuste) >= 0.005 ? `<tr><td>AJUSTE</td><td class="r">$${_fmt2(ajuste)}</td></tr>` : ''}`;
+      })()
     : (() => {
         const imp  = Number(p.monto_impuesto || 0);
         const base = total - imp;

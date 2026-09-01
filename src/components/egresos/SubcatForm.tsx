@@ -12,7 +12,9 @@ import {
   fmtN,
   n,
 } from './egresosConstants';
-import { IMPUESTOS_LIST, IMPUESTOS_MAP } from '../../config/impuestos';
+import { IMPUESTOS_LIST } from '../../config/impuestos';
+import { calcSimple } from './simpleCalc';
+import { CampoAjustable } from './CampoAjustable';
 import { calcTotalesPartidas } from '../../utils/egresosUtils';
 
 interface SubcatFormProps {
@@ -70,18 +72,25 @@ export const SubcatForm: React.FC<SubcatFormProps> = ({
     }));
 
   // Con partidas: desglose por tasa estilo Compras + ajuste global (cuadrar CFDI).
-  const { calc, ef } = calcTotalesPartidas(partidas, form.ajuste, form.ajuste_manual);
+  const ov = form.totales_override || {};
+  const { calc, ef } = calcTotalesPartidas(partidas, form.ajuste, form.ajuste_manual, ov);
+  // Un solo mapa para los cinco campos: mas simple que cinco banderas sueltas,
+  // y no puede quedar un booleano diciendo 'manual' sin valor que lo respalde.
+  const setOv = (k: string, v: string) =>
+    setForm(f => ({ ...f, totales_override: { ...(f.totales_override || {}), [k]: v } }));
   const ajusteShown = form.ajuste_manual
     ? form.ajuste
     : ef.ajusteSAT
     ? ef.ajusteSAT.toFixed(2)
     : '0.00';
 
-  // Ruta simple (sin partidas): un solo impuesto sobre el monto.
+  // Ruta simple (sin partidas): un solo impuesto sobre el monto. La cuenta vive
+  // en calcSimple y la comparte con Egresos.jsx — antes cada uno hacia la suya.
   const impKey = form.impuesto_key || 'tasa0';
-  const impEntry = IMPUESTOS_MAP[impKey] || IMPUESTOS_MAP['tasa0'];
-  const montoImp = n(form.monto) * impEntry.rate;
-  const total = n(form.monto) + montoImp;
+  const simple = calcSimple({
+    monto: form.monto, impuestoKey: impKey,
+    impuestoManual: form.impuesto_manual, totalManual: form.total_manual,
+  });
 
   const conceptoSelect = (opciones: string[], placeholder: string) => (
     <label>
@@ -287,61 +296,57 @@ export const SubcatForm: React.FC<SubcatFormProps> = ({
         </label>
       )}
 
-      {!usaPartidas && montoImp > 0 && (
-        <label>
-          Monto impuesto
-          <input type="text" readOnly value={fmtN(montoImp)} className="gas-calc-field" />
-        </label>
-      )}
-
+      {/* Impuesto y total se pueden corregir: el recibo manda sobre el calculo. */}
       {!usaPartidas && n(form.monto) > 0 && (
-        <label>
-          Total
-          <input
-            type="text"
-            readOnly
-            value={fmtN(total)}
-            className="gas-calc-field"
-            style={{ fontWeight: 700, color: 'var(--tv-marca)' }}
-          />
-        </label>
+        <div className="egresos-form-full">
+          <div className="gas-totales">
+            <CampoAjustable
+              label="Monto impuesto"
+              auto={simple.impuesto}
+              manual={form.impuesto_manual}
+              onChange={v => set('impuesto_manual', v)}
+            />
+            <CampoAjustable
+              label="Total"
+              auto={simple.total}
+              manual={form.total_manual}
+              onChange={v => set('total_manual', v)}
+              destacado
+            />
+          </div>
+        </div>
       )}
 
       {usaPartidas && (
         <div className="egresos-form-full egresos-totales">
           {calc.subtotalIva16 > 0 && (
-            <div className="egresos-total-row muted">
-              <span>Subtotal IVA 16%</span>
-              <span>{fmtN(calc.subtotalIva16)}</span>
-            </div>
+            <CampoAjustable skin="egresos" label="Subtotal IVA 16%"
+              auto={calc.subtotalIva16} manual={ov.subtotalIva16 || ''}
+              onChange={v => setOv('subtotalIva16', v)} />
           )}
           {calc.subtotalIeps > 0 && (
-            <div className="egresos-total-row muted">
-              <span>Subtotal IEPS 8%</span>
-              <span>{fmtN(calc.subtotalIeps)}</span>
-            </div>
+            <CampoAjustable skin="egresos" label="Subtotal IEPS 8%"
+              auto={calc.subtotalIeps} manual={ov.subtotalIeps || ''}
+              onChange={v => setOv('subtotalIeps', v)} />
           )}
           {calc.subtotalTasa0 > 0 && (
-            <div className="egresos-total-row muted">
-              <span>Subtotal Tasa 0</span>
-              <span>{fmtN(calc.subtotalTasa0)}</span>
-            </div>
+            <CampoAjustable skin="egresos" label="Subtotal Tasa 0"
+              auto={calc.subtotalTasa0} manual={ov.subtotalTasa0 || ''}
+              onChange={v => setOv('subtotalTasa0', v)} />
           )}
           <div className="egresos-total-row">
             <span>Subtotal</span>
             <span>{fmtN(ef.subtotalEfectivo)}</span>
           </div>
           {ef.iva > 0 && (
-            <div className="egresos-total-row">
-              <span>IVA 16%</span>
-              <span>{fmtN(ef.iva)}</span>
-            </div>
+            <CampoAjustable skin="egresos" label="IVA 16%"
+              auto={ef.iva} manual={ov.iva || ''}
+              onChange={v => setOv('iva', v)} />
           )}
           {ef.ieps > 0 && (
-            <div className="egresos-total-row">
-              <span>IEPS 8%</span>
-              <span>{fmtN(ef.ieps)}</span>
-            </div>
+            <CampoAjustable skin="egresos" label="IEPS 8%"
+              auto={ef.ieps} manual={ov.ieps || ''}
+              onChange={v => setOv('ieps', v)} />
           )}
           <div className="egresos-total-row egresos-ajuste-row">
             <span>Ajuste (cuadre CFDI)</span>
