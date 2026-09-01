@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Modal de confirmación genérico.
@@ -25,6 +25,10 @@ import { useEffect } from 'react';
  *  fallbackLabel    – Texto del botón alternativo
  *  fallbackLoadingLabel – Texto cuando loading en fallback
  *  fallbackDescription  – Descripción extra dentro del área de error (acepta JSX)
+ *  passwordPrompt   – Si viene, pide la contraseña del usuario antes de confirmar
+ *                     y la pasa a onConfirm(password). Confirmar queda deshabilitado
+ *                     mientras esté vacía. Para acciones que se revierten sin
+ *                     testigo (revertir un pago) y necesitan fricción + rastro.
  */
 function ConfirmModal({
   title,
@@ -46,7 +50,9 @@ function ConfirmModal({
   fallbackLabel,
   fallbackLoadingLabel = 'Procesando...',
   fallbackDescription,
+  passwordPrompt,
 }) {
+  const [password, setPassword] = useState('');
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape' && !loading) onCancel(); };
     document.addEventListener('keydown', handler);
@@ -64,6 +70,20 @@ function ConfirmModal({
         <h3>{title}</h3>
         <p>{description}</p>
         {subdescription && <p className="del-modal-sub">{subdescription}</p>}
+
+        {passwordPrompt && (
+          <input
+            type="password"
+            autoFocus
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && password && !loading) onConfirm(password); }}
+            placeholder={passwordPrompt}
+            disabled={loading}
+            style={{ width: '100%', padding: '10px 14px', marginTop: 8, borderRadius: 12,
+                     border: '1px solid var(--tv-line, #e2ddd4)', boxSizing: 'border-box' }}
+          />
+        )}
 
         {error && (
           <div className="del-modal-error">
@@ -85,7 +105,7 @@ function ConfirmModal({
           </div>
         )}
 
-        {!error && (
+        {(!error || passwordPrompt) && (
           <div className="del-modal-actions">
             {!hideCancel && (
               <button className="del-btn-cancel" onClick={onCancel} disabled={loading}>
@@ -95,8 +115,8 @@ function ConfirmModal({
             <button
               className={confirmClassName || 'del-btn-confirm'}
               style={confirmStyle}
-              onClick={onConfirm}
-              disabled={loading}
+              onClick={() => onConfirm(passwordPrompt ? password : undefined)}
+              disabled={loading || (!!passwordPrompt && !password)}
             >
               {loading ? loadingLabel : confirmLabel}
             </button>

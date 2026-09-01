@@ -9,8 +9,8 @@ interface ConfirmModalOpts<T> {
  * Hook para modales de confirmación con acción asíncrona.
  * `fallbackAction` se muestra cuando `action` falla (ej. deshabilitar en vez de eliminar).
  */
-function useConfirmModal<T = unknown>(
-  action: (item: T | null) => Promise<void>,
+function useConfirmModal<T = unknown, E = unknown>(
+  action: (item: T | null, extra?: E) => Promise<void>,
   { onSuccess, fallbackAction }: ConfirmModalOpts<T> = {},
 ) {
   const [item, setItem] = useState<T | null>(null);
@@ -20,11 +20,13 @@ function useConfirmModal<T = unknown>(
   const open  = (target: T): void => { setItem(target); setError(''); };
   const close = (): void => { setItem(null); setError(''); };
 
-  const confirm = async (): Promise<void> => {
+  // `extra` lo manda el modal cuando la acción pide algo más que el sí/no
+  // (hoy: la contraseña para revertir un pago).
+  const confirm = async (extra?: E): Promise<void> => {
     setLoading(true);
     setError('');
     try {
-      await action(item);
+      await action(item, extra);
       close();
       onSuccess?.();
     } catch (err) {

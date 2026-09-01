@@ -122,11 +122,9 @@ export default function ComprasModales({
       {/* Marcar pagada / pendiente */}
       {pagoModal.item && (
         <ConfirmModal
-          title={pagoModal.item.names?.length
-            ? 'Marcar la factura como PAGADA'
-            : pagoModal.item.value ? 'Marcar como PAGADA' : 'Marcar como PENDIENTE'}
+          title={pagoModal.item.value ? 'Marcar como PAGADA' : 'Marcar como PENDIENTE'}
           description={pagoModal.item.names?.length
-            ? <>Se marcarán como <strong>pagadas las {pagoModal.item.names.length} nota(s)</strong> pendientes de la factura <strong>{pagoModal.item.folio || '(sin folio)'}</strong>.</>
+            ? <>Se marcarán como <strong>{pagoModal.item.value ? 'pagadas' : 'pendientes de pago'} las {pagoModal.item.names.length} nota(s)</strong> de la factura <strong>{pagoModal.item.folio || '(sin folio)'}</strong>.</>
             : pagoModal.item.value
               ? <>¿Confirmas que la compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> ya fue <strong>pagada</strong> al proveedor?</>
               : <>La compra <strong>{pagoModal.item.compra?.custom_no_de_compra ? `#${pagoModal.item.compra.custom_no_de_compra}` : pagoModal.item.name}</strong> volverá a quedar como <strong>pendiente de pago</strong>.</>}
@@ -134,6 +132,11 @@ export default function ComprasModales({
           confirmLabel={pagoModal.item.value ? 'Sí, ya se pagó' : 'Sí, dejar pendiente'}
           loadingLabel="Guardando..."
           confirmStyle={{ background: pagoModal.item.value ? '#16a34a' : '#d97706' }}
+          /* Solo al REVERTIR. Marcar de más lo reclama el proveedor; desmarcar
+             manda la factura de vuelta a "por pagar" y se paga dos veces sin testigo. */
+          passwordPrompt={pagoModal.item.value ? undefined : 'Tu contraseña'}
+          subdescription={pagoModal.item.value ? undefined
+            : 'Requiere rol de Gerente. El movimiento queda registrado a tu nombre.'}
           cancelLabel="Cancelar"
           onConfirm={pagoModal.confirm}
           onCancel={pagoModal.close}

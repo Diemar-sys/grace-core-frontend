@@ -238,6 +238,7 @@ function Compras() {
                           const multi   = g.esConsolidacion && g.notas.length > 1;
                           // Notas que un pago en cascada sí puede tocar: confirmadas y sin pagar.
                           const pendientes = g.notas.filter(n => !n.custom_pagado && n.docstatus === 1);
+                          const yaPagadas  = g.notas.filter(n => n.custom_pagado && n.docstatus === 1);
                           return (
                             <React.Fragment key={g.key}>
                               <tr className={multi ? 'comp-row-grupo' : undefined}
@@ -302,7 +303,19 @@ function Compras() {
                                       {`${g.pagadas}/${g.activas}`}
                                     </span>
                                   ) : (
-                                    <span className={`status-badge ${g.pagadas === g.activas ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}>
+                                    /* Ya pagada: el mismo badge la revierte. Marcarla por error no
+                                       dejaba salida y habia que ir a la consola de Frappe. */
+                                    <span
+                                      className={`status-badge ${g.pagadas === g.activas ? 'status-ok' : g.pagadas === 0 ? 'status-low' : 'status-cancelled'}`}
+                                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                                      title="Marcar de nuevo como pendiente de pago"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        pagoModal.open(g.esConsolidacion
+                                          ? { names: yaPagadas.map(n => n.name), value: 0, folio: g.folio }
+                                          : { name: g.notas[0].name, value: 0, compra: g.notas[0] });
+                                      }}
+                                    >
                                       {g.pagadas === g.activas ? 'Pagada' : `${g.pagadas}/${g.activas}`}
                                     </span>
                                   )}
@@ -465,10 +478,10 @@ function Compras() {
                           </td>
                           <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                             <input type="checkbox" checked={!!c.custom_pagado}
-                              disabled={c.docstatus !== 1 || c.custom_pagado || pagoModal.loading}
+                              disabled={c.docstatus !== 1 || pagoModal.loading}
                               onChange={() => pagoModal.open({ name: c.name, value: c.custom_pagado ? 0 : 1, compra: c })}
-                              title={c.custom_pagado ? 'Pagada (bloqueada)' : 'Pendiente de pago'}
-                              style={{ width: 18, height: 18, cursor: (c.docstatus === 1 && !c.custom_pagado) ? 'pointer' : 'not-allowed' }} />
+                              title={c.custom_pagado ? 'Pagada — desmarca para volverla a pendiente' : 'Pendiente de pago'}
+                              style={{ width: 18, height: 18, cursor: c.docstatus === 1 ? 'pointer' : 'not-allowed' }} />
                           </td>
                           <td className="comp-td-acciones">
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -525,6 +538,7 @@ function Compras() {
                         if (it.tipo !== 'grupo') return fila(it.compra);
                         const g = it.grupo, ek = 'ng-' + g.key, ab = expandido.has(ek);
                         const pendientes = g.notas.filter(n => !n.custom_pagado && n.docstatus === 1);
+                        const yaPagadas  = g.notas.filter(n => n.custom_pagado && n.docstatus === 1);
                         return (
                           <React.Fragment key={ek}>
                             <tr className="comp-row-grupo" onClick={() => abrirDetalleGrupo(g)} style={{ cursor: 'pointer' }}>
@@ -567,7 +581,11 @@ function Compras() {
                                     {`${g.pagadas}/${g.notas.length}`}
                                   </span>
                                 ) : (
-                                  <span className="status-badge status-ok">Pagada</span>
+                                  <span className="status-badge status-ok"
+                                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                                    title={`Marcar las ${yaPagadas.length} nota(s) como pendientes de pago`}
+                                    onClick={() => pagoModal.open({ names: yaPagadas.map(n => n.name), value: 0, folio: g.folio })}
+                                  >Pagada</span>
                                 )}
                               </td>
                               <td className="comp-td-acciones">

@@ -125,12 +125,19 @@ export default function useCompras() {
   );
   // Un pago cubre la factura completa: si viene `names` (grupo consolidado) se marcan
   // todas sus notas de un tiro, en vez de ir palomeando una por una.
-  const pagoModal = useConfirmModal(
-    ({ name, names, value, esGasto }: any) => names?.length
-      ? Promise.all(names.map((n: string) => comprasService.updatePagado(n, value)))
-      : esGasto
-        ? egresosService.marcarPagado(name, value)
-        : comprasService.updatePagado(name, value),
+  const pagoModal = useConfirmModal<any, string>(
+    ({ name, names, value, esGasto }: any, password?: string) => {
+      // Revertir un pago va por su propio endpoint: pide rol Gerente + contraseña.
+      // El PUT al recurso lo rechaza el hook `bloquear_revertir_pagado`.
+      if (!value && !esGasto) {
+        return comprasService.revertirPagado(names?.length ? names : [name], password || '');
+      }
+      return names?.length
+        ? Promise.all(names.map((n: string) => comprasService.updatePagado(n, value)))
+        : esGasto
+          ? egresosService.marcarPagado(name, value)
+          : comprasService.updatePagado(name, value);
+    },
     { onSuccess: () => cargar() }
   );
   const consolidarModal = useConfirmModal(

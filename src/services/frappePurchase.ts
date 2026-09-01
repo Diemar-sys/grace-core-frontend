@@ -425,6 +425,21 @@ class FrappeComprasService extends FrappeBase {
     return data.data;
   }
 
+  /**
+   * Devuelve compras de PAGADA a PENDIENTE. NO usa el PUT del recurso: el hook
+   * `bloquear_revertir_pagado` lo rechaza a propósito. Va por el endpoint que
+   * exige rol Gerente + la contraseña propia, porque una factura que regresa a
+   * "por pagar" se paga dos veces y nadie del otro lado reclama.
+   * @param names - Purchase Receipts a revertir.
+   * @param password - Contraseña del usuario de la sesión.
+   */
+  async revertirPagado(names: string[], password: string) {
+    return this._fetch("/api/method/gestion_panaderia.api.compras_api.revertir_pagado", {
+      method: "POST",
+      body: JSON.stringify({ names: JSON.stringify(names), password }),
+    });
+  }
+
   // ── Reporte fiscal mensual ───────────────────────────────────────────────
 
   async getReporteFiscalMensual(año: number | string): Promise<any[]> {
