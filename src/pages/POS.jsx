@@ -134,7 +134,6 @@ function POS() {
   const agregarProducto = useCallback((prod) => {
     const qty = stockMap.get(prod.item_code);
     if (qty !== undefined && qty <= 0) {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       showToast(`⚠ ${prod.item_name}: caché indica agotado — verifica existencia física`);
     }
     setTicket(prev => {
@@ -152,7 +151,10 @@ function POS() {
         stock_uom: prod.stock_uom || 'PZA',
       }];
     });
-  }, [stockMap]); // showToast excluido: stable (deps=[]), no cambia entre renders
+    // showToast va excluido a proposito: es useCallback(deps=[]), su identidad
+    // nunca cambia. Meterlo recrearia agregarProducto en cada render sin motivo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockMap]);
 
   const cambiarCantidad = useCallback((itemCode, delta) => {
     setTicket(prev =>

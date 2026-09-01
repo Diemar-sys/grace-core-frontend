@@ -15,7 +15,11 @@ function ProtectedRoute({ children }) {
   useEffect(() => {
     if (!user) return;
     Promise.all([loadAppConfig(), loadSucursalesConfig()]).catch(() => { });
-  }, [user?.email]);   // primitivo estable: solo re-corre si cambia la sesión
+    // `user` es un objeto nuevo en cada render (auth.getUser()): depender de el
+    // recargaria las configs sin parar. El email es el primitivo estable que de
+    // verdad identifica la sesion.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
 
   if (!user) return <Navigate to="/login" replace />;
 
