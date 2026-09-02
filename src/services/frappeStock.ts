@@ -748,7 +748,9 @@ class FrappeStockService extends FrappeBase {
 
   /**
    * Lista transferencias enviadas a una sucursal interna en rango de fechas.
-   * Cada transferencia trae items con qty + custom_precio_venta congelado.
+   * Cada transferencia trae items con qty + el COSTO al que ERPNext los valuó
+   * (`basic_rate`/`amount`). Es un traspaso: se valúa a costo, no a precio de
+   * venta. Ver el comentario largo abajo, en el armado de los renglones.
    */
   async getTransferenciasSucursal({ warehouseDestino, desde = null, hasta = null, docstatus = null }: { warehouseDestino: string; desde?: string | null; hasta?: string | null; docstatus?: number | null } = {} as any, signal?: AbortSignal): Promise<any[]> {
     if (!warehouseDestino) throw new Error('warehouseDestino requerido');
@@ -796,15 +798,39 @@ class FrappeStockService extends FrappeBase {
     const itemsByParentFinal: Record<string, any[]> = {};
     allDetails.forEach(d => {
       if (!itemsByParentFinal[d.parent]) itemsByParentFinal[d.parent] = [];
-      const precio = parseFloat(d.custom_precio_venta || 0); // precio por unidad base
+      // 🔴 Se valúa al COSTO (`basic_rate`/`amount`), NO al `custom_precio_venta`
+      // congelado. Un envío a sucursal es un TRASPASO: nadie le vende la levadura
+      // a la tienda, se la manda. El precio de venta ahí mentía en los dos
+      // sentidos — medido en la torre del 1 al 31 de agosto:
+      //
+      //   SANTUARIOS   costo 20,035.37   precio 17,845.41   (-2,190)
+      //   PUERTA       costo  8,193.89   precio 11,677.07   (+3,483)
+      //
+      // y los insumos sin precio de venta salían en $0.00 y NO entraban al total:
+      // un envío de 2,000 bolsas de papel y 5 L de brillo aparecía en $624.79
+      // cuando habían salido $3,546.34 de Bodega Central.
+      //
+      // `amount` ya existe en todo renglón histórico y es el mismo número que
+      // sostiene la valuación del inventario, así que esto corrige el pasado sin
+      // backfill. `custom_precio_venta` se sigue congelando en stock_entry.py y
+      // no se toca: es la cuenta del PAN a camionetas y puntos de venta, con su
+      // precio por destino. Hoy no circula pan por aquí (0 renglones de producto
+      // terminado desde el 1-ago), por eso el costo es la lectura correcta.
+      //
+      // ponytail: una sola columna, la del traspaso. Si el pan a camioneta vuelve
+      // a moverse por esta pantalla, hay que partirla en dos: costo para el
+      // traspaso de insumos y precio para la cuenta del vendedor de ruta.
       const qtyBase = parseFloat(d.qty || 0); // el doc ya guarda en unidad base
+      const costoUnit = parseFloat(d.basic_rate || 0);
+      // `amount` lo calcula ERPNext; el producto es el respaldo si viniera vacío.
+      const monto = d.amount != null ? parseFloat(d.amount) : qtyBase * costoUnit;
       itemsByParentFinal[d.parent].push({
         item_code: d.item_code,
         item_name: d.item_name,
         qty: qtyBase,
         uom: d.stock_uom || d.uom,
-        custom_precio_venta: precio,
-        monto: qtyBase * precio,
+        costoUnit,
+        monto,
       });
     });
 

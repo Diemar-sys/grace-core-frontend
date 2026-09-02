@@ -361,7 +361,7 @@ function EnvioSucursal() {
                           <tr>
                             <th>Producto</th>
                             <th className="cell-right">Cantidad</th>
-                            {verCuentas && <th className="cell-right">Precio unit.</th>}
+                            {verCuentas && <th className="cell-right">Costo unit.</th>}
                             {verCuentas && <th className="cell-right">Subtotal</th>}
                           </tr>
                         </thead>
@@ -378,7 +378,7 @@ function EnvioSucursal() {
                                 {fmtQty(it.qty)} {it.uom || ''}
                               </td>
                               {verCuentas && (
-                                <td className="cell-right">${fmt(it.custom_precio_venta)}</td>
+                                <td className="cell-right">${fmt(it.costoUnit)}</td>
                               )}
                               {verCuentas && (
                                 <td className="cell-right cell-bold">${fmt(it.monto)}</td>

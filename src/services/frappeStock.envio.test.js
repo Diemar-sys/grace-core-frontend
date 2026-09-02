@@ -158,3 +158,70 @@ describe('crearTransferenciaSucursal — precio según el destino', () => {
     expect(svc.fetchAlmacenes).not.toHaveBeenCalled();  // ni se molesta en preguntar
   });
 });
+
+/**
+ * Un envío a sucursal es un TRASPASO: se valúa al COSTO al que ERPNext lo sacó
+ * de la bodega, no al precio de venta congelado.
+ *
+ * El bug real (2026-09-02, envío MAT-STE-2026-00072 a PIRÁMIDES): la pantalla
+ * decía $624.79 cuando habían salido $3,546.34 de Bodega Central. Los insumos
+ * sin precio de venta —2,000 bolsas de papel, 5 L de brillo— salían en $0.00 y
+ * ni siquiera entraban al total. Y los que SÍ tenían precio mentían en los dos
+ * sentidos: la leche a $35 cuando costó $330.42 (el precio se dividía entre
+ * cant_pres), y PUERTA acumulaba $11,677 de "precio" contra $8,193 de costo.
+ *
+ * Casos = las tres formas conocidas de que esta valuación mienta sin fallar.
+ */
+describe('getTransferenciasSucursal — valúa al costo, no al precio de venta', () => {
+  let svc;
+
+  const montarDoc = (items) => {
+    svc = new FrappeStockService();
+    svc._fetch = vi.fn(async (path) => {
+      if (path.includes('/api/resource/Stock Entry?')) {
+        return { data: [{ name: 'MAT-STE-1', posting_date: '2026-09-02', docstatus: 1 }] };
+      }
+      return { data: { items } };
+    });
+    return svc.getTransferenciasSucursal({ warehouseDestino: 'TIENDA - PIRAMIDES - PG' });
+  };
+
+  it('un insumo SIN precio de venta ya no vale cero: vale lo que costó', async () => {
+    // 2,000 bolsas de papel a $0.4384. Antes: $0.00 y fuera del total.
+    const [envio] = await montarDoc([
+      { item_code: 'BOLSA12', item_name: 'BOLSA PAPEL FABOLSA NO.12', qty: 2000,
+        stock_uom: 'PZA', basic_rate: 0.4384, amount: 876.72, custom_precio_venta: 0 },
+    ]);
+    expect(envio.items[0].costoUnit).toBe(0.4384);
+    expect(envio.items[0].monto).toBe(876.72);
+    expect(envio.totalMonto).toBe(876.72);
+  });
+
+  it('ignora el precio de venta congelado aunque venga cargado', async () => {
+    // La leche: precio congelado 2.92 (35 ÷ 12) contra un costo real de 27.535.
+    const [envio] = await montarDoc([
+      { item_code: 'LECHE', item_name: 'LECHE LALA LIGHT 1LT (12 PZS)', qty: 12,
+        stock_uom: 'PZA', basic_rate: 27.535, amount: 330.42, custom_precio_venta: 2.9166 },
+    ]);
+    expect(envio.items[0].costoUnit).toBe(27.535);
+    expect(envio.items[0].monto).toBe(330.42);
+    expect(envio.items[0].monto).not.toBeCloseTo(35, 2);   // lo que se pintaba antes
+  });
+
+  it('el total suma TODOS los renglones, tengan o no precio de venta', async () => {
+    const [envio] = await montarDoc([
+      { item_code: 'BOLSA12', qty: 2000, basic_rate: 0.4384, amount: 876.72, custom_precio_venta: 0 },
+      { item_code: 'LECHE',   qty: 12,   basic_rate: 27.535, amount: 330.42, custom_precio_venta: 2.9166 },
+      { item_code: 'RON',     qty: 1,    basic_rate: 190,    amount: 190,    custom_precio_venta: 0 },
+    ]);
+    expect(envio.items).toHaveLength(3);
+    expect(envio.totalMonto).toBeCloseTo(1397.14, 2);
+  });
+
+  it('sin `amount` cae al producto qty × costo, no a cero', async () => {
+    const [envio] = await montarDoc([
+      { item_code: 'X', qty: 4, basic_rate: 2.5, custom_precio_venta: 99 },
+    ]);
+    expect(envio.items[0].monto).toBe(10);
+  });
+});
