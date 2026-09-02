@@ -5,6 +5,7 @@ import { stockService } from '../services/frappeStock';
 import { BODEGA_CENTRAL } from '../config/constants';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
+import SelectorTipoItem from './SelectorTipoItem';
 import '../styles/NuevaCompra.css';
 
 // Factor presentación→base (Bulto de 25kg → 25; Caja de 0.86kg → 0.86).
@@ -16,6 +17,28 @@ export const presFactor = it => {
 // Unidad en la que se captura/muestra: presentación si la tiene, si no la base.
 export const presUnit = it =>
   presFactor(it) !== 1 && it?.custom_presentación ? it.custom_presentación : (it?.stock_uom || 'Kg');
+
+// Universo a contar según el filtro de tipo. Sin tipo devuelve la MISMA
+// referencia, no una copia: así el useMemo de abajo no se invalida de gratis.
+export const filtrarPorTipo = (items, tipo) =>
+  tipo ? items.filter(i => i.custom_tipo_item === tipo) : items;
+
+/**
+ * Cuántos del universo ya tienen conteo capturado.
+ *
+ * Cruza por Set en vez de buscar cada código dentro del arreglo: O(n+m) contra
+ * el O(n·m) de un `find` por renglón. Con 487 items y 200 capturados eso es la
+ * diferencia entre 687 pasos y 97,400 en cada tecla.
+ *
+ * `conteo` conserva lo capturado en OTROS tipos: cambiar el filtro no borra
+ * nada, solo cambia contra qué se compara.
+ */
+export function contarPendientes(conteo, universo) {
+  const contados = new Set(
+    Object.entries(conteo || {}).filter(([, v]) => v !== '').map(([code]) => code)
+  );
+  return (universo || []).reduce((n, i) => n + (contados.has(i.item_code) ? 1 : 0), 0);
+}
 
 // Líneas del ajuste = conteos en BASE que DIFIEREN del stock del sistema.
 // ponytail: ERPNext borra los ítems sin cambio en el Stock Reconciliation; si TODOS coinciden
@@ -41,6 +64,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState(null);
   const [restaurado, setRestaurado] = useState(0);
+  const [tipoItem, setTipoItem] = useState('');
   const hidratado = useRef(false);
   const [pidiendoPass, setPidiendoPass] = useState(false);
   const [password, setPassword]         = useState('');
@@ -75,20 +99,31 @@ function ConteoFisico({ onSuccess, onCancel }) {
     return () => clearTimeout(t);
   }, [conteo]);
 
+  // El tipo acota QUÉ se está contando; el texto busca dentro de eso.
+  //
+  // 🔴 Filtra la lista ya cargada, NO recarga desde el servidor. `lineasAjuste`
+  // busca cada código contado dentro de `items`: si el filtro vaciara esa lista,
+  // un item ya contado daría `find() === undefined` → factor de presentación 1 en
+  // vez del real y `actual_qty` 0. O sea, contar bultos, cambiar el filtro y
+  // mandar el ajuste con el stock equivocado. `items` se queda completo siempre.
+  const universo = useMemo(() => filtrarPorTipo(items, tipoItem), [items, tipoItem]);
+
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q
-      ? items.filter(i => i.item_name?.toLowerCase().includes(q) || i.item_code?.toLowerCase().includes(q))
-      : items;
-  }, [items, search]);
+      ? universo.filter(i => i.item_name?.toLowerCase().includes(q) || i.item_code?.toLowerCase().includes(q))
+      : universo;
+  }, [universo, search]);
 
-  const pendientes = useMemo(
-    () => Object.values(conteo).filter(v => v !== '').length,
-    [conteo]
-  );
+  // Contados DENTRO del universo elegido.
+  const pendientes = useMemo(() => contarPendientes(conteo, universo), [conteo, universo]);
+
   // Un renglón vacío NO se ajusta y no avisa (lineasAjuste lo salta): así se
   // quedaron 115 productos sin contar en el cierre de junio. Contarlos a la vista.
-  const faltantes = items.length - pendientes;
+  // Va contra el universo filtrado: con "Materia Prima" elegido, "faltan 12 de
+  // 248" es la verdad de lo que se está contando; contra el catálogo entero
+  // diría "faltan 239" para siempre y el aviso dejaría de significar algo.
+  const faltantes = universo.length - pendientes;
 
   // Paso 1: valida que haya diferencias reales antes de pedir la contraseña.
   const revisar = () => {
@@ -136,10 +171,19 @@ function ConteoFisico({ onSuccess, onCancel }) {
         {!loading && (
           <span className={faltantes > 0 ? 'cf-contador cf-contador--falta' : 'cf-contador'}>
             {faltantes > 0
-              ? `faltan ${faltantes} de ${items.length}`
-              : `los ${items.length} capturados`}
+              ? `faltan ${faltantes} de ${universo.length}`
+              : `los ${universo.length} capturados`}
           </span>
         )}
+      </div>
+
+      <div className="nc-field" style={{ marginBottom: 14 }}>
+        <SelectorTipoItem
+          id="cf-tipo-item"
+          value={tipoItem}
+          onChange={setTipoItem}
+          className="nc-input"
+        />
       </div>
 
       <input

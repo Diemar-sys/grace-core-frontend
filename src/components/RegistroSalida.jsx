@@ -10,6 +10,7 @@ import { fmtUom } from '../utils/uom';
 import { parseErrorFrappe, logError } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import '../styles/RegistroMovimiento.css';
+import SelectorTipoItem from './SelectorTipoItem';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -26,6 +27,7 @@ const FILA_VACIA = () => ({
 function RegistroSalida({ onSuccess, onCancel }) {
   const [almacenDestino, setAlmacenDestino] = useState('');
   const [filas, setFilas]     = useState([FILA_VACIA()]);
+  const [tipoItem, setTipoItem] = useState('');
   const [notas, setNotas]     = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -176,6 +178,10 @@ function RegistroSalida({ onSuccess, onCancel }) {
           </select>
         </div>
 
+        <div className="rm-section">
+          <SelectorTipoItem id="rs-tipo-item" value={tipoItem} onChange={setTipoItem} />
+        </div>
+
         <div className="rm-tabla-header">
           <span>Productos a transferir</span>
         </div>
@@ -195,6 +201,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
               <FilaProducto
                 key={fila._id}
                 fila={fila}
+                tipoItem={tipoItem}
                 stockLoaded={stockLoaded}
                 onChange={(campos) => actualizarFila(fila._id, campos)}
                 onEliminar={() => eliminarFila(fila._id)}
@@ -236,7 +243,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
 /**
  * Fila con buscador + columnas stock/cantidad/stock final (pattern NuevaVentaB2B).
  */
-function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
+function FilaProducto({ fila, tipoItem, stockLoaded, onChange, onEliminar, soloUna }) {
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto]         = useState(false);
   const [busqueda, setBusqueda]       = useState(fila.item_name || '');
@@ -256,7 +263,7 @@ function FilaProducto({ fila, stockLoaded, onChange, onEliminar, soloUna }) {
     if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      const res = await stockService.buscarItemsTexto(texto);
+      const res = await stockService.buscarItemsTexto(texto, tipoItem);
       setSugerencias(res);
       setAbierto(true);
     }, 500);

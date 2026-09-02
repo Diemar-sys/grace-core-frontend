@@ -5,6 +5,7 @@ import { sanitizar } from '../utils/security';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import "../styles/RegistroMovimiento.css";
+import SelectorTipoItem from './SelectorTipoItem';
 
 const DEFAULT_WAREHOUSE = stockService.getBodegaCentral();
 
@@ -31,6 +32,7 @@ const FILA_VACIA = () => ({
  */
 function RegistroEntrada({ onSuccess, onCancel }) {
   const [filas, setFilas]     = useState([FILA_VACIA()]);
+  const [tipoItem, setTipoItem] = useState('');
   const [notas, setNotas]     = useState("");
   const [warehouse, setWarehouse] = useState(DEFAULT_WAREHOUSE);
   const [warehouses, setWarehouses] = useState([{ name: DEFAULT_WAREHOUSE, label: 'Bodega Central' }]);
@@ -128,6 +130,10 @@ function RegistroEntrada({ onSuccess, onCancel }) {
 
         {success && <div className="rm-alert rm-alert-success">{success}</div>}
 
+        <div className="rm-section">
+          <SelectorTipoItem id="re-tipo-item" value={tipoItem} onChange={setTipoItem} />
+        </div>
+
         <div className="rm-tabla-header">
           <span>Productos a ingresar</span>
         </div>
@@ -156,6 +162,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
               <FilaProducto
                 key={fila._id}
                 fila={fila}
+                tipoItem={tipoItem}
                 onChange={(campos) => actualizarFila(fila._id, campos)}
                 onEliminar={() => eliminarFila(fila._id)}
                 soloUna={filas.length === 1}
@@ -198,7 +205,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
  * @param {boolean} props.soloUna - Restringe eliminar si es la última fila restante.
  * @returns {JSX.Element} Fila `<tr>`.
  */
-function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
+function FilaProducto({ fila, tipoItem, onChange, onEliminar, soloUna }) {
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto]         = useState(false);
   const [busqueda, setBusqueda]       = useState(fila.item_name || "");
@@ -216,7 +223,7 @@ function FilaProducto({ fila, onChange, onEliminar, soloUna }) {
     if (!texto) { onChange({ item_code: "", item_name: "" }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      const res = await stockService.buscarItemsTexto(texto);
+      const res = await stockService.buscarItemsTexto(texto, tipoItem);
       setSugerencias(res);
       setAbierto(true);
     }, 500);

@@ -13,6 +13,7 @@ import { imprimirTraspasoTermico } from '../services/printService';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
+import SelectorTipoItem from './SelectorTipoItem';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -23,14 +24,6 @@ const FILA_VACIA = () => ({
   cantidad_por_presentacion: 1,
   presentacion: '',
 });
-
-// Filtro del buscador. "Todos" es el default: a las sucursales también se les
-// mandan insumos generales (bolsas, papel, limpieza), que no son ni MP ni pan.
-const TIPOS_ITEM = [
-  { value: '',                  label: 'Todos' },
-  { value: 'MATERIA PRIMA',     label: 'Materia Prima' },
-  { value: 'PRODUCTO TERMINADO', label: 'Pan' },
-];
 
 const fmtQty = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -327,11 +320,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
 
         <div className="nc-top-row">
           <div className="nc-field nc-field-tipo">
-            <label>Tipo de producto</label>
-            <select className="nc-input" value={tipoItem}
-              onChange={e => setTipoItem(e.target.value)}>
-              {TIPOS_ITEM.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <SelectorTipoItem value={tipoItem} onChange={setTipoItem} className="nc-input" />
           </div>
           <div className="nc-field nc-field-proveedor">
             <label>Sale de *</label>

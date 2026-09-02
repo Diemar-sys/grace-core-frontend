@@ -9,6 +9,7 @@ import { horaLocal } from '../utils/hora';
 import ModalError from './modals/ModalError';
 import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
+import SelectorTipoItem from './SelectorTipoItem';
 
 const fmtMXN = n => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 const num    = v => parseFloat(v) || 0;
@@ -23,6 +24,7 @@ const num    = v => parseFloat(v) || 0;
  */
 function RegistroRegalo({ onSuccess, onCancel }) {
   const [almacen, setAlmacen]   = useState(BODEGA_CENTRAL);
+  const [tipoItem, setTipoItem] = useState('');
   const [almacenes, setAlmacenes] = useState([]);
   // cantPres = base por unidad de presentación (ej. 0.4 kg/pza). pres = etiqueta (PZA).
   const [item, setItem]         = useState({ item_code: '', item_name: '', uom: '', cantPres: 1, pres: '' });
@@ -139,8 +141,12 @@ function RegistroRegalo({ onSuccess, onCancel }) {
         </div>
 
         <div className="rm-section">
+          <SelectorTipoItem id="rr-tipo-item" value={tipoItem} onChange={setTipoItem} />
+        </div>
+
+        <div className="rm-section">
           <label>Producto regalado *</label>
-          <BuscadorItem value={item.item_name} onSelect={seleccionarItem} />
+          <BuscadorItem value={item.item_name} onSelect={seleccionarItem} tipoItem={tipoItem} />
         </div>
 
         {/* Captura por pieza/presentación — bonito */}
@@ -187,7 +193,7 @@ function RegistroRegalo({ onSuccess, onCancel }) {
   );
 }
 
-function BuscadorItem({ value, onSelect }) {
+function BuscadorItem({ value, onSelect, tipoItem }) {
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState(value || '');
@@ -205,7 +211,7 @@ function BuscadorItem({ value, onSelect }) {
     if (!texto) { setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      const res = await stockService.buscarItemsTexto(texto);
+      const res = await stockService.buscarItemsTexto(texto, tipoItem);
       setSugerencias(res); setAbierto(true);
     }, 500);
   };
