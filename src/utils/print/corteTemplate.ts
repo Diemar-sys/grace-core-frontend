@@ -1,6 +1,7 @@
 import { TENANT } from '../../config/tenant';
+import { numero } from '../../utils/formato';
 
-const fmtVal = (n: any) => `$${parseFloat(n || 0).toFixed(2)}`;
+const fmtVal = (n: any) => `$${numero(parseFloat(n || 0), 2)}`;
 
 const FORMA_PAGO_LABEL: Record<string, string> = {
   'Bank Draft':    'Tarjeta',

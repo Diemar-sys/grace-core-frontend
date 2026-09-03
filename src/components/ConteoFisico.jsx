@@ -7,6 +7,7 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import SelectorTipoItem from './SelectorTipoItem';
 import '../styles/NuevaCompra.css';
+import { numero } from '../utils/formato';
 
 // Factor presentación→base (Bulto de 25kg → 25; Caja de 0.86kg → 0.86).
 // 1 solo si no hay presentación o factor inválido: ese ya está en base, no se multiplica.
@@ -246,7 +247,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
                     {/* La unidad va pegada al número: "9.00" a solas no dice si son
                         bultos, kilos o piezas, y de eso depende lo que se teclea. */}
                     <td style={{ textAlign: 'right', color: 'var(--tv-ink)', fontVariantNumeric: 'tabular-nums' }}>
-                      {erpQty.toFixed(2)} <span className="cf-unidad">{unit}</span>
+                      {numero(erpQty, 2)} <span className="cf-unidad">{unit}</span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <input
@@ -274,7 +275,7 @@ function ConteoFisico({ onSuccess, onCancel }) {
                     <td style={{ textAlign: 'right', fontWeight: 600, color: diffColor, fontVariantNumeric: 'tabular-nums' }}>
                       {diff === null ? '—' : (
                         <>
-                          {(diff >= 0 ? '+' : '') + diff.toFixed(2)}{' '}
+                          {(diff >= 0 ? '+' : '') + numero(diff, 2)}{' '}
                           <span className="cf-unidad">{unit}</span>
                         </>
                       )}

@@ -2,6 +2,7 @@ import { fmtUom } from '../../utils/uom';
 import { TENANT } from '../../config/tenant';
 import { generarHTMLTicketCompra } from '../../utils/print/ticketTemplate';
 import { escHTML, fmt } from './compraUtils';
+import { numero } from '../../utils/formato';
 
 function ModalReciboPDF({ datos, onClose }) {
   const { noCompra, noFactura, fecha, hora, proveedor, filas, totales, ajuste, esBorrador } = datos;
@@ -20,8 +21,8 @@ function ModalReciboPDF({ datos, onClose }) {
       const uom = fmtUom(f.uom || '');
       const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
       const cantCell = kgPorBulto > 0
-        ? `${totalNatural.toFixed(2)} ${uom}<br/><small style="color:#666;font-size:10px">${bultos.toFixed(2)} emp.</small>`
-        : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`;
+        ? `${numero(totalNatural, 2)} ${uom}<br/><small style="color:#666;font-size:10px">${numero(bultos, 2)} emp.</small>`
+        : `${numero(bultos, 2)}${uom ? ' ' + uom : ''}`;
       return `
         <tr>
           <td>${escHTML(f.item_name || f.item_code)}</td>
@@ -171,11 +172,11 @@ function ModalReciboPDF({ datos, onClose }) {
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600 }}>
                           {kgPorBulto > 0
-                            ? `${totalNatural.toFixed(2)} ${uom}`
-                            : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`}
+                            ? `${numero(totalNatural, 2)} ${uom}`
+                            : `${numero(bultos, 2)}${uom ? ' ' + uom : ''}`}
                         </div>
                         {kgPorBulto > 0 && (
-                          <div style={{ fontSize: '11px', color: '#666' }}>{bultos.toFixed(2)} emp.</div>
+                          <div style={{ fontSize: '11px', color: '#666' }}>{numero(bultos, 2)} emp.</div>
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>${fmt(f.rate)}</td>

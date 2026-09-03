@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
+import { pesos } from '../utils/formato';
 
 function hoyISO() { return new Date().toISOString().split('T')[0]; }
 function hace7ISO() {
@@ -223,7 +224,7 @@ function HistorialMovimientos({ almacenes }) {
                                   <td>{fmtUom(it.uom)}</td>
                                   <td style={{ textAlign: 'right' }}>
                                     {it.amount > 0
-                                      ? it.amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+                                      ? pesos(it.amount)
                                       : '—'}
                                   </td>
                                 </tr>

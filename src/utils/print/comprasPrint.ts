@@ -3,6 +3,7 @@ import { generarHTMLTicketCompra } from './ticketTemplate';
 import { escHTML } from './escHTML';
 import { horaFrappe, horaLocal } from '../hora';
 import { grupoSubtotal } from '../../config/impuestos';
+import { numero } from '../../utils/formato';
 
 const fmt2 = (n: any) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -153,8 +154,8 @@ export function imprimirCompraPDF(datos: any) {
     const uom = f.uom || '';
     const totalNatural = kgPorBulto > 0 ? bultos * kgPorBulto : bultos;
     const cantCell = kgPorBulto > 0
-      ? `${totalNatural.toFixed(2)} ${uom}<br/><small style="color:#666;font-size:10px">${bultos.toFixed(2)} emp.</small>`
-      : `${bultos.toFixed(2)}${uom ? ' ' + uom : ''}`;
+      ? `${numero(totalNatural, 2)} ${uom}<br/><small style="color:#666;font-size:10px">${numero(bultos, 2)} emp.</small>`
+      : `${numero(bultos, 2)}${uom ? ' ' + uom : ''}`;
     return `
       <tr>
         <td>${escHTML(f.item_name || f.item_code)}</td>

@@ -90,8 +90,11 @@ describe('posUtils — helpers de UI', () => {
     expect(fmtModoPago('Bank Draft')).toBe('Tarjeta');
     expect(fmtModoPago('Otro')).toBe('Otro');
   });
-  it('fmt formatea moneda', () => {
-    expect(fmt(1234.5)).toBe('$1234.50');
+  it('fmt formatea moneda con separador de miles', () => {
+    // Antes daba '$1234.50': `toFixed(2)` no separa miles y un corte de caja
+    // de cinco cifras se leía mal. Ahora delega en utils/formato.
+    expect(fmt(1234.5)).toBe('$1,234.50');
+    expect(fmt(12345.67)).toBe('$12,345.67');
     expect(fmt()).toBe('$0.00');
   });
 });

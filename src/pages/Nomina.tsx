@@ -10,11 +10,12 @@ import {
 } from '../services/frappeNomina';
 import { imprimirNominaTermico } from '../services/printService';
 import { calcRenglon, sumarTotales, payloadTicketNomina } from '../utils/nominaTotales';
+import { pesos } from '../utils/formato';
 import '../styles/Nomina.css'; // <-- Tu CSS hace toda la magia aquí
 
 type Num = number | string | null | undefined;
 const money = (n: Num) =>
-  Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  pesos(n);
 
 type Flash = (tipo: 'ok' | 'error', texto: string) => void;
 

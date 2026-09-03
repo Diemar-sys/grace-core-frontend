@@ -2,6 +2,7 @@
 import React from 'react';
 import { InsumoItem, CostoBOM } from './catalogoTypes';
 import { fmtUom } from '../../utils/uom';
+import { numero } from '../../utils/formato';
 
 interface FilaItemProps {
   item: InsumoItem;
@@ -149,11 +150,9 @@ export const FilaItem: React.FC<FilaItemProps> = ({
     const costoCell = esPT ? (
       costoBOM ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontWeight: 600 }}>${costoBOM.costoPorUnidad.toFixed(2)}</span>
+          <span style={{ fontWeight: 600 }}>${numero(costoBOM.costoPorUnidad, 2)}</span>
           <span style={{ fontSize: '12px', color: '#6b7280' }}>
-            {`${costoBOM.cantidadProducida} ${costoBOM.uom} → $${costoBOM.costoTotal.toFixed(
-              2
-            )}`}
+            {`${costoBOM.cantidadProducida} ${costoBOM.uom} → $${numero(costoBOM.costoTotal, 2)}`}
           </span>
         </div>
       ) : (
@@ -177,12 +176,12 @@ export const FilaItem: React.FC<FilaItemProps> = ({
         <td>{cantPresStr}</td>
         <td>
           {item.custom_total_presentacion
-            ? `$${parseFloat(String(item.custom_total_presentacion)).toFixed(2)}`
+            ? `$${numero(parseFloat(String(item.custom_total_presentacion)), 2)}`
             : '—'}
         </td>
         <td>
           {item.custom_precio_final
-            ? `$${parseFloat(String(item.custom_precio_final)).toFixed(2)}`
+            ? `$${numero(parseFloat(String(item.custom_precio_final)), 2)}`
             : '—'}
         </td>
         <td>{costoCell}</td>

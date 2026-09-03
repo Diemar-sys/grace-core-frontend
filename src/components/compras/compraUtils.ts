@@ -1,4 +1,5 @@
 import { IMPUESTOS_MAP } from '../../config/impuestos';
+import { numero } from '../../utils/formato';
 
 export const MARGEN_DEFAULT = 10;
 
@@ -21,8 +22,8 @@ export const parseImpuesto = (description = '') => {
   return IMPUESTOS_MAP['tasa0'];
 };
 
-export const fmt = (n: any) =>
-  Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Se queda como alias por los ~40 call sites; la regla vive en utils/formato.
+export const fmt = (n: any) => numero(n, 2);
 
 export const totalPorFila = (f: any) => parseFloat(f.bultos || 0) * parseFloat(f.kg_por_bulto || 0);
 

@@ -13,6 +13,7 @@ import { stockService } from '../services/frappeStock';
 import '../styles/global.css';
 import '../styles/Produccion.css';
 import '../styles/Panel.css';
+import { numero } from '../utils/formato';
 
 // ─── Icono alerta ──────────────────────────────────────
 const AlertIcon = () => (
@@ -176,7 +177,7 @@ function Produccion() {
     if (!regDepartamento) { setErrorModal({ isOpen: true, message: 'SELECCIONA EL DEPARTAMENTO (ALMACÉN DE ORIGEN DEL CONSUMO).' }); return; }
     if (preview?.hayFaltantes) {
       const faltan = preview.ingredientes.filter(i => i.insuficiente)
-        .map(i => `${i.item_name} (necesita ${i.qty} ${i.uom}, hay ${Number(i.disponible).toFixed(2)})`)
+        .map(i => `${i.item_name} (necesita ${i.qty} ${i.uom}, hay ${numero(Number(i.disponible), 2)})`)
         .join('; ');
       setErrorModal({ isOpen: true, message: `NO HAY MATERIAL SUFICIENTE EN EL ALMACÉN PARA PRODUCIR. FALTA: ${faltan}.` });
       return;
@@ -276,16 +277,16 @@ function Produccion() {
                   {recosteoModal.item.desfasados.map(i => (
                     <tr key={i.item_code}>
                       <td>{i.item_name}</td>
-                      <td className="prod-recosteo-antes">${i.precio_bom.toFixed(4)}</td>
-                      <td className="prod-recosteo-hoy">${i.precio_und.toFixed(4)}</td>
+                      <td className="prod-recosteo-antes">${numero(i.precio_bom, 4)}</td>
+                      <td className="prod-recosteo-hoy">${numero(i.precio_und, 4)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
                     <th>Costo de la hornada</th>
-                    <td className="prod-recosteo-antes">${recosteoModal.item.costoBOM.toFixed(2)}</td>
-                    <td className="prod-recosteo-hoy">${recosteoModal.item.costoTotal.toFixed(2)}</td>
+                    <td className="prod-recosteo-antes">${numero(recosteoModal.item.costoBOM, 2)}</td>
+                    <td className="prod-recosteo-hoy">${numero(recosteoModal.item.costoTotal, 2)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -551,14 +552,14 @@ function Produccion() {
                       <td style={{ textAlign: 'right', fontWeight: 600,
                         color: i.insuficiente ? '#dc2626' : '#16a34a' }}>
                         {regDepartamento
-                          ? `${Number(i.disponible).toFixed(2)} ${i.uom}`
+                          ? `${numero(Number(i.disponible), 2)} ${i.uom}`
                           : <span style={{ color: '#d1d5db' }}>—</span>}
                       </td>
                       <td style={{ textAlign: 'right', color: '#6b7280' }}>
-                        {i.precio_und > 0 ? `$${i.precio_und.toFixed(4)}` : <span style={{ color: '#d1d5db' }}>—</span>}
+                        {i.precio_und > 0 ? `$${numero(i.precio_und, 4)}` : <span style={{ color: '#d1d5db' }}>—</span>}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {i.costo > 0 ? `$${i.costo.toFixed(2)}` : <span style={{ color: '#d1d5db' }}>—</span>}
+                        {i.costo > 0 ? `$${numero(i.costo, 2)}` : <span style={{ color: '#d1d5db' }}>—</span>}
                       </td>
                     </tr>
                   ))}
@@ -576,11 +577,11 @@ function Produccion() {
                 <div className="preview-cost-summary">
                   <div className="preview-cost-row">
                     <span>Costo total del lote ({regCantidad} {preview.item_name})</span>
-                    <span>${preview.costoTotal.toFixed(2)}</span>
+                    <span>${numero(preview.costoTotal, 2)}</span>
                   </div>
                   <div className="preview-cost-row highlight">
                     <span>📦 Costo por unidad</span>
-                    <span>${preview.costoUnitario.toFixed(4)}</span>
+                    <span>${numero(preview.costoUnitario, 4)}</span>
                   </div>
                   {preview.precioVenta > 0 && (
                     <div className="preview-cost-row margin" style={{
@@ -590,7 +591,7 @@ function Produccion() {
                         {preview.precioVenta > preview.costoUnitario ? '✅' : '⚠️'} Margen por unidad
                         ({(((preview.precioVenta - preview.costoUnitario) / preview.precioVenta) * 100).toFixed(1)}%)
                       </span>
-                      <span>${(preview.precioVenta - preview.costoUnitario).toFixed(4)}</span>
+                      <span>${numero((preview.precioVenta - preview.costoUnitario), 4)}</span>
                     </div>
                   )}
                 </div>

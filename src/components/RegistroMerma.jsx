@@ -10,6 +10,7 @@ import ModalError from './modals/ModalError';
 import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
 import SelectorTipoItem from './SelectorTipoItem';
+import { numero } from '../utils/formato';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -104,7 +105,7 @@ function RegistroMerma({ onSuccess, onCancel }) {
     }
     if (hayFaltantes) {
       const det = itemsValidos.filter(f => f.insuficiente)
-        .map(f => `${f.item_name} (pide ${f.qty} ${f.uom}, hay ${(f.stockKg ?? 0).toFixed(2)} ${f.uom})`)
+        .map(f => `${f.item_name} (pide ${f.qty} ${f.uom}, hay ${numero((f.stockKg ?? 0), 2)} ${f.uom})`)
         .join('; ');
       setErrorModal({ title: 'Stock insuficiente', message: `No hay suficiente stock: ${det}` });
       return;
@@ -347,11 +348,11 @@ function FilaProducto({ fila, tipoItem, stockLoaded, onChange, onEliminar, soloU
           : (
             <div>
               <span style={{ fontWeight: 600, fontSize: 14, color: '#111' }}>
-                {Number(stockMostrar).toFixed(2)} {fmtUom(fila.uom)}
+                {numero(Number(stockMostrar), 2)} {fmtUom(fila.uom)}
               </span>
               {fila.cantPres > 1 && fila.presentacion && (
                 <div style={{ fontSize: 11, color: '#6b7280' }}>
-                  ({Number(stockMostrar / fila.cantPres).toFixed(2)} {fila.presentacion})
+                  ({numero(Number(stockMostrar / fila.cantPres), 2)} {fila.presentacion})
                 </div>
               )}
             </div>
@@ -370,7 +371,7 @@ function FilaProducto({ fila, tipoItem, stockLoaded, onChange, onEliminar, soloU
         <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{fmtUom(fila.uom)}</span>
         {qtyNum > 0 && fila.cantPres > 1 && fila.presentacion && (
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-            = {(qtyNum / fila.cantPres).toFixed(2)} {fila.presentacion}
+            = {numero((qtyNum / fila.cantPres), 2)} {fila.presentacion}
           </div>
         )}
       </td>
@@ -380,7 +381,7 @@ function FilaProducto({ fila, tipoItem, stockLoaded, onChange, onEliminar, soloU
           : sinStock ? <span style={{ color: '#9ca3af' }}>—</span>
           : (
             <span style={{ fontWeight: 700, fontSize: 14, color: colorFinal }}>
-              {Number(stockFinal).toFixed(2)} {fmtUom(fila.uom)}
+              {numero(Number(stockFinal), 2)} {fmtUom(fila.uom)}
             </span>
           )}
       </td>

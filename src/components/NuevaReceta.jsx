@@ -5,6 +5,7 @@ import { produccionService } from '../services/frappeProduccion';
 import { stockService } from '../services/frappeStock';
 import ModalError from './modals/ModalError';
 import '../styles/Produccion.css';
+import { numero } from '../utils/formato';
 
 const FILA_VACIA = () => ({
   _id: Math.random().toString(36).slice(2),
@@ -314,7 +315,7 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
                   Costo MP total
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#0c4a6e' }}>
-                  ${costeo.costoTotal.toFixed(2)}
+                  ${numero(costeo.costoTotal, 2)}
                 </div>
               </div>
               <div>
@@ -322,7 +323,7 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
                   Costo por {meta.uom || 'unidad'}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#0c4a6e' }}>
-                  ${costeo.costoPorUnidad.toFixed(2)}
+                  ${numero(costeo.costoPorUnidad, 2)}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: '#475569', alignSelf: 'flex-end' }}>

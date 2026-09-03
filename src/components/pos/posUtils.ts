@@ -1,3 +1,4 @@
+import { pesos } from '../../utils/formato';
 export const DEPT_COLORS: Record<string, string> = {
   'PAN BLANCO':  '#f59e0b',
   'PAN DULCE':   '#f97316',
@@ -11,8 +12,8 @@ export const deptColor = (dept = ''): string => {
   return key ? DEPT_COLORS[key] : '#7a3f0a';
 };
 
-export const fmt = (n: number | string | null | undefined): string =>
-  `$${parseFloat(String(n || 0)).toFixed(2)}`;
+// Antes: `$${toFixed(2)}` — un corte de caja de $12,345.67 salía "$12345.67".
+export const fmt = (n: number | string | null | undefined): string => pesos(n);
 
 export const horaActual = (): string =>
   new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });

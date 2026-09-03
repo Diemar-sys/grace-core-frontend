@@ -10,8 +10,9 @@ import ModalError from './modals/ModalError';
 import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
 import SelectorTipoItem from './SelectorTipoItem';
+import { numero, pesos } from '../utils/formato';
 
-const fmtMXN = n => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+const fmtMXN = n => pesos(n);
 const num    = v => parseFloat(v) || 0;
 
 /**
@@ -105,7 +106,7 @@ function RegistroRegalo({ onSuccess, onCancel }) {
       {confirm && (
         <ConfirmModal
           title="Confirmar regalo"
-          description={<>Se registrará la entrada de <strong>{cantNum} {unidad}</strong> de <strong>{item.item_name}</strong> ({qtyBase.toFixed(3)} {fmtUom(item.uom)}) a <strong>{fmtMXN(precNum)}</strong> por {unidad}.</>}
+          description={<>Se registrará la entrada de <strong>{cantNum} {unidad}</strong> de <strong>{item.item_name}</strong> ({numero(qtyBase, 3)} {fmtUom(item.uom)}) a <strong>{fmtMXN(precNum)}</strong> por {unidad}.</>}
           subdescription={`Total reconocido como ingreso en especie: ${fmtMXN(total)}. El moving average NO baja (costeo del pan intacto).`}
           confirmLabel="Sí, registrar regalo"
           loadingLabel="Guardando..."
@@ -171,7 +172,7 @@ function RegistroRegalo({ onSuccess, onCancel }) {
         {item.item_code && (cantNum > 0 || precNum > 0) && (
           <div className="rr-conv">
             {tienePres
-              ? <>Equivale a <strong>{qtyBase.toFixed(3)} {fmtUom(item.uom)}</strong> · costo <strong>{fmtMXN(ratePorBase)}/{fmtUom(item.uom)}</strong></>
+              ? <>Equivale a <strong>{numero(qtyBase, 3)} {fmtUom(item.uom)}</strong> · costo <strong>{fmtMXN(ratePorBase)}/{fmtUom(item.uom)}</strong></>
               : <>Costo <strong>{fmtMXN(ratePorBase)}/{fmtUom(item.uom)}</strong></>}
           </div>
         )}

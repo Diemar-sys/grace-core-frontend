@@ -12,6 +12,7 @@ import { imprimirVentaB2BTermico } from '../services/printService';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
 import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
 import '../styles/NuevaCompra.css';
+import { numero } from '../utils/formato';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -215,7 +216,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     const sinStock = Object.values(agregado).filter(a => a.stock != null && a.qty > parseFloat(a.stock));
     if (sinStock.length) {
       const lista = sinStock.map(a =>
-        `• ${a.item_name}: pides ${a.qty.toFixed(2)} ${a.uom || ''}, hay ${a.stock} ${a.uom || ''}`
+        `• ${a.item_name}: pides ${numero(a.qty, 2)} ${a.uom || ''}, hay ${a.stock} ${a.uom || ''}`
       ).join('\n');
       setErrorModal({
         isOpen: true,
@@ -616,7 +617,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
           </span>
         ) : (
           <span style={{ fontWeight: 600, fontSize: 14, color: '#111' }}>
-            {Number(stock).toFixed(2)} {uomLabel}
+            {numero(Number(stock), 2)} {uomLabel}
           </span>
         )}
       </td>
@@ -634,7 +635,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
         <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
         {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-            = {(qtyNum / fila.cantidad_por_presentacion).toFixed(2)} {fila.presentacion}
+            = {numero((qtyNum / fila.cantidad_por_presentacion), 2)} {fila.presentacion}
           </div>
         )}
       </td>
@@ -650,7 +651,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
             fontWeight: 700, fontSize: 14,
             color: excedeStock ? '#dc2626' : stockRestante <= (stock * 0.1) ? '#d97706' : '#16a34a',
           }}>
-            {Number(stockRestante).toFixed(2)} {uomLabel}
+            {numero(Number(stockRestante), 2)} {uomLabel}
           </span>
         )}
       </td>
@@ -658,7 +659,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
       {/* Precio venta — readonly, fuente: catálogo (custom_precio_de_venta, sino standard_rate) */}
       <td>
         {fila.rate
-          ? <span className="nc-precio-fijo">${parseFloat(fila.rate).toFixed(2)}</span>
+          ? <span className="nc-precio-fijo">${numero(parseFloat(fila.rate), 2)}</span>
           : <span className="nc-uom-empty">—</span>}
       </td>
 

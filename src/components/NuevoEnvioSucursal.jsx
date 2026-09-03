@@ -14,6 +14,7 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
 import SelectorTipoItem from './SelectorTipoItem';
+import { numero } from '../utils/formato';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -589,7 +590,7 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna,
         <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
         {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-            = {(qtyNum / fila.cantidad_por_presentacion).toFixed(2)} {fila.presentacion}
+            = {numero((qtyNum / fila.cantidad_por_presentacion), 2)} {fila.presentacion}
           </div>
         )}
       </td>

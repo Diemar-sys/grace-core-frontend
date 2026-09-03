@@ -1,6 +1,7 @@
 // src/components/egresos/egresosConstants.ts
 import React from 'react';
 import { CategoriaConfig, FacturaOption, EgresoFormState } from './egresosTypes';
+import { pesos } from '../../utils/formato';
 import {
   IconGasto,
   IconCamioneta,
@@ -139,7 +140,9 @@ export const IMP_ERPNEXT: Record<string, string> = { tasa0: '', iva16: 'IVA', ie
 export const IVA_RATE = 0.16;
 
 export function fmtN(val: number | string | null | undefined): string {
-  return Number(val || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  // Antes usaba style:'currency', que en el ICU de algunos navegadores imprime
+  // "MX$1,234.56" en vez de "$1,234.56".
+  return pesos(val);
 }
 
 export function n(v: string | number | null | undefined): number {

@@ -13,11 +13,12 @@ import { produccionService } from '../../services/frappeProduccion';
 import { parseErrorFrappe } from '../../utils/errorFrappe';
 import ModalError from './ModalError';
 import '../../styles/NuevaCompra.css';
+import { pesos } from '../../utils/formato';
 
 const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', qty: '', costo: '' });
 
 const fmtMoney = (n) =>
-  Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  pesos(n);
 
 /**
  * El panadero teclea el NOMBRE del pan; el backend quiere el item_code.

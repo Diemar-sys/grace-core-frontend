@@ -1,6 +1,7 @@
 import ModalError from './modals/ModalError';
 import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoInsumo.css';
+import { numero } from '../utils/formato';
 
 function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
   const {
@@ -223,7 +224,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                     readOnly className="input-calculated" placeholder="Auto" />
                   <small>
                     {precioPorKg > 0
-                      ? `$${parseFloat(formData.custom_precio_de_compra).toFixed(4)} / ${formData.custom_cantidad_por_presentación} ${formData.stock_uom} = $${precioPorKg.toFixed(4)}`
+                      ? `$${numero(parseFloat(formData.custom_precio_de_compra), 4)} / ${formData.custom_cantidad_por_presentación} ${formData.stock_uom} = $${numero(precioPorKg, 4)}`
                       : `Ingresa precio y ${formData.stock_uom || 'unidad'} por presentación`}
                   </small>
                 </div>
@@ -239,7 +240,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                       const imp = IMPUESTOS.find(i => i.key === formData.custom_impuesto);
                       const tasa = imp?.rate ?? 0;
                       const precio = parseFloat(formData.custom_precio_de_compra) || 0;
-                      if (tasa > 0 && precio > 0) return `Con un ${imp.label} = $${(precio * tasa).toFixed(4)}`;
+                      if (tasa > 0 && precio > 0) return `Con un ${imp.label} = $${numero((precio * tasa), 4)}`;
                       return tasa === 0 ? 'Sin impuesto aplicable' : 'Ingresa el precio de compra primero';
                     })()}
                   </small>
@@ -302,9 +303,9 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                       const tasa = imp?.rate ?? 0;
                       if (precioPublico > 0 && tasa > 0) {
                         const base = precioPublico / (1 + tasa);
-                        return `$${base.toFixed(2)} base + $${(precioPublico - base).toFixed(2)} ${imp.label} = $${precioPublico.toFixed(2)}`;
+                        return `$${numero(base, 2)} base + $${numero((precioPublico - base), 2)} ${imp.label} = $${numero(precioPublico, 2)}`;
                       }
-                      if (precioPublico > 0 && tasa === 0) return `$${precioPublico.toFixed(2)} (sin impuesto, base = precio público)`;
+                      if (precioPublico > 0 && tasa === 0) return `$${numero(precioPublico, 2)} (sin impuesto, base = precio público)`;
                       return 'Ingresa el precio al público primero';
                     })()}
                   </small>

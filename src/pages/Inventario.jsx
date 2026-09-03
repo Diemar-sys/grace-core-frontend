@@ -11,6 +11,7 @@ import { inventory } from '../services/frappeInventory';
 import { stockService } from '../services/frappeStock';
 import { fmtUom } from '../utils/uom';
 import '../styles/global.css';
+import { numero } from '../utils/formato';
 
 const VISTAS = [
   { key: 'con_stock', label: 'EN STOCK', color: 'vista-stock' },
@@ -329,7 +330,7 @@ export function FilaItem({ item }) {
       <td className="cell-code">{item.item_code || '—'}</td>
       <td className="cell-code" style={{ color: '#6b7280' }}>{item.custom_código_interno || '—'}</td>
       <td className="cell-name">{item.item_name}</td>
-      <td>{item.custom_precio_final ? `$${parseFloat(item.custom_precio_final).toFixed(2)}` : '—'}</td>
+      <td>{item.custom_precio_final ? `$${numero(parseFloat(item.custom_precio_final), 2)}` : '—'}</td>
       <td className="cell-qty">
         {actual > 0 ? (
           <span style={{ fontSize: '14px', color: '#6b7280' }}>{paqStr}</span>

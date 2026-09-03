@@ -4,6 +4,7 @@ import ConfirmModal from '../modals/ConfirmModal';
 // y deben verse igual. Hoy el bundle es único y la clase estaría global de
 // todos modos, pero eso deja de ser cierto en cuanto haya code-splitting.
 import '../../styles/Produccion.css';
+import { numero } from '../../utils/formato';
 
 /**
  * Avisa qué precios movió la compra en el Catálogo. NO pregunta: la regla es
@@ -42,8 +43,8 @@ function ModalPreciosActualizados({ cambios, onCerrar }) {
               {cambios.map(c => (
                 <tr key={c.item_code}>
                   <td>{c.item_name}</td>
-                  <td className="prod-recosteo-antes">${c.antes.toFixed(2)}</td>
-                  <td className="prod-recosteo-hoy">${c.ahora.toFixed(2)}</td>
+                  <td className="prod-recosteo-antes">${numero(c.antes, 2)}</td>
+                  <td className="prod-recosteo-hoy">${numero(c.ahora, 2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -51,8 +52,8 @@ function ModalPreciosActualizados({ cambios, onCerrar }) {
               <tfoot>
                 <tr>
                   <th>Total</th>
-                  <td className="prod-recosteo-antes">${totalAntes.toFixed(2)}</td>
-                  <td className="prod-recosteo-hoy">${totalAhora.toFixed(2)}</td>
+                  <td className="prod-recosteo-antes">${numero(totalAntes, 2)}</td>
+                  <td className="prod-recosteo-hoy">${numero(totalAhora, 2)}</td>
                 </tr>
               </tfoot>
             )}

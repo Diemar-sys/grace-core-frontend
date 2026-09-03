@@ -1,6 +1,7 @@
 // src/components/ModalHojaEntrega.jsx
 import { TENANT } from '../../config/tenant';
 import { imprimirTraspasoTermico } from '../../services/printService';
+import { numero } from '../../utils/formato';
 
 const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -41,8 +42,8 @@ function ModalHojaEntrega({ datos, onClose }) {
       const presentacion = f.presentacion || '';
       const qtyPres = cantPres > 1 ? qty / cantPres : null;
       const cantCell = qtyPres != null && presentacion
-        ? `${qty.toFixed(2)} ${escHTML(uom)}<br/><small style="color:#666;font-size:10px">${qtyPres.toFixed(2)} ${escHTML(presentacion)}</small>`
-        : `${qty.toFixed(2)}${uom ? ' ' + escHTML(uom) : ''}`;
+        ? `${numero(qty, 2)} ${escHTML(uom)}<br/><small style="color:#666;font-size:10px">${numero(qtyPres, 2)} ${escHTML(presentacion)}</small>`
+        : `${numero(qty, 2)}${uom ? ' ' + escHTML(uom) : ''}`;
       return `
         <tr>
           <td>${escHTML(f.item_name || f.item_code)}</td>
@@ -158,11 +159,11 @@ function ModalHojaEntrega({ datos, onClose }) {
                       <td>{f.item_name || f.item_code}</td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600 }}>
-                          {qty.toFixed(2)}{uom ? ' ' + uom : ''}
+                          {numero(qty, 2)}{uom ? ' ' + uom : ''}
                         </div>
                         {qtyPres != null && presentacion && (
                           <div style={{ fontSize: '11px', color: '#666' }}>
-                            {qtyPres.toFixed(2)} {presentacion}
+                            {numero(qtyPres, 2)} {presentacion}
                           </div>
                         )}
                       </td>

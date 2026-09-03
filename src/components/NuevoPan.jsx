@@ -4,6 +4,7 @@ import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoPan.css';
 import { claveImpuesto } from '../config/impuestos';
 import { produccionService } from '../services/frappeProduccion';
+import { numero } from '../utils/formato';
 
 /**
  * Alta y precios del pan.
@@ -253,8 +254,8 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
                         {m && (
                           <span className={`pan-margen ${m.ganancia <= 0 ? 'pan-margen-mal' : ''}`}>
                             {m.ganancia > 0
-                              ? `Gana $${m.ganancia.toFixed(2)} · ${m.porcentaje.toFixed(0)}%`
-                              : `Pierde $${Math.abs(m.ganancia).toFixed(2)} por pieza`}
+                              ? `Gana $${numero(m.ganancia, 2)} · ${numero(m.porcentaje, 0)}%`
+                              : `Pierde $${numero(Math.abs(m.ganancia), 2)} por pieza`}
                           </span>
                         )}
                         {cmp && (
@@ -262,8 +263,8 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
                             {cmp.igual
                               ? 'Igual que Sucursal — este canal no cambia nada'
                               : cmp.dif < 0
-                                ? `$${Math.abs(cmp.dif).toFixed(2)} menos que Sucursal`
-                                : `$${cmp.dif.toFixed(2)} más que Sucursal`}
+                                ? `$${numero(Math.abs(cmp.dif), 2)} menos que Sucursal`
+                                : `$${numero(cmp.dif, 2)} más que Sucursal`}
                           </span>
                         )}
                       </div>
@@ -315,7 +316,7 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
                   placeholder="Déjalo en blanco si aún no lo sabes" min="0" step="0.01" />
                 <small>
                   {costoReceta
-                    ? `Sale de la receta: ${costoReceta.cantidadProducida} ${costoReceta.uom} cuestan $${costoReceta.costoTotal.toFixed(2)} de materia prima. Para cambiarlo, edita la receta en Producción — aquí no se toca para que no haya dos costos del mismo pan.`
+                    ? `Sale de la receta: ${costoReceta.cantidadProducida} ${costoReceta.uom} cuestan $${numero(costoReceta.costoTotal, 2)} de materia prima. Para cambiarlo, edita la receta en Producción — aquí no se toca para que no haya dos costos del mismo pan.`
                     : parseFloat(formData.custom_costo_estimado) > 0
                       ? 'Lo que cuesta producir una pieza. Con esto se valúa la entrada de pan sin receta y se calcula el margen de arriba. En cuanto el pan tenga receta, el costo sale de ahí y este campo se bloquea.'
                       : 'Si todavía no lo sacas, guárdalo así y captúralo después en Editar. Mientras tanto: la entrada de pan te va a pedir el costo cada vez, y no se puede calcular el margen. El pan queda marcado en la lista como «falta costo» para que lo encuentres.'}
@@ -326,8 +327,8 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
             {precioPublico > 0 && (
               <div className="pan-desglose">
                 {tasa > 0
-                  ? <>Sucursal: <strong>${base.toFixed(2)}</strong> base + <strong>${(precioPublico - base).toFixed(2)}</strong> de {impuesto.label} = <strong>${precioPublico.toFixed(2)}</strong> al público</>
-                  : <>Sucursal: <strong>${precioPublico.toFixed(2)}</strong> al público, sin impuesto</>}
+                  ? <>Sucursal: <strong>${numero(base, 2)}</strong> base + <strong>${numero((precioPublico - base), 2)}</strong> de {impuesto.label} = <strong>${numero(precioPublico, 2)}</strong> al público</>
+                  : <>Sucursal: <strong>${numero(precioPublico, 2)}</strong> al público, sin impuesto</>}
               </div>
             )}
           </section>

@@ -6,6 +6,7 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalError from './modals/ModalError';
 import "../styles/RegistroMovimiento.css";
 import SelectorTipoItem from './SelectorTipoItem';
+import { numero } from '../utils/formato';
 
 const DEFAULT_WAREHOUSE = stockService.getBodegaCentral();
 
@@ -93,7 +94,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
       });
       await stockService.registrarEntrada({ items, notas: sanitizar(notas), warehouse });
       const totalBase = items.reduce((s, it) => s + parseFloat(it.qty), 0);
-      setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${totalBase.toFixed(2)} unidades base en total`);
+      setSuccess(`Entrada registrada: ${itemsValidos.length} producto(s) — ${numero(totalBase, 2)} unidades base en total`);
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
       setErrorModal(parseErrorFrappe(err));
@@ -181,7 +182,7 @@ function RegistroEntrada({ onSuccess, onCancel }) {
 
         <div className="rm-actions">
           <span className="rm-resumen">
-            Total: <strong>{totalKgGlobal.toFixed(2)} unidades</strong> listas para registrar
+            Total: <strong>{numero(totalKgGlobal, 2)} unidades</strong> listas para registrar
           </span>
           <button className="rm-btn-secondary" onClick={onCancel} disabled={loading}>Cancelar</button>
           <button className="rm-btn-primary"   onClick={handleSubmit} disabled={loading}>

@@ -13,6 +13,7 @@ import useConfirmModal from "../hooks/useConfirmModal";
 import { fmtUom } from "../utils/uom";
 import "../styles/global.css";
 import "../styles/Compras.css";
+import { numero } from '../utils/formato';
 
 const fmt = (n) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ESTADO_DOCSTATUS = { registrada: 1, preventa: 0, cancelada: 2 };
@@ -444,7 +445,7 @@ function VentaB2B() {
                                       <tbody>
                                         {items.map((it, idx) => {
                                           const hasPres = it.cantidad_por_presentacion > 1 && it.presentacion;
-                                          const base = `${Number(it.qty || 0).toFixed(2)} ${fmtUom(it.uom || '')}`;
+                                          const base = `${numero(Number(it.qty || 0), 2)} ${fmtUom(it.uom || '')}`;
                                           return (
                                           <tr key={`${it.item_code}-${idx}`}>
                                             <td>
@@ -455,7 +456,7 @@ function VentaB2B() {
                                             </td>
                                             <td className="cell-right cell-bold">
                                               {hasPres
-                                                ? `${Number(it.qty_presentacion).toFixed(2)} ${it.presentacion}`
+                                                ? `${numero(Number(it.qty_presentacion), 2)} ${it.presentacion}`
                                                 : base}
                                             </td>
                                             <td className="cell-right" style={{ color: '#9a8a78' }}>

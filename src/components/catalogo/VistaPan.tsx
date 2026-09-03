@@ -2,6 +2,7 @@
 import React from 'react';
 import { PanItem, CostoBOM } from './catalogoTypes';
 import { calcularMargen, categoriasDePanes, filtrarPanes } from '../../utils/catalogoUtils';
+import { numero } from '../../utils/formato';
 
 const COLUMNAS_PAN = [
   'Código',
@@ -19,7 +20,7 @@ const APAGADO: React.CSSProperties = { color: '#9ca3af', fontStyle: 'italic' };
 
 function fmtPrecio(v: number | string | undefined | null): string | null {
   const n = parseFloat(String(v || 0)) || 0;
-  return n > 0 ? `$${n.toFixed(2)}` : null;
+  return n > 0 ? `$${numero(n, 2)}` : null;
 }
 
 interface CeldaCostoProps {
@@ -33,18 +34,16 @@ function CeldaCostoPan({ costoBOM, manual, costeado }: CeldaCostoProps) {
     return (
       <span
         style={{ fontWeight: 600 }}
-        title={`Receta: ${costoBOM.cantidadProducida} ${costoBOM.uom} → $${costoBOM.costoTotal.toFixed(
-          2
-        )}`}
+        title={`Receta: ${costoBOM.cantidadProducida} ${costoBOM.uom} → $${numero(costoBOM.costoTotal, 2)}`}
       >
-        ${costoBOM.costoPorUnidad.toFixed(2)}
+        ${numero(costoBOM.costoPorUnidad, 2)}
       </span>
     );
   }
   if (manual > 0) {
     return (
       <span title="Capturado a mano, sin receta que lo respalde">
-        ${manual.toFixed(2)}{' '}
+        ${numero(manual, 2)}{' '}
         <span style={{ ...APAGADO, fontSize: 12 }}>a mano</span>
       </span>
     );
@@ -82,10 +81,10 @@ function CeldaMargenPan({
       title={
         margen.bajoCosto
           ? 'Se vende por DEBAJO de lo que cuesta producirlo'
-          : `Deja $${margen.pesos.toFixed(2)} por pieza`
+          : `Deja $${numero(margen.pesos, 2)} por pieza`
       }
     >
-      {margen.bajoCosto && '⚠ '}${margen.pesos.toFixed(2)}
+      {margen.bajoCosto && '⚠ '}${numero(margen.pesos, 2)}
       <span style={{ ...APAGADO, fontSize: 12, marginLeft: 4 }}>
         {margen.pct.toFixed(0)}%
       </span>
