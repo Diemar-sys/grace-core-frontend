@@ -343,10 +343,10 @@ class FrappeInventoryService extends FrappeBase {
       // Presentación solo aplica a Materia Prima / Insumo General
       custom_presentación: esProductoTerminado
         ? null
-        : (formData.custom_presentacion || formData.custom_presentación || null),
+        : (formData.custom_presentación || null),
       custom_cantidad_por_presentación: esProductoTerminado
         ? null
-        : (parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null),
+        : (parseFloat(formData.custom_cantidad_por_presentación) || null),
       custom_precio_de_compra: esProductoTerminado ? null : (parseFloat(formData.custom_precio_de_compra) || null),
       custom_tipo_item: formData.custom_tipo_item || "MATERIA PRIMA",
       custom_impuesto: formData.custom_impuesto || "tasa0",
@@ -390,10 +390,10 @@ class FrappeInventoryService extends FrappeBase {
       // Presentación solo aplica a Materia Prima / Insumo General
       custom_presentación: esProductoTerminado
         ? null
-        : (formData.custom_presentacion || formData.custom_presentación || null),
+        : (formData.custom_presentación || null),
       custom_cantidad_por_presentación: esProductoTerminado
         ? null
-        : (parseFloat(formData.custom_cantidad_por_presentacion || formData.custom_cantidad_por_presentación) || null),
+        : (parseFloat(formData.custom_cantidad_por_presentación) || null),
       custom_precio_de_compra: esProductoTerminado ? null : (parseFloat(formData.custom_precio_de_compra) || null),
       custom_tipo_item: formData.custom_tipo_item || "MATERIA PRIMA",
       custom_impuesto: formData.custom_impuesto || "tasa0",
