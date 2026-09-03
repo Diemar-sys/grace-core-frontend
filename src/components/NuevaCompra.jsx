@@ -14,6 +14,9 @@ import {
   parseImpuesto, subtotalFila, calcVariacion, calcularTotalesEfectivos,
   cambiosDePrecio,
 } from './compras/compraUtils';
+import { fmtUom } from '../utils/uom';
+import { pesos, cantidad } from '../utils/formato';
+import { revisarCostoUnitario, costoPorUnidadBase } from '../utils/costoAnomalo';
 import '../styles/NuevaCompra.css';
 
 function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
@@ -117,6 +120,11 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
               precio_catalogo: m.custom_precio_de_compra != null ? String(m.custom_precio_de_compra) : '',
               kg_por_bulto:    m.custom_cantidad_por_presentación || '',
               precio_por_kg:   m.custom_precio_por_kg || '',
+              // Sin esto el guardia de costo absurdo no aplica al EDITAR un
+              // borrador: se dibujaria la fila sin historia y el bloqueo no
+              // bloquearia nada, que es peor que no tenerlo.
+              costo_historico: m.costo_historico ?? null,
+              costo_muestras:  m.costo_muestras ?? 0,
               impuesto_key:    imp.key,
               impuesto_label:  imp.label,
               impuesto_rate:   imp.rate,
@@ -324,6 +332,29 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
     setError('');
     const items  = validar();          if (!items)    return;
     const ajusteNum = validarAjuste(); if (ajusteNum === null) return;
+
+    // 🔴 Costo absurdo contra la historia del item: esto SÍ bloquea, no pregunta.
+    // El 02-jul la alerta de margen sí salió (catálogo $1,035.19 contra $52.90
+    // tecleados, diff $982 sobre un margen de $10) y se confirmó de todos modos:
+    // 4,000 Kg fantasma, el promedio de la bodega desplomado y $8,846.23 de
+    // valuación rota que se repararon dos meses después. Una advertencia que se
+    // puede saltar ya se demostró que se salta.
+    const absurdos = items
+      .map(f => ({ fila: f, rev: revisarCostoUnitario(costoPorUnidadBase(f.rate, f.kg_por_bulto), f.costo_historico, f.costo_muestras) }))
+      .filter(x => x.rev?.nivel === 'bloqueo');
+    if (absurdos.length > 0) {
+      const lista = absurdos.map(({ fila, rev }) => {
+        const capturado = costoPorUnidadBase(fila.rate, fila.kg_por_bulto);
+        return `• ${fila.item_name}: sale en ${pesos(capturado)} por ${fmtUom(fila.uom)}, `
+             + `y este item ha costado ${pesos(rev.historico)} (${cantidad(rev.factor, 1)}× ${rev.barato ? 'más barato' : 'más caro'})`;
+      }).join('\n');
+      setError(
+        `Revisa la unidad antes de continuar:\n\n${lista}\n\n` +
+        `Casi siempre es la UOM: se teclea el precio del kilo en la casilla de la caja, o al revés. ` +
+        `Corrige el renglón, o captúralo en el escritorio de ERPNext si de verdad costó eso.`
+      );
+      return;
+    }
 
     // Margen excedido: NO bloquea — pregunta al usuario si acepta continuar.
     const violaciones = detectarViolacionesMargen(items);

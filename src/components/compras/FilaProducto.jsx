@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { comprasService } from '../../services/frappePurchase';
 import { fmtUom } from '../../utils/uom';
+import { cantidad, pesos } from '../../utils/formato';
+import { revisarCostoUnitario, costoPorUnidadBase } from '../../utils/costoAnomalo';
 import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion } from './compraUtils';
 
 function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusNext, inputRef, soloUna }) {
@@ -59,6 +61,8 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
       kg_por_bulto:    item.custom_cantidad_por_presentación || '',
       precio_por_kg:   item.custom_precio_por_kg || '',
       precio_catalogo: precioCatalogo,
+      costo_historico: item.costo_historico ?? null,
+      costo_muestras:  item.costo_muestras ?? 0,
       ...(precioCatalogo ? { rate: String(precioCatalogo) } : {}),
     });
     onImpuesto(item.custom_impuesto || 'tasa0');
@@ -73,9 +77,13 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
   const uomLabel     = fmtUom(fila.uom || 'unid');
   const variacion    = calcVariacion(fila);
   const superaMargen = variacion && margen > 0 && Math.abs(variacion.diff) > margen;
+  // Contra la HISTORIA del item y en unidad base: es lo que ve el error de UOM,
+  // que la alerta de margen no puede ver porque compara presentaciones.
+  const revCosto     = revisarCostoUnitario(
+    costoPorUnidadBase(fila.rate, fila.kg_por_bulto), fila.costo_historico, fila.costo_muestras);
 
   return (
-    <tr className={superaMargen ? 'nc-fila-alerta' : ''}>
+    <tr className={superaMargen || revCosto?.nivel === 'bloqueo' ? 'nc-fila-alerta' : ''}>
 
       <td>
         <div className="nc-buscador-wrap" ref={wrapRef}>
@@ -110,19 +118,19 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
 
       <td>
         {fila.kg_por_bulto
-          ? <span className="nc-catalog-val">{fila.kg_por_bulto} {uomLabel}</span>
+          ? <span className="nc-catalog-val">{cantidad(fila.kg_por_bulto)} {uomLabel}</span>
           : <span className="nc-uom-empty">—</span>}
       </td>
 
       <td>
         {total > 0
-          ? <span className="nc-kg-badge">{Number(total).toFixed(2)} {uomLabel}</span>
+          ? <span className="nc-kg-badge">{cantidad(total)} {uomLabel}</span>
           : <span className="nc-uom-empty">—</span>}
       </td>
 
       <td>
         {fila.precio_catalogo
-          ? <span className="nc-precio-fijo">${parseFloat(fila.precio_catalogo).toFixed(2)}</span>
+          ? <span className="nc-precio-fijo">{pesos(fila.precio_catalogo)}</span>
           : <span className="nc-uom-empty">—</span>}
       </td>
 
@@ -149,8 +157,18 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
             {' '}(${fmt(Math.abs(variacion.diff))})
             {superaMargen && ' ⚠️'}
           </span>
-        ) : (
+        ) : !revCosto || revCosto.nivel === 'ok' ? (
           <span className="nc-uom-empty">—</span>
+        ) : null}
+
+        {revCosto && revCosto.nivel !== 'ok' && (
+          <span className={`nc-var-badge-sm ${revCosto.nivel === 'bloqueo' ? 'nc-var-alerta' : 'nc-var-baja'}`}
+            title={`Este item ha costado ${pesos(revCosto.historico)} por ${uomLabel}. `
+                 + `Lo capturado sale en ${pesos(costoPorUnidadBase(fila.rate, fila.kg_por_bulto))}. `
+                 + `Revisa si la unidad es la correcta.`}>
+            {revCosto.nivel === 'bloqueo' ? '🚫' : '⚠️'}
+            {' '}{cantidad(revCosto.factor, 1)}× {revCosto.barato ? 'más barato' : 'más caro'} que su historial
+          </span>
         )}
       </td>
 
