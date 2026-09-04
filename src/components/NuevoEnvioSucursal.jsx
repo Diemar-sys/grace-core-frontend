@@ -4,6 +4,7 @@ import { stockService } from '../services/frappeStock';
 import { pedidoService } from '../services/frappePedido';
 import { inventory } from '../services/frappeInventory';
 import { fmtUom } from '../utils/uom';
+import CantidadDual from './CantidadDual';
 import { BODEGA_CENTRAL } from '../config/constants';
 import useSucursales from '../hooks/useSucursales';
 import useBorradorLocal from '../hooks/useBorradorLocal';
@@ -14,7 +15,6 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
 import SelectorTipoItem from './SelectorTipoItem';
-import { numero } from '../utils/formato';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -578,21 +578,18 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna,
       </td>
 
       <td>
-        <input className={`nc-input cantidad ${excedeStock ? 'nc-input-alerta' : ''}`}
-          type="number" min="0" step="0.01"
-          ref={qtyRef}
-          value={sinStock ? '' : fila.qty}
-          onChange={e => onChange({ qty: e.target.value })}
-          placeholder={sinStock ? '—' : '0'}
+        <CantidadDual
+          valor={sinStock ? '' : fila.qty}
+          onValor={v => onChange({ qty: v })}
+          factor={fila.cantidad_por_presentacion}
+          uomBase={uomLabel}
+          presentacion={fila.presentacion}
           disabled={sinStock}
+          alerta={excedeStock}
+          placeholder={sinStock ? '—' : '0'}
           title={sinStock ? 'Sin stock — elimina la fila' : ''}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onFocusNext?.(); } }} />
-        <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
-        {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-            = {numero((qtyNum / fila.cantidad_por_presentacion), 2)} {fila.presentacion}
-          </div>
-        )}
+          inputRef={qtyRef}
+          onEnter={onFocusNext} />
       </td>
 
       <td>

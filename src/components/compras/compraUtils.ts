@@ -304,3 +304,18 @@ export const cambiosDePrecio = (items: any[], catalogoAntes: Record<string, any>
   });
   return [...porItem.values()];
 };
+
+/**
+ * Parte la etiqueta de impuesto en nombre y detalle: "IVA 16%" → ["IVA", "16%"].
+ *
+ * El nombre es lo que se busca de un vistazo al revisar una compra —si lleva IVA,
+ * IEPS o va exenta—; el porcentaje solo confirma. "Tasa 0" no trae porcentaje y
+ * se queda entero como nombre: partirlo en "Tasa" + "0" pierde justo el 0, que
+ * es la mitad que importa.
+ */
+export function partirImpuesto(label: string): [string, string] {
+  const texto = (label || 'Tasa 0').trim();
+  const m = texto.match(/^(.*?)\s*(\d+(?:\.\d+)?\s*%)$/);
+  if (!m || !m[1]) return [texto, ''];
+  return [m[1].trim(), m[2].replace(/\s+/g, '')];
+}

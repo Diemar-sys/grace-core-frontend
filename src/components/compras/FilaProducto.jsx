@@ -3,7 +3,8 @@ import { comprasService } from '../../services/frappePurchase';
 import { fmtUom } from '../../utils/uom';
 import { cantidad, pesos } from '../../utils/formato';
 import { revisarCostoUnitario, costoPorUnidadBase } from '../../utils/costoAnomalo';
-import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion } from './compraUtils';
+import { convertir } from '../CantidadDual';
+import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion, partirImpuesto } from './compraUtils';
 
 function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusNext, inputRef, soloUna }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
@@ -15,6 +16,10 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
   const listRef  = useRef(null);
   const bultosRef = useRef(null);
   const rateRef   = useRef(null);
+  // Lo tecleado TAL CUAL en el campo de Kg mientras tiene el foco. La verdad de
+  // la compra siguen siendo los BULTOS (el rate es por bulto); los Kg son una
+  // vista. Sin este borrador, teclear "57.5" muere en el punto.
+  const [kgTecleado, setKgTecleado] = useState(null);
 
   useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
@@ -73,6 +78,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
 
   const total        = totalPorFila(fila);
   const impMonto     = impuestoFila(fila);
+  const [impNombre, impTasa] = partirImpuesto(fila.impuesto_label);
   const totalConImp  = totalFila(fila);
   const uomLabel     = fmtUom(fila.uom || 'unid');
   const variacion    = calcVariacion(fila);
@@ -110,10 +116,13 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
       </td>
 
       <td>
-        <input className="nc-input cantidad" type="number" min="0" step="0.01"
-          ref={bultosRef}
-          value={fila.bultos} onChange={e => onChange({ bultos: e.target.value })} placeholder="0"
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); rateRef.current?.focus(); rateRef.current?.select(); } }} />
+        <label className="nc-dual-campo">
+          <input className="nc-input cantidad" type="number" min="0" step="0.000001"
+            ref={bultosRef}
+            value={fila.bultos} onChange={e => onChange({ bultos: e.target.value })} placeholder="0"
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); rateRef.current?.focus(); rateRef.current?.select(); } }} />
+          <span className="nc-dual-unidad">{fila.presentacion || uomLabel}</span>
+        </label>
       </td>
 
       <td>
@@ -123,7 +132,23 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
       </td>
 
       <td>
-        {total > 0
+        {/* Se compra por bulto, pero a veces se sabe el peso y no los bultos.
+            Este campo captura Kg y devuelve los bultos: misma verdad, dos
+            entradas, como margen ↔ precio de venta en el alta de producto. */}
+        {fila.kg_por_bulto ? (
+          <label className="nc-dual-campo">
+            <input className="nc-input cantidad" type="number" min="0" step="0.000001"
+              value={kgTecleado ?? (fila.bultos === '' ? '' : convertir(String(fila.bultos), fila.kg_por_bulto, 'base'))}
+              onChange={e => {
+                setKgTecleado(e.target.value);
+                onChange({ bultos: convertir(e.target.value, fila.kg_por_bulto, 'pres') });
+              }}
+              onBlur={() => setKgTecleado(null)}
+              placeholder="0"
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); rateRef.current?.focus(); rateRef.current?.select(); } }} />
+            <span className="nc-dual-unidad">{uomLabel}</span>
+          </label>
+        ) : total > 0
           ? <span className="nc-kg-badge">{cantidad(total)} {uomLabel}</span>
           : <span className="nc-uom-empty">—</span>}
       </td>
@@ -174,8 +199,12 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
 
       <td>
         <span className={`nc-imp-badge nc-imp-${fila.impuesto_key}`}>
-          {fila.impuesto_label || 'Tasa 0'}
-          {impMonto > 0 && <> — ${fmt(impMonto)}</>}
+          <span className="nc-imp-nombre">{impNombre}</span>
+          {(impTasa || impMonto > 0) && (
+            <span className="nc-imp-detalle">
+              {impTasa}{impTasa && impMonto > 0 ? ' — ' : ''}{impMonto > 0 ? `$${fmt(impMonto)}` : ''}
+            </span>
+          )}
         </span>
       </td>
 

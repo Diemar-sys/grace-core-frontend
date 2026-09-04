@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ventasService, calcularTotalesVenta } from '../services/frappeSales';
 import { fmtUom } from '../utils/uom';
+import CantidadDual from './CantidadDual';
 import { stockService } from '../services/frappeStock';
 import { inventory } from '../services/frappeInventory';
 import { BODEGA_CENTRAL } from '../config/constants';
@@ -623,21 +624,18 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
       </td>
 
       <td>
-        <input className={`nc-input cantidad ${excedeStock ? 'nc-input-alerta' : ''}`}
-          type="number" min="0" step="0.01"
-          ref={qtyRef}
-          value={sinStock ? '' : fila.qty}
-          onChange={e => onChange({ qty: e.target.value })}
-          placeholder={sinStock ? '—' : '0'}
+        <CantidadDual
+          valor={sinStock ? '' : fila.qty}
+          onValor={v => onChange({ qty: v })}
+          factor={fila.cantidad_por_presentacion}
+          uomBase={uomLabel}
+          presentacion={fila.presentacion}
           disabled={sinStock}
+          alerta={excedeStock}
+          placeholder={sinStock ? '—' : '0'}
           title={sinStock ? 'Sin stock — elimina la fila' : ''}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onFocusNext(); } }} />
-        <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>{uomLabel}</span>
-        {qtyNum > 0 && fila.cantidad_por_presentacion > 1 && fila.presentacion && (
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-            = {numero((qtyNum / fila.cantidad_por_presentacion), 2)} {fila.presentacion}
-          </div>
-        )}
+          inputRef={qtyRef}
+          onEnter={onFocusNext} />
       </td>
 
       {/* Stock final (= stock disp - cantidad capturada) */}
