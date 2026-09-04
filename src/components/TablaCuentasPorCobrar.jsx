@@ -37,7 +37,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
 
   const conSaldo = useMemo(() => data.filter(r => (parseFloat(r.pendiente) || 0) > 0), [data]);
 
-  // `pendiente` ya viene saneado por factura desde agruparCuentasPorCobrar.
+  // `pendiente` ya viene saneado por factura desde el SQL de cuentas_por_cobrar.
   const filas = useMemo(() => {
     let out = data;
     if (estado === 'pendiente') out = out.filter(r => (parseFloat(r.pendiente) || 0) > 0);

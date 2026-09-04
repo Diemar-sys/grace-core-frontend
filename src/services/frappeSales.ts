@@ -101,26 +101,6 @@ export function saldoCobrable(outstanding: any) {
   return v >= 0.01 ? parseFloat(outstanding) : 0;
 }
 
-/**
- * Agrega Sales Invoices en filas por cliente para el reporte de cuentas por cobrar.
- * pagado = grand_total - outstanding_amount. Ordena por deuda pendiente desc.
- * El pendiente se acumula por factura YA saneada con saldoCobrable().
- */
-export function agruparCuentasPorCobrar(rows: any[]) {
-  const map: Record<string, any> = {};
-  for (const si of rows || []) {
-    const k = si.customer;
-    if (!map[k]) map[k] = { customer: si.customer, customer_name: si.customer_name || si.customer, n: 0, total: 0, pagado: 0, pendiente: 0 };
-    const gt = parseFloat(si.grand_total || 0);
-    const out = saldoCobrable(si.outstanding_amount);
-    map[k].n++;
-    map[k].total += gt;
-    map[k].pendiente += out;
-    map[k].pagado += gt - out;
-  }
-  return Object.values(map).sort((a: any, b: any) => b.pendiente - a.pendiente);
-}
-
 class FrappeSalesService extends FrappeBase {
   #cuentasCache: Cuentas | null = null;
   _abortCliente?: AbortController;
@@ -450,13 +430,13 @@ class FrappeSalesService extends FrappeBase {
    * Retorna [{ customer, customer_name, n, total, pagado, pendiente }] ordenado por deuda desc.
    */
   async getCuentasPorCobrar(signal?: AbortSignal) {
-    const params = new URLSearchParams({
-      fields: JSON.stringify(['customer', 'customer_name', 'grand_total', 'outstanding_amount']),
-      filters: JSON.stringify([['docstatus', '=', 1], ['is_pos', '=', 0]]),
-      limit_page_length: '0', // todas
-    });
-    const data = await this._fetch('/api/resource/Sales Invoice?' + params, { signal });
-    return agruparCuentasPorCobrar(data?.data || []);
+    // La suma la hace la base, no el navegador. Antes se pedian TODAS las
+    // facturas de la historia (`limit_page_length: 0`) para pintar ~6 renglones:
+    // con 70 facturas vuela, con 20,000 baja 20,000 registros para lo mismo.
+    // El endpoint devuelve un renglon por cliente y no crece con la historia.
+    const json = await this._fetch(
+      '/api/method/gestion_panaderia.api.reportes_api.cuentas_por_cobrar', { signal });
+    return json?.message || [];
   }
 
   /**
