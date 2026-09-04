@@ -15,6 +15,8 @@ export interface PanItem {
   custom_precio_de_venta_pueblos?: number | string;
   custom_precio_de_venta_camioneta?: number | string;
   custom_costo_estimado?: number | string;
+  /** 1 = el costo se derivó del precio de venta, no de una receta. */
+  custom_costo_provisional?: number | boolean;
 }
 
 export interface InsumoItem {

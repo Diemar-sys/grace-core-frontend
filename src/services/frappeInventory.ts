@@ -214,6 +214,7 @@ class FrappeInventoryService extends FrappeBase {
       "custom_precio_de_compra", "custom_impuesto", "custom_precio_por_kg", "custom_precio_final",
       "custom_precio_de_venta", "custom_precio_de_venta_pueblos",
       "custom_precio_de_venta_camioneta", "custom_costo_estimado",
+      "custom_costo_provisional",
       "custom_porcentaje_de_ganancia", "custom_ganancia",
       "custom_vendible_b2b",
     ].join('","');

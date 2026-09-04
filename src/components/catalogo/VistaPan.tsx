@@ -27,9 +27,11 @@ interface CeldaCostoProps {
   costoBOM?: CostoBOM;
   manual: number;
   costeado: boolean;
+  /** El costo manual salió del factor sobre el precio, no de una captura. */
+  provisional?: boolean;
 }
 
-function CeldaCostoPan({ costoBOM, manual, costeado }: CeldaCostoProps) {
+function CeldaCostoPan({ costoBOM, manual, costeado, provisional }: CeldaCostoProps) {
   if (costoBOM) {
     return (
       <span
@@ -41,10 +43,17 @@ function CeldaCostoPan({ costoBOM, manual, costeado }: CeldaCostoProps) {
     );
   }
   if (manual > 0) {
+    // "a mano" y "estimado" NO son lo mismo: uno lo tecleó alguien que vio el
+    // producto, el otro salió de multiplicar el precio de venta por un factor
+    // parejo mientras la receta no existe. Leer el segundo como el primero es
+    // como se le termina creyendo a un número que nadie midió.
+    const [etiqueta, explica] = provisional
+      ? ['estimado', 'Derivado del precio de venta (35%), NO de una receta. Se corrige solo cuando el pan tenga BOM.']
+      : ['a mano', 'Capturado a mano, sin receta que lo respalde'];
     return (
-      <span title="Capturado a mano, sin receta que lo respalde">
+      <span title={explica}>
         ${numero(manual, 2)}{' '}
-        <span style={{ ...APAGADO, fontSize: 12 }}>a mano</span>
+        <span style={{ ...APAGADO, fontSize: 12 }}>{etiqueta}</span>
       </span>
     );
   }
@@ -139,7 +148,8 @@ function FilaPan({
         )}
       </td>
       <td>
-        <CeldaCostoPan costoBOM={costoBOM} manual={manual} costeado={costeado} />
+        <CeldaCostoPan costoBOM={costoBOM} manual={manual} costeado={costeado}
+          provisional={!!pan.custom_costo_provisional} />
       </td>
       <td>
         <CeldaMargenPan margen={margen} />

@@ -217,7 +217,7 @@ class FrappeProduccionService extends FrappeBase {
     ];
     if (search) filters.push(['item_name', 'like', `%${search}%`]);
     const params = new URLSearchParams({
-      fields: JSON.stringify(['item_code', 'item_name', 'stock_uom', 'custom_precio_de_venta', 'custom_costo_estimado']),
+      fields: JSON.stringify(['item_code', 'item_name', 'stock_uom', 'custom_precio_de_venta', 'custom_costo_estimado', 'custom_costo_provisional']),
       filters: JSON.stringify(filters),
       limit_page_length: String(limit),
     });
