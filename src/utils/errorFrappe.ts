@@ -48,7 +48,10 @@ export function parseErrorFrappe(err: unknown) {
   }
 
   // Stock insuficiente / cantidad negativa
-  if (/insufficient|negative|stock\s+insuficiente/i.test(txt)) {
+  // `insufficient` a secas se comía «Insufficient Permission for Item», que es un
+  // error de PERMISOS de Frappe, y lo reportaba como falta de stock (hallado el
+  // 08-sep por el test de la regla de campo desconocido). Va anclado a "stock".
+  if (/insufficient\s+stock|negative|stock\s+insuficiente/i.test(txt)) {
     return {
       title: 'Stock insuficiente',
       message: 'La cantidad solicitada supera el stock disponible. Ajusta las cantidades.',
@@ -58,6 +61,19 @@ export function parseErrorFrappe(err: unknown) {
   // Folio de factura de proveedor duplicado
   if (/folio|ya existe una compra/i.test(txt)) {
     return { title: 'Folio de factura duplicado', message: txt };
+  }
+
+  // Campo que el servidor no conoce. VA ANTES QUE PERMISOS a propósito: Frappe
+  // lo reporta como «Field not permitted in query: <campo>», y esas dos palabras
+  // caían en la regla de permisos de abajo. Un desajuste de ESQUEMA se disfrazaba
+  // de problema de ROLES y mandaba a revisar DocPerms durante media hora
+  // (08-sep, `custom_costo_provisional` sin migrar en dev).
+  const campoDesconocido = txt.match(/Field not permitted in query:\s*([A-Za-z0-9_]+)/i);
+  if (campoDesconocido) {
+    return {
+      title: 'Falta un campo en el servidor',
+      message: `El servidor no conoce el campo \`${campoDesconocido[1]}\`. Casi siempre significa que esta base está atrás del código: falta correr \`bench migrate\`.`,
+    };
   }
 
   // Permisos

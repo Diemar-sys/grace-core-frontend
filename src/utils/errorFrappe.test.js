@@ -47,6 +47,39 @@ describe('errorFrappe — parseErrorFrappe (traducción de errores)', () => {
   });
 });
 
+describe('errorFrappe — campo desconocido NO es falta de permisos', () => {
+  // El mensaje es TEXTUAL, capturado del backend el 08-sep contra
+  // /api/resource/Item con un campo que la base no tenia migrado. Si se
+  // reescribe "bonito" el test deja de proteger del caso real.
+  const REAL = 'frappe.exceptions.DataError: Field not permitted in query: custom_costo_provisional';
+
+  it('lo clasifica como esquema, no como roles', () => {
+    const out = parseErrorFrappe(REAL);
+    expect(out.title).toBe('Falta un campo en el servidor');
+    expect(out.title).not.toBe('Sin permisos');
+  });
+
+  it('nombra el campo que falta y dice qué hacer', () => {
+    const out = parseErrorFrappe(REAL);
+    expect(out.message).toContain('custom_costo_provisional');
+    expect(out.message).toContain('bench migrate');
+  });
+
+  it('llega envuelto en HTML, como lo manda Frappe de verdad', () => {
+    const out = parseErrorFrappe('<pre>Field not permitted in query: custom_camioneta</pre>');
+    expect(out.title).toBe('Falta un campo en el servidor');
+    expect(out.message).toContain('custom_camioneta');
+  });
+
+  it('un permiso DE VERDAD sigue saliendo como permiso', () => {
+    // La regla nueva va antes que la de permisos: hay que probar que no se la comió.
+    expect(parseErrorFrappe('frappe.exceptions.PermissionError: Not permitted').title)
+      .toBe('Sin permisos');
+    expect(parseErrorFrappe('Insufficient Permission for Item').title).toBe('Sin permisos');
+    expect(parseErrorFrappe('403 Forbidden').title).toBe('Sin permisos');
+  });
+});
+
 describe('errorFrappe — logError (punto único)', () => {
   it('registra con contexto', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
