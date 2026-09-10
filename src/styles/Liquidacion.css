@@ -1,0 +1,264 @@
+/* Liquidacion.css — cierre de ruta del repartidor.
+ *
+ * Se usa de noche, en la calle, muchas veces desde un telefono: los blancos
+ * flotan sobre la harina como en el resto del sistema, pero los toques van mas
+ * grandes de lo normal (48px) y los numeros mas altos. Responsive por CLASE,
+ * nunca por nth-child.
+ */
+
+.liq {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Cabecera ───────────────────────────────────────────────────────── */
+.liq-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.liq-titulo {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.liq-sub {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.liq-badge {
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.liq-badge--aviso {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* ── Avisos ─────────────────────────────────────────────────────────── */
+.liq-aviso {
+  border-radius: var(--radius-bento);
+  padding: 1rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.liq-aviso--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.liq-aviso--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* ── Totales: tres bloques flotando ─────────────────────────────────── */
+.liq-totales {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.liq-stat {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.liq-stat:hover { box-shadow: var(--shadow-bento-hover); }
+
+.liq-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.liq-stat-valor {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.liq-stat-valor--resta { color: var(--color-danger); }
+
+/* Lo que de verdad tiene que entregar: el unico con la marca solida. */
+.liq-stat--fuerte {
+  background: var(--color-brand);
+}
+
+.liq-stat--fuerte .liq-stat-label { color: rgba(255, 255, 255, 0.82); }
+.liq-stat--fuerte .liq-stat-valor { color: #fff; }
+
+/* ── Tarjeta de captura ─────────────────────────────────────────────── */
+.liq-tarjeta {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.5rem;
+}
+
+.liq-vacio {
+  margin: 0;
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* La tabla scrollea DENTRO de su tarjeta: la pagina nunca se mueve de lado. */
+.liq-tabla-scroll { overflow-x: auto; }
+
+.liq-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.liq-tabla th {
+  text-align: left;
+  padding: 0.75rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-hairline);
+  white-space: nowrap;
+}
+
+.liq-tabla td {
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: middle;
+}
+
+.liq-tabla tbody tr:last-child td { border-bottom: none; }
+
+.liq-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.liq-producto { display: block; font-weight: 600; color: var(--color-text); }
+.liq-clave { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
+.liq-vendido { font-weight: 700; }
+
+.liq-fila--mala { background: var(--color-danger-bg); }
+
+/* ── Campos ─────────────────────────────────────────────────────────── */
+.liq-input {
+  width: 5.5rem;
+  min-height: 48px;            /* dedo, no cursor */
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  font-size: 1.05rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-brand-bg);
+  color: var(--color-text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.liq-input:focus {
+  outline: none;
+  border-color: var(--color-brand-light);
+  box-shadow: 0 0 0 3px var(--color-brand-hover);
+}
+
+/* ── Pie: destino + confirmar ───────────────────────────────────────── */
+.liq-pie {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.5rem;
+}
+
+.liq-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 260px;
+}
+
+.liq-campo > span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.liq-select {
+  min-height: 48px;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  background: var(--color-brand-bg);
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.liq-select:disabled { opacity: 0.55; }
+
+.liq-btn {
+  min-height: 48px;
+  padding: 0.8rem 2rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.liq-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.liq-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Responsive: por clase, NUNCA por nth-child ─────────────────────── */
+@media (max-width: 720px) {
+  .liq { padding: 1rem; gap: 1rem; }
+  .liq-totales { grid-template-columns: 1fr; }
+  .liq-tarjeta, .liq-pie, .liq-stat { padding: 1.15rem; }
+  .liq-stat-valor { font-size: 1.5rem; }
+  .liq-btn { width: 100%; }
+}

@@ -24,6 +24,7 @@ const ConsultaPedido = lazy(() => import('./pages/ConsultaPedido'));
 const ConsultaTablero = lazy(() => import('./pages/ConsultaTablero'));
 const ConsultasPOS = lazy(() => import('./pages/ConsultasPOS'));
 const Kardex = lazy(() => import('./pages/Kardex'));
+const Liquidacion = lazy(() => import('./pages/Liquidacion'));
 const ReportesVentasCategoria = lazy(() => import('./pages/ReportesVentasCategoria'));
 const ReporteGastos = lazy(() => import('./pages/ReporteGastos'));
 const ReporteGastosAnual = lazy(() => import('./pages/ReporteGastosAnual'));
@@ -253,6 +254,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <Cuentas />
+              </ProtectedRoute>
+            }
+          />
+          {/* Cierre de ruta. Es la UNICA pantalla del nivel Repartidor: su
+              config de roles no incluye /panel, asi que cualquier otra ruta lo
+              devuelve aqui. */}
+          <Route
+            path="/liquidacion"
+            element={
+              <ProtectedRoute>
+                <Liquidacion />
               </ProtectedRoute>
             }
           />

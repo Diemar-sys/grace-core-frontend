@@ -55,6 +55,15 @@ export const ROLES: Record<string, RoleConfig> = {
     rutas: rutasDe(MOD_OPERACIONES),
     inicio: '/panel',
   },
+  // El repartidor NO ve el panel: entra, cierra su ruta y se va. Darle /panel
+  // seria pintarle un tablero vacio. `inicio` lo manda directo a lo suyo, y
+  // cualquier otra ruta lo devuelve ahi.
+  Repartidor: {
+    modulosPanel: [],
+    reportes: false,
+    rutas: ['/liquidacion'],
+    inicio: '/liquidacion',
+  },
   Gerente: {
     modulosPanel: MOD_GERENTE,
     reportes: true,
