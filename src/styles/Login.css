@@ -1,11 +1,15 @@
 /* Estilos para el Login de Panadería */
 
-/* Reset para asegurar pantalla completa */
-* {
-  box-sizing: border-box;
-}
+/* TODO lo de este archivo va acotado al login. App.jsx importa Login de forma
+   eager, así que estas reglas viajan en el bundle principal y se aplican en
+   CADA pantalla: sin el `:has` el `overflow:hidden` y el `position:fixed` de
+   abajo congelaban el documento de la app entera. Mismo candado que
+   `pos/POSModals.css` (06-ago). El `* { box-sizing }` que estaba aquí se mudó
+   a `index.css`, que es su lugar. */
 
-html, body {
+/* Pantalla completa: solo mientras el login está montado. */
+html:has(.login-container),
+body:has(.login-container) {
   margin: 0 !important;
   padding: 0 !important;
   height: 100%;
@@ -13,7 +17,7 @@ html, body {
   overflow: hidden;
 }
 
-body {
+body:has(.login-container) {
   position: fixed;
   top: 0;
   left: 0;
@@ -124,32 +128,32 @@ body:has(.login-container) #root {
   gap: 1.25rem;
 }
 
-.form-group {
+.login-container .form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.form-label {
+.login-container .form-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: #3a3a3a;
 }
 
-.input-wrapper {
+.login-container .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-icon {
+.login-container .input-icon {
   position: absolute;
   left: 12px;
   color: #7a7a7a;
   pointer-events: none;
 }
 
-.form-input {
+.login-container .form-input {
   width: 100%;
   height: 48px;
   padding: 0 12px 0 40px;
@@ -162,12 +166,12 @@ body:has(.login-container) #root {
   transition: all 0.2s;
 }
 
-.form-input:focus {
+.login-container .form-input:focus {
   border-color: #e8826c;
   box-shadow: 0 0 0 3px rgba(232, 168, 76, 0.15);
 }
 
-.select-input {
+.login-container .select-input {
   padding-right: 40px;
   cursor: pointer;
   appearance: none;
@@ -176,7 +180,7 @@ body:has(.login-container) #root {
   background-position: right 12px center;
 }
 
-.password-toggle {
+.login-container .password-toggle {
   position: absolute;
   right: 12px;
   background: none;
@@ -189,7 +193,7 @@ body:has(.login-container) #root {
   transition: color 0.2s;
 }
 
-.password-toggle:hover {
+.login-container .password-toggle:hover {
   color: #3a3a3a;
 }
 
@@ -236,7 +240,7 @@ body:has(.login-container) #root {
   color: #5a5a5a;
 }
 
-.link-button {
+.login-container .link-button {
   background: none;
   border: none;
   color: #a8402c;
@@ -246,12 +250,12 @@ body:has(.login-container) #root {
   padding: 0;
 }
 
-.link-button:hover {
+.login-container .link-button:hover {
   text-decoration: underline;
   color: #c8503c;
 }
 
-.help-text {
+.login-container .help-text {
   font-size: 0.75rem !important;
   color: #7a7a7a !important;
 }
@@ -295,7 +299,7 @@ body:has(.login-container) #root {
   animation: fade-in 1s ease-in;
 }
 
-.logo-image {
+.login-container .logo-image {
   width: auto;
   height: 300px;
   max-width: 100%;
@@ -338,14 +342,14 @@ body:has(.login-container) #root {
   max-width: 700px;
 }
 
-.feature {
+.login-container .feature {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
 }
 
-.feature-icon {
+.login-container .feature-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -357,12 +361,12 @@ body:has(.login-container) #root {
   border-radius: 50%;
 }
 
-.feature-icon svg {
+.login-container .feature-icon svg {
   width: 40px;
   height: 40px;
 }
 
-.feature-text {
+.login-container .feature-text {
   font-size: 1.125rem;
   font-weight: 500;
   margin: 0;

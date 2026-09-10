@@ -1,3 +1,11 @@
+/* El reset universal vivía en `styles/Login.css` y aplicaba a toda la app por
+   accidente: ese archivo se importa eager desde App.jsx, así que su `*` entraba
+   al bundle principal. Aquí es donde va — index.css es lo que main.jsx importa
+   siempre. Se muda TAL CUAL (sin ::before/::after) para no cambiar el render. */
+* {
+  box-sizing: border-box;
+}
+
 :root {
   font-family: 'DM Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

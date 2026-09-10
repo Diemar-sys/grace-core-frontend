@@ -26,6 +26,9 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+# Ninguna hoja de módulo puede pisar el documento entero. Se verifica sobre
+# dist/, que es el CSS minificado real, no sobre las fuentes.
+sh verificar_css_global.sh
 
 echo ""
 echo "✅ OK: HEAD compila desde checkout limpio — seguro para push/deploy"

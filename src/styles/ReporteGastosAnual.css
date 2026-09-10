@@ -322,7 +322,11 @@
      del navegador), se apaga todo por visibility y el reporte se saca del
      contenedor recortado con position:absolute — al colgar del bloque inicial
      ya no lo clipa nadie. */
-  body * { visibility: hidden; }
+  /* El `:has` acota la regla a esta pantalla. Sin él, basta con haber ABIERTO
+     el reporte una vez en la sesión para que su CSS quede cargado y cualquier
+     otra impresión posterior (un ticket del POS, por ejemplo) salga en blanco.
+     Mismo candado que `pos/POSModals.css`. */
+  body:has(.rga) * { visibility: hidden; }
   .rga, .rga * { visibility: visible; }
   .rga {
     position: absolute;
@@ -331,7 +335,7 @@
     padding: 0;
     max-width: none;
   }
-  html, body { height: auto !important; overflow: visible !important; }
+  html:has(.rga), body:has(.rga) { height: auto !important; overflow: visible !important; }
 
   /* Fuera lo que no se puede clicar en papel. */
   .rga-controles, .rga-hint,

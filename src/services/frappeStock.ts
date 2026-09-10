@@ -1,7 +1,7 @@
 /**
  * FrappeStockService
  * Combina métodos de consulta/movimiento general con los
- * endpoints específicos usados por RegistroEntrada, RegistroSalida e Inventario.
+ * endpoints específicos usados por RegistroSalida, RegistroMerma, RegistroRegalo e Inventario.
  */
 
 import FrappeBase from './FrappeBase';
@@ -271,35 +271,12 @@ class FrappeStockService extends FrappeBase {
   // ENTRADAS
   // ─────────────────────────────────────────────
 
-  /**
-   * Entrada estándar desde formulario simplificado de "Añadir Stock" (RegistroEntrada.jsx).
-   * Genera un "Material Receipt".
-   */
-  async registrarEntrada({ items, notas = "", warehouse = BODEGA_CENTRAL }: { items: any[]; notas?: string; warehouse?: string }) {
-    if (!items?.length) throw new Error("Agrega al menos un producto");
-    const destino = warehouse || BODEGA_CENTRAL;
-    return this.crearYSubmitirStockEntry({
-      doctype:          "Stock Entry",
-      stock_entry_type: "Material Receipt",
-      company:          COMPANY,
-      to_warehouse:     destino,
-      remarks:          notas || "Entrada de insumos",
-      items: items.map(item => {
-        const row: any = {
-          item_code:         item.item_code,
-          t_warehouse:       item.almacen || destino,
-          qty:               qtyNum(item.qty, item.item_code),
-          uom:               item.uom,
-          stock_uom:         item.uom,
-          conversion_factor: 1,
-          transfer_qty:      qtyNum(item.qty, item.item_code),
-        };
-        const rate = parseFloat(item.basic_rate);
-        if (rate > 0) row.basic_rate = rate;
-        return row;
-      }),
-    });
-  }
+  /* Aquí vivía `registrarEntrada` (el "Añadir Stock" de RegistroEntrada.jsx).
+     Murió con su único componente, que dejó de importarse cuando llegó Conteo
+     Físico (f104fca). Ponía `basic_rate` SOLO si venía > 0: sin costo, ERPNext
+     valuaba en cero, que es la raíz del incidente de $16,553 del 02-sep. Para
+     dar de alta mercancía con su valor está `entradaPorCompra`, que siempre lo
+     manda. */
 
   /**
    * Entrada de artículos que ingresan costados desde un pedido o compra.
