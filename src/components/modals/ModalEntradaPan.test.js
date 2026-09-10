@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { itemsPayload, calcularValor, resolverItemCode } from './ModalEntradaPan';
+import { itemsPayload, calcularValor, resolverItemCode, filasDesdePedido, hoyISO, costoTexto } from './ModalEntradaPan';
 
 /**
  * Reglas que se están probando, en español:
@@ -83,5 +83,86 @@ describe('calcularValor — el costo tecleado manda sobre el catálogo', () => {
   it('renglones vacíos no aportan', () => {
     expect(calcularValor([{ item_code: '', qty: '10', costo: '5' }], CATALOGO)).toBe(0);
     expect(calcularValor([{ item_code: 'MP_BOLILLO', qty: '', costo: '5' }], CATALOGO)).toBe(0);
+  });
+});
+
+/**
+ * Precarga desde el pedido del día (09-sep-2026).
+ *
+ * Lo que protege, y por qué cada caso puede tronar de verdad:
+ *  5. Un pan del pedido que ya no está en el catálogo (deshabilitado) NO puede
+ *     colarse: el backend lo rechazaría y la pantalla ya no diría cuál.
+ *  6. La cantidad precargada es la PEDIDA, y se guarda aparte en `pedido` para
+ *     que la pantalla enseñe las dos y un número corregido se vea distinto.
+ *  7. El costo sale del catálogo; sin costo se deja vacío, nunca 0 (rate 0 hunde
+ *     el moving average y el backend lo rechaza).
+ *  8. Sin pedido cargado no truena: devuelve lista vacía y la pantalla sigue a mano.
+ */
+describe('filasDesdePedido — la hoja precarga, no decide', () => {
+  const RENGLONES = [
+    { clave: 'MP_BOLILLO', producto: 'BOLILLO', total: 120 },
+    { clave: 'MP_MANTECADA_GDE', producto: 'MANTECADA', total: 40 },
+    { clave: 'MP_SIN_COSTO', producto: 'GALLETA', total: 12 },
+    { clave: 'MP_BORRADO', producto: 'PAN QUE YA NO EXISTE', total: 99 },
+  ];
+
+  it('deja fuera el pan que ya no está en el catálogo', () => {
+    const filas = filasDesdePedido(RENGLONES, CATALOGO);
+    expect(filas.map(f => f.item_code)).not.toContain('MP_BORRADO');
+    expect(filas).toHaveLength(3);
+  });
+
+  it('precarga la cantidad pedida y la conserva aparte para poder compararla', () => {
+    const [bolillo] = filasDesdePedido(RENGLONES, CATALOGO);
+    expect(bolillo.qty).toBe('120');
+    expect(bolillo.pedido).toBe(120);
+  });
+
+  it('jala el costo del catálogo, y lo deja vacío si no hay — nunca 0', () => {
+    const filas = filasDesdePedido(RENGLONES, CATALOGO);
+    expect(filas.find(f => f.item_code === 'MP_BOLILLO').costo).toBe('1.8');
+    expect(filas.find(f => f.item_code === 'MP_SIN_COSTO').costo).toBe('');
+  });
+
+  it('sin pedido no truena: lista vacía y la pantalla sigue sirviendo a mano', () => {
+    expect(filasDesdePedido(undefined, CATALOGO)).toEqual([]);
+    expect(filasDesdePedido([], CATALOGO)).toEqual([]);
+  });
+
+  it('lo precargado pasa el filtro de itemsPayload', () => {
+    const filas = filasDesdePedido(RENGLONES, CATALOGO);
+    expect(itemsPayload(filas).map(i => i.item_code))
+      .toEqual(['MP_BOLILLO', 'MP_MANTECADA_GDE', 'MP_SIN_COSTO']);
+  });
+});
+
+describe('hoyISO — la fecha del pedido va en hora LOCAL', () => {
+  it('no usa toISOString: en México eso adelanta el día después de las 18:00', () => {
+    // 09-sep-2026 19:30 local. `toISOString()` diría 2026-09-10 y pediría el
+    // pedido de mañana, que no existe.
+    expect(hoyISO(new Date(2026, 8, 9, 19, 30))).toBe('2026-09-09');
+  });
+  it('rellena con cero el mes y el día', () => {
+    expect(hoyISO(new Date(2026, 0, 5, 12, 0))).toBe('2026-01-05');
+  });
+});
+
+/**
+ *  9. El costo provisional es `precio × 0.35` y trae ruido de coma flotante.
+ *     Sin cortarlo, el campo de dinero enseña 16 decimales.
+ * 10. Un costo que no existe se queda VACÍO, nunca en '0': rate 0 mete pan
+ *     gratis al inventario y el backend lo rechaza.
+ */
+describe('costoTexto — dinero sin ruido de coma flotante', () => {
+  it('corta el ruido de precio × 0.35', () => {
+    expect(costoTexto(8.7 * 0.35)).toBe('3.045');   // crudo: 3.0449999999999995
+    expect(costoTexto(14 * 0.35)).toBe('4.9');
+    expect(costoTexto(3.04302031)).toBe('3.043');
+  });
+  it('sin costo devuelve vacío, nunca cero', () => {
+    expect(costoTexto(null)).toBe('');
+    expect(costoTexto(0)).toBe('');
+    expect(costoTexto(undefined)).toBe('');
+    expect(costoTexto('')).toBe('');
   });
 });

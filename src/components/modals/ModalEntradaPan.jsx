@@ -10,15 +10,58 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { produccionService } from '../../services/frappeProduccion';
+import { pedidoService } from '../../services/frappePedido';
 import { parseErrorFrappe } from '../../utils/errorFrappe';
 import ModalError from './ModalError';
 import '../../styles/NuevaCompra.css';
 import { pesos } from '../../utils/formato';
 
-const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', qty: '', costo: '' });
+const FILA_VACIA = () => ({ _id: Math.random(), item_code: '', qty: '', costo: '', pedido: null });
+
+/** Fecha de hoy en el formato que espera el backend (YYYY-MM-DD), en hora local. */
+export const hoyISO = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Renglones precargados con el pedido del día: qué panes y cuántos se pidieron.
+ *
+ * La hoja es la verdad del PEDIDO, no de la producción — se escribe antes de que
+ * el pan exista. Por eso la cantidad se precarga pero `pedido` se guarda aparte:
+ * la pantalla enseña los dos y un número corregido se ve distinto del pedido.
+ * Sin esto hay que teclear 77 renglones de memoria cada mañana.
+ *
+ * ponytail: no se pregunta la receta de cada pan (serían 77 peticiones). El
+ * servidor ignora el costo tecleado cuando el pan tiene receta (`_resolver_costo`),
+ * así que preguntarlo no cambiaría el resultado.
+ */
+export function filasDesdePedido(renglones, catalogo) {
+  return (renglones || [])
+    .filter(r => catalogo[r.clave])
+    .map(r => ({
+      _id: `ped-${r.clave}`,
+      item_code: r.clave,
+      qty: String(r.total ?? ''),
+      costo: costoTexto(catalogo[r.clave]?.custom_costo_estimado),
+      pedido: r.total ?? null,
+    }));
+}
 
 const fmtMoney = (n) =>
   pesos(n);
+
+/**
+ * Texto del costo por pieza para el input.
+ *
+ * `precio × 0.35` (el costo provisional) produce ruido de coma flotante:
+ * 8.70 × 0.35 = 3.0449999999999995. Sin esto, el panadero ve 16 decimales en
+ * un campo de dinero. Se corta a 4 y se quitan los ceros de cola, que es la
+ * misma precisión con la que ya se pinta el costo de receta.
+ */
+export function costoTexto(n) {
+  const v = parseFloat(n);
+  if (!(v > 0)) return '';
+  return String(Math.round(v * 10000) / 10000);
+}
 
 /**
  * El panadero teclea el NOMBRE del pan; el backend quiere el item_code.
@@ -63,10 +106,39 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '' });
 
+  const [avisoPedido, setAvisoPedido] = useState('');
+
   useEffect(() => {
-    produccionService.buscarProductosTerminados('', 500)
-      .then(setProductos)
-      .catch(err => setErrorModal({ isOpen: true, ...parseErrorFrappe(err) }));
+    let vivo = true;
+    (async () => {
+      let cat = [];
+      try {
+        cat = await produccionService.buscarProductosTerminados('', 500);
+      } catch (err) {
+        if (vivo) setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
+        return;
+      }
+      if (!vivo) return;
+      setProductos(cat);
+
+      // El pedido del día precarga los renglones. Si no hay pedido cargado, la
+      // pantalla sigue sirviendo a mano: no encontrarlo no es un error.
+      const mapa = Object.fromEntries(cat.map(p => [p.item_code, p]));
+      try {
+        const ped = await pedidoService.consultar(hoyISO());
+        if (!vivo) return;
+        const filasPed = filasDesdePedido(ped?.renglones, mapa);
+        if (!filasPed.length) {
+          setAvisoPedido('No hay pedido cargado para hoy: captura la hornada a mano.');
+          return;
+        }
+        setFilas(filasPed);
+        setAvisoPedido(`Precargado del pedido de hoy (${filasPed.length} panes). Corrige lo que salió distinto del horno.`);
+      } catch {
+        if (vivo) setAvisoPedido('No se pudo leer el pedido de hoy: captura la hornada a mano.');
+      }
+    })();
+    return () => { vivo = false; };
   }, []);
 
   const catalogo = useMemo(
@@ -84,7 +156,7 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
     const prod = catalogo[resolverItemCode(texto, productos)];
     updateFila(id, {
       item_code: prod?.item_code || '',
-      costo: prod?.custom_costo_estimado ? String(prod.custom_costo_estimado) : '',
+      costo: costoTexto(prod?.custom_costo_estimado),
       conReceta: false,
     });
     if (!prod?.item_code) return;
@@ -142,6 +214,7 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
         </div>
 
         <p className="nc-section-title">Pan producido hoy — cada pan entra al almacén de su departamento</p>
+        {avisoPedido && <p className="nc-hint nc-aviso-pedido">{avisoPedido}</p>}
 
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
@@ -180,6 +253,12 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
                     <input type="number" className="nc-input" min="0" step="1"
                       value={fila.qty}
                       onChange={e => updateFila(fila._id, { qty: e.target.value })} />
+                    {fila.pedido != null && (
+                      <small className="nc-th-hint">
+                        pedido: {fila.pedido}
+                        {parseFloat(fila.qty) !== fila.pedido && ' · corregido'}
+                      </small>
+                    )}
                   </td>
                   <td>
                     <input type="number" className="nc-input" min="0" step="0.01"
