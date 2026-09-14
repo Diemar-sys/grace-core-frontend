@@ -1,7 +1,7 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
 > Mapa de archivos, rutas y carpetas del repositorio frontend.
-> Generado 2026-09-08 · actualizado 2026-09-10. Si el árbol cambia, este documento miente: regenéralo.
+> Generado 2026-09-08 · actualizado 2026-09-14. Si el árbol cambia, este documento miente: regenéralo.
 
 | | |
 |---|---|
@@ -89,8 +89,8 @@
 | `Proveedores.jsx` | Proveedores | Alta/edición, filtro activos/inactivos. | `proveedores` (`frappeSupplier`) | Roles: Almacén, Operaciones, Gerente. |
 | `ReporteCompras.jsx` | Reportes → Compras | Resumen anual de compras. | `comprasService` (`frappePurchase`) | Rol: solo Gerente (`reportes: true`). |
 | `ReporteCuentasPorCobrar.jsx` | Reportes → CxC | Wrapper de solo lectura sobre `TablaCuentasPorCobrar`. | — (delega en el componente, que consume `ventasService`) | Rol: solo Gerente. Archivo de 35 líneas, sin lógica propia. |
-| `ReporteCuentasPorPagar.jsx` | Reportes → CxP | Saldo pendiente por proveedor, agrupado por `facturado_a`. | `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Exporta `pendientePorFacturado` y `filasCxP` (testeadas); buckets fijos: ALMA RODRIGUEZ, LUIS TORRES, SIN FACTURA. |
-| `ReporteCuentasPorPagar.test.js` | test | Prueba de `pendientePorFacturado`/`filasCxP`. | — | — |
+| `ReporteCuentasPorPagar.jsx` | Reportes → CxP | Lo que se le debe a cada proveedor: **compras + egresos** (14-sep), agrupado por `facturado_a`, con tarjeta de total partida en compras/egresos. Clic en el proveedor despliega sus documentos sin pagar (fecha, tipo, folio, factura, concepto, facturado a), con los estilos `cxc-*` de `global.css`. | `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Exporta `pendientePorFacturado`, `filasCxP`, `deudaTotal` y `consultaPendientes` (testeadas); el desglose se pide al desplegar, se guarda por proveedor+facturado y Actualizar lo tira; buckets fijos: ALMA RODRIGUEZ, LUIS TORRES, SIN FACTURA. |
+| `ReporteCuentasPorPagar.test.js` | test | Prueba de `pendientePorFacturado`/`filasCxP`/`deudaTotal`/`consultaPendientes`. | — | — |
 | `ReporteGastosAnual.jsx` | Reportes → Gastos anual | Todo lo gastado en un año, mes×categoría, con detalle e impresión a PDF. | `comprasService` (`frappePurchase`), `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Agrega EN EL NAVEGADOR a propósito (comentario `ponytail`: ~770 compras + ~600 egresos/año, debajo del tope de 2000 de `getCompras`; si crece, se mueve a `GROUP BY` SQL). |
 | `ReporteGastos.jsx` | Reportes → Gastos | Reporte de gastos (vista simple). | `reportesService` (`frappeReportes`) | Rol: solo Gerente. |
 | `ReportesVentasCategoria.jsx` | Reportes → Ventas por categoría | Ventas agrupadas por categoría. | `ventasService` (`frappeSales`) | Rol: solo Gerente. |
@@ -182,7 +182,8 @@
 | `ModalError.objeto.test.jsx` | Test que reproduce ese caso (objeto en vez de string). | — | Es el test que prueba el fix del bug de arriba. |
 | `ModalHojaEntrega.jsx` | Hoja de entrega para traspaso a sucursal (PDF/impresión, sin precios). | `EnvioSucursal.jsx`, `NuevoEnvioSucursal.jsx` | — |
 | `ModalReciboPDF.jsx` | Preview/impresión de recibo de venta B2B. | `VentaB2B.jsx`, `NuevaVentaB2B.jsx` | Homónimo de `compras/ModalReciboPDF.jsx` pero archivo distinto (recibo de venta, no de compra). |
-| `ModalRegistrarPago.jsx` | Modal para registrar cobro contra facturas pendientes de un cliente. | `TablaCuentasPorCobrar.jsx` | Arranca vacío; cobra exactamente lo marcado (soporta pago parcial por fila). |
+| `ModalRegistrarPago.jsx` | Modal para registrar cobro contra facturas pendientes de un cliente. Resumen arriba (deuda, # facturas, se cobra) y **clic en la factura despliega sus productos** (14-sep): qué se debe, no solo cuánto. | `TablaCuentasPorCobrar.jsx` | Arranca vacío; cobra exactamente lo marcado (soporta pago parcial por fila). Productos vía `ventasService.getFacturaItems`, pedidos al abrir y guardados por factura (reabrir no vuelve a pedir). La casilla y el monto cortan el clic para no desplegar. Estilos en `styles/RegistrarPago.css`. |
+| `ModalRegistrarPago.test.tsx` | Test del cableado: productos una sola petición, casilla/monto no despliegan, error visible ≠ factura vacía, cobra el SALDO y no el total. | — | 5 mutantes probados, 5 muertos. La factura de prueba trae abono previo (total ≠ saldo): sin eso el mutante «cobra el total» sobrevivía. |
 
 ### `pos/`
 
@@ -225,6 +226,7 @@
 | `pos/POSTicket.css` | `POSTicket.jsx` | — |
 | `Produccion.css` | `Produccion.jsx`; reusado por `NuevaReceta.jsx`, `compras/ModalPreciosActualizados.jsx` | — |
 | `RegistroMovimiento.css` | `RegistroMerma.jsx`, `RegistroSalida.jsx`, `RegistroRegalo.jsx` | — |
+| `RegistrarPago.css` | `modals/ModalRegistrarPago.jsx` | Todo colgado de `.rp-*`, con tokens Bento de `global.css`. Overlay y botones siguen viniendo de `NuevaCompra.css` (`nc-modal-overlay`, `nc-btn-*`). |
 | `ReporteGastosAnual.css` | `ReporteGastosAnual.jsx` | ✅ Corregido el 08-sep. El `@media print` ahora usa `body:has(.rga) *`; antes, con solo haber abierto el reporte una vez en la sesión, cualquier impresión posterior salía en blanco. |
 
 ## `public/` y `docs/`
@@ -254,7 +256,7 @@ Patrón común: cada servicio extiende `FrappeBase` (`src/services/FrappeBase.ts
 | `frappeAuditoria.ts` | Feed de auditoría (quién hizo qué) y lista de operadores | `auditoriaService` | `GET .../auditoria_api.feed`, `GET .../auditoria_api.operadores` |
 | `frappeCamioneta.ts` | Cierre de ruta de camionetas: mi ruta, resumen del día, cerrar día (traspaso + Material Issue). 🔴 Comentario: el almacén NUNCA se manda desde el front en el cierre — el backend lo saca de la sesión, para que cerrar la ruta ajena no sea "cambiar una cadena en el navegador" | `camionetaService` (default y named) | `GET .../camioneta_api.mi_ruta`, `GET .../camioneta_api.resumen_dia`, `POST .../camioneta_api.cerrar_dia` |
 | `frappeCuentas.ts` | Administración de usuarios/nivel/POS profile (rol Gerente + System Manager) | `cuentasService` | `POST .../cuentas_api.cambiar_nivel`, `POST .../cuentas_api.cambiar_pos_profile`, y otros `_get`/`_post` genéricos sobre `cuentas_api.*` |
-| `frappeEgresos.ts` | CRUD de Egreso (gastos, CxP): listar, obtener, crear, marcar pagado, eliminar | `egresosService` | `GET/POST .../egresos_api.*` |
+| `frappeEgresos.ts` | CRUD de Egreso (gastos, CxP): listar, obtener, crear, marcar pagado, eliminar, desglose de lo que se debe a un proveedor (`getPendientesProveedor`, truena sin red en vez de decir «no debe nada») | `egresosService` | `GET/POST .../egresos_api.*` |
 | `frappeInventory.ts` | Catálogo: warehouses, item groups, UOMs, departamentos, presentaciones, CRUD de Item (crear/editar/renombrar/eliminar/deshabilitar/habilitar), stock, productos por estado (con stock, deshabilitados, agotados). Cache privada (`#cachedFetch`) | `inventory` / `default FrappeInventoryService`, interfaces `RenglonReposicion`, `Reposicion` | `GET /api/resource/Warehouse`, `/Item Group`, `/UOM`, `/Custom Field` (para `custom_presentación`), `/Item` (CRUD completo), `POST /api/method/frappe.client.rename_doc` |
 | `frappeKardex.ts` | Kardex de movimientos por item/almacén/rango + lista de items activos | `kardexService` | `GET .../kardex_api.get_kardex`, `GET /api/resource/Item?...` |
 | `frappeNomina.ts` | Empleados, sucursales, corridas de nómina (crear/cancelar), reporte de costo real | `nominaService`, interfaces `Empleado`, `Corrida`, `NuevaCorrida`, etc. | `GET/POST .../nomina_api.*` (sucursales, empleados, corridas, reporte_costo_real) |

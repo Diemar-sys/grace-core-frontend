@@ -1,0 +1,145 @@
+/* Modal «Registrar pago» (ModalRegistrarPago.jsx) — Light Bento.
+   El overlay y los botones vienen de NuevaCompra.css (nc-modal-overlay, nc-btn-*):
+   aquí solo va lo propio del modal, todo colgado de .rp-* */
+
+.rp-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-lg);
+  width: min(980px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--space-5);
+  gap: var(--space-4);
+  color: var(--color-text);
+}
+
+.rp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.rp-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+.rp-cliente {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+}
+.rp-cerrar {
+  border: none;
+  background: var(--color-surface-sunk);
+  color: var(--color-text-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.rp-cerrar:hover { background: var(--color-brand-hover); color: var(--color-brand); }
+
+/* Tres tarjetas de resumen: deuda, cuántas facturas, cuánto se cobra */
+.rp-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.rp-stat {
+  background: var(--color-brand-bg);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rp-stat-label { font-size: 12px; color: var(--color-text-muted); }
+.rp-stat-valor {
+  font-family: var(--tv-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+.rp-deuda { color: var(--color-danger); }
+.rp-cobra { color: var(--color-success); }
+
+.rp-ayuda { margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.rp-error { margin: 0; }
+
+/* La lista crece con el modal (no una altura fija): con 6 facturas no hay scroll */
+.rp-tabla-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-bento);
+}
+.rp-tabla { margin: 0; }
+.rp-tabla thead th { position: sticky; top: 0; z-index: 1; }
+.rp-tabla .rp-col-check { width: 44px; text-align: center; }
+.rp-tabla .rp-col-caret { width: 28px; color: var(--color-text-muted); font-size: 11px; }
+.rp-tabla tr.rp-marcada > td { background: var(--tv-ok-bg); }
+.rp-saldo { font-weight: 700; }
+
+.rp-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-brand);
+}
+.rp-monto {
+  width: 120px;
+  padding: 6px 10px;
+  font-size: 14px;
+  text-align: right;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+}
+.rp-monto:focus { outline: 2px solid var(--color-brand-light); outline-offset: 0; }
+
+/* Productos de la factura desplegada */
+.rp-productos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--color-surface-2);
+}
+.rp-productos th {
+  padding: 8px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: var(--color-surface-sunk);
+}
+.rp-productos td { padding: 8px 16px; border-top: 1px solid var(--tv-line); }
+.rp-productos .cell-right { text-align: right; }
+.rp-productos-msg { padding: 14px 20px; font-size: 13px; color: var(--color-text-muted); }
+.rp-productos-error { color: var(--color-danger); }
+
+.rp-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  .rp-modal { padding: var(--space-4); max-height: 94vh; }
+  .rp-cliente { font-size: 18px; }
+  .rp-stat-valor { font-size: 18px; }
+  .rp-monto { width: 96px; }
+  .rp-acciones { flex-direction: column-reverse; }
+}

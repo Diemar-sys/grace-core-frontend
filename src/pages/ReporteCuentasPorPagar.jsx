@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
@@ -37,15 +37,38 @@ export function filasCxP(rows, facturadoFiltro) {
   return [...map.values()].sort((a, b) => b.pendiente - a.pendiente);
 }
 
+// Deuda total, partida en lo que viene de compras y lo que viene de egresos.
+export function deudaTotal(rows) {
+  let total = 0, compras = 0;
+  for (const r of rows || []) {
+    total   += parseFloat(r.pendiente) || 0;
+    compras += parseFloat(r.pendiente_compras) || 0;
+  }
+  return { total, compras, egresos: total - compras };
+}
+
+// Qué se pide al desplegar un renglón: en "Todas" el renglón junta los tres
+// facturados, así que su desglose va sin filtro; filtrado, solo el de ese facturado.
+// La clave del caché lleva el filtro: el mismo proveedor debe distinto por facturado.
+export function consultaPendientes(proveedor, facturado) {
+  const facturado_a = facturado === 'todas' ? '' : facturado;
+  return { proveedor, facturado_a, clave: `${proveedor}|${facturado_a}` };
+}
+
 function ReporteCuentasPorPagar() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [soloSaldo, setSoloSaldo] = useState(true);
   const [facturado, setFacturado] = useState('todas');
+  const [abierto, setAbierto] = useState(null);
+  const [pendientes, setPendientes] = useState({});
 
   const cargar = useCallback(async () => {
     setLoading(true);
+    // Actualizar tira también los desgloses: un saldo viejo junto a uno fresco miente.
+    setPendientes({});
+    setAbierto(null);
     try { setData(await egresosService.getCuentasPorPagar()); }
     catch (err) { console.error('Error reporte CxP:', err); }
     finally { setLoading(false); }
@@ -53,8 +76,23 @@ function ReporteCuentasPorPagar() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  const toggleProveedor = async (proveedor) => {
+    const { facturado_a, clave } = consultaPendientes(proveedor, facturado);
+    if (abierto === clave) { setAbierto(null); return; }
+    setAbierto(clave);
+    if (pendientes[clave]) return;
+    setPendientes(prev => ({ ...prev, [clave]: 'cargando' }));
+    try {
+      const docs = await egresosService.getPendientesProveedor(proveedor, facturado_a);
+      setPendientes(prev => ({ ...prev, [clave]: docs }));
+    } catch (err) {
+      setPendientes(prev => ({ ...prev, [clave]: { error: err.message || 'No se pudo cargar' } }));
+    }
+  };
+
   // Strip: siempre sobre TODO el dato, no afectado por el dropdown.
   const strip = useMemo(() => pendientePorFacturado(data), [data]);
+  const deuda = useMemo(() => deudaTotal(data), [data]);
 
   const filas = useMemo(() => {
     const base = filasCxP(data, facturado);
@@ -76,15 +114,21 @@ function ReporteCuentasPorPagar() {
             <div>
               <h1 style={{ margin: 0 }}>Cuentas por Pagar</h1>
               <span className="header-subtitle" style={{ display: 'block', marginTop: 4 }}>
-                Saldo de egresos por proveedor (pendiente vs pagado)
+                Lo que se le debe a cada proveedor: compras + egresos
               </span>
             </div>
           </div>
           <button className="btn-refresh" onClick={() => navigate('/panel?seccion=reportes')}>← Volver</button>
         </div>
 
-        {/* Strip: se debe por facturado_a — siempre visible, los 3 */}
+        {/* Strip: total + se debe por facturado_a — siempre visible */}
         <div className="cxp-strip" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="stat-card" style={{ flex: '1 1 220px', textAlign: 'left' }}>
+            <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(deuda.total)}</span>
+            <span className="stat-label">
+              Total que se debe · compras ${fmt(deuda.compras)} · egresos ${fmt(deuda.egresos)}
+            </span>
+          </div>
           {FACTURADOS.map(f => (
             <button key={f} type="button"
               onClick={() => setFacturado(facturado === f ? 'todas' : f)}
@@ -127,7 +171,7 @@ function ReporteCuentasPorPagar() {
               <thead>
                 <tr>
                   <th>Proveedor</th>
-                  <th className="cell-right"># Egresos</th>
+                  <th className="cell-right"># Docs</th>
                   <th className="cell-right">Total</th>
                   <th className="cell-right">Pagado</th>
                   <th className="cell-right">Se debe</th>
@@ -136,15 +180,37 @@ function ReporteCuentasPorPagar() {
               <tbody>
                 {filas.length === 0 ? (
                   <tr><td colSpan={5} className="no-data">Sin cuentas por pagar.</td></tr>
-                ) : filas.map(r => (
-                  <tr key={r.proveedor}>
-                    <td className="cell-name">{r.proveedor}</td>
-                    <td className="cell-right">{r.n}</td>
-                    <td className="cell-right cell-bold">${fmt(r.total)}</td>
-                    <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.pagado)}</td>
-                    <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.pendiente)}</td>
-                  </tr>
-                ))}
+                ) : filas.map(r => {
+                  const { clave } = consultaPendientes(r.proveedor, facturado);
+                  const desplegado = abierto === clave;
+                  const debe = (parseFloat(r.pendiente) || 0) > 0.005;
+                  return (
+                    <Fragment key={r.proveedor}>
+                      <tr>
+                        <td className="cell-name">
+                          {debe ? (
+                            <button className="cxc-toggle" onClick={() => toggleProveedor(r.proveedor)}
+                              title="Ver lo que se debe">
+                              <span className={`cxc-caret${desplegado ? ' abierto' : ''}`}>▸</span>
+                              {r.proveedor}
+                            </button>
+                          ) : r.proveedor}
+                        </td>
+                        <td className="cell-right">{r.n}</td>
+                        <td className="cell-right cell-bold">${fmt(r.total)}</td>
+                        <td className="cell-right" style={{ color: '#16a34a' }}>${fmt(r.pagado)}</td>
+                        <td className="cell-right" style={{ color: '#dc2626' }}>${fmt(r.pendiente)}</td>
+                      </tr>
+                      {desplegado && (
+                        <tr className="cxc-abonos-fila">
+                          <td colSpan={5}>
+                            <DesglosePendientes proveedor={r.proveedor} docs={pendientes[clave]} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
               {filas.length > 1 && (
                 <tfoot>
@@ -162,6 +228,50 @@ function ReporteCuentasPorPagar() {
         )}
       </div>
     </Layout>
+  );
+}
+
+/** Documentos sin pagar de un proveedor. 'cargando' | {error} | [] | docs. */
+function DesglosePendientes({ proveedor, docs }) {
+  if (!docs || docs === 'cargando') return <div className="cxc-abonos-vacio">Cargando lo que se debe…</div>;
+  if (docs.error) return <div className="cxc-abonos-vacio" style={{ color: '#dc2626' }}>{docs.error}</div>;
+  if (!docs.length) return <div className="cxc-abonos-vacio">No hay documentos pendientes.</div>;
+  return (
+    <div className="cxc-abonos">
+      <div className="cxc-abonos-titulo">Lo que se le debe a {proveedor} ({docs.length})</div>
+      <table className="cxc-abonos-tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Folio</th>
+            <th>Factura</th>
+            <th>Concepto</th>
+            <th>Facturado a</th>
+            <th className="cell-right">Se debe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map(d => (
+            <tr key={d.name}>
+              <td>{d.fecha}</td>
+              <td>{d.tipo}</td>
+              <td className="cell-code">{d.folio ? `#${d.folio}` : '—'}</td>
+              <td>{d.factura || '—'}</td>
+              <td>{d.concepto || '—'}</td>
+              <td>{d.facturado_a}</td>
+              <td className="cell-right cell-bold" style={{ color: '#dc2626' }}>${fmt(d.monto)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={6}>Total que se debe</td>
+            <td className="cell-right cell-bold">${fmt(docs.reduce((s, d) => s + (parseFloat(d.monto) || 0), 0))}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   );
 }
 

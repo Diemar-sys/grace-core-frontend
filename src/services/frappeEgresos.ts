@@ -41,6 +41,15 @@ class FrappeEgresosService extends FrappeBase {
     return json?.message || [];
   }
 
+  /** Compras y egresos sin pagar de UN proveedor: el desglose de su renglón en CxP. */
+  async getPendientesProveedor(proveedor: string, facturado_a = ''): Promise<any[]> {
+    const params = new URLSearchParams({ proveedor, facturado_a });
+    const json = await this._fetch(`${METHOD('pendientes_de_proveedor')}?${params}`);
+    // Sin red _fetch da null: decir "no debe nada" sería mentir.
+    if (!json) throw new Error('Sin conexión: no se pudo cargar lo que se debe');
+    return json.message || [];
+  }
+
   async marcarPagado(name: string, pagado: boolean | number): Promise<any> {
     const json = await this._fetch(METHOD('marcar_pagado'), {
       method: 'POST',

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ventasService } from '../../services/frappeSales';
+import { pesos, cantidad } from '../../utils/formato';
+import '../../styles/RegistrarPago.css';
 
-const fmt = (n) =>
-  Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const round2 = (n) => Math.round(n * 100) / 100;
 
 /**
@@ -10,11 +10,17 @@ const round2 = (n) => Math.round(n * 100) / 100;
  *
  * Selección por checkbox: marca las facturas que ya te pagaron (o edita el monto
  * por fila para pagos parciales). Arranca vacío; se cobra exactamente lo asignado.
+ *
+ * Clic en el renglón despliega los productos de esa factura, para saber QUÉ se
+ * debe y no solo cuánto. Se piden al abrir (una factura a la vez) y se guardan:
+ * reabrir no vuelve a pegarle al servidor.
  */
 export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
   const [alloc, setAlloc] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [abiertas, setAbiertas] = useState({});
+  const [productos, setProductos] = useState({});
 
   const totalAsignado = useMemo(
     () => Object.values(alloc).reduce((s, v) => s + parseFloat(v || 0), 0),
@@ -29,6 +35,18 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
   const toggleFactura = (f) => {
     const pagada = parseFloat(alloc[f.name] || 0) > 0;
     setAlloc(prev => ({ ...prev, [f.name]: pagada ? '0' : String(f.outstanding_amount) }));
+  };
+
+  const toggleProductos = async (name) => {
+    const abrir = !abiertas[name];
+    setAbiertas(prev => ({ ...prev, [name]: abrir }));
+    if (!abrir || productos[name]) return;
+    try {
+      const items = await ventasService.getFacturaItems(name);
+      setProductos(prev => ({ ...prev, [name]: items }));
+    } catch (err) {
+      setProductos(prev => ({ ...prev, [name]: { error: err.message || 'No se pudieron cargar' } }));
+    }
   };
 
   const handleConfirmar = async () => {
@@ -55,98 +73,147 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
     }
   };
 
+  const marcadas = grupo.facturas.filter(f => parseFloat(alloc[f.name] || 0) > 0).length;
+
   return (
     <div className="nc-modal-overlay">
-      <div className="nc-pdf-preview-modal" style={{ maxWidth: 720 }}>
-        <div className="nc-pdf-modal-header">
-          <span>💰 Registrar pago — {grupo.customer_name}</span>
-          <button className="nc-btn-close" onClick={onCancel}>×</button>
+      <div className="rp-modal" role="dialog" aria-labelledby="rp-titulo">
+        <header className="rp-header">
+          <div>
+            <span className="rp-eyebrow">Registrar pago</span>
+            <h2 id="rp-titulo" className="rp-cliente">{grupo.customer_name}</h2>
+          </div>
+          <button className="rp-cerrar" onClick={onCancel} aria-label="Cerrar">×</button>
+        </header>
+
+        <div className="rp-resumen">
+          <div className="rp-stat">
+            <span className="rp-stat-label">Deuda total</span>
+            <span className="rp-stat-valor rp-deuda">{pesos(grupo.totalDeuda)}</span>
+          </div>
+          <div className="rp-stat">
+            <span className="rp-stat-label">Facturas pendientes</span>
+            <span className="rp-stat-valor">{grupo.facturas.length}</span>
+          </div>
+          <div className="rp-stat">
+            <span className="rp-stat-label">Se cobra ({marcadas} marcadas)</span>
+            <span className="rp-stat-valor rp-cobra">{pesos(totalAsignado)}</span>
+          </div>
         </div>
 
-        <div style={{ padding: '20px' }}>
-          {error && <div className="nc-alert nc-alert-error" style={{ marginBottom: 12 }}>{error}</div>}
+        <p className="rp-ayuda">
+          Marca las facturas que ya te pagaron o escribe el monto para un pago parcial.
+          Toca una factura para ver qué productos se deben.
+        </p>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ fontSize: 14, color: '#6b7280' }}>
-              Deuda total: <strong>${fmt(grupo.totalDeuda)}</strong>
-            </span>
-          </div>
+        {error && <div className="nc-alert nc-alert-error rp-error">{error}</div>}
 
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
-            Marca las facturas que ya te pagaron (o edita el monto por fila para pagos
-            parciales). Se cobra exactamente lo asignado.
-          </p>
-
-          <div style={{ maxHeight: '45vh', overflowY: 'auto' }}>
-          <table className="sys-table">
+        <div className="rp-tabla-wrap">
+          <table className="sys-table rp-tabla">
             <thead>
               <tr>
-                <th style={{ width: 34, position: 'sticky', top: 0 }}>✓</th>
-                <th style={{ position: 'sticky', top: 0 }}>Fecha</th>
-                <th style={{ position: 'sticky', top: 0 }}># Venta</th>
-                <th className="cell-right" style={{ position: 'sticky', top: 0 }}>Total SI</th>
-                <th className="cell-right" style={{ position: 'sticky', top: 0 }}>Saldo</th>
-                <th className="cell-right" style={{ position: 'sticky', top: 0 }}>Asignar</th>
+                <th className="rp-col-check">✓</th>
+                <th className="rp-col-caret" aria-label="Productos"></th>
+                <th>Fecha</th>
+                <th># Venta</th>
+                <th className="cell-right">Total</th>
+                <th className="cell-right">Saldo</th>
+                <th className="cell-right">Asignar</th>
               </tr>
             </thead>
             <tbody>
-              {grupo.facturas.map(f => (
-                <tr key={f.name}>
-                  <td style={{ textAlign: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={parseFloat(alloc[f.name] || 0) > 0}
-                      onChange={() => toggleFactura(f)}
-                      style={{ width: 16, height: 16, cursor: 'pointer' }}
-                    />
-                  </td>
-                  <td>{f.posting_date}</td>
-                  <td className="cell-code">
-                    {f.custom_no_de_venta ? `#${f.custom_no_de_venta}` : f.name}
-                  </td>
-                  <td className="cell-right">${fmt(f.grand_total)}</td>
-                  <td className="cell-right">${fmt(f.outstanding_amount)}</td>
-                  <td className="cell-right">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={f.outstanding_amount}
-                      value={alloc[f.name] || ''}
-                      onChange={e => handleAllocChange(f.name, e.target.value)}
-                      style={{
-                        padding: '4px 8px', fontSize: 14, width: 110, textAlign: 'right',
-                        border: '1px solid #d1d5db', borderRadius: 4,
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {grupo.facturas.map(f => {
+                const abierta = !!abiertas[f.name];
+                const marcada = parseFloat(alloc[f.name] || 0) > 0;
+                return (
+                  <Fragment key={f.name}>
+                    <tr
+                      className={`row-clickable${abierta ? ' row-open' : ''}${marcada ? ' rp-marcada' : ''}`}
+                      onClick={() => toggleProductos(f.name)}
+                    >
+                      <td className="rp-col-check" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rp-checkbox"
+                          checked={marcada}
+                          onChange={() => toggleFactura(f)}
+                          aria-label={`Pagar factura ${f.custom_no_de_venta || f.name}`}
+                        />
+                      </td>
+                      <td className="rp-col-caret">{abierta ? '▼' : '▶'}</td>
+                      <td>{f.posting_date}</td>
+                      <td className="cell-code">
+                        {f.custom_no_de_venta ? `#${f.custom_no_de_venta}` : f.name}
+                      </td>
+                      <td className="cell-right">{pesos(f.grand_total)}</td>
+                      <td className="cell-right rp-saldo">{pesos(f.outstanding_amount)}</td>
+                      <td className="cell-right" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={f.outstanding_amount}
+                          value={alloc[f.name] || ''}
+                          onChange={e => handleAllocChange(f.name, e.target.value)}
+                          className="rp-monto"
+                          aria-label={`Monto a cobrar de ${f.custom_no_de_venta || f.name}`}
+                        />
+                      </td>
+                    </tr>
+                    {abierta && (
+                      <tr className="row-detail">
+                        <td colSpan={7}>
+                          <ProductosFactura items={productos[f.name]} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
-            <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f9fafb' }}>
-                <td colSpan={4}></td>
-                <td className="cell-right">Se cobra:</td>
-                <td className="cell-right" style={{ color: '#16a34a' }}>
-                  ${fmt(totalAsignado)}
-                </td>
-              </tr>
-            </tfoot>
           </table>
-          </div>
         </div>
 
-        <div className="nc-sugerencia-actions" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+        <footer className="rp-acciones">
           <button className="nc-btn-secondary" onClick={onCancel} disabled={loading}>Cancelar</button>
           <button
             className="nc-btn-primary"
             onClick={handleConfirmar}
             disabled={loading || totalAsignado <= 0}
           >
-            {loading ? 'Registrando...' : `Registrar pago $${fmt(totalAsignado)}`}
+            {loading ? 'Registrando...' : `Registrar pago ${pesos(totalAsignado)}`}
           </button>
-        </div>
+        </footer>
       </div>
     </div>
+  );
+}
+
+/** Productos de una factura: undefined = cargando, {error} = falló, [] = vacía. */
+function ProductosFactura({ items }) {
+  if (items === undefined) return <div className="rp-productos-msg">Cargando productos...</div>;
+  if (items.error) return <div className="rp-productos-msg rp-productos-error">{items.error}</div>;
+  if (!items.length) return <div className="rp-productos-msg">Esta factura no trae productos.</div>;
+  return (
+    <table className="rp-productos">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th className="cell-right">Cantidad</th>
+          <th className="cell-right">Precio</th>
+          <th className="cell-right">Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((it, i) => (
+          <tr key={`${it.item_code}-${i}`}>
+            <td>{it.item_name || it.item_code}</td>
+            <td className="cell-right">{cantidad(it.qty)} {it.uom}</td>
+            <td className="cell-right">{pesos(it.rate)}</td>
+            <td className="cell-right">{pesos(it.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
