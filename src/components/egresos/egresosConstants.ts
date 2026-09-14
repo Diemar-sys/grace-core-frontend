@@ -12,14 +12,18 @@ import {
   IconRenta,
 } from './egresosIcons';
 
+// La placa es lo que distingue a cada vehículo: "Tornado Van 1..4" no decía cuál
+// era cuál y 66 de 79 cargas de gasolina quedaron en la Van 1 (la primera de la
+// lista). El texto se guarda tal cual en `concepto`; los egresos viejos conservan
+// su "TORNADO VAN N" a propósito: no se sabe a qué placa corresponde cada uno.
 export const VEHICULOS: string[] = [
-  'Tornado Van 1',
-  'Tornado Van 2',
-  'Tornado Van 3',
-  'Tornado Van 4',
-  'Hilux',
-  'Avanza',
-  'BRV',
+  'Tornado Van 2022 Blanca · SX-0068-B',
+  'Tornado Van 2024 Blanca · SV-3060-E',
+  'Tornado Van 2024 Gris · ST-3404-E',
+  'Tornado Van 2025 Blanca · SW-1411-E',
+  'Toyota Hilux 2023 Gris · SX-8551-D',
+  'Toyota Avanza 2021 Blanca · UNP-054-E',
+  'Honda BRV 2024 Gris · UNL-407-J',
 ];
 
 export const SUCURSALES_RECIBO: string[] = [
