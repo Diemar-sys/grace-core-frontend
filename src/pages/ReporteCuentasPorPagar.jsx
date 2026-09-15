@@ -21,10 +21,24 @@ export function pendientePorFacturado(rows) {
   return acc;
 }
 
-// Filas por proveedor para la tabla. 'todas' re-agrega los facturado_a (= reporte original).
+// Vistas: el backend manda un renglón por (proveedor, facturado_a, tipo).
+export const VISTAS = [
+  { key: 'general', label: 'General' },
+  { key: 'Compra',  label: 'Compras' },
+  { key: 'Egreso',  label: 'Egresos' },
+];
+
+// Renglones (o documentos del desglose) de la vista elegida. General = todo.
+export function deVista(rows, vista) {
+  rows = rows || [];
+  return vista === 'general' ? rows : rows.filter(r => r.tipo === vista);
+}
+
+// Filas por proveedor para la tabla. Siempre agrupa por proveedor: un mismo
+// proveedor trae un renglón por tipo (compras y egresos) y por facturado_a.
 export function filasCxP(rows, facturadoFiltro) {
   rows = rows || [];
-  if (facturadoFiltro !== 'todas') return rows.filter(r => r.facturado_a === facturadoFiltro);
+  if (facturadoFiltro !== 'todas') rows = rows.filter(r => r.facturado_a === facturadoFiltro);
   const map = new Map();
   for (const r of rows) {
     const cur = map.get(r.proveedor) || { proveedor: r.proveedor, n: 0, total: 0, pagado: 0, pendiente: 0 };
@@ -38,13 +52,16 @@ export function filasCxP(rows, facturadoFiltro) {
 }
 
 // Deuda total, partida en lo que viene de compras y lo que viene de egresos.
+// Cada parte se suma por su tipo, no por resta: un renglón sin tipo no se cuela.
 export function deudaTotal(rows) {
-  let total = 0, compras = 0;
+  const d = { total: 0, compras: 0, egresos: 0 };
   for (const r of rows || []) {
-    total   += parseFloat(r.pendiente) || 0;
-    compras += parseFloat(r.pendiente_compras) || 0;
+    const p = parseFloat(r.pendiente) || 0;
+    d.total += p;
+    if (r.tipo === 'Compra') d.compras += p;
+    else if (r.tipo === 'Egreso') d.egresos += p;
   }
-  return { total, compras, egresos: total - compras };
+  return d;
 }
 
 // Qué se pide al desplegar un renglón: en "Todas" el renglón junta los tres
@@ -55,11 +72,18 @@ export function consultaPendientes(proveedor, facturado) {
   return { proveedor, facturado_a, clave: `${proveedor}|${facturado_a}` };
 }
 
+// El desglose se pide completo (compras y egresos) y se filtra al pintar: cambiar
+// de vista no vuelve a pedir. 'cargando' y {error} pasan tal cual.
+export function docsDeVista(docs, vista) {
+  return Array.isArray(docs) ? deVista(docs, vista) : docs;
+}
+
 function ReporteCuentasPorPagar() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [soloSaldo, setSoloSaldo] = useState(true);
+  const [vista, setVista] = useState('general');
   const [facturado, setFacturado] = useState('todas');
   const [abierto, setAbierto] = useState(null);
   const [pendientes, setPendientes] = useState({});
@@ -90,14 +114,15 @@ function ReporteCuentasPorPagar() {
     }
   };
 
-  // Strip: siempre sobre TODO el dato, no afectado por el dropdown.
-  const strip = useMemo(() => pendientePorFacturado(data), [data]);
-  const deuda = useMemo(() => deudaTotal(data), [data]);
+  // Strip: sigue a la vista (General/Compras/Egresos), no al dropdown de facturado.
+  const datosVista = useMemo(() => deVista(data, vista), [data, vista]);
+  const strip = useMemo(() => pendientePorFacturado(datosVista), [datosVista]);
+  const deuda = useMemo(() => deudaTotal(datosVista), [datosVista]);
 
   const filas = useMemo(() => {
-    const base = filasCxP(data, facturado);
+    const base = filasCxP(datosVista, facturado);
     return soloSaldo ? base.filter(r => (parseFloat(r.pendiente) || 0) > 0.005) : base;
-  }, [data, facturado, soloSaldo]);
+  }, [datosVista, facturado, soloSaldo]);
 
   const tot = useMemo(() => filas.reduce((a, r) => ({
     n: a.n + (r.n || 0),
@@ -126,7 +151,9 @@ function ReporteCuentasPorPagar() {
           <div className="stat-card" style={{ flex: '1 1 220px', textAlign: 'left' }}>
             <span className="stat-number comp-stat-total" style={{ color: '#dc2626' }}>${fmt(deuda.total)}</span>
             <span className="stat-label">
-              Total que se debe · compras ${fmt(deuda.compras)} · egresos ${fmt(deuda.egresos)}
+              {vista === 'general'
+                ? `Total que se debe · compras $${fmt(deuda.compras)} · egresos $${fmt(deuda.egresos)}`
+                : `${VISTAS.find(v => v.key === vista).label} · total que se debe`}
             </span>
           </div>
           {FACTURADOS.map(f => (
@@ -145,6 +172,12 @@ function ReporteCuentasPorPagar() {
         </div>
 
         <div className="filtros-section" style={{ alignItems: 'center' }}>
+          <div className="filtro-group filtro-sm">
+            <label htmlFor="cxp-vista">Vista</label>
+            <select id="cxp-vista" value={vista} onChange={e => setVista(e.target.value)}>
+              {VISTAS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+            </select>
+          </div>
           <div className="filtro-group filtro-sm">
             <label>Facturado a</label>
             <select value={facturado} onChange={e => setFacturado(e.target.value)}>
@@ -204,7 +237,7 @@ function ReporteCuentasPorPagar() {
                       {desplegado && (
                         <tr className="cxc-abonos-fila">
                           <td colSpan={5}>
-                            <DesglosePendientes proveedor={r.proveedor} docs={pendientes[clave]} />
+                            <DesglosePendientes proveedor={r.proveedor} docs={docsDeVista(pendientes[clave], vista)} />
                           </td>
                         </tr>
                       )}

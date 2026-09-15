@@ -112,13 +112,13 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
           <table className="sys-table rp-tabla">
             <thead>
               <tr>
-                <th className="rp-col-check">✓</th>
                 <th className="rp-col-caret" aria-label="Productos"></th>
                 <th>Fecha</th>
                 <th># Venta</th>
                 <th className="cell-right">Total</th>
                 <th className="cell-right">Saldo</th>
                 <th className="cell-right">Asignar</th>
+                <th className="rp-col-check">✓</th>
               </tr>
             </thead>
             <tbody>
@@ -131,15 +131,6 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
                       className={`row-clickable${abierta ? ' row-open' : ''}${marcada ? ' rp-marcada' : ''}`}
                       onClick={() => toggleProductos(f.name)}
                     >
-                      <td className="rp-col-check" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="rp-checkbox"
-                          checked={marcada}
-                          onChange={() => toggleFactura(f)}
-                          aria-label={`Pagar factura ${f.custom_no_de_venta || f.name}`}
-                        />
-                      </td>
                       <td className="rp-col-caret">{abierta ? '▼' : '▶'}</td>
                       <td>{f.posting_date}</td>
                       <td className="cell-code">
@@ -157,6 +148,15 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
                           onChange={e => handleAllocChange(f.name, e.target.value)}
                           className="rp-monto"
                           aria-label={`Monto a cobrar de ${f.custom_no_de_venta || f.name}`}
+                        />
+                      </td>
+                      <td className="rp-col-check" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rp-checkbox"
+                          checked={marcada}
+                          onChange={() => toggleFactura(f)}
+                          aria-label={`Pagar factura ${f.custom_no_de_venta || f.name}`}
                         />
                       </td>
                     </tr>

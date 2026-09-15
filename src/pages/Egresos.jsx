@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth } from '../services/frappeAuth';
 import { getRoleConfig } from '../config/roles';
@@ -32,7 +32,9 @@ export default function Egresos() {
   // Operaciones captura, Consultas ve: la misma regla que el resto de los módulos.
   const modoConsulta = searchParams.get('modo') === 'consulta';
   const puedeNomina = getRoleConfig(auth.getUser()?.role).rutas.includes('/nomina');
-  const [categoriaKey, setCategoriaKey] = useState(null);
+  // Consulta entra directo a la tabla con todas las categorías (se cambia con el
+  // dropdown); Operaciones sigue eligiendo qué capturar en los mosaicos.
+  const [categoriaKey, setCategoriaKey] = useState(modoConsulta ? 'todas' : null);
   const [egresos, setEgresos]           = useState([]);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
@@ -70,21 +72,31 @@ export default function Egresos() {
     );
   })();
 
+  // Solo pinta la respuesta del ÚLTIMO pedido: al cambiar rápido de categoría,
+  // una respuesta vieja que llega tarde pondría egresos de otra categoría
+  // bajo el título de la nueva.
+  const ultimoPedido = useRef(0);
   const cargar = useCallback(async (key) => {
+    const pedido = ++ultimoPedido.current;
     setLoading(true); setError('');
     try {
-      if (key === 'camioneta_view') {
+      let lista;
+      if (key === 'todas') {
+        // Sin categoría: el backend ya le quita NÓMINA a quien no es Gerente.
+        lista = await egresosService.getEgresos({});
+      } else if (key === 'camioneta_view') {
         const todos = await egresosService.getEgresos({ categoria: 'GASTO' });
-        setEgresos(todos.filter(e =>
+        lista = todos.filter(e =>
           e.subcategoria === 'GASOLINA' ||
           e.subcategoria === 'REFACCIONES' ||
           (e.subcategoria === 'MANTENIMIENTO' && e.concepto?.toLowerCase().includes('camioneta'))
-        ));
+        );
       } else {
-        setEgresos(await egresosService.getEgresos({ categoria: key.toUpperCase() }));
+        lista = await egresosService.getEgresos({ categoria: key.toUpperCase() });
       }
-    } catch { setError('Error al cargar egresos'); }
-    finally  { setLoading(false); }
+      if (pedido === ultimoPedido.current) setEgresos(lista);
+    } catch { if (pedido === ultimoPedido.current) setError('Error al cargar egresos'); }
+    finally  { if (pedido === ultimoPedido.current) setLoading(false); }
   }, []);
 
   // En Operaciones no hay lista que llenar: se entra directo a capturar.
@@ -374,11 +386,16 @@ export default function Egresos() {
 
   const subcatsPresentes = [...new Set(egresos.map(e => e.subcategoria).filter(Boolean))].sort();
 
+  // Un filtro de subcategoría de la categoría anterior dejaría la tabla vacía.
+  const cambiarCategoria = (key) => { setCategoriaKey(key); setSubcatFiltro('todas'); };
+
   return (
     <Layout>
       <EgresosTabla
         cat={cat}
         categoriaKey={categoriaKey}
+        categorias={categoriasVisibles}
+        onCategoria={cambiarCategoria}
         egresos={egresos}
         egresosFiltrados={egresosFiltrados}
         subcatsPresentes={subcatsPresentes}
@@ -397,7 +414,7 @@ export default function Egresos() {
         setError={setError}
         confirmDel={confirmDel}
         setConfirmDel={setConfirmDel}
-        onVolver={() => { setCategoriaKey(null); setError(''); }}
+        onVolver={() => navigate('/panel?seccion=consultas')}
         onCargar={cargar}
         onPagado={handlePagado}
         onImprimir={handleImprimir}

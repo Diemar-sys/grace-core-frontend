@@ -22,6 +22,8 @@ export interface EgresoItem {
 interface EgresosTablaProps {
   cat: CategoriaConfig | undefined;
   categoriaKey: string;
+  categorias: CategoriaConfig[];
+  onCategoria: (key: string) => void;
   egresos: EgresoItem[];
   egresosFiltrados: EgresoItem[];
   subcatsPresentes: string[];
@@ -50,6 +52,8 @@ interface EgresosTablaProps {
 export const EgresosTabla: React.FC<EgresosTablaProps> = ({
   cat,
   categoriaKey,
+  categorias,
+  onCategoria,
   egresos,
   egresosFiltrados,
   subcatsPresentes,
@@ -87,20 +91,37 @@ export const EgresosTabla: React.FC<EgresosTablaProps> = ({
           style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}
         >
           <button className="egresos-back" onClick={onVolver}>
-            ← Egresos
+            ← Volver
           </button>
-          <h1 style={{ margin: 0 }}>{cat?.label}</h1>
-          <span className="header-subtitle">{cat?.sub}</span>
+          <h1 style={{ margin: 0 }}>{cat ? cat.label : 'Egresos'}</h1>
+          <span className="header-subtitle">{cat ? cat.sub : 'Todas las categorías'}</span>
           {cat?.esVista && <span className="egreso-vista-badge">vista</span>}
         </div>
       </div>
 
       {/* FILTROS */}
       <div className="filtros-section">
+        <div className="filtro-group filtro-sm">
+          <label htmlFor="egresos-categoria">Categoría</label>
+          <select
+            id="egresos-categoria"
+            className="comp-date-input"
+            value={categoriaKey}
+            onChange={e => onCategoria(e.target.value)}
+          >
+            <option value="todas">Todas</option>
+            {categorias.map(c => (
+              <option key={c.key} value={c.key}>
+                {c.esVista ? `${c.label} (vista)` : c.label}
+              </option>
+            ))}
+          </select>
+        </div>
         {subcatsPresentes.length > 1 && (
           <div className="filtro-group filtro-sm">
-            <label>Subcategoría</label>
+            <label htmlFor="egresos-subcategoria">Subcategoría</label>
             <select
+              id="egresos-subcategoria"
               className="comp-date-input"
               value={subcatFiltro}
               onChange={e => setSubcatFiltro(e.target.value)}

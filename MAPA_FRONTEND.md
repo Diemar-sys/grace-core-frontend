@@ -1,7 +1,7 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
 > Mapa de archivos, rutas y carpetas del repositorio frontend.
-> Generado 2026-09-08 · actualizado 2026-09-14. Si el árbol cambia, este documento miente: regenéralo.
+> Generado 2026-09-08 · actualizado 2026-09-15. Si el árbol cambia, este documento miente: regenéralo.
 
 | | |
 |---|---|
@@ -72,7 +72,7 @@
 | `ConsultasPOS.jsx` | Consultas → POS | Historial de ventas, cancelación de venta, corte de caja. | `posService` (`frappePOS`), `auth` (`frappeAuth`), `printService` | Roles: Vendedor, Gerente (módulo `pos`). Doble candado: la ruta ya filtra, y encima el componente exige `auth.getUser()?.role === 'Gerente'` para poder cancelar. |
 | `ConsultaTablero.tsx` | Consultas → Tablero de reparto | Cómo va el día contra el pedido guardado (qué falta, qué sobra, a quién). | `pedidoService` (`frappePedido`) | Mismos roles que `pedido`. Lee traspasos REALES del día, no un campo que enlace al pedido (comentario explícito). |
 | `Cuentas.tsx` | Cuentas (financiero, dueño) | Consolidado CxC/CxP a nivel dueño. | `cuentasService` (`frappeCuentas`) | Ruta accesible solo a Gerente con `cuentas: true`; el propio comentario aclara que el backend recorta más — solo el dueño ve datos reales, el resto cae en `AccesoRestringido` detectado por regex sobre el mensaje de error (`/permiso/i`). |
-| `Egresos.jsx` | Egresos | Captura de gastos, CFE, gasolina, mantenimiento, etc. | `auth`, `egresosService` (`frappeEgresos`), `printService` | Roles: Almacén, Operaciones, Gerente. Muestra acceso a Nómina condicionalmente vía `getRoleConfig(role).rutas.includes('/nomina')`. |
+| `Egresos.jsx` | Egresos | Captura de gastos, CFE, gasolina, mantenimiento, etc. Operaciones elige qué capturar en mosaicos; **Consulta** (`?modo=consulta`, 15-sep) entra directo a la tabla con dropdown Categoría (arranca en «Todas») → Subcategoría, y «Volver» regresa a Consultas. | `auth`, `egresosService` (`frappeEgresos`), `printService` | Roles: Almacén, Operaciones, Gerente. Muestra acceso a Nómina condicionalmente vía `getRoleConfig(role).rutas.includes('/nomina')` (mosaico y dropdown). 🔴 `cargar` solo pinta la respuesta del último pedido (`ultimoPedido`): al cambiar rápido de categoría, una respuesta vieja pintaba otra categoría bajo el título nuevo. |
 | `EnvioSucursal.jsx` | Envío a sucursal | Traspasos internos de mercancía a sucursales. | `stockService` (`frappeStock`) | Roles: Operaciones, Gerente. Incluye `ReposicionInsumos` como botón/sub-vista ("sugerencia_envio") — evita duplicar pantalla (lección de sesión 24-ago). |
 | `Inventario.jsx` | Inventario | Stock actual, agotados, cruce por almacén; ajustes y conteo físico. | `inventory`, `stockService` | Roles: Almacén, Operaciones, Gerente. Exporta también `FilaItem` (subcomponente, no confundir con `components/catalogo/FilaItem.tsx`). |
 | `Inventario.test.jsx` | test | Prueba de render de filas de `Inventario`. | — | — |
@@ -89,8 +89,9 @@
 | `Proveedores.jsx` | Proveedores | Alta/edición, filtro activos/inactivos. | `proveedores` (`frappeSupplier`) | Roles: Almacén, Operaciones, Gerente. |
 | `ReporteCompras.jsx` | Reportes → Compras | Resumen anual de compras. | `comprasService` (`frappePurchase`) | Rol: solo Gerente (`reportes: true`). |
 | `ReporteCuentasPorCobrar.jsx` | Reportes → CxC | Wrapper de solo lectura sobre `TablaCuentasPorCobrar`. | — (delega en el componente, que consume `ventasService`) | Rol: solo Gerente. Archivo de 35 líneas, sin lógica propia. |
-| `ReporteCuentasPorPagar.jsx` | Reportes → CxP | Lo que se le debe a cada proveedor: **compras + egresos** (14-sep), agrupado por `facturado_a`, con tarjeta de total partida en compras/egresos. Clic en el proveedor despliega sus documentos sin pagar (fecha, tipo, folio, factura, concepto, facturado a), con los estilos `cxc-*` de `global.css`. | `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Exporta `pendientePorFacturado`, `filasCxP`, `deudaTotal` y `consultaPendientes` (testeadas); el desglose se pide al desplegar, se guarda por proveedor+facturado y Actualizar lo tira; buckets fijos: ALMA RODRIGUEZ, LUIS TORRES, SIN FACTURA. |
-| `ReporteCuentasPorPagar.test.js` | test | Prueba de `pendientePorFacturado`/`filasCxP`/`deudaTotal`/`consultaPendientes`. | — | — |
+| `ReporteCuentasPorPagar.jsx` | Reportes → CxP | Lo que se le debe a cada proveedor: **compras + egresos** (14-sep), agrupado por `facturado_a`, con tarjeta de total partida en compras/egresos. **Vistas General / Compras / Egresos** (15-sep, dropdown «Vista» antes de «Facturado a», como los filtros de Compras): la vista manda sobre la tabla, el strip y el desglose; el backend manda un renglón por tipo y la tabla siempre agrupa por proveedor. Clic en el proveedor despliega sus documentos sin pagar (fecha, tipo, folio, factura, concepto, facturado a), con los estilos `cxc-*` de `global.css`. | `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Exporta `VISTAS`, `deVista`, `docsDeVista`, `pendientePorFacturado`, `filasCxP`, `deudaTotal` y `consultaPendientes` (testeadas); el desglose se pide al desplegar (completo, se filtra por vista al pintar: cambiar de pestaña no vuelve a pedir), se guarda por proveedor+facturado y Actualizar lo tira; buckets fijos: ALMA RODRIGUEZ, LUIS TORRES, SIN FACTURA. |
+| `ReporteCuentasPorPagar.test.js` | test | Prueba de `pendientePorFacturado`/`filasCxP`/`deudaTotal`/`consultaPendientes`/`deVista`/`docsDeVista`, con el caso difícil: proveedor con compra Y egreso bajo el mismo facturado. | — | — |
+| `ReporteCuentasPorPagar.render.test.tsx` | test | Cableado de las vistas: el dropdown llega a tabla, tarjeta de total, strip y desglose; cambiar de vista no vuelve a pedir el desglose. | — | 15-sep: 9 mutantes de front, 9 muertos (uno murió primero por sintaxis y se rehízo: ese no cuenta). |
 | `ReporteGastosAnual.jsx` | Reportes → Gastos anual | Todo lo gastado en un año, mes×categoría, con detalle e impresión a PDF. | `comprasService` (`frappePurchase`), `egresosService` (`frappeEgresos`) | Rol: solo Gerente. Agrega EN EL NAVEGADOR a propósito (comentario `ponytail`: ~770 compras + ~600 egresos/año, debajo del tope de 2000 de `getCompras`; si crece, se mueve a `GROUP BY` SQL). |
 | `ReporteGastos.jsx` | Reportes → Gastos | Reporte de gastos (vista simple). | `reportesService` (`frappeReportes`) | Rol: solo Gerente. |
 | `ReportesVentasCategoria.jsx` | Reportes → Ventas por categoría | Ventas agrupadas por categoría. | `ventasService` (`frappeSales`) | Rol: solo Gerente. |
@@ -100,6 +101,7 @@
 | `Catalogo.filtroPan.test.js` | test | Prueba del filtro de pan del Catálogo. | — | — |
 | `ConsultaPedido.totales.test.ts` | test | Prueba de `totalesPedido`. | — | — |
 | `Egresos.partidas.test.js` | test | Prueba de partidas/cálculo de Egresos. | — | — |
+| `Egresos.consulta.test.tsx` | test | Consulta de egresos: entra directo a la tabla con TODAS las categorías (pide sin categoría), Nómina fuera del dropdown para quien no la ve, cambiar de categoría reinicia la subcategoría, una respuesta tardía no pisa la categoría elegida, Volver → Consultas. | — | 9 mutantes, 9 muertos. |
 
 ## Componentes (`src/components/`)
 
@@ -159,7 +161,7 @@
 | `CampoAjustable.tsx` | Renglón de total calculado con override manual ("gana el papel"). | `SubcatForm.tsx`, `LuzForm.tsx` | — |
 | `egresosConstants.ts` | Listas constantes: vehículos, sucursales, teléfonos, tipos de mantenimiento/refacción/agua, subcategorías con IVA. | Formularios de `egresos/` | — |
 | `egresosIcons.tsx` | Iconos SVG por categoría de egreso. | `Egresos.jsx` y formularios | — |
-| `EgresosTabla.tsx` | Tabla principal de egresos capturados. | `Egresos.jsx` | — |
+| `EgresosTabla.tsx` | Tabla principal de egresos capturados, con filtros Categoría (dropdown con «Todas», 15-sep) → Subcategoría (sale de los egresos cargados) → Facturado a → fechas → búsqueda. | `Egresos.jsx` | La categoría la cambia el padre (`onCategoria`); las opciones son las mismas que los mosaicos visibles para ese nivel. |
 | `egresosTypes.ts` | Tipos TS compartidos del módulo Egresos. | Formularios de `egresos/` | — |
 | `GasForm.tsx` | Formulario de gasto de gas LP. | `Egresos.jsx` | — |
 | `GasolinaForm.tsx` | Formulario de gasolina (copia impuestos del CFDI, IVA+IEPS en cascada). | `Egresos.jsx` | — |
@@ -182,7 +184,7 @@
 | `ModalError.objeto.test.jsx` | Test que reproduce ese caso (objeto en vez de string). | — | Es el test que prueba el fix del bug de arriba. |
 | `ModalHojaEntrega.jsx` | Hoja de entrega para traspaso a sucursal (PDF/impresión, sin precios). | `EnvioSucursal.jsx`, `NuevoEnvioSucursal.jsx` | — |
 | `ModalReciboPDF.jsx` | Preview/impresión de recibo de venta B2B. | `VentaB2B.jsx`, `NuevaVentaB2B.jsx` | Homónimo de `compras/ModalReciboPDF.jsx` pero archivo distinto (recibo de venta, no de compra). |
-| `ModalRegistrarPago.jsx` | Modal para registrar cobro contra facturas pendientes de un cliente. Resumen arriba (deuda, # facturas, se cobra) y **clic en la factura despliega sus productos** (14-sep): qué se debe, no solo cuánto. | `TablaCuentasPorCobrar.jsx` | Arranca vacío; cobra exactamente lo marcado (soporta pago parcial por fila). Productos vía `ventasService.getFacturaItems`, pedidos al abrir y guardados por factura (reabrir no vuelve a pedir). La casilla y el monto cortan el clic para no desplegar. Estilos en `styles/RegistrarPago.css`. |
+| `ModalRegistrarPago.jsx` | Modal para registrar cobro contra facturas pendientes de un cliente. Resumen arriba (deuda, # facturas, se cobra) y **clic en la factura despliega sus productos** (14-sep): qué se debe, no solo cuánto. | `TablaCuentasPorCobrar.jsx` | Arranca vacío; cobra exactamente lo marcado (soporta pago parcial por fila). La casilla va en la ÚLTIMA columna, después de Asignar (15-sep). Productos vía `ventasService.getFacturaItems`, pedidos al abrir y guardados por factura (reabrir no vuelve a pedir). La casilla y el monto cortan el clic para no desplegar. Estilos en `styles/RegistrarPago.css`. |
 | `ModalRegistrarPago.test.tsx` | Test del cableado: productos una sola petición, casilla/monto no despliegan, error visible ≠ factura vacía, cobra el SALDO y no el total. | — | 5 mutantes probados, 5 muertos. La factura de prueba trae abono previo (total ≠ saldo): sin eso el mutante «cobra el total» sobrevivía. |
 
 ### `pos/`
