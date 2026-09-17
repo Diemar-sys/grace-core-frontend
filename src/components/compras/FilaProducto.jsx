@@ -78,7 +78,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
 
   const total        = totalPorFila(fila);
   const impMonto     = impuestoFila(fila);
-  const [impNombre, impTasa] = partirImpuesto(fila.impuesto_label);
+  const [impNombre] = partirImpuesto(fila.impuesto_label);
   const totalConImp  = totalFila(fila);
   const uomLabel     = fmtUom(fila.uom || 'unid');
   const variacion    = calcVariacion(fila);
@@ -200,11 +200,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
       <td>
         <span className={`nc-imp-badge nc-imp-${fila.impuesto_key}`}>
           <span className="nc-imp-nombre">{impNombre}</span>
-          {(impTasa || impMonto > 0) && (
-            <span className="nc-imp-detalle">
-              {impTasa}{impTasa && impMonto > 0 ? ' — ' : ''}{impMonto > 0 ? `$${fmt(impMonto)}` : ''}
-            </span>
-          )}
+          {impMonto > 0 && <span className="nc-imp-detalle">${fmt(impMonto)}</span>}
         </span>
       </td>
 

@@ -1,7 +1,7 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
 > Mapa de archivos, rutas y carpetas del repositorio frontend.
-> Generado 2026-09-08 · actualizado 2026-09-15. Si el árbol cambia, este documento miente: regenéralo.
+> Generado 2026-09-08 · actualizado 2026-09-17. Si el árbol cambia, este documento miente: regenéralo.
 
 | | |
 |---|---|
@@ -120,7 +120,8 @@
 | `Layout.jsx` | Shell/topbar + banner de "hay versión nueva, recarga cuando quieras". | Casi todas las páginas protegidas (Catalogo, Compras, Cuentas, Egresos, EnvioSucursal, Inventario, Kardex, Liquidacion, Nomina, Pedido, POS, Produccion, Proveedores, ConsultaPedido, ConsultaTablero, ConsultasPOS, Auditoria, y los 6 Reportes). | El banner de versión nunca recarga solo: espera a que el usuario decida. |
 | `NuevaCompra.jsx` | Modal grande de alta de compra (694 líneas). | `ComprasModales.jsx` (`compras/`) | — |
 | `NuevaReceta.jsx` | Alta/edición de receta (BOM). | `Produccion.jsx` | — |
-| `NuevaVentaB2B.jsx` | Modal de alta de venta B2B. | `VentaB2B.jsx` | Incluye subcomponente interno `FilaProducto`. |
+| `NuevaVentaB2B.jsx` | Modal de alta de venta B2B. | `VentaB2B.jsx` | Incluye subcomponente interno `FilaProducto`. Columnas Precio venta (CON impuesto, `precioConImpuesto`) · Impuesto (píldora `nc-imp-badge` como Compras: nombre + monto) · Total (17-sep: antes la columna enseñaba la base sin impuesto y confundía). Exporta `precioB2B` (17-sep): el abarrote se vende al MISMO precio que en tienda — `custom_precio_de_venta` ya trae el impuesto, se le quita para la base y el impuesto va encima (antes VELAS $40.02 salía $46.42). Materia prima sigue al costo sin impuesto. |
+| `NuevaVentaB2B.precio.test.ts` | Test de `precioB2B` con precios de la lista del piso: total B2B = precio de tienda × cantidad, exacto hasta 300 piezas y máximo 1 centavo hasta 500 (el rate a 6 decimales: ABUELITA ×395 sale +$0.01, marcado `ponytail`); MP no se divide. | — | 6 mutantes, 6 muertos. El backend (`sales_invoice.validar_precio_abarrote`) rechaza la venta si el rate no cuadra. |
 | `NuevoEnvioSucursal.jsx` | Modal de alta de traspaso a sucursal. | `EnvioSucursal.jsx` | Incluye subcomponente interno `FilaEnvio`. |
 | `NuevoInsumo.jsx` | Alta/edición de insumo (materia prima). | `Catalogo.jsx` | — |
 | `NuevoPan.jsx` | Alta/edición de pan (producto terminado). | `Catalogo.jsx` | Usa el MISMO hook y creación de Item que `NuevoInsumo` a propósito (evita panes duplicados a dos precios). Exporta `margen()`, `comparaConSucursal()` (testeadas). |
@@ -150,7 +151,7 @@
 | `ComprasModales.jsx` | Orquestador de modales del módulo Compras (abre `NuevaCompra`, `ConfirmModal`). | `Compras.jsx` | — |
 | `compraUtils.ts` | Funciones puras: `parseImpuesto`, conversión bulto↔kg, subtotales. | `FilaProducto.jsx` / `NuevaCompra.jsx` | — |
 | `compraUtils.test.js` / `compraUtils.impuesto.test.ts` | Tests de `compraUtils`. | — | — |
-| `FilaProducto.jsx` | Fila de captura de producto dentro de una compra (bultos/kg dual). | `NuevaCompra.jsx` | — |
+| `FilaProducto.jsx` | Fila de captura de producto dentro de una compra (bultos/kg dual). | `NuevaCompra.jsx` | Píldora de impuesto: nombre arriba, monto del renglón abajo, sin porcentaje (17-sep). Misma píldora en `NuevaVentaB2B`. |
 | `ModalPreciosActualizados.jsx` | Aviso post-compra de qué precios movió en el Catálogo. | `NuevaCompra.jsx` | 🔴 Reemplazó a `ModalSugerenciaPrecios`, que tenía botón "Omitir" — omitir dejaba el catálogo mintiendo sobre el costo real (causa de 39 insumos costeados por debajo de su costo real, 17-ago-2026). Ahora no hay decisión que tomar: solo avisa. |
 | `ModalReciboPDF.jsx` | Preview/impresión del recibo de compra. | `NuevaCompra.jsx` | Homónimo de `modals/ModalReciboPDF.jsx` pero es otro archivo (recibo de compra vs. recibo de venta B2B). |
 

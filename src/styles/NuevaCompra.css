@@ -1023,9 +1023,10 @@
   white-space: nowrap;
 }
 
-/* IVA / IEPS / TASA 0 es lo que se busca de un vistazo al revisar la compra;
-   el porcentaje y el monto solo confirman. Van en em para que el badge chico
-   del modal (.nc-modal .nc-imp-badge) siga encogiendo los dos a la vez. */
+/* Arriba el nombre (IVA / IEPS / TASA 0), abajo el MONTO del renglón, sin
+   porcentaje (17-sep, Diemar: el % ya lo dice el nombre; lo que se revisa es
+   cuánto). Van en em para que el badge chico del modal
+   (.nc-modal .nc-imp-badge) siga encogiendo los dos a la vez. */
 .nc-imp-nombre {
   font-size: 1.4em;
   line-height: 1.1;
@@ -1033,9 +1034,10 @@
 }
 
 .nc-imp-detalle {
-  font-size: 0.8em;
-  font-weight: 600;
-  opacity: 0.75;
+  font-size: 1.1em;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 .nc-imp-tasa0 { background: #f3f4f6; color: #6b7280; }
 .nc-imp-iva16 { background: #dbeafe; color: #1e40af; }
@@ -1478,6 +1480,13 @@ tr.nc-fila-alerta:hover td {
 
 /* badge impuesto */
 .nc-modal .nc-imp-badge { border-radius: 999px; font-family: var(--tv-mono); font-size: 10px; }
+/* El MONTO del impuesto se lee igual de grande que Precio venta (.nc-precio-fijo):
+   es un número que se revisa, no una nota. Va aquí, después del 10px del modal,
+   para ganarle; y su media query va después de este bloque por la misma razón. */
+.nc-modal .nc-imp-detalle { font-size: 20px; }
+@media (min-width: 769px) and (max-width: 1280px) {
+  .nc-modal .nc-imp-detalle { font-size: 14px; }
+}
 
 /* footer: botones en paleta */
 .nc-modal .nc-btn-secondary {

@@ -11,9 +11,27 @@ import BuscadorCliente from './BuscadorCliente';
 import ModalReciboPDF from './modals/ModalReciboPDF';
 import { imprimirVentaB2BTermico } from '../services/printService';
 import { ocultaMateriaPrima } from '../config/clientesB2B';
-import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
+import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal, getTasa } from '../config/impuestos';
+import { partirImpuesto } from './compras/compraUtils';
 import '../styles/NuevaCompra.css';
 import { numero } from '../utils/formato';
+
+/**
+ * Precio B2B por unidad base, SIN impuesto (el impuesto se suma encima al vender).
+ *  • Abarrote: custom_precio_de_venta YA trae el impuesto (es el precio de tienda).
+ *    Se le quita aquí para que base + impuesto = precio de tienda. Regla de Diemar
+ *    17-sep: el abarrote se vende igual en tienda y en B2B. Antes se cobraba el
+ *    impuesto encima del precio de tienda (VELAS $40.02 → $46.42). El backend
+ *    (sales_invoice.validar_precio_abarrote) rechaza la venta si este rate no cuadra.
+ *  • Materia prima: al COSTO sin impuesto (precio_por_kg). Modelo 2026-05-20.
+ */
+export function precioB2B(item, esAbarrote) {
+  if (esAbarrote && item.custom_precio_de_venta) {
+    return parseFloat(item.custom_precio_de_venta) / (1 + getTasa(item.custom_impuesto));
+  }
+  const precio = item.custom_precio_por_kg || item.custom_precio_de_venta || item.standard_rate;
+  return parseFloat(precio) || 0;
+}
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -41,6 +59,8 @@ const fmt = (n) =>
 const subtotalFila = (f) => parseFloat(f.qty || 0) * parseFloat(f.rate || 0);
 const impuestoFila = (f) => subtotalFila(f) * parseFloat(f.impuesto_rate || 0);
 const totalFila = (f) => subtotalFila(f) + impuestoFila(f);
+/** Precio unitario que paga el cliente, impuesto incluido (el de la lista del piso). */
+export const precioConImpuesto = (f) => parseFloat(f.rate || 0) * (1 + parseFloat(f.impuesto_rate || 0));
 
 
 // ── Componente principal ────────────────────────────────────────────────────
@@ -357,12 +377,13 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
             <colgroup>
-              <col style={{ width: '32%' }} />
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
               <col style={{ width: '11%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '11%' }} />
               <col style={{ width: '13%' }} />
-              <col style={{ width: '17%' }} />
               <col style={{ width: '4%' }} />
             </colgroup>
             <thead>
@@ -372,6 +393,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
                 <th>Cantidad</th>
                 <th>Stock final</th>
                 <th>Precio venta</th>
+                <th>Impuesto</th>
                 <th>Total</th>
                 <th></th>
               </tr>
@@ -533,19 +555,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     //  • Materia prima → al COSTO (precio_por_kg). Modelo confirmado 2026-05-20.
     // Tras la migración UOM, precio_de_venta y precio_por_kg ya son POR UNIDAD BASE
     // (no por presentación) → no se divide entre cantPres.
-    const esAbarrote = inventory.esProductoParaVenta(item.item_group);
-    let ratePorUnidad;
-    if (esAbarrote && item.custom_precio_de_venta) {
-      ratePorUnidad = parseFloat(item.custom_precio_de_venta);
-    } else if (item.custom_precio_por_kg) {
-      ratePorUnidad = parseFloat(item.custom_precio_por_kg);
-    } else if (item.custom_precio_de_venta) {
-      ratePorUnidad = parseFloat(item.custom_precio_de_venta);
-    } else if (item.standard_rate) {
-      ratePorUnidad = parseFloat(item.standard_rate);
-    } else {
-      ratePorUnidad = 0;
-    }
+    const ratePorUnidad = precioB2B(item, inventory.esProductoParaVenta(item.item_group));
     onChange({
       item_code: item.item_code,
       item_name: item.item_name,
@@ -654,11 +664,21 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
         )}
       </td>
 
-      {/* Precio venta — readonly, fuente: catálogo (custom_precio_de_venta, sino standard_rate) */}
+      {/* Precio venta — readonly, CON impuesto: lo que paga el cliente por unidad */}
       <td>
         {fila.rate
-          ? <span className="nc-precio-fijo">${numero(parseFloat(fila.rate), 2)}</span>
+          ? <span className="nc-precio-fijo">${numero(precioConImpuesto(fila), 2)}</span>
           : <span className="nc-uom-empty">—</span>}
+      </td>
+
+      {/* Impuesto del renglón (ya incluido en el precio de venta) */}
+      <td>
+        {fila.rate ? (
+          <span className={`nc-imp-badge nc-imp-${fila.impuesto_key}`}>
+            <span className="nc-imp-nombre">{partirImpuesto(fila.impuesto_label)[0]}</span>
+            {impuestoFila(fila) > 0 && <span className="nc-imp-detalle">${fmt(impuestoFila(fila))}</span>}
+          </span>
+        ) : <span className="nc-uom-empty">—</span>}
       </td>
 
       <td><span className="nc-subtotal">${fmt(totalConImp)}</span></td>
