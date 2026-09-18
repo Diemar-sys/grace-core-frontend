@@ -1,0 +1,11 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Login — rechaza credenciales incorrectas sin dejar entrar",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login" },
+    { "type": "assertion", "description": "La pantalla muestra el texto 'Bienvenido' y dos campos con placeholder 'Ingresa tu usuario' e 'Ingresa tu contraseña'" },
+    { "type": "action", "description": "Escribir 'noexiste@grace.local' como usuario y 'contrasenaIncorrecta123' como contraseña, y enviar el formulario" },
+    { "type": "assertion", "description": "Aparece un mensaje de error de credenciales y la URL sigue siendo /login: NO se redirige a /panel" }
+  ]
+}

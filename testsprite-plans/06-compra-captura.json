@@ -1,0 +1,17 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Compras — captura una compra de un renglón y la deja como borrador",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/compras" },
+    { "type": "assertion", "description": "La pantalla abre en un menú con un mosaico titulado 'Registrar Compra'" },
+    { "type": "action", "description": "Hacer clic en el mosaico 'Registrar Compra' para abrir el formulario" },
+    { "type": "action", "description": "Elegir el proveedor 'INIX COMERCIAL' en el buscador de proveedor" },
+    { "type": "action", "description": "Agregar un renglón: buscar el producto 'AZUCAR' y elegir el primer resultado de la lista" },
+    { "type": "action", "description": "Capturar cantidad 1 y precio 10 en ese renglón" },
+    { "type": "assertion", "description": "El renglón muestra un importe de $10.00" },
+    { "type": "action", "description": "Guardar la compra con el botón de guardar del formulario" },
+    { "type": "assertion", "description": "NO aparece ningún modal de error; la compra queda guardada y el formulario se cierra" }
+  ]
+}

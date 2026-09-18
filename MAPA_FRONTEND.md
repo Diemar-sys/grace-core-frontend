@@ -1,7 +1,7 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
 > Mapa de archivos, rutas y carpetas del repositorio frontend.
-> Generado 2026-09-08 · actualizado 2026-09-17. Si el árbol cambia, este documento miente: regenéralo.
+> Generado 2026-09-08 · actualizado 2026-09-18. Si el árbol cambia, este documento miente: regenéralo.
 
 | | |
 |---|---|
@@ -24,7 +24,7 @@
 3. Páginas · Componentes · Estilos · `public/` y `docs/`
 4. Servicios — la frontera con el backend
 5. Utilidades · Base local (Dexie) · Hooks · Configuración
-6. Tests · `print-server/` · `.githooks/` · Scripts de pnpm
+6. Tests · `testsprite-plans/` · `print-server/` · `.githooks/` · Scripts de pnpm
 
 ---
 
@@ -396,6 +396,52 @@ Viven junto al módulo que prueban, no en `src/test/`.
 | `src/db/borradorLocal.test.js` | `guardarBorradorForm` / `cargarBorradorForm` / `borrarBorradorForm`. |
 | `src/db/sync.test.js` | `seedCatalogo`, `seedStock`, `drainOutbox` — todo por inyección de dependencias, sin red ni IndexedDB real. |
 | `src/utils/print/egresoDesglose.test.ts` | `agruparPorTasa` (subtotales del ticket) y `ajusteDerivado`, incluido el caso del **cero negativo** que imprimía `-0.00`. |
+
+## `testsprite-plans/`
+
+Planes de prueba de navegador (TestSprite), uno por flujo. Son **datos**, no código:
+cada `.json` describe pasos y aserciones que un agente en la nube ejecuta contra la app
+real por un túnel. Cubren el hueco que los `vitest` no ven — que la pantalla de verdad
+se pinte y el clic de verdad haga algo (`Login.css` dejando la app en `position:fixed`,
+React #31 tapando la pantalla, `/catalogo` tirado por un refactor).
+
+🔴 **Solo contra dev (`localhost:5173`), NUNCA contra la torre.** El agente teclea de
+verdad: apuntarlo a `192.168.2.221` crearía ventas, compras y traspasos reales. El
+usuario que usa (`testsprite@grace.local`) vive solo en la base de DEV y su contraseña
+está fuera del repo (`~/.testsprite_dev_pass`, 0600) — no se commitea.
+
+🔴 **Ese usuario carga nivel Gerente MÁS el rol `Admin Sucursal`**, que es el que de
+verdad traen `admin.piramides`/`admin.puertareal`/`admin.santuarios`. No se le da System
+Manager a propósito: `require_roles` deja pasar SIEMPRE al admin, así que con System
+Manager la suite dejaría de poder cazar un bug de permisos. Con Admin Sucursal, el verde
+significa «le funciona a un admin real». 🔴 Los niveles que reparte la UI de Cuentas
+(`ROLES_GESTIONADOS`) **no** incluyen `Admin Sucursal`, y sin él el alta de proveedor
+truena con `PermissionError` — medido en dev el 18-sep, sin verificar contra la torre.
+
+🔴 **Un rerun en el portal repite la corrida vieja, no el código nuevo** (lo advierte el
+propio CLI). Para juzgar un cambio hay que lanzar corrida NUEVA:
+`testsprite test run <testId> --local 5173 --local-host localhost`.
+
+| Archivo | Flujo que prueba | ¿Escribe en dev? |
+|---|---|---|
+| `01-login-rechaza-malas.json` | Credenciales malas no entran y la URL sigue en `/login`. | No |
+| `02-login-panel-gerente.json` | Panel de Gerente pinta sus tiles y el tile Catálogo no rebota. | No |
+| `03-catalogo-insumos-y-pan.json` | Las dos vistas del catálogo (insumos/pan) pintan filas con precio. Entra por `/catalogo?modo=consulta`: el `/catalogo` pelón abre un MENÚ de acciones (Crear/Editar/Deshabilitar), no la lista. | No |
+| `04-inventario-stock.json` | Existencias por almacén. Entra por `/inventario?modo=consulta`: el mosaico «Stock de Inventario» solo existe en `accionActiva === 'consulta_menu'`. | No |
+| `05-b2b-abarrote-precio-tienda.json` | 🔴 **El del dinero.** VELAS PIROTECNICA en Venta B2B da Total \$35.00 (precio de tienda, impuesto adentro) y NO \$40.60. Es el fix del 17-sep vuelto test de navegador. | No (no confirma la venta) |
+| `06-compra-captura.json` | Captura y confirma una compra de un renglón. | **Sí** (Purchase Receipt) |
+| `07-egreso-simple.json` | Captura un gasto simple y lo encuentra en `?modo=consulta` con Categoría en «Todas». | **Sí** (Egreso) |
+| `08-envio-sucursal.json` | Traspaso de pan a `TIENDA - PIRAMIDES - PG` desde `ALMACEN - PANQUELERIA - PG`, y el folio `MAT-STE-` de vuelta. 🔴 Tres trampas que costaron cuatro corridas: el origen arranca en Bodega Central y el pan vive en el almacén de su departamento; el destino es `TIENDA - PIRAMIDES - PG` porque `PIRAMIDES - PG` es el padre y no es destino válido; y **esta pantalla no muestra importes** (columnas: Producto · Stock disp. · Cantidad · Stock final), así que exigirle un \$ es pedirle lo que no tiene. El traspaso se valoriza al COSTO del lado del servidor (`basic_rate`) y ese número se ve en el Reporte de Valorización. | **Sí** (Stock Entry) |
+| `09-pos-venta-efectivo.json` | 🔴 Venta en el POS que **llega al servidor**: se cobra y luego se busca en Consultas → POS. La primera versión asertaba «el ticket queda vacío» y pasó en VERDE sin que existiera ninguna Sales Invoice — el ticket también está vacío ANTES de vender. Aserción sobre la consecuencia, nunca sobre un estado que ya era cierto al empezar. | **Sí** (Sales Invoice) |
+| `10-reporte-cxp-vistas.json` | Las vistas General/Compras/Egresos mueven tarjeta y tabla (fix del 15-sep). | No |
+| `11-proveedor-alta.json` | Alta de proveedor con sus 5 campos obligatorios (razón social, teléfono, correo, contacto 1 nombre y teléfono) y sin modal de error. Llenar solo el nombre truena con `MandatoryError`. | **Sí** (Supplier) |
+| `12-produccion-entrada-pan.json` | Entrada de pan sin receta **rechaza** costo vacío o cero (nunca pan gratis). | No (espera rechazo) |
+| `13-presentacion-recalcula-precio.json` | 🔴 **La cadena del costo.** Cambia `Cantidad por Presentación` de DOMO PARA ROLLO DB09A a 25 y exige que la columna «Precio por Unidad» quede en \$24.54 = (\$528.87 / 25) × 1.16. Si sigue en \$12.27, el precio quedó derivado del factor viejo y las recetas se cuestan con un número muerto. El item lleva `iva16` A PROPÓSITO: con `tasa0` el precio final es idéntico al por-unidad y un mutante que borre el impuesto pasaría sin que nadie lo vea. | **Sí** (Item) |
+| `14-dia-del-pan-entrada-y-envio.json` | 🔴 **La secuencia, no la pantalla.** Registra una entrada de 10 MANTECADA GDE en Producción y acto seguido manda ese mismo pan a `TIENDA - PIRAMIDES - PG`. Así ocurre el día de verdad: primero se hornea y se da entrada, después se envía. Además el test se vuelve **autosuficiente** — crea su propio stock en vez de comerse las 150 piezas que dejó ayer, que a 2 por corrida se acaban y el rojo parecería un bug cuando sería el test agotando el inventario. | **Sí** (Stock Entry ×2) |
+
+Los 7 que escriben ensucian la base de DEV a propósito — decisión tomada el 18-sep para
+cubrir el camino completo. Dev ya diverge de prod; el dinero se sigue midiendo contra la
+torre, nunca contra esto.
 
 ## `print-server/`
 

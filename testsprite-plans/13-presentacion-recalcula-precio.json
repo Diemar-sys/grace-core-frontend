@@ -1,0 +1,15 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Catálogo — cambiar la presentación recalcula el precio por unidad",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/catalogo" },
+    { "type": "action", "description": "Hacer clic en el mosaico 'Editar Insumo'" },
+    { "type": "action", "description": "Buscar el insumo 'DOMO PARA ROLLO' y abrirlo para editar" },
+    { "type": "action", "description": "En la sección 'Presentación', poner exactamente 25 en el campo 'Cantidad por Presentación'" },
+    { "type": "action", "description": "Guardar el insumo y esperar a que la tabla del catálogo se recargue" },
+    { "type": "assertion", "description": "La fila de 'DOMO PARA ROLLO DB09A' muestra 25 en la columna 'Cantidad por presentación'" },
+    { "type": "assertion", "description": "La misma fila muestra $24.54 en la columna 'Precio por Unidad'. Ese número es el precio de compra de $528.87 entre las 25 piezas (=$21.1548) más su IVA del 16% (=$24.5396), redondeado a dos decimales. Si la columna sigue enseñando $12.27, el precio quedó derivado del factor viejo de 50 y el costeo de las recetas está usando un número que ya no corresponde" }
+  ]
+}

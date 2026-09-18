@@ -1,0 +1,11 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Panel — un Gerente ve sus tiles y puede abrir Catálogo",
+  "planSteps": [
+    { "type": "action", "description": "Iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "assertion", "description": "La URL es /panel y se ven los tiles con los nombres 'Catálogo', 'Inventario', 'Compras', 'Venta B2B', 'Envío a Sucursal', 'Punto de Venta', 'Producción' y 'Egresos'" },
+    { "type": "action", "description": "Hacer clic en el tile 'Catálogo'" },
+    { "type": "assertion", "description": "La URL cambia a /catalogo y la pantalla pinta contenido del catálogo; NO rebota de regreso a /panel ni queda en blanco" }
+  ]
+}

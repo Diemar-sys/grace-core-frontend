@@ -1,0 +1,15 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "POS — la venta cobrada llega al servidor, no solo limpia el ticket",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/pos" },
+    { "type": "assertion", "description": "Se pinta el catálogo del punto de venta con al menos 5 productos con precio" },
+    { "type": "action", "description": "Tocar el producto 'MANTECADA GDE' para agregarlo al ticket" },
+    { "type": "assertion", "description": "El ticket muestra 1 renglón con 'MANTECADA GDE' y un total de $14.00" },
+    { "type": "action", "description": "Pulsar 'COBRAR', capturar 14.00 como efectivo recibido y pulsar 'Confirmar Venta'" },
+    { "type": "action", "description": "Esperar 10 segundos a que la cola offline se drene y navegar a http://localhost:5173/consultas/pos" },
+    { "type": "assertion", "description": "El historial de ventas de HOY contiene una venta de $14.00 recién hecha. Esta es la aserción que importa: el ticket vacío NO prueba nada, porque el ticket también está vacío antes de vender. Si la venta no aparece aquí, se perdió." }
+  ]
+}

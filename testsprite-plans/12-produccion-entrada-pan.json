@@ -1,0 +1,31 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Producción — registra entrada de pan y rechaza costo cero",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto"
+    },
+    {
+      "type": "action",
+      "description": "Navegar directamente a http://localhost:5173/produccion"
+    },
+    {
+      "type": "action",
+      "description": "Abrir el modal de entrada de pan sin receta"
+    },
+    {
+      "type": "assertion",
+      "description": "El modal muestra un buscador de pan y un campo de cantidad; si hay pedido del día cargado, precarga renglones con su cantidad pedida"
+    },
+    {
+      "type": "action",
+      "description": "Elegir un pan, capturar cantidad 10 y borrar el costo para dejarlo vacío"
+    },
+    {
+      "type": "assertion",
+      "description": "El sistema NO permite registrar la entrada con costo vacío o cero: muestra un mensaje de error o el botón de guardar queda inhabilitado"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "El día del pan — se hornea, se registra la entrada y ese pan se manda a la sucursal",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/inventario?modo=consulta y entrar a 'Stock de Inventario'" },
+    { "type": "action", "description": "Elegir el almacén 'ALMACEN - PANQUELERIA - PG' y anotar el stock actual de 'MANTECADA GDE'" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/produccion" },
+    { "type": "action", "description": "Hacer clic en el mosaico 'Entrada de Pan'" },
+    { "type": "action", "description": "En el buscador 'Escribe el pan...' escribir 'MANTECADA GDE' y elegirlo" },
+    { "type": "action", "description": "Capturar cantidad 10 para ese pan" },
+    { "type": "action", "description": "Pulsar 'Registrar entrada' UNA sola vez y esperar la respuesta" },
+    { "type": "assertion", "description": "Aparece el texto 'Entrada registrada' seguido de un folio y del número de productos" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/envio-sucursal y pulsar '+ Nuevo Envío'" },
+    { "type": "action", "description": "Elegir 'ALMACEN - PANQUELERIA - PG' como almacén de ORIGEN y 'TIENDA - PIRAMIDES - PG' como destino" },
+    { "type": "action", "description": "Agregar 'MANTECADA GDE' y capturar cantidad 10 (todo el pan que se acaba de hornear)" },
+    { "type": "assertion", "description": "El 'Stock disp.' del renglón es al menos 10, o sea que la entrada de pan del paso anterior ya está disponible para mandarse" },
+    { "type": "action", "description": "Pulsar 'Confirmar envío' UNA sola vez y esperar la respuesta" },
+    { "type": "assertion", "description": "Aparece el texto 'Envío registrado' seguido de un folio que empieza con 'MAT-STE-'" }
+  ]
+}

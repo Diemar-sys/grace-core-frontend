@@ -1,0 +1,14 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Inventario — muestra existencias por almacén",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/inventario?modo=consulta" },
+    { "type": "assertion", "description": "Se ve un mosaico titulado 'Stock de Inventario' con el subtítulo 'Existencias actuales por almacén'" },
+    { "type": "action", "description": "Hacer clic en el mosaico 'Stock de Inventario'" },
+    { "type": "assertion", "description": "Aparece una tabla con los encabezados 'Código', 'Nombre' y 'Stock', con al menos 5 filas de productos" },
+    { "type": "action", "description": "Hacer clic UNA sola vez en la pestaña de vista 'POR ALMACÉN' y esperar a que la tabla recargue" },
+    { "type": "assertion", "description": "La tabla sigue mostrando al menos 1 fila con un valor en su columna 'Stock'" }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Venta B2B — el abarrote cuesta lo mismo que en tienda (impuesto adentro)",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto"
+    },
+    {
+      "type": "action",
+      "description": "Navegar directamente a http://localhost:5173/venta-b2b"
+    },
+    {
+      "type": "action",
+      "description": "Abrir el formulario de nueva venta y elegir el cliente 'DELI' en el campo 'Cliente'"
+    },
+    {
+      "type": "action",
+      "description": "En 'Buscar producto...' escribir 'VELAS' y seleccionar 'VELAS PIROTECNICA'"
+    },
+    {
+      "type": "action",
+      "description": "Capturar cantidad 1 en la unidad base (PZA), no en CAJA"
+    },
+    {
+      "type": "assertion",
+      "description": "La columna 'Precio venta' del renglón muestra exactamente $35.00"
+    },
+    {
+      "type": "assertion",
+      "description": "La píldora de impuesto del renglón dice 'IVA 16%' con un monto de $4.83 (no $5.60)"
+    },
+    {
+      "type": "assertion",
+      "description": "El 'Total' de la venta es exactamente $35.00 — NO $40.60: el precio de catálogo ya trae el impuesto adentro y no se suma encima"
+    }
+  ]
+}

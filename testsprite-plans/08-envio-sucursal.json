@@ -1,0 +1,19 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Envío a Sucursal — traspaso de pan desde el almacén de su departamento",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/envio-sucursal" },
+    { "type": "action", "description": "Hacer clic en el botón '+ Nuevo Envío'" },
+    { "type": "action", "description": "Elegir 'ALMACEN - PANQUELERIA - PG' como almacén de ORIGEN. El pan sale del almacén de su departamento, no de Bodega Central" },
+    { "type": "action", "description": "Elegir 'TIENDA - PIRAMIDES - PG' como sucursal destino (es la marcada como sucursal extendida; 'PIRAMIDES - PG' es el almacén padre y no es destino válido)" },
+    { "type": "action", "description": "Agregar un renglón: buscar 'MANTECADA GDE' y elegirlo" },
+    { "type": "action", "description": "Capturar cantidad 2 en el campo 'Cantidad' del renglón" },
+    { "type": "assertion", "description": "La tabla del envío tiene las columnas 'Producto', 'Stock disp.', 'Cantidad' y 'Stock final'. Esta pantalla NO muestra importes: el traspaso se valoriza al costo del lado del servidor y ese número se ve en el Reporte de Valorización" },
+    { "type": "assertion", "description": "El renglón muestra 2 en la columna 'Cantidad'" },
+    { "type": "assertion", "description": "El 'Stock final' del renglón es 2 unidades menor que el 'Stock disp.' del mismo renglón" },
+    { "type": "action", "description": "Pulsar 'Confirmar envío' UNA sola vez y esperar la respuesta" },
+    { "type": "assertion", "description": "Aparece el texto 'Envío registrado' seguido de un folio que empieza con 'MAT-STE-'" }
+  ]
+}

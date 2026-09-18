@@ -1,0 +1,13 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Catálogo — las dos vistas (insumos y pan) pintan filas con precio",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/catalogo?modo=consulta, que abre la lista sin pasar por el menú de acciones" },
+    { "type": "assertion", "description": "Hay un botón de vista con el texto 'Insumos' y otro con el texto 'Pan', cada uno seguido de un número" },
+    { "type": "assertion", "description": "La tabla de insumos muestra al menos 5 filas; cada fila trae nombre de producto y un importe que empieza con el signo $" },
+    { "type": "action", "description": "Hacer clic UNA sola vez en el botón de vista 'Pan' y esperar a que la tabla recargue" },
+    { "type": "assertion", "description": "La tabla de pan muestra al menos 5 filas con nombre de pan y un importe que empieza con el signo $" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Proveedores — da de alta uno nuevo con sus campos obligatorios",
+  "planSteps": [
+    { "type": "action", "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto" },
+    { "type": "action", "description": "Navegar directamente a http://localhost:5173/proveedores" },
+    { "type": "action", "description": "Abrir el formulario de nuevo proveedor con el botón 'Registrar Proveedor'" },
+    { "type": "action", "description": "Llenar 'Nombre del Proveedor' con 'PROVEEDOR PRUEBA TESTSPRITE' y 'Razón Social' con 'PROVEEDOR PRUEBA TESTSPRITE SA DE CV'" },
+    { "type": "action", "description": "Llenar el 'Teléfono' de la empresa con '4421234567' y el 'Correo de la empresa' con 'pruebas@testsprite.local'" },
+    { "type": "action", "description": "Llenar el primer contacto: nombre 'CARLOS PRUEBA' y teléfono '4429876543'" },
+    { "type": "action", "description": "Elegir 'COSTO' en el dropdown 'Tipo' y 'MATERIA PRIMA' en el dropdown 'Subtipo'" },
+    { "type": "action", "description": "Guardar con el botón 'Registrar Proveedor' del formulario" },
+    { "type": "assertion", "description": "NO aparece ningún modal de error (ningún mensaje con botón 'Entendido' que reporte una falla); el formulario se cierra" },
+    { "type": "assertion", "description": "El proveedor 'PROVEEDOR PRUEBA TESTSPRITE' aparece en la lista de proveedores" }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Egresos — captura un gasto simple y lo lista",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto"
+    },
+    {
+      "type": "action",
+      "description": "Navegar directamente a http://localhost:5173/egresos"
+    },
+    {
+      "type": "action",
+      "description": "Elegir capturar un gasto simple (categoría GASTO), con proveedor 'DIESGAS' y monto 250.00"
+    },
+    {
+      "type": "assertion",
+      "description": "El formulario muestra un total calculado de $250.00 antes de guardar"
+    },
+    {
+      "type": "action",
+      "description": "Guardar el egreso"
+    },
+    {
+      "type": "action",
+      "description": "Navegar a http://localhost:5173/egresos?modo=consulta"
+    },
+    {
+      "type": "assertion",
+      "description": "La tabla de consulta arranca con el dropdown de Categoría en 'Todas' y contiene el egreso recién creado con monto $250.00"
+    }
+  ]
+}

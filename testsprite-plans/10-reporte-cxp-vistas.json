@@ -1,0 +1,35 @@
+{
+  "projectId": "7184cc19-c199-4ac5-8f8e-50bbf6aebb9c",
+  "type": "frontend",
+  "name": "Reporte CxP — las vistas General, Compras y Egresos filtran la tabla",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navegar a http://localhost:5173/login e iniciar sesión con el usuario y contraseña del entorno del proyecto"
+    },
+    {
+      "type": "action",
+      "description": "Navegar directamente a http://localhost:5173/reportes/cuentas-por-pagar"
+    },
+    {
+      "type": "assertion",
+      "description": "Hay un dropdown 'Vista' con las opciones 'General', 'Compras' y 'Egresos', y la tarjeta de total dice 'General · total que se debe'"
+    },
+    {
+      "type": "action",
+      "description": "Cambiar la vista a 'Compras'"
+    },
+    {
+      "type": "assertion",
+      "description": "La tarjeta de total cambia a 'Compras · total que se debe' y el monto mostrado es menor o igual al de la vista General"
+    },
+    {
+      "type": "action",
+      "description": "Cambiar la vista a 'Egresos'"
+    },
+    {
+      "type": "assertion",
+      "description": "La tarjeta cambia a 'Egresos · total que se debe' y la tabla sigue agrupada por proveedor"
+    }
+  ]
+}
