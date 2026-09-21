@@ -62,6 +62,43 @@ const ESTADO_INICIAL = {
  * ni deja que se cambie. Misma creación de Item que Nuevo Insumo — una sola
  * puerta al catálogo, dos formas de tocarla.
  */
+/**
+ * Formulario de edición a partir del Item guardado.
+ *
+ * 🔴 Todo campo que `inventory.updateItem` manda en el PUT TIENE que venir de
+ * aquí: el que falte arranca vacío y el PUT lo manda en null, borrando el dato
+ * en silencio. Así se perdió el costo del pan (21-sep): este mapeo no traía
+ * `custom_costo_estimado` y cada edición de un pan lo dejaba en «falta costo».
+ */
+export function formularioDeEdicion(editItem: any) {
+  return {
+    item_code:                         editItem.item_code || '',
+    custom_código_interno:             editItem.custom_código_interno || '',
+    item_name:                         editItem.item_name || '',
+    item_group:                        editItem.item_group || '',
+    custom_tipo_item:                  editItem.custom_tipo_item || 'MATERIA PRIMA',
+    custom_departamento:               editItem.custom_departamento || '',
+    stock_uom:                         editItem.stock_uom || '',
+    custom_presentación:               editItem.custom_presentación || '',
+    custom_cantidad_por_presentación:  editItem.custom_cantidad_por_presentación || '',
+    custom_precio_de_compra:           editItem.custom_precio_de_compra || '',
+    custom_precio_por_kg:              editItem.custom_precio_por_kg || '',
+    custom_impuesto:                   editItem.custom_impuesto || 'tasa0',
+    custom_precio_final:               editItem.custom_precio_final || '',
+    custom_precio_de_venta:            editItem.custom_precio_de_venta || '',
+    custom_precio_de_venta_pueblos:    editItem.custom_precio_de_venta_pueblos || '',
+    custom_precio_de_venta_camioneta:  editItem.custom_precio_de_venta_camioneta || '',
+    custom_costo_estimado:             editItem.custom_costo_estimado || '',
+    custom_porcentaje_de_ganancia:     editItem.custom_porcentaje_de_ganancia || '',
+    custom_ganancia:                   editItem.custom_ganancia || '',
+    custom_vendible_b2b:               editItem.custom_vendible_b2b || false,
+    opening_stock:                     '',
+    default_warehouse:                 '',
+    disabled:                          editItem.disabled || false,
+    description:                       editItem.description || '',
+  };
+}
+
 export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editItem?: any; onSuccess?: (result: any) => void; tipoFijo?: string }) {
   const isEditing = !!editItem;
 
@@ -91,31 +128,7 @@ export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editI
 
         if (editItem) {
           setEsAbarrotes(inventory.esProductoParaVenta(editItem.item_group));
-          setFormData({
-            item_code:                         editItem.item_code || '',
-            custom_código_interno:             editItem.custom_código_interno || '',
-            item_name:                         editItem.item_name || '',
-            item_group:                        editItem.item_group || '',
-            custom_tipo_item:                  editItem.custom_tipo_item || 'MATERIA PRIMA',
-            custom_departamento:               editItem.custom_departamento || '',
-            stock_uom:                         editItem.stock_uom || '',
-            custom_presentación:               editItem.custom_presentación || '',
-            custom_cantidad_por_presentación:  editItem.custom_cantidad_por_presentación || '',
-            custom_precio_de_compra:           editItem.custom_precio_de_compra || '',
-            custom_precio_por_kg:              editItem.custom_precio_por_kg || '',
-            custom_impuesto:                   editItem.custom_impuesto || 'tasa0',
-            custom_precio_final:               editItem.custom_precio_final || '',
-            custom_precio_de_venta:            editItem.custom_precio_de_venta || '',
-            custom_precio_de_venta_pueblos:    editItem.custom_precio_de_venta_pueblos || '',
-            custom_precio_de_venta_camioneta:  editItem.custom_precio_de_venta_camioneta || '',
-            custom_porcentaje_de_ganancia:     editItem.custom_porcentaje_de_ganancia || '',
-            custom_ganancia:                   editItem.custom_ganancia || '',
-            custom_vendible_b2b:               editItem.custom_vendible_b2b || false,
-            opening_stock:                     '',
-            default_warehouse:                 '',
-            disabled:                          editItem.disabled || false,
-            description:                       editItem.description || '',
-          });
+          setFormData(formularioDeEdicion(editItem));
         }
       } catch (err) {
         console.error('Error cargando catálogos:', err);

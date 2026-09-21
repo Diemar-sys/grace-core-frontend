@@ -11,6 +11,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { produccionService } from '../../services/frappeProduccion';
 import { pedidoService } from '../../services/frappePedido';
+import { auth } from '../../services/frappeAuth';
 import { parseErrorFrappe } from '../../utils/errorFrappe';
 import ModalError from './ModalError';
 import '../../styles/NuevaCompra.css';
@@ -99,7 +100,16 @@ export function calcularValor(filas, catalogo) {
   }, 0);
 }
 
+/**
+ * ¿Se puede teclear el costo de este renglón? Solo el Gerente, y solo si el pan
+ * no tiene receta (con receta el costo sale de los ingredientes). Candado del
+ * costo, 10-sep: a los demás el servidor les ignora lo tecleado, así que dejarlos
+ * escribir sería prometerles algo que no pasa.
+ */
+export const costoEditable = (fila, esGerente) => esGerente && !fila.conReceta;
+
 function ModalEntradaPan({ onSuccess, onCancel }) {
+  const esGerente = auth.getUser()?.role === 'Gerente';
   const [productos, setProductos] = useState([]);
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [notas, setNotas] = useState('');
@@ -149,8 +159,8 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
   const updateFila = (id, campos) =>
     setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
 
-  // Al elegir producto se precarga su costo de catálogo. Editable SOLO si el pan
-  // no tiene receta: con receta el costo sale de los ingredientes y sus precios de
+  // Al elegir producto se precarga su costo de catálogo. Editable SOLO para el
+  // Gerente y si el pan no tiene receta (`costoEditable`): con receta el costo sale de los ingredientes y sus precios de
   // compra, y el servidor ignora lo que se teclee aquí — pedirlo sería mentir.
   const elegirProducto = async (id, texto) => {
     const prod = catalogo[resolverItemCode(texto, productos)];
@@ -185,7 +195,7 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
       setErrorModal({
         isOpen: true,
         title: 'Falta el costo',
-        message: `Sin costo no se puede valuar la entrada: ${sinCosto.map(f => catalogo[f.item_code]?.item_name || f.item_code).join(', ')}. Captúralo aquí o en el catálogo del producto.`,
+        message: `Sin costo no se puede valuar la entrada: ${sinCosto.map(f => catalogo[f.item_code]?.item_name || f.item_code).join(', ')}. ${esGerente ? 'Captúralo aquí o en el catálogo del producto.' : 'Pídele al Gerente que lo capture en el catálogo del producto.'}`,
       });
       return;
     }
@@ -264,10 +274,10 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
                     <input type="number" className="nc-input" min="0" step="0.01"
                       placeholder="Del catálogo"
                       value={fila.costo}
-                      readOnly={fila.conReceta}
+                      readOnly={!costoEditable(fila, esGerente)}
                       title={fila.conReceta
                         ? 'Sale de la receta: se cambia editando la receta en Producción'
-                        : undefined}
+                        : !esGerente ? 'El costo lo cambia solo el Gerente, en el catálogo' : undefined}
                       onChange={e => updateFila(fila._id, { costo: e.target.value })} />
                     {fila.conReceta && <small className="nc-hint">de la receta</small>}
                   </td>

@@ -4,6 +4,7 @@ import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoPan.css';
 import { claveImpuesto } from '../config/impuestos';
 import { produccionService } from '../services/frappeProduccion';
+import { auth } from '../services/frappeAuth';
 import { numero } from '../utils/formato';
 
 /**
@@ -88,6 +89,9 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
   } = useInsumoForm({ editItem, onSuccess, tipoFijo: 'PRODUCTO TERMINADO' });
 
   const costo = formData.custom_costo_estimado;
+  // Candado del costo (10-sep): solo el Gerente lo cambia. El servidor rechaza
+  // el cambio de cualquier otro nivel; aquí solo se evita prometer lo contrario.
+  const esGerente = auth.getUser()?.role === 'Gerente';
 
   // La receta es la fuente de la verdad del costo: si el pan tiene BOM activo,
   // ese número sale de los ingredientes y sus precios de compra reales. Dejarlo
@@ -308,15 +312,17 @@ function NuevoPan({ onSuccess, onCancel, editItem = null }) {
               <div className="pan-field">
                 <label htmlFor="pan-costo">
                   Costo por pieza ($){' '}
-                  <span className="pan-opcional">{costoReceta ? 'de la receta' : 'opcional'}</span>
+                  <span className="pan-opcional">{costoReceta ? 'de la receta' : esGerente ? 'opcional' : 'solo Gerente'}</span>
                 </label>
                 <input id="pan-costo" type="number" name="custom_costo_estimado"
                   value={costoReceta ? costoReceta.costoPorUnidad.toFixed(2) : formData.custom_costo_estimado}
-                  onChange={handleChange} readOnly={Boolean(costoReceta)}
+                  onChange={handleChange} readOnly={Boolean(costoReceta) || !esGerente}
                   placeholder="Déjalo en blanco si aún no lo sabes" min="0" step="0.01" />
                 <small>
                   {costoReceta
                     ? `Sale de la receta: ${costoReceta.cantidadProducida} ${costoReceta.uom} cuestan $${numero(costoReceta.costoTotal, 2)} de materia prima. Para cambiarlo, edita la receta en Producción — aquí no se toca para que no haya dos costos del mismo pan.`
+                    : !esGerente
+                      ? 'El costo del pan lo cambia solo el Gerente: con él se valúa el inventario.'
                     : parseFloat(formData.custom_costo_estimado) > 0
                       ? 'Lo que cuesta producir una pieza. Con esto se valúa la entrada de pan sin receta y se calcula el margen de arriba. En cuanto el pan tenga receta, el costo sale de ahí y este campo se bloquea.'
                       : 'Si todavía no lo sacas, guárdalo así y captúralo después en Editar. Mientras tanto: la entrada de pan te va a pedir el costo cada vez, y no se puede calcular el margen. El pan queda marcado en la lista como «falta costo» para que lo encuentres.'}

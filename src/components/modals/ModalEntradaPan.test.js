@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { itemsPayload, calcularValor, resolverItemCode, filasDesdePedido, hoyISO, costoTexto } from './ModalEntradaPan';
+import { itemsPayload, calcularValor, resolverItemCode, filasDesdePedido, hoyISO, costoTexto, costoEditable } from './ModalEntradaPan';
 
 /**
  * Reglas que se están probando, en español:
@@ -164,5 +164,19 @@ describe('costoTexto — dinero sin ruido de coma flotante', () => {
     expect(costoTexto(0)).toBe('');
     expect(costoTexto(undefined)).toBe('');
     expect(costoTexto('')).toBe('');
+  });
+});
+
+describe('costoEditable — candado del costo (10-sep): solo el Gerente teclea', () => {
+  it('🔴 quien no es Gerente NO puede teclear, aunque el pan no tenga receta', () => {
+    expect(costoEditable({ conReceta: false }, false)).toBe(false);
+    expect(costoEditable({}, false)).toBe(false);
+  });
+  it('el Gerente sí, si el pan no tiene receta', () => {
+    expect(costoEditable({ conReceta: false }, true)).toBe(true);
+    expect(costoEditable({}, true)).toBe(true);
+  });
+  it('con receta nadie teclea: el costo sale de los ingredientes', () => {
+    expect(costoEditable({ conReceta: true }, true)).toBe(false);
   });
 });

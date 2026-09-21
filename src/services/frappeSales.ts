@@ -187,7 +187,7 @@ class FrappeSalesService extends FrappeBase {
         'custom_impuesto', 'custom_tipo_item', 'custom_departamento',
         'custom_cantidad_por_presentación', 'custom_presentación',
         'custom_precio_de_venta', 'custom_precio_por_kg', 'standard_rate',
-        'valuation_rate', 'custom_vendible_b2b',
+        'valuation_rate', 'custom_vendible_b2b', 'custom_almacen_produccion',
       ]),
       filters: JSON.stringify(filters),
       limit_page_length: '20',
@@ -253,7 +253,9 @@ class FrappeSalesService extends FrappeBase {
         qty: parseFloat(item.qty),
         rate: parseFloat(item.rate),
         uom: item.uom,
-        warehouse: BODEGA_CENTRAL,
+        // El servidor lo fija igual (sales_invoice.almacen_de_salida); se manda
+        // el mismo para que el borrador diga la verdad.
+        warehouse: item.almacen || BODEGA_CENTRAL,
         conversion_factor: 1,
         description: 'Impuesto: ' + (item.impuesto_label || 'Tasa 0'),
       })),

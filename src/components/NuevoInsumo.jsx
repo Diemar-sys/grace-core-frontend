@@ -2,6 +2,7 @@ import ModalError from './modals/ModalError';
 import useInsumoForm from '../hooks/useInsumoForm';
 import '../styles/NuevoInsumo.css';
 import { numero } from '../utils/formato';
+import { auth } from '../services/frappeAuth';
 
 function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
   const {
@@ -328,10 +329,12 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
                 </div>
                 <div className="form-group">
                   <label>Costo estimado por pieza ($)</label>
+                  {/* Candado del costo (10-sep): solo el Gerente; el servidor rechaza a los demás. */}
                   <input type="number" name="custom_costo_estimado"
                     value={formData.custom_costo_estimado}
+                    readOnly={auth.getUser()?.role !== 'Gerente'}
                     onChange={handleChange} placeholder="Ej: 1.80" min="0" step="0.01" />
-                  <small>Lo que cuesta producir una pieza. Se usa para valuar la entrada de pan sin receta; sin él hay que teclearlo en cada entrada.</small>
+                  <small>Lo que cuesta producir una pieza. Se usa para valuar la entrada de pan sin receta. Solo el Gerente lo cambia.</small>
                 </div>
               </div>
             </div>

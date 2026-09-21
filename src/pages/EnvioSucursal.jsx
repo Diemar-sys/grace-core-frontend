@@ -5,6 +5,8 @@ import Layout from "../components/Layout";
 import ReposicionInsumos from "../components/ReposicionInsumos";
 import NuevoEnvioSucursal from "../components/NuevoEnvioSucursal";
 import ModalHojaEntrega from "../components/modals/ModalHojaEntrega";
+import ModalEntradaPan from "../components/modals/ModalEntradaPan";
+import ModalError from "../components/modals/ModalError";
 import ConfirmModal from "../components/modals/ConfirmModal";
 import useConfirmModal from "../hooks/useConfirmModal";
 import { stockService } from "../services/frappeStock";
@@ -49,7 +51,8 @@ function EnvioSucursal() {
   const [loading, setLoading] = useState(true);
   const [filaExpandida, setFilaExpandida] = useState({});
 
-  const [modal, setModal] = useState(null); // null | 'nuevo'
+  const [modal, setModal] = useState(null); // null | 'nuevo' | 'entradaPan'
+  const [aviso, setAviso] = useState('');
   // Las dos caras del mismo tema: lo que ya mandé y lo que me falta mandar.
   // Vive aquí y no en una pantalla aparte porque la pregunta «¿a quién le toca?»
   // se contesta justo antes de abrir un envío, no en otro rincón del menú.
@@ -264,6 +267,13 @@ function EnvioSucursal() {
                 + Nuevo Envío
               </button>
             )}
+            {/* Operaciones da entrada al pan aquí: Producción es solo del Gerente
+                (decisión 10-sep). Primero se hornea y se da entrada, luego se envía. */}
+            {!soloLectura && (
+              <button className="btn-refresh" onClick={() => setModal('entradaPan')}>
+                + Entrada de Pan
+              </button>
+            )}
             <button className="btn-refresh" onClick={() => cargar()}>
               Actualizar
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -408,6 +418,18 @@ function EnvioSucursal() {
           </div>
         </div>
       )}
+
+      {modal === 'entradaPan' && (
+        <ModalEntradaPan
+          onSuccess={(res) => {
+            setModal(null);
+            setAviso(`Entrada registrada: ${res?.name} · ${res?.renglones} producto(s)`);
+          }}
+          onCancel={() => setModal(null)}
+        />
+      )}
+
+      <ModalError isOpen={Boolean(aviso)} type="success" message={aviso} onClose={() => setAviso('')} />
 
       {hojaData && (
         <ModalHojaEntrega

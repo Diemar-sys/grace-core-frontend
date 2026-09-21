@@ -15,6 +15,7 @@ import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal, getTasa } from '../con
 import { partirImpuesto } from './compras/compraUtils';
 import '../styles/NuevaCompra.css';
 import { numero } from '../utils/formato';
+import { almacenDeSalida, esPan } from '../utils/almacenSalida';
 
 /**
  * Precio B2B por unidad base, SIN impuesto (el impuesto se suma encima al vender).
@@ -22,11 +23,14 @@ import { numero } from '../utils/formato';
  *    Se le quita aquí para que base + impuesto = precio de tienda. Regla de Diemar
  *    17-sep: el abarrote se vende igual en tienda y en B2B. Antes se cobraba el
  *    impuesto encima del precio de tienda (VELAS $40.02 → $46.42). El backend
- *    (sales_invoice.validar_precio_abarrote) rechaza la venta si este rate no cuadra.
+ *    (sales_invoice.validar_precio_de_tienda) rechaza la venta si este rate no cuadra.
+ *  • Pan: igual que el abarrote, al precio de SUCURSAL con el IEPS adentro, a
+ *    cualquier cliente B2B (Diemar 21-sep; si por fuera negocian otro precio, no
+ *    es asunto del sistema).
  *  • Materia prima: al COSTO sin impuesto (precio_por_kg). Modelo 2026-05-20.
  */
 export function precioB2B(item, esAbarrote) {
-  if (esAbarrote && item.custom_precio_de_venta) {
+  if ((esAbarrote || esPan(item)) && item.custom_precio_de_venta) {
     return parseFloat(item.custom_precio_de_venta) / (1 + getTasa(item.custom_impuesto));
   }
   const precio = item.custom_precio_por_kg || item.custom_precio_de_venta || item.standard_rate;
@@ -97,7 +101,8 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
         if (doc.items?.length) {
           // Fetch catálogo para rehidratar cantidad_por_presentación + presentación
           const codes = [...new Set(doc.items.map(i => i.item_code).filter(Boolean))];
-          const catFields = ['item_code', 'custom_cantidad_por_presentación', 'custom_presentación', 'stock_uom'];
+          const catFields = ['item_code', 'custom_cantidad_por_presentación', 'custom_presentación', 'stock_uom',
+            'custom_tipo_item', 'custom_departamento', 'custom_almacen_produccion'];
           const catParams = new URLSearchParams({
             fields: JSON.stringify(catFields),
             filters: JSON.stringify([['name', 'in', codes]]),
@@ -127,6 +132,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
               precio_catalogo: '',
               cantidad_por_presentacion: cantPres,
               presentacion: m.custom_presentación || '',
+              almacen: almacenDeSalida(m),
               stock: null,
               stockLoading: true,
               impuesto_key: imp.key,
@@ -136,11 +142,11 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
           });
           setFilas(filasRehidratadas);
 
-          // Fetch stock Bodega Central por item. Cada promesa RETORNA {id, stock}
-          // (no muta acá) → se aplica todo en un solo setFilas (un solo render).
+          // Stock por item en SU almacén de salida (el pan no vive en Bodega Central).
+          // Cada promesa RETORNA {id, stock} (no muta acá) → un solo setFilas.
           const resultados = await Promise.allSettled(
             filasRehidratadas.map(async (f) => {
-              const bin = await stockService.getStockBin(f.item_code, BODEGA_CENTRAL);
+              const bin = f.almacen ? await stockService.getStockBin(f.item_code, f.almacen) : null;
               const stockEnUnidad = parseFloat(bin?.actual_qty || 0); // Bin ya en unidad base (igual que alta)
               return { id: f._id, stock: stockEnUnidad };
             })
@@ -228,20 +234,20 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
     if (!cliente.name) { setError('Selecciona un cliente'); return null; }
     const validos = filas.filter(f => f.item_code && parseFloat(f.qty) > 0 && parseFloat(f.rate) >= 0);
     if (!validos.length) { setError('Agrega al menos un producto con cantidad y precio'); return null; }
-    // Stock disponible Bodega Central — agrupa por item para sumar filas duplicadas.
+    // Stock disponible en el almacén de salida — agrupa por item para sumar filas duplicadas.
     const agregado = {};
     validos.forEach(f => {
-      if (!agregado[f.item_code]) agregado[f.item_code] = { item_name: f.item_name, uom: f.uom, stock: f.stock, qty: 0 };
+      if (!agregado[f.item_code]) agregado[f.item_code] = { item_name: f.item_name, uom: f.uom, stock: f.stock, almacen: f.almacen || BODEGA_CENTRAL, qty: 0 };
       agregado[f.item_code].qty += parseFloat(f.qty || 0);
     });
     const sinStock = Object.values(agregado).filter(a => a.stock != null && a.qty > parseFloat(a.stock));
     if (sinStock.length) {
       const lista = sinStock.map(a =>
-        `• ${a.item_name}: pides ${numero(a.qty, 2)} ${a.uom || ''}, hay ${a.stock} ${a.uom || ''}`
+        `• ${a.item_name}: pides ${numero(a.qty, 2)} ${a.uom || ''}, hay ${a.stock} ${a.uom || ''} en ${a.almacen}`
       ).join('\n');
       setErrorModal({
         isOpen: true,
-        message: `Stock insuficiente en Bodega Central:\n\n${lista}`,
+        message: `Stock insuficiente:\n\n${lista}`,
       });
       return null;
     }
@@ -513,10 +519,9 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
       const res = await ventasService.buscarItems(texto);
       // PUERTA REAL recibe su materia prima por transferencia, no por venta:
       // se oculta del buscador. Otros clientes (DELI, ZAKIA) sí compran MP.
-      // Pan terminado (PRODUCTO TERMINADO) se bloquea en B2B hasta tener
-      // Price List por canal (precio capturado manual, no calculado).
+      // El pan SÍ se vende a cualquier cliente B2B, al precio de sucursal
+      // (Diemar 21-sep). Antes se bloqueaba aquí "hasta tener precio por canal".
       const filtrado = res.filter(it => {
-        if (it.custom_tipo_item === 'PRODUCTO TERMINADO') return false;
         // Puerta Real recibe su MATERIA PRIMA por transferencia → se oculta.
         // EXCEPTO: abarrotes (reventa) y MP marcada "Vendible a sucursales" (B2B),
         // que la oficina habilita item por item desde el Catálogo.
@@ -556,7 +561,9 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     // Tras la migración UOM, precio_de_venta y precio_por_kg ya son POR UNIDAD BASE
     // (no por presentación) → no se divide entre cantPres.
     const ratePorUnidad = precioB2B(item, inventory.esProductoParaVenta(item.item_group));
+    const almacen = almacenDeSalida(item);
     onChange({
+      almacen,
       item_code: item.item_code,
       item_name: item.item_name,
       uom: item.stock_uom,
@@ -571,9 +578,9 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     setCursor(-1);
     setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
 
-    // Fetch stock disponible Bodega Central
+    // Stock disponible en el almacén de salida (el pan, en el de su departamento)
     try {
-      const bin = await stockService.getStockActual(item.item_code, BODEGA_CENTRAL);
+      const bin = almacen ? await stockService.getStockActual(item.item_code, almacen) : null;
       const stockEnUnidad = parseFloat(bin?.actual_qty || 0); // Bin ya en unidad base
       onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
     } catch (err) {

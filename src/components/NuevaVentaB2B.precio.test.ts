@@ -70,3 +70,22 @@ describe('precioB2B — el abarrote cuesta lo mismo en B2B que en tienda', () =>
     expect(precioB2B({}, false)).toBe(0);
   });
 });
+
+describe('precioB2B — el pan se vende a cualquier cliente B2B al precio de sucursal (21-sep)', () => {
+  const CONCHA = { custom_tipo_item: 'PRODUCTO TERMINADO', custom_precio_de_venta: '14', custom_impuesto: 'ieps' };
+  const BOLILLO = { custom_tipo_item: 'PRODUCTO TERMINADO', custom_precio_de_venta: '3', custom_impuesto: 'tasa0' };
+  const totalPan = (item: any, qty: number) => {
+    const imp = IMPUESTOS_MAP[item.custom_impuesto as keyof typeof IMPUESTOS_MAP];
+    // El componente llama precioB2B con esAbarrote=false para el pan: la regla vive en precioB2B.
+    const fila = { qty, rate: precioB2B(item, false).toFixed(6), impuesto_key: imp.key, impuesto_label: imp.label, impuesto_rate: imp.rate };
+    return calcularTotalesVenta([fila]).total;
+  };
+
+  it('🔴 el IEPS va ADENTRO: 40 conchas de $14 cuestan $560, no $604.80', () => {
+    expect(totalPan(CONCHA, 1)).toBeCloseTo(14, 2);
+    expect(totalPan(CONCHA, 40)).toBeCloseTo(560, 2);
+  });
+  it('pan en tasa 0 no se divide', () => {
+    expect(precioB2B(BOLILLO, false)).toBe(3);
+  });
+});
