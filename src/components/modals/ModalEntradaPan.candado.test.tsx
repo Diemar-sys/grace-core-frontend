@@ -13,6 +13,7 @@ vi.mock('../../services/frappeProduccion', () => ({
       { item_code: '1050', item_name: 'CHORREADA', custom_costo_estimado: 3.0449999999999995 },
     ]),
     costoRecetaHoy: vi.fn(),
+    entradoHoy: vi.fn().mockResolvedValue({}),
     registrarEntradaPan: vi.fn(),
   },
 }));

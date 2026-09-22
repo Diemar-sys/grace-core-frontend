@@ -440,6 +440,18 @@ class FrappeProduccionService extends FrappeBase {
    * captura a mano.
    * @param {string} itemCode - Código del pan.
    */
+  async entradoHoy(fecha: string): Promise<Record<string, number>> {
+    // Pan que ya entró ese día: la 2a Entrada de Pan precarga solo lo que falta.
+    const res = await this._fetch(
+      '/api/method/gestion_panaderia.api.produccion_api.entrado_hoy'
+      + `?fecha=${encodeURIComponent(fecha)}`,
+    );
+    return res.message || {};
+  }
+
+  /**
+   * Costo de la receta de un pan con los precios de hoy (ver arriba).
+   */
   async costoRecetaHoy(itemCode: string) {
     const res = await this._fetch(
       '/api/method/gestion_panaderia.api.bom_costeo.costo_receta_hoy'

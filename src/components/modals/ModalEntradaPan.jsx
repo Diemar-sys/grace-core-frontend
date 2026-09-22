@@ -35,16 +35,25 @@ export const hoyISO = (d = new Date()) =>
  * servidor ignora el costo tecleado cuando el pan tiene receta (`_resolver_costo`),
  * así que preguntarlo no cambiaría el resultado.
  */
-export function filasDesdePedido(renglones, catalogo) {
+export function filasDesdePedido(renglones, catalogo, entrado = {}) {
+  // 🔴 21-sep: precarga `pedido − lo que YA entró hoy`. Antes la 2a entrada del día
+  // volvía a traer el pedido completo y guardar sin mirar duplicaba la hornada
+  // (250 conchas → 500). El pan cuyo pedido ya entró completo no se precarga; si
+  // salió de más del horno, se captura a mano como siempre.
   return (renglones || [])
     .filter(r => catalogo[r.clave])
-    .map(r => ({
-      _id: `ped-${r.clave}`,
-      item_code: r.clave,
-      qty: String(r.total ?? ''),
-      costo: costoTexto(catalogo[r.clave]?.custom_costo_estimado),
-      pedido: r.total ?? null,
-    }));
+    .map(r => {
+      const yaEntro = entrado[r.clave] || 0;
+      return {
+        _id: `ped-${r.clave}`,
+        item_code: r.clave,
+        qty: String((r.total ?? 0) - yaEntro),   // ≤ 0 lo descarta el filtro de abajo
+        costo: costoTexto(catalogo[r.clave]?.custom_costo_estimado),
+        pedido: r.total ?? null,
+        yaEntro,
+      };
+    })
+    .filter(f => parseFloat(f.qty) > 0);
 }
 
 const fmtMoney = (n) =>
@@ -135,17 +144,26 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
       // pantalla sigue sirviendo a mano: no encontrarlo no es un error.
       const mapa = Object.fromEntries(cat.map(p => [p.item_code, p]));
       try {
-        const ped = await pedidoService.consultar(hoyISO());
+        // Sin saber qué ya entró hoy NO se precarga: precargar el pedido completo
+        // es justo lo que duplicaba la hornada.
+        const [ped, entrado] = await Promise.all([
+          pedidoService.consultar(hoyISO()),
+          produccionService.entradoHoy(hoyISO()),
+        ]);
         if (!vivo) return;
-        const filasPed = filasDesdePedido(ped?.renglones, mapa);
+        const filasPed = filasDesdePedido(ped?.renglones, mapa, entrado);
         if (!filasPed.length) {
-          setAvisoPedido('No hay pedido cargado para hoy: captura la hornada a mano.');
+          setAvisoPedido(ped?.renglones?.length
+            ? 'Ya entró todo lo pedido hoy: captura a mano solo lo que salió de más.'
+            : 'No hay pedido cargado para hoy: captura la hornada a mano.');
           return;
         }
         setFilas(filasPed);
-        setAvisoPedido(`Precargado del pedido de hoy (${filasPed.length} panes). Corrige lo que salió distinto del horno.`);
+        setAvisoPedido(Object.keys(entrado).length
+          ? `Precargado lo que falta del pedido de hoy (${filasPed.length} panes): ya se descontó lo que entró antes.`
+          : `Precargado del pedido de hoy (${filasPed.length} panes). Corrige lo que salió distinto del horno.`);
       } catch {
-        if (vivo) setAvisoPedido('No se pudo leer el pedido de hoy: captura la hornada a mano.');
+        if (vivo) setAvisoPedido('No se pudo leer el pedido de hoy o lo que ya entró: captura la hornada a mano.');
       }
     })();
     return () => { vivo = false; };
@@ -266,7 +284,8 @@ function ModalEntradaPan({ onSuccess, onCancel }) {
                     {fila.pedido != null && (
                       <small className="nc-th-hint">
                         pedido: {fila.pedido}
-                        {parseFloat(fila.qty) !== fila.pedido && ' · corregido'}
+                        {fila.yaEntro > 0 && ` · ya entró ${fila.yaEntro}`}
+                        {parseFloat(fila.qty) !== fila.pedido - (fila.yaEntro || 0) && ' · corregido'}
                       </small>
                     )}
                   </td>

@@ -129,6 +129,20 @@ describe('filasDesdePedido — la hoja precarga, no decide', () => {
     expect(filasDesdePedido([], CATALOGO)).toEqual([]);
   });
 
+  it('🔴 la 2a entrada del día precarga solo lo que FALTA, no el pedido otra vez', () => {
+    // Ya entraron 100 bolillos de 120 y toda la mantecada: quedan 20 bolillos y la galleta.
+    const filas = filasDesdePedido(RENGLONES, CATALOGO, { MP_BOLILLO: 100, MP_MANTECADA_GDE: 40 });
+    expect(filas.map(f => [f.item_code, f.qty])).toEqual([['MP_BOLILLO', '20'], ['MP_SIN_COSTO', '12']]);
+    const [bolillo] = filas;
+    expect(bolillo.pedido).toBe(120);
+    expect(bolillo.yaEntro).toBe(100);
+  });
+
+  it('si entró MÁS de lo pedido no precarga negativos', () => {
+    const filas = filasDesdePedido(RENGLONES, CATALOGO, { MP_BOLILLO: 150 });
+    expect(filas.map(f => f.item_code)).not.toContain('MP_BOLILLO');
+  });
+
   it('lo precargado pasa el filtro de itemsPayload', () => {
     const filas = filasDesdePedido(RENGLONES, CATALOGO);
     expect(itemsPayload(filas).map(i => i.item_code))

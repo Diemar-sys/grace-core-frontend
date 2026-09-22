@@ -32,6 +32,18 @@ const CUBETAS: { key: CubetaKey; nombre: string; badge: string; nota: string }[]
     nota: 'Pan que ya nadie espera. Es merma en camino si nadie lo mueve.' },
 ];
 
+/**
+ * Avance del reparto del día. Los clientes CUENTAN: lo surtido a DELI o ZAKIA es
+ * lo que se les facturó ese día (21-sep; antes salían siempre en 0 y el día nunca
+ * llegaba al 100%). Un destino sin almacén ni cliente no suma: nadie lo puede surtir.
+ */
+export function avanceDelDia(destinos: Tablero['destinos']) {
+  const surtibles = destinos.filter((d) => d.estado === 'almacen' || d.estado === 'cliente');
+  const pedido = surtibles.reduce((a, d) => a + d.pedido, 0);
+  const enviado = surtibles.reduce((a, d) => a + d.enviado, 0);
+  return { pedido, enviado, avance: pedido ? Math.round((enviado / pedido) * 100) : 0 };
+}
+
 export default function ConsultaTablero() {
   const [fechas, setFechas] = useState<FechaPedido[]>([]);
   const [fecha, setFecha] = useState('');
@@ -61,10 +73,7 @@ export default function ConsultaTablero() {
     return () => { vigente = false; };
   }, [fecha]);
 
-  const conAlmacen = (tablero?.destinos ?? []).filter((d) => d.estado === 'almacen');
-  const pedido = conAlmacen.reduce((a, d) => a + d.pedido, 0);
-  const enviado = conAlmacen.reduce((a, d) => a + d.enviado, 0);
-  const avance = pedido ? Math.round((enviado / pedido) * 100) : 0;
+  const { pedido, enviado, avance } = avanceDelDia(tablero?.destinos ?? []);
   const filas: (FilaTablero | Sobra)[] = tablero?.[cubeta] ?? [];
 
   return (
@@ -140,7 +149,7 @@ export default function ConsultaTablero() {
                           {d.estado === 'almacen' ? d.almacen : (
                             <span className={`ped-badge ${d.estado === 'cliente' ? 'info' : 'bad'}`}>
                               {d.estado === 'cliente'
-                                ? 'Es cliente: se le vende'
+                                ? `Cliente ${d.cliente ?? ''}: se le vende`
                                 : 'Almacén sin definir'}
                             </span>
                           )}
@@ -149,7 +158,7 @@ export default function ConsultaTablero() {
                         <td className="cell-right">{num(d.enviado)}</td>
                         <td className="cell-right">{falta ? num(falta) : '—'}</td>
                         <td className="cell-right">
-                          {d.estado === 'almacen' ? (
+                          {d.estado !== 'sin_almacen' ? (
                             <span className={`ped-badge ${pct >= 100 ? 'ok' : pct ? 'warn' : 'bad'}`}>
                               {pct}%
                             </span>

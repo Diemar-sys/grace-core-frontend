@@ -114,7 +114,9 @@ export interface Tablero {
   destinos: {
     destino: string;
     almacen: string | null;
-    estado: 'almacen' | 'por_definir' | 'cliente';
+    /** Customer al que se le vende (clientes de la hoja); lo surtido es lo facturado ese día. */
+    cliente?: string | null;
+    estado: 'almacen' | 'sin_almacen' | 'cliente';
     pedido: number;
     enviado: number;
   }[];
