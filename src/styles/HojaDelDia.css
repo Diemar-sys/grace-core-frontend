@@ -1,0 +1,190 @@
+/* src/styles/HojaDelDia.css — Hoja del día (Light Bento Grid) */
+
+.hoja-dia {
+  padding: 1.5rem;
+  /* la hoja trae ~200 panes: todo el ancho, como el Excel (23-sep) */
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.hoja-dia__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.hoja-dia__cabecera h1 { margin: 0; color: #1f2937; }
+.hoja-dia__sub { margin: 0.25rem 0 0; color: #6b7280; font-size: 0.9rem; }
+
+.hoja-dia__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.hoja-dia__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.hoja-dia__campo input,
+.hoja-dia__campo select {
+  border: 1px solid var(--color-brand-light);
+  border-radius: var(--radius-input);
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.9rem;
+}
+
+.hoja-dia__campo--destino select { min-width: 22rem; max-width: 100%; }
+
+.hoja-badge {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.hoja-badge--gris { background: #f3f4f6; color: #4b5563; }
+.hoja-badge--ambar { background: #ffedd5; color: #9a3412; }
+.hoja-badge--verde { background: #dcfce7; color: #166534; }
+
+.hoja-dia__detalle {
+  background: #ffffff;
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.75rem;
+}
+
+.hoja-dia__detalle-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hoja-dia__detalle-cabecera h2 { margin: 0; color: #1f2937; }
+
+.hoja-dia__cobrado {
+  margin: 0;
+  display: inline-block;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: var(--radius-pill);
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hoja-bloque { margin-top: 1.5rem; }
+.hoja-bloque h3 { color: #1f2937; font-size: 0.95rem; margin: 0 0 0.5rem; }
+
+.hoja-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.hoja-tabla th {
+  text-align: left;
+  color: #6b7280;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.hoja-tabla td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+.hoja-tabla input[type='number'] {
+  width: 5.5rem;
+  border: 1px solid var(--color-brand-light);
+  border-radius: var(--radius-input);
+  padding: 0.35rem 0.5rem;
+}
+
+.hoja-tabla input[disabled] {
+  background: #f9fafb;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+/* pan de la pestaña que ese destino no pidió: se ve, pero atrás de lo pedido */
+.hoja-fila--sin-pedido td { color: #9ca3af; }
+
+.hoja-resumen-camioneta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-brand-bg);
+  border-radius: var(--radius-card);
+}
+
+.hoja-resumen-camioneta div { display: flex; flex-direction: column; gap: 0.2rem; }
+.hoja-resumen-camioneta span { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; }
+.hoja-resumen-camioneta strong { font-size: 1.1rem; color: #1f2937; }
+
+.hoja-dia__total {
+  text-align: right;
+  margin-top: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* con ~200 renglones los botones se quedan a la vista al bajar */
+.hoja-dia__acciones {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem 0;
+  background: #ffffff;
+}
+
+.hoja-btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.7rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.hoja-btn:hover { transform: translateY(-2px); }
+.hoja-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.hoja-btn--secundario {
+  background: var(--color-brand-bg);
+  color: var(--color-brand);
+  border: 1px solid var(--color-brand-light);
+}
+
+.hoja-btn--primario {
+  background: var(--color-brand);
+  color: #ffffff;
+  box-shadow: var(--shadow-btn);
+}
+
+@media (max-width: 860px) {
+  .hoja-dia__campo--destino select { min-width: 0; width: 100%; }
+  .hoja-dia__campo--destino { flex: 1 1 100%; }
+}

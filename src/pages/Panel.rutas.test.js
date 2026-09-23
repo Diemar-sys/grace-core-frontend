@@ -23,6 +23,14 @@ describe('tiles de Operaciones contra el guard de rutas', () => {
     const sinTile = [...modulosDeAlgunNivel].filter((k) => !tiles.has(k) && k !== 'nomina');
     expect(sinTile).toEqual([]);
   });
+
+  // Héctor (Operaciones) es quien cobra la hoja del día. El check genérico de
+  // arriba pasa con que ALGÚN nivel tenga 'hoja' (Gerente ya lo tiene), y por
+  // eso no cacha si Operaciones se queda sin ella: se pide aparte.
+  it('Operaciones tiene la Hoja del día (módulo y ruta)', () => {
+    expect(ROLES.Operaciones.modulosPanel).toContain('hoja');
+    expect(ROLES.Operaciones.rutas).toContain('/hoja');
+  });
 });
 
 // Los tiles de Consultas rebotan igual: la ruta base (sin ?modo=consulta) tiene

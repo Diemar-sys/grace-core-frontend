@@ -31,7 +31,8 @@ describe('ModalRegistrarPago — productos de la deuda', () => {
     getFacturaItems.mockReset();
     registrarPago.mockReset();
     getFacturaItems.mockResolvedValue([
-      { item_code: '1050', item_name: 'CHORREADA', qty: 40, uom: 'Pza', rate: 12, amount: 480 },
+      { item_code: '1050', item_name: 'CHORREADA', qty: 40, uom: 'Pza', rate: 12.962963, amount: 518.51852,
+        precio: 14, importe: 560 },
     ] as never);
   });
 
@@ -40,6 +41,10 @@ describe('ModalRegistrarPago — productos de la deuda', () => {
     fireEvent.click(renglon('#56'));
     expect(await screen.findByText('CHORREADA')).toBeTruthy();
     expect(getFacturaItems).toHaveBeenCalledWith('ACC-SINV-1');
+    // 23-sep: se pinta lo que paga el cliente (con impuesto), no la base de ERPNext
+    expect(screen.getByText('$14.00')).toBeTruthy();
+    expect(screen.getByText('$560.00')).toBeTruthy();
+    expect(screen.queryByText('$12.96')).toBeNull();
 
     fireEvent.click(renglon('#56'));             // cerrar
     expect(screen.queryByText('CHORREADA')).toBeNull();

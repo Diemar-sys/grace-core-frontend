@@ -67,10 +67,10 @@
   color: var(--color-success);
 }
 
-/* ── Totales: tres bloques flotando ─────────────────────────────────── */
+/* ── Totales: 2 a 4 bloques flotando (sin comisión si no hubo venta) ─── */
 .liq-totales {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
 }
 

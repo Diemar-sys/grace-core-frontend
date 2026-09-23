@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { precioB2B, precioConImpuesto } from './NuevaVentaB2B';
+import { precioB2B, precioConImpuesto, visibleEnB2B } from './NuevaVentaB2B';
 import { calcularTotalesVenta } from '../services/frappeSales';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 
@@ -71,21 +71,24 @@ describe('precioB2B — el abarrote cuesta lo mismo en B2B que en tienda', () =>
   });
 });
 
-describe('precioB2B — el pan se vende a cualquier cliente B2B al precio de sucursal (21-sep)', () => {
-  const CONCHA = { custom_tipo_item: 'PRODUCTO TERMINADO', custom_precio_de_venta: '14', custom_impuesto: 'ieps' };
-  const BOLILLO = { custom_tipo_item: 'PRODUCTO TERMINADO', custom_precio_de_venta: '3', custom_impuesto: 'tasa0' };
-  const totalPan = (item: any, qty: number) => {
-    const imp = IMPUESTOS_MAP[item.custom_impuesto as keyof typeof IMPUESTOS_MAP];
-    // El componente llama precioB2B con esAbarrote=false para el pan: la regla vive en precioB2B.
-    const fila = { qty, rate: precioB2B(item, false).toFixed(6), impuesto_key: imp.key, impuesto_label: imp.label, impuesto_rate: imp.rate };
-    return calcularTotalesVenta([fila]).total;
-  };
-
-  it('🔴 el IEPS va ADENTRO: 40 conchas de $14 cuestan $560, no $604.80', () => {
-    expect(totalPan(CONCHA, 1)).toBeCloseTo(14, 2);
-    expect(totalPan(CONCHA, 40)).toBeCloseTo(560, 2);
+describe('precioB2B — el pan ya no se cobra por Venta B2B (Diemar 22-sep)', () => {
+  it('el pan no tiene precio B2B: se cobra desde la hoja', () => {
+    expect(precioB2B({ custom_tipo_item: 'PRODUCTO TERMINADO', custom_precio_de_venta: 14, custom_impuesto: 'ieps' }, false))
+      .not.toBeCloseTo(12.962963);
   });
-  it('pan en tasa 0 no se divide', () => {
-    expect(precioB2B(BOLILLO, false)).toBe(3);
+});
+
+describe('visibleEnB2B — qué items aparecen en el buscador de Venta B2B', () => {
+  it('el pan (PRODUCTO TERMINADO) no aparece: se cobra desde la Hoja del día', () => {
+    expect(visibleEnB2B({ custom_tipo_item: 'PRODUCTO TERMINADO' }, false)).toBe(false);
+    expect(visibleEnB2B({ custom_tipo_item: 'PRODUCTO TERMINADO' }, true)).toBe(false);
+  });
+  it('abarrote y materia prima sí aparecen sin bloqueaMP', () => {
+    expect(visibleEnB2B({ custom_tipo_item: 'ABARROTE' }, false)).toBe(true);
+    expect(visibleEnB2B({ custom_tipo_item: 'MATERIA PRIMA', item_group: 'Insumos' }, false)).toBe(true);
+  });
+  it('con bloqueaMP (PUERTA REAL), la materia prima que no es reventa ni vendible_b2b se oculta', () => {
+    expect(visibleEnB2B({ custom_tipo_item: 'MATERIA PRIMA', item_group: 'Insumos' }, true)).toBe(false);
+    expect(visibleEnB2B({ custom_tipo_item: 'MATERIA PRIMA', item_group: 'Insumos', custom_vendible_b2b: 1 }, true)).toBe(true);
   });
 });

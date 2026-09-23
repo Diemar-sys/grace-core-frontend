@@ -87,8 +87,3 @@ export function previsualizar(resumen: ResumenRuta, captura: Captura): Liquidaci
     [...(resumen.mermas ?? []), ...comoMovimiento('tiro')],
   );
 }
-
-/** ¿Ya se había cerrado el día? Sirve para no dejar capturar dos veces sin avisar. */
-export function yaTuvoCierre(resumen: ResumenRuta): boolean {
-  return Boolean(resumen.regresos?.length || resumen.mermas?.length);
-}

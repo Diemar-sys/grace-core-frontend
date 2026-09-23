@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import { ventasService, saldoCobrable } from '../services/frappeSales';
 
@@ -21,16 +21,31 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   const [estado, setEstado] = useState('pendiente');
   const [cliente, setCliente] = useState('todos');
   const [search, setSearch] = useState('');
+  // '' = todo. Filtra en la BASE (reportes_api.cuentas_por_cobrar), no en el
+  // navegador: la pantalla de cobro sin inventario necesita separar Pan
+  // (Hoja del día) de Abarrote/MP (Venta B2B) sin bajar toda la cartera.
+  const [tipo, setTipo] = useState('');
   const [pagoModal, setPagoModal] = useState(null);
   const [abonos, setAbonos] = useState({});      // customer -> [] | 'cargando'
   const [abierto, setAbierto] = useState(null);  // customer con el historial desplegado
+  const abortRef = useRef(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
-    try { setData(await ventasService.getCuentasPorCobrar()); }
-    catch (err) { console.error('Error CxC:', err); }
-    finally { setLoading(false); }
-  }, []);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const resultado = tipo
+        ? await ventasService.getCuentasPorCobrar(controller.signal, tipo)
+        : await ventasService.getCuentasPorCobrar(controller.signal);
+      setData(resultado);
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error CxC:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [tipo]);
 
   useEffect(() => { cargar(); }, [cargar]);
   useImperativeHandle(ref, () => ({ recargar: cargar }), [cargar]);
@@ -79,7 +94,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   // Abre el modal de cobro: trae las SI pendientes del cliente y arma el grupo FIFO.
   const abrirCobro = async (fila) => {
     try {
-      const facturasBrutas = await ventasService.getFacturasPendientes({ customer: fila.customer });
+      const facturasBrutas = await ventasService.getFacturasPendientes({ customer: fila.customer, tipo: tipo || undefined });
 
       // EL FILTRO ANTICOBRO
       // Limpiamos la basurilla decimal de Frappe y solo dejamos las que deban 1 centavo o más
@@ -108,6 +123,14 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
     <>
       <div className="cxc-barra">
         <div className="cxc-barra-filtros">
+          <div className="filtro-group filtro-sm filtro-pildora">
+            <label htmlFor="cxc-tipo">Tipo</label>
+            <select id="cxc-tipo" aria-label="Tipo" value={tipo} onChange={e => setTipo(e.target.value)}>
+              <option value="">TODO</option>
+              <option value="pan">PAN</option>
+              <option value="abarrote">MATERIA PRIMA</option>
+            </select>
+          </div>
           <div className="filtro-group filtro-sm">
             <label>Estado</label>
             <select value={estado} onChange={e => setEstado(e.target.value)}>

@@ -35,6 +35,7 @@ const ReporteCuentasPorCobrar = lazy(() => import('./pages/ReporteCuentasPorCobr
 const Nomina = lazy(() => import('./pages/Nomina'));
 const Cuentas = lazy(() => import('./pages/Cuentas'));
 const Auditoria = lazy(() => import('./pages/Auditoria'));
+const HojaDelDia = lazy(() => import('./pages/HojaDelDia'));
 
 function PageLoader() {
   return (
@@ -102,6 +103,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ConsultaTablero />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hoja"
+            element={
+              <ProtectedRoute>
+                <HojaDelDia />
               </ProtectedRoute>
             }
           />

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  cantidad, renglonesCaptura, excesos, previsualizar, yaTuvoCierre,
+  cantidad, renglonesCaptura, excesos, previsualizar,
   type Captura, type ResumenRuta,
 } from './cierreRuta';
 
@@ -106,13 +106,5 @@ describe('previsualizar', () => {
   it('sin capturar nada, vendido = todo lo que salió', () => {
     const liq = previsualizar(resumen(), {});
     expect(liq.totalVenta).toBe(880);          // 100×4 + 40×12
-  });
-});
-
-describe('yaTuvoCierre', () => {
-  it('distingue un día virgen de uno ya cerrado', () => {
-    expect(yaTuvoCierre(resumen())).toBe(false);
-    expect(yaTuvoCierre(resumen({ mermas: [{ item_code: 'BOLILLO', qty: 1 }] }))).toBe(true);
-    expect(yaTuvoCierre(resumen({ regresos: [{ item_code: 'BOLILLO', qty: 1 }] }))).toBe(true);
   });
 });

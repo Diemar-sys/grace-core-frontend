@@ -15,7 +15,9 @@ import { IMPUESTOS_MAP, desglosarImpuesto, grupoSubtotal, getTasa } from '../con
 import { partirImpuesto } from './compras/compraUtils';
 import '../styles/NuevaCompra.css';
 import { numero } from '../utils/formato';
-import { almacenDeSalida, esPan } from '../utils/almacenSalida';
+
+/** El pan ya no se vende por Venta B2B: se cobra desde la Hoja del día (Diemar 22-sep). */
+const esPan = (item) => (item?.custom_tipo_item || '').trim().toUpperCase() === 'PRODUCTO TERMINADO';
 
 /**
  * Precio B2B por unidad base, SIN impuesto (el impuesto se suma encima al vender).
@@ -24,17 +26,30 @@ import { almacenDeSalida, esPan } from '../utils/almacenSalida';
  *    17-sep: el abarrote se vende igual en tienda y en B2B. Antes se cobraba el
  *    impuesto encima del precio de tienda (VELAS $40.02 → $46.42). El backend
  *    (sales_invoice.validar_precio_de_tienda) rechaza la venta si este rate no cuadra.
- *  • Pan: igual que el abarrote, al precio de SUCURSAL con el IEPS adentro, a
- *    cualquier cliente B2B (Diemar 21-sep; si por fuera negocian otro precio, no
- *    es asunto del sistema).
  *  • Materia prima: al COSTO sin impuesto (precio_por_kg). Modelo 2026-05-20.
+ *  • Pan: el pan se cobra desde la Hoja del día, Diemar 22-sep — NO tiene precio
+ *    B2B; `visibleEnB2B` lo saca del buscador antes de que se pueda seleccionar.
  */
 export function precioB2B(item, esAbarrote) {
-  if ((esAbarrote || esPan(item)) && item.custom_precio_de_venta) {
+  if (esAbarrote && item.custom_precio_de_venta) {
     return parseFloat(item.custom_precio_de_venta) / (1 + getTasa(item.custom_impuesto));
   }
   const precio = item.custom_precio_por_kg || item.custom_precio_de_venta || item.standard_rate;
   return parseFloat(precio) || 0;
+}
+
+/**
+ * Qué items aparecen en el buscador de Venta B2B.
+ *  • Pan (`PRODUCTO TERMINADO`): nunca — se cobra desde la Hoja del día (22-sep).
+ *  • Materia prima con PUERTA REAL (`bloqueaMP`): oculta salvo reventa o
+ *    marcada "Vendible a sucursales" item por item desde el Catálogo.
+ */
+export function visibleEnB2B(it, bloqueaMP) {
+  if (esPan(it)) return false;
+  if (bloqueaMP && it.custom_tipo_item === 'MATERIA PRIMA'
+      && !inventory.esProductoParaVenta(it.item_group)
+      && !it.custom_vendible_b2b) return false;
+  return true;
 }
 
 const FILA_VACIA = () => ({
@@ -132,7 +147,9 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
               precio_catalogo: '',
               cantidad_por_presentacion: cantPres,
               presentacion: m.custom_presentación || '',
-              almacen: almacenDeSalida(m),
+              // El pan ya no se vende por B2B: todo lo que queda sale de Bodega
+              // Central (abarrote, materia prima). El servidor lo fija igual.
+              almacen: BODEGA_CENTRAL,
               stock: null,
               stockLoading: true,
               impuesto_key: imp.key,
@@ -142,8 +159,8 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
           });
           setFilas(filasRehidratadas);
 
-          // Stock por item en SU almacén de salida (el pan no vive en Bodega Central).
-          // Cada promesa RETORNA {id, stock} (no muta acá) → un solo setFilas.
+          // Stock en Bodega Central (único almacén B2B desde que el pan se cobra
+          // por la Hoja del día). Cada promesa RETORNA {id, stock} → un solo setFilas.
           const resultados = await Promise.allSettled(
             filasRehidratadas.map(async (f) => {
               const bin = f.almacen ? await stockService.getStockBin(f.item_code, f.almacen) : null;
@@ -517,19 +534,10 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const res = await ventasService.buscarItems(texto);
+      // El pan ya no se vende por B2B (se cobra desde la Hoja del día, 22-sep) y
       // PUERTA REAL recibe su materia prima por transferencia, no por venta:
-      // se oculta del buscador. Otros clientes (DELI, ZAKIA) sí compran MP.
-      // El pan SÍ se vende a cualquier cliente B2B, al precio de sucursal
-      // (Diemar 21-sep). Antes se bloqueaba aquí "hasta tener precio por canal".
-      const filtrado = res.filter(it => {
-        // Puerta Real recibe su MATERIA PRIMA por transferencia → se oculta.
-        // EXCEPTO: abarrotes (reventa) y MP marcada "Vendible a sucursales" (B2B),
-        // que la oficina habilita item por item desde el Catálogo.
-        if (bloqueaMP && it.custom_tipo_item === 'MATERIA PRIMA'
-            && !inventory.esProductoParaVenta(it.item_group)
-            && !it.custom_vendible_b2b) return false;
-        return true;
-      });
+      // la regla completa vive en visibleEnB2B.
+      const filtrado = res.filter(it => visibleEnB2B(it, bloqueaMP));
       setSugerencias(filtrado); setAbierto(true);
     }, 500);
   };
@@ -561,7 +569,9 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     // Tras la migración UOM, precio_de_venta y precio_por_kg ya son POR UNIDAD BASE
     // (no por presentación) → no se divide entre cantPres.
     const ratePorUnidad = precioB2B(item, inventory.esProductoParaVenta(item.item_group));
-    const almacen = almacenDeSalida(item);
+    // El buscador ya excluye el pan (visibleEnB2B): todo lo que llega aquí
+    // (abarrote, materia prima) sale de Bodega Central.
+    const almacen = BODEGA_CENTRAL;
     onChange({
       almacen,
       item_code: item.item_code,
@@ -578,7 +588,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     setCursor(-1);
     setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
 
-    // Stock disponible en el almacén de salida (el pan, en el de su departamento)
+    // Stock disponible en Bodega Central.
     try {
       const bin = almacen ? await stockService.getStockActual(item.item_code, almacen) : null;
       const stockEnUnidad = parseFloat(bin?.actual_qty || 0); // Bin ya en unidad base

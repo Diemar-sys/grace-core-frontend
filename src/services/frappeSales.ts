@@ -101,6 +101,25 @@ export function saldoCobrable(outstanding: any) {
   return v >= 0.01 ? parseFloat(outstanding) : 0;
 }
 
+/**
+ * Factor del impuesto que trae un renglón de factura (`item_tax_rate`, JSON
+ * `{cuenta: tasa}`): Π(1 + tasa). En cascada, IVA sobre base+IEPS:
+ * 1.08 × 1.16 = 1.2528, no 1.24.
+ * Del RENGLÓN y no del catálogo: si el pan cambió de impuesto después, la
+ * factura sigue diciendo lo que cobró. Tampoco de `item_wise_tax_detail`: con
+ * cargos «Actual» (Hoja del día) ERPNext reparte el IEPS entre TODOS los
+ * renglones, también los de tasa 0.
+ */
+export function factorImpuestoRenglon(itemTaxRate: unknown): number {
+  let tasas: unknown = itemTaxRate;
+  if (typeof itemTaxRate === 'string') {
+    try { tasas = JSON.parse(itemTaxRate || '{}'); } catch { tasas = {}; }
+  }
+  if (!tasas || typeof tasas !== 'object') return 1;
+  return Object.values(tasas as Record<string, unknown>)
+    .reduce<number>((f, t) => f * (1 + (parseFloat(String(t)) || 0) / 100), 1);
+}
+
 class FrappeSalesService extends FrappeBase {
   #cuentasCache: Cuentas | null = null;
   _abortCliente?: AbortController;
@@ -383,13 +402,19 @@ class FrappeSalesService extends FrappeBase {
    * Lista facturas pendientes de cobro (outstanding > 0) opcionalmente por cliente.
    * Excluye POS. Solo submitted.
    */
-  async getFacturasPendientes({ customer = null }: { customer?: string | null } = {}, signal?: AbortSignal) {
-    const filters = [
+  async getFacturasPendientes(
+    { customer = null, tipo }: { customer?: string | null; tipo?: 'pan' | 'abarrote' } = {},
+    signal?: AbortSignal,
+  ) {
+    const filters: any[][] = [
       ['docstatus', '=', 1],
       ['is_pos', '=', 0],
       ['outstanding_amount', '>', 0],
     ];
     if (customer) filters.push(['customer', '=', customer]);
+    // 23-sep: el modal de cobro respeta el filtro Tipo de la tabla. Misma regla
+    // que reportes_api.cuentas_por_cobrar: pan = factura de la Hoja del día.
+    if (tipo) filters.push(['custom_pedido_diario', 'is', tipo === 'pan' ? 'set' : 'not set']);
     const params = new URLSearchParams({
       fields: JSON.stringify([
         'name', 'customer', 'customer_name', 'posting_date',
@@ -431,13 +456,19 @@ class FrappeSalesService extends FrappeBase {
    * Sobre Sales Invoice submitted B2B (is_pos=0). pagado = grand_total - outstanding_amount.
    * Retorna [{ customer, customer_name, n, total, pagado, pendiente }] ordenado por deuda desc.
    */
-  async getCuentasPorCobrar(signal?: AbortSignal) {
+  /**
+   * @param {'pan' | 'abarrote'} [tipo] - Omitido = toda la cartera. 'pan' = Hoja
+   *   del día (custom_pedido_diario), 'abarrote' = el resto (Venta B2B). El
+   *   backend (reportes_api.cuentas_por_cobrar) truena si el valor no es válido.
+   */
+  async getCuentasPorCobrar(signal?: AbortSignal, tipo?: 'pan' | 'abarrote') {
     // La suma la hace la base, no el navegador. Antes se pedian TODAS las
     // facturas de la historia (`limit_page_length: 0`) para pintar ~6 renglones:
     // con 70 facturas vuela, con 20,000 baja 20,000 registros para lo mismo.
     // El endpoint devuelve un renglon por cliente y no crece con la historia.
+    const q = tipo ? '?tipo=' + tipo : '';
     const json = await this._fetch(
-      '/api/method/gestion_panaderia.api.reportes_api.cuentas_por_cobrar', { signal });
+      '/api/method/gestion_panaderia.api.reportes_api.cuentas_por_cobrar' + q, { signal });
     return json?.message || [];
   }
 
@@ -486,6 +517,10 @@ class FrappeSalesService extends FrappeBase {
         uom: m.stock_uom || it.stock_uom || it.uom || '',
         rate: parseFloat(it.rate || 0), // ya por unidad base
         amount: parseFloat(it.amount || 0), // total preservado
+        // Lo que paga el cliente (23-sep): `rate` es la base SIN impuesto y en
+        // pantalla hacía ver la MANTECADA de $14 en $12.07.
+        precio: parseFloat(it.rate || 0) * factorImpuestoRenglon(it.item_tax_rate),
+        importe: parseFloat(it.amount || 0) * factorImpuestoRenglon(it.item_tax_rate),
         description: it.description || '',
         cantidad_por_presentacion: cantPres,
         presentacion: m.custom_presentación || '',

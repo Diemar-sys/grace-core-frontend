@@ -200,7 +200,7 @@ function ProductosFactura({ items }) {
         <tr>
           <th>Producto</th>
           <th className="cell-right">Cantidad</th>
-          <th className="cell-right">Precio</th>
+          <th className="cell-right">Precio c/imp.</th>
           <th className="cell-right">Importe</th>
         </tr>
       </thead>
@@ -209,8 +209,8 @@ function ProductosFactura({ items }) {
           <tr key={`${it.item_code}-${i}`}>
             <td>{it.item_name || it.item_code}</td>
             <td className="cell-right">{cantidad(it.qty)} {it.uom}</td>
-            <td className="cell-right">{pesos(it.rate)}</td>
-            <td className="cell-right">{pesos(it.amount)}</td>
+            <td className="cell-right">{pesos(it.precio)}</td>
+            <td className="cell-right">{pesos(it.importe)}</td>
           </tr>
         ))}
       </tbody>

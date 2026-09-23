@@ -13,6 +13,7 @@ const ROUTE: Record<string, string> = {
   catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
   venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
   pos: '/pos', pedido: '/pedido', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
+  hoja: '/hoja',
 };
 
 // Debe cubrir todo MODULOS_REPORTES de Panel.jsx: una tarjeta sin su ruta aquí
@@ -33,8 +34,8 @@ function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { rep
 }
 
 const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'pedido', 'egresos'];
-const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pedido', 'egresos'];
-const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'pedido', 'produccion', 'egresos', 'nomina'];
+const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pedido', 'egresos', 'hoja'];
+const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'pedido', 'produccion', 'egresos', 'nomina', 'hoja'];
 
 export const ROLES: Record<string, RoleConfig> = {
   Vendedor: {

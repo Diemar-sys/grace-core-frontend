@@ -38,6 +38,7 @@ export const MODULOS = [
   { key: "pedido",      path: "/pedido",      icon: <IconProduccion />, nombre: "Pedido del día",  sub: "Importar de Drive", color: "#7c3aed",    bg: "#ede9fe" },
   { key: "produccion",  path: "/produccion",  icon: <IconProduccion />, nombre: "Producción",      sub: "Recetas y consumo", color: "#3b848aff",  bg: "#d1f0f3ff" },
   { key: "egresos",     path: "/egresos",     icon: <IconEgresos />,    nombre: "Egresos",         sub: "Gastos y pagos",    color: "#dc2626",    bg: "#fee2e2" },
+  { key: "hoja",        path: "/hoja",        icon: <IconVentaB2B />,   nombre: "Hoja del día",    sub: "Cobrar lo que se llevó cada destino", color: "#15803d", bg: "#dcfce7" },
 ];
 
 export const MODULOS_CONSULTAS = [

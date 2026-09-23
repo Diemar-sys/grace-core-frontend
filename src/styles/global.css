@@ -362,6 +362,9 @@
   font-size: 14px;
 }
 .filtro-group.search.filtro-sm input { min-width: 200px; }
+/* Filtro Tipo (Pan / Abarrote-MP) de Cuentas por Cobrar: píldora, no rectángulo
+   — son pocas opciones tipo tab, no un dropdown largo (diseno_bento_grid). */
+.filtro-group.filtro-pildora select { border-radius: var(--radius-pill); }
 /* Botones compactos para alinear con los filtros (Compras: Reporte Fiscal / Actualizar) */
 .btn-refresh.btn-compacto {
   padding: 10px 14px;
