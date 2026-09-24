@@ -53,8 +53,12 @@ export interface RenglonLiquidacion {
 export interface Liquidacion {
   renglones: RenglonLiquidacion[];
   totalVenta: number;
+  /** Sueldo del repartidor: 10% + cuota fija (sin topar). */
   comision: number;
+  /** Lo que debe. Nunca negativo (excepción 23-sep, espejo de `hoja_calculo`). */
   neto: number;
+  /** Si vendió menos que su sueldo: lo que la panadería le debe (por nómina). */
+  aFavor: number;
   /** Renglones con vendido negativo: regresó/mermó más de lo que salió. */
   inconsistentes: RenglonLiquidacion[];
 }
@@ -123,7 +127,8 @@ export function calcularLiquidacion(
     renglones,
     totalVenta,
     comision,
-    neto: round2(totalVenta - comision),
+    neto: Math.max(round2(totalVenta - comision), 0),
+    aFavor: Math.max(round2(comision - totalVenta), 0),
     inconsistentes,
   };
 }

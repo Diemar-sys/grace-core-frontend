@@ -1,23 +1,91 @@
 /* src/styles/HojaDelDia.css — Hoja del día (Light Bento Grid) */
 
 .hoja-dia {
-  padding: 1.5rem;
-  /* la hoja trae ~200 panes: todo el ancho, como el Excel (23-sep) */
-  max-width: 1600px;
-  margin: 0 auto;
+  /* sin margen propio a los lados: .main-content ya trae el suyo (4 columnas) */
+  padding: 0 0 1rem;
+  /* la hoja trae ~200 panes: todo el ancho, como el Excel (23-sep). `width` porque
+     .main-content es flex en columna: con margin auto el hijo se encogía a su contenido */
+  width: 100%;
+  box-sizing: border-box;
 }
 
+/* cabecera como Compras (24-sep): la guía de diseño. Rombo coral + título en
+   Space Grotesk + subtítulo mono coral en la misma línea, pestañas a la derecha,
+   filete abajo. Una sola franja: la tabla sube. */
 .hoja-dia__cabecera {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--tv-hairline);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.hoja-dia__titulo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hoja-dia__cabecera h1 {
+  margin: 0;
+  position: relative;
+  padding-left: 16px;
+  font-family: var(--tv-display);
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  color: var(--tv-ink);
+}
+.hoja-dia__cabecera h1::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 9px; height: 9px;
+  background: var(--tv-marca);
+  border-radius: 2px;
+}
+.hoja-dia__sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--tv-marca);
+  font-family: var(--tv-mono);
 }
 
-.hoja-dia__cabecera h1 { margin: 0; color: #1f2937; }
-.hoja-dia__sub { margin: 0.25rem 0 0; color: #6b7280; font-size: 0.9rem; }
+/* barra de filtros como la de Compras: tarjeta blanca, etiquetas mono chiquitas */
+.hoja-toolbar {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-hairline);
+  border-radius: 12px;
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-4);
+}
+.hoja-toolbar .hoja-dia__campo {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--tv-ink-soft);
+  font-family: var(--tv-mono);
+}
+.hoja-toolbar select,
+.hoja-toolbar input {
+  border: 1px solid var(--tv-hairline);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--tv-ink);
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.hoja-toolbar select:focus,
+.hoja-toolbar input:focus {
+  outline: none;
+  border-color: var(--tv-marca);
+  box-shadow: 0 0 0 3px rgba(200, 80, 60, 0.18);
+}
 
 .hoja-dia__filtros {
   display: flex;
@@ -57,12 +125,90 @@
 .hoja-badge--gris { background: #f3f4f6; color: #4b5563; }
 .hoja-badge--ambar { background: #ffedd5; color: #9a3412; }
 .hoja-badge--verde { background: #dcfce7; color: #166534; }
+.hoja-badge--azul { background: #dbeafe; color: #1e40af; }
+.hoja-badge--rojo { background: #fee2e2; color: #991b1b; }
+
+/* pestañas «Captura del día» / «Estado de cuenta» (23-sep): píldoras, la activa en marca */
+.hoja-tabs { display: flex; gap: 0.5rem; }
+.hoja-tab {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.hoja-tab:hover { background: #fff6ea; }
+.hoja-tab--activa { background: var(--color-brand); color: #ffffff; }
+.hoja-tab--activa:hover { background: var(--color-brand); }
+
+/* estado de cuenta */
+.hoja-dia__vacio { color: #6b7280; font-size: 0.9rem; }
+.hoja-estado__rango { color: var(--tv-ink); font-family: var(--tv-mono); font-size: 0.9rem; padding-bottom: 0.65rem; }
+/* Estado de cuenta (24-sep): mismo lenguaje que Cuentas por Cobrar — tarjetas de
+   resumen, thead carbón con listón coral y dinero en mono. Todo colgado de .hoja-estado__* */
+.hoja-estado__detalle { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.hoja-estado__cabecera { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.hoja-estado__nombre { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hoja-estado__titulo { margin: 0; font-family: var(--tv-display); font-size: 24px; font-weight: 700; color: #1f2937; }
+.hoja-estado__cliente { color: #6b7280; font-size: 0.95rem; }
+.hoja-estado__cobrar { font-size: 1rem; padding: 0.6rem 1.8rem; }
+
+.hoja-estado__resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; }
+.hoja-estado__stat {
+  background: var(--color-brand-bg);
+  border-radius: var(--radius-card);
+  padding: 0.6rem 1rem;
+  display: flex; flex-direction: column; gap: 0;
+}
+.hoja-estado__stat-label { font-size: 13px; color: var(--color-text-muted); }
+.hoja-estado__stat-valor { font-family: var(--tv-mono); font-size: 21px; font-weight: 700; color: #1f2937; }
+.hoja-estado__stat-valor--debe { color: var(--color-danger); }
+.hoja-estado__stat-valor--ok { color: var(--color-success); }
+.hoja-estado__stat-valor--favor { color: #1e40af; }
+
+.hoja-estado__tabla-wrap { overflow-x: auto; border-radius: var(--radius-card); box-shadow: var(--shadow-bento); }
+.hoja-estado__tabla { margin: 0; }
+/* Una sola medida (Diemar 24-sep: «todos pelones o todos rabones»): TODO encabezado
+   mono 12px y TODA celda mono 16px. El `th.cell-right` necesita el selector doble:
+   `.sys-table .cell-right` (global.css) le ponía mono 16px solo a los derechos. */
+.hoja-estado__tabla thead th,
+.hoja-estado__tabla thead th.cell-right {
+  background: var(--tv-carbon);
+  color: var(--tv-cream);
+  box-shadow: inset 0 -3px 0 var(--tv-marca);
+  font-family: var(--tv-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.hoja-estado__tabla td,
+.hoja-estado__tabla td.cell-right {
+  font-family: var(--tv-mono);
+  font-size: 16px;
+  padding: 16px 20px;
+  color: var(--tv-ink);
+  white-space: nowrap;
+}
+.hoja-estado__recibir { font-weight: 700; }
+/* PAGADO/ABONO separado de RECIBIR, como FECHA de VENTA TOTAL */
+.hoja-estado__tabla .hoja-estado__col-pago { padding-left: 4rem; width: 38%; }
+.hoja-estado__tabla tfoot td {
+  font-weight: 700; background: var(--tv-sunk);
+  border-top: 2px solid var(--tv-hairline); border-bottom: none;
+}
+.hoja-estado__tabla .hoja-badge { font-size: 12px; padding: 0.3rem 0.85rem; letter-spacing: 0.04em; }
+.hoja-estado__pago { display: inline-flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-weight: 700; }
+.hoja-estado__abono { color: var(--tv-ink-soft); font-weight: 400; }
 
 .hoja-dia__detalle {
   background: #ffffff;
   border-radius: var(--radius-bento);
   box-shadow: var(--shadow-bento);
-  padding: 1.75rem;
+  padding: 1.25rem;
 }
 
 .hoja-dia__detalle-cabecera {
@@ -72,7 +218,7 @@
   gap: 0.75rem;
 }
 
-.hoja-dia__detalle-cabecera h2 { margin: 0; color: #1f2937; }
+.hoja-dia__detalle-cabecera h2 { margin: 0; font-family: var(--tv-display); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; color: var(--tv-ink); }
 
 .hoja-dia__cobrado {
   margin: 0;
@@ -85,46 +231,127 @@
   font-weight: 600;
 }
 
-.hoja-bloque { margin-top: 1.5rem; }
-.hoja-bloque h3 { color: #1f2937; font-size: 0.95rem; margin: 0 0 0.5rem; }
+/* 4 columnas con el acomodo del Excel (COLUMNAS_HOJA en utils/hojaDia.ts): cada
+   columna es un contenedor, así el orden lo dicta el acomodo y no el reparto del
+   navegador. Pantalla mediana: 2; angosta: 1 (media query al final). */
+.hoja-bloques {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+  align-items: start;
+}
+
+/* camioneta trae REGRESO/MERMA/VENDIDO: 3 columnas más por tabla */
+.hoja-bloques--camioneta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* camioneta = dos hojas (columnas 1-2, luego 3-4): la segunda se separa con una línea */
+.hoja-bloques--camioneta + .hoja-bloques--camioneta {
+  border-top: 2px dashed var(--color-brand-light);
+  padding-top: 1.25rem;
+}
+
+/* 24-sep: la captura con el lenguaje de CxC/Compras. Cada categoría es una
+   mini-tarjeta: franja carbón con listón coral, números en mono, clave coral,
+   lo capturado se enciende en verde. */
+.hoja-bloque {
+  margin: 0 0 1.5rem;
+  background: var(--tv-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-bento);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+.hoja-bloque:hover { box-shadow: var(--shadow-bento-hover); }
+.hoja-bloque h3 {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--tv-carbon);
+  color: var(--tv-cream);
+  box-shadow: inset 0 -3px 0 var(--tv-marca);
+  font-family: var(--tv-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 
 .hoja-tabla {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .hoja-tabla th {
   text-align: left;
-  color: #6b7280;
-  font-size: 0.72rem;
+  background: var(--tv-sunk);
+  color: var(--tv-ink-soft);
+  font-family: var(--tv-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid #f3f4f6;
+  letter-spacing: 0.06em;
+  padding: 0.45rem 0.35rem;
+  border-bottom: 1px solid var(--tv-hairline);
+  white-space: nowrap;
 }
 
 .hoja-tabla td {
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid #f3f4f6;
-  color: #1f2937;
+  padding: 0.3rem 0.35rem;
+  border-bottom: 1px solid var(--tv-line);
+  color: var(--tv-ink);
 }
 
+/* números en mono tabular, como los montos de CxC */
+.hoja-tabla .hoja-celda--num,
+.hoja-tabla .hoja-celda--clave { font-family: var(--tv-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hoja-tabla .hoja-celda--clave { color: var(--tv-marca); font-weight: 700; }
+.hoja-tabla .hoja-celda--importe { color: var(--tv-ink-soft); }
+.hoja-tabla .hoja-celda--cobra { color: var(--tv-ok); font-weight: 700; }
+
 .hoja-tabla input[type='number'] {
-  width: 5.5rem;
-  border: 1px solid var(--color-brand-light);
-  border-radius: var(--radius-input);
-  padding: 0.35rem 0.5rem;
+  width: 3.75rem;
+  border: 1px solid var(--tv-hairline);
+  border-radius: 8px;
+  padding: 0.25rem 0.35rem;
+  font-family: var(--tv-mono);
+  font-size: 0.8rem;
+  color: var(--tv-ink);
+  background: var(--tv-surface);
+  transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+}
+.hoja-tabla input[type='number']:focus {
+  outline: none;
+  border-color: var(--tv-marca);
+  box-shadow: 0 0 0 3px rgba(200, 80, 60, 0.18);
+}
+/* lo que ya se capturó se ve de un vistazo */
+.hoja-tabla input.hoja-input--lleno {
+  background: var(--tv-ok-bg);
+  border-color: var(--tv-ok);
+  color: var(--tv-ok);
+  font-weight: 700;
 }
 
 .hoja-tabla input[disabled] {
-  background: #f9fafb;
-  color: #6b7280;
-  border-color: #e5e7eb;
+  background: var(--tv-sunk);
+  color: var(--tv-ink-soft);
+  border-color: var(--tv-hairline);
 }
 
-/* pan de la pestaña que ese destino no pidió: se ve, pero atrás de lo pedido */
-.hoja-fila--sin-pedido td { color: #9ca3af; }
+/* lo que sí se cargó (pedido o enviado) en negritas; el pan de la pestaña que no
+   se pidió, claro y delgado: con solo el tono casi no se distinguía (23-sep) */
+.hoja-tabla tbody td { font-weight: 600; }
+.hoja-tabla .hoja-fila--sin-pedido td,
+.hoja-tabla .hoja-fila--sin-pedido .hoja-celda--clave { color: #b6bcc6; font-weight: 400; }
+
+/* renglón resaltado de la clave al importe (23-sep): al pasar el mouse y mientras
+   se teclea en él, para no perder el renglón al capturar de corrido con el teclado */
+.hoja-tabla tbody tr:hover td,
+.hoja-tabla tbody tr:focus-within td {
+  background: var(--tv-marca-wash);
+  border-bottom-color: var(--tv-marca);
+  transition: background 0.2s ease;
+}
 
 .hoja-resumen-camioneta {
   display: flex;
@@ -137,15 +364,40 @@
 }
 
 .hoja-resumen-camioneta div { display: flex; flex-direction: column; gap: 0.2rem; }
-.hoja-resumen-camioneta span { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; }
-.hoja-resumen-camioneta strong { font-size: 1.1rem; color: #1f2937; }
+.hoja-resumen-camioneta span { font-size: 0.75rem; color: var(--tv-ink-soft); text-transform: uppercase; font-family: var(--tv-mono); letter-spacing: 0.06em; }
+.hoja-resumen-camioneta strong { font-size: 1.3rem; color: var(--tv-ink); font-family: var(--tv-mono); }
 
 .hoja-dia__total {
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 1rem;
   margin-top: 1.5rem;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #1f2937;
+  padding: 0.9rem 1.25rem;
+  background: var(--tv-carbon);
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 -3px 0 var(--tv-marca);
+}
+.hoja-dia__total span {
+  color: var(--tv-cream);
+  font-family: var(--tv-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.hoja-dia__total strong { color: #ffffff; font-family: var(--tv-mono); font-size: 1.6rem; }
+
+.hoja-dia__aviso--a-favor { flex-basis: 100%; margin: 0.5rem 0 0; }
+
+.hoja-dia__aviso {
+  margin: 0 auto 0 0;
+  align-self: center;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 /* con ~200 renglones los botones se quedan a la vista al bajar */
@@ -184,7 +436,12 @@
   box-shadow: var(--shadow-btn);
 }
 
+@media (max-width: 1500px) {
+  .hoja-bloques { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 860px) {
+  .hoja-bloques, .hoja-bloques--camioneta { grid-template-columns: 1fr; }
   .hoja-dia__campo--destino select { min-width: 0; width: 100%; }
   .hoja-dia__campo--destino { flex: 1 1 100%; }
 }

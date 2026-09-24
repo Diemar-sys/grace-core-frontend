@@ -13,7 +13,8 @@
 /* —— Contenido —————————————————————————————————————— */
 .main-content {
   flex: 1;
-  padding: var(--space-5) var(--space-6);
+  /* 24-sep: menos aire entre la barra de menú y el título de cada pantalla */
+  padding: var(--space-3) var(--space-6) var(--space-5);
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;

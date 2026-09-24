@@ -368,11 +368,12 @@ export default function Pedido() {
               <div className="table-container">
                 <table className="sys-table">
                   <thead>
-                    <tr><th>Clave</th><th>Producto en la hoja</th><th>Motivo</th></tr>
+                    <tr><th>Pestaña</th><th>Clave</th><th>Producto en la hoja</th><th>Motivo</th></tr>
                   </thead>
                   <tbody>
                     {hoja.problemas.map((p, i) => (
                       <tr key={i}>
+                        <td>{p.pestana || hoja.pestana}</td>
                         <td>{p.clave || '—'}</td>
                         <td>{p.producto}</td>
                         <td>{p.motivo}</td>

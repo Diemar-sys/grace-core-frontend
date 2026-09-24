@@ -37,7 +37,8 @@ export function hojaDelDia(todas: HojaPedido[], marcadas: string[]): HojaPedido 
   return {
     pestana: 'todo el día',
     renglones,
-    problemas: activas.flatMap((h) => h.problemas),
+    // cada error dice de qué pestaña viene: juntos, «ya venía en el renglón…» no dice dónde
+    problemas: activas.flatMap((h) => h.problemas.map((p) => ({ ...p, pestana: h.pestana }))),
     destinos: [...new Set(activas.flatMap((h) => h.destinos))].sort(),
     total_piezas: renglones.reduce(
       (a, r) => a + Object.values(r.piezas).reduce((x, y) => x + y, 0), 0),

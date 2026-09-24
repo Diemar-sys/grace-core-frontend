@@ -47,3 +47,16 @@ describe('getFacturaItems', () => {
     }
   });
 });
+
+// 23-sep: la preventa #87 no se podía confirmar en prod: fecha nueva (hoy) con
+// vencimiento y calendario de pagos viejos
+describe('confirmarBorrador', () => {
+  it('🔴 vacía vencimiento y calendario de pagos para que ERPNext los recalcule', async () => {
+    const svc = ventasService as any;
+    const original = svc._fetch;
+    let body: any = null;
+    svc._fetch = vi.fn(async (_url: string, opts: any) => { body = JSON.parse(opts.body); return { data: {} }; });
+    try { await ventasService.confirmarBorrador('ACC-SINV-2026-00117'); } finally { svc._fetch = original; }
+    expect(body).toEqual({ docstatus: 1, due_date: null, payment_schedule: [] });
+  });
+});

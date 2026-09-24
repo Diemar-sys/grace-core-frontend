@@ -11,16 +11,16 @@ const R = {
   impuesto: 'ieps', pedido: 100, enviado: 100, regreso: 0, merma: 0, precio: 12, importe: 1200,
 };
 const R2 = { ...R, item_code: '2000', producto: 'BOLILLO', enviado: 50, importe: 0 };
-const mia = (factura: any = null) => ({ destino: 'ISMA', camioneta: true, renglones: [R], total: 1200, comision: 320, se_debe: 880, factura });
+const mia = (factura: any = null, merma = 0) => ({ destino: 'ISMA', camioneta: true, etapa: 'enviado' as const,
+  renglones: [{ ...R, merma }], total: 1200, comision: 320, se_debe: 880, a_favor: 0, factura });
 
 describe('Liquidacion — sobre la hoja, sin inventario', () => {
   beforeEach(() => vi.resetAllMocks());
 
   it('🔴 el preview cobra lo vendido menos 10% + $200', async () => {
-    s.miHoja.mockResolvedValue(mia());
+    s.miHoja.mockResolvedValue(mia(null, 5));   // la merma (5) la puso Héctor
     render(<Liquidacion />);
     fireEvent.change(await screen.findByLabelText('Regresa CONCHAS'), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText('Se tiró CONCHAS'), { target: { value: '5' } });
     expect(screen.getByText('$718.00')).toBeInTheDocument();   // 85 × 12 = 1020 − 302
   });
 
@@ -28,10 +28,9 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     // 85 × 12 = 1020; comisión total 302 = 102 (10%) + 200 (cuota). Si el 10%
     // se mostrara como los 302 completos (sin restar la cuota), $102.00 no
     // aparecería en pantalla.
-    s.miHoja.mockResolvedValue(mia());
+    s.miHoja.mockResolvedValue(mia(null, 5));
     const { container } = render(<Liquidacion />);
     fireEvent.change(await screen.findByLabelText('Regresa CONCHAS'), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText('Se tiró CONCHAS'), { target: { value: '5' } });
     const totales = within(container.querySelector('.liq-totales')!);
     expect(totales.getByText('Venta')).toBeInTheDocument();
     expect(totales.getByText('$1,020.00')).toBeInTheDocument();
@@ -54,7 +53,7 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     expect(screen.queryByText('Cuota fija')).not.toBeInTheDocument();
   });
 
-  it('🔴 manda regreso y merma de TODOS los renglones, sin almacén ni precio', async () => {
+  it('🔴 manda el regreso de TODOS los renglones, sin merma, almacén ni precio', async () => {
     // BOLILLO (R2) no se toca: si solo se mandaran los tecleados, este
     // renglón se quedaría fuera de la petición aunque el servidor lo espere.
     s.miHoja.mockResolvedValue({ ...mia(), renglones: [R, R2] });
@@ -63,8 +62,8 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     fireEvent.change(await screen.findByLabelText('Regresa CONCHAS'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
     await waitFor(() => expect(s.guardarRegreso).toHaveBeenCalledWith(expect.any(String), [
-      { item_code: '1047', regreso: 10, merma: 0 },
-      { item_code: '2000', regreso: 0, merma: 0 },
+      { item_code: '1047', regreso: 10 },
+      { item_code: '2000', regreso: 0 },
     ]));
   });
 
@@ -72,6 +71,30 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     s.miHoja.mockResolvedValue(mia({ name: 'ACC-SINV-1', grand_total: 718, outstanding_amount: 718 }));
     render(<Liquidacion />);
     expect(await screen.findByLabelText('Regresa CONCHAS')).toBeDisabled();
-    expect(screen.getByLabelText('Se tiró CONCHAS')).toBeDisabled();
+  });
+
+  // 23-sep (Diemar): la merma la pone Héctor; el repartidor la ve, no la teclea
+  it('🔴 «Se tiró» no se captura aquí: se ve la merma que puso Héctor', async () => {
+    s.miHoja.mockResolvedValue(mia(null, 7));
+    render(<Liquidacion />);
+    await screen.findByLabelText('Regresa CONCHAS');
+    expect(screen.queryByLabelText('Se tiró CONCHAS')).toBeNull();
+    expect(screen.getByText('7.00')).toBeInTheDocument();
+  });
+
+  it('🔴 antes de que matriz confirme el envío: aviso, sin tabla', async () => {
+    s.miHoja.mockResolvedValue({ ...mia(), etapa: '' as const, renglones: [], total: 0, comision: 0, se_debe: 0 });
+    render(<Liquidacion />);
+    expect(await screen.findByText(/Todavía no te envían pan/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Enviar/ })).toBeNull();
+  });
+
+  it('🔴 excepción: vende menos que su sueldo → se debe $0 y «A tu favor»', async () => {
+    s.miHoja.mockResolvedValue({ ...mia(), renglones: [{ ...R, enviado: 10 }] });
+    const { container } = render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Regresa CONCHAS'), { target: { value: '9' } });   // vendió 1 × $12
+    const totales = within(container.querySelector('.liq-totales')!);
+    expect(totales.getByText('Se debe').nextSibling).toHaveTextContent('$0.00');
+    expect(totales.getByText('A tu favor').nextSibling).toHaveTextContent('$189.20');   // 1.20 + 200 − 12
   });
 });

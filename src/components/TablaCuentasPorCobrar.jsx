@@ -1,6 +1,6 @@
 import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
-import { ventasService, saldoCobrable } from '../services/frappeSales';
+import { ventasService, grupoCobro } from '../services/frappeSales';
 
 const fmt = (n) =>
   (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -95,23 +95,14 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   const abrirCobro = async (fila) => {
     try {
       const facturasBrutas = await ventasService.getFacturasPendientes({ customer: fila.customer, tipo: tipo || undefined });
-
-      // EL FILTRO ANTICOBRO
-      // Limpiamos la basurilla decimal de Frappe y solo dejamos las que deban 1 centavo o más
-      const facturasReales = facturasBrutas.filter(f => saldoCobrable(f.outstanding_amount) > 0);
-
-      if (!facturasReales.length) {
+      // solo las que deben medio centavo o más (la basurilla decimal de Frappe no se cobra)
+      const grupo = grupoCobro(fila.customer, fila.customer_name, facturasBrutas);
+      if (!grupo) {
         alert(`Al parecer las facturas de ${fila.customer_name} ya estaban saldadas.`);
         await cargar();
         return;
       }
-
-      setPagoModal({
-        customer: fila.customer,
-        customer_name: fila.customer_name,
-        totalDeuda: facturasReales.reduce((s, f) => s + parseFloat(f.outstanding_amount || 0), 0),
-        facturas: facturasReales, // ← Aquí le pasamos solo las facturas limpias
-      });
+      setPagoModal(grupo);
     } catch (err) {
       console.error('Error abriendo cobro:', err);
     }

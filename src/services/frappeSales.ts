@@ -102,6 +102,21 @@ export function saldoCobrable(outstanding: any) {
 }
 
 /**
+ * Lo que abre el modal de cobro: las facturas con saldo cobrable (≥ medio centavo)
+ * y su deuda. `null` si no queda nada que cobrar. Una sola regla para CxC y para el
+ * estado de cuenta de la Hoja del día (23-sep).
+ */
+export function grupoCobro(customer: string, customer_name: string, facturas: any[]) {
+  const reales = facturas.filter(f => saldoCobrable(f.outstanding_amount) > 0);
+  if (!reales.length) return null;
+  return {
+    customer, customer_name,
+    totalDeuda: reales.reduce((s, f) => s + parseFloat(f.outstanding_amount || 0), 0),
+    facturas: reales,
+  };
+}
+
+/**
  * Factor del impuesto que trae un renglón de factura (`item_tax_rate`, JSON
  * `{cuenta: tasa}`): Π(1 + tasa). En cascada, IVA sobre base+IEPS:
  * 1.08 × 1.16 = 1.2528, no 1.24.
@@ -347,9 +362,13 @@ class FrappeSalesService extends FrappeBase {
   }
 
   async confirmarBorrador(name: string) {
+    // Al confirmar, ERPNext le pone fecha de HOY a la preventa (no trae «fijar
+    // fecha»), pero el vencimiento y el calendario de pagos se quedaban en la
+    // fecha en que se guardó → «Due Date cannot be before Posting» (prod, #87,
+    // 23-sep). Vacíos, ERPNext los recalcula a partir de la fecha nueva.
     const updated = await this._fetch(
       '/api/resource/Sales Invoice/' + encodeURIComponent(name),
-      { method: 'PUT', body: JSON.stringify({ docstatus: 1 }) }
+      { method: 'PUT', body: JSON.stringify({ docstatus: 1, due_date: null, payment_schedule: [] }) }
     );
     return updated.data;
   }

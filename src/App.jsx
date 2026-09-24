@@ -6,6 +6,8 @@ import Panel from './pages/Panel';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import BannerConexion from './components/BannerConexion';
+import { useSesionCompartida } from './hooks/useSesionCompartida';
+import AvisoSesion from './components/AvisoSesion';
 
 // Carga inmediata: vistas operativas principales
 import Catalogo from './pages/Catalogo';
@@ -53,12 +55,15 @@ function PageLoader() {
  * @returns {JSX.Element} Aplicación montada con rutas configuradas.
  */
 function App() {
+  // una sola sesión por navegador: si otra pestaña sale o cambia de usuario, esta se bloquea con un aviso
+  const cambioSesion = useSesionCompartida();
   return (
     <BrowserRouter>
       <ErrorBoundary>
       {/* Fuera de <Routes>: el aviso de red sale en cualquier pantalla,
           incluido el Panel, que no pasa por Layout. */}
       <BannerConexion />
+      <AvisoSesion cambio={cambioSesion} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Ruta pública */}

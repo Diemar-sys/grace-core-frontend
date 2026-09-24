@@ -1,0 +1,37 @@
+/* src/styles/AvisoSesion.css — aviso bloqueante de sesión (Light Bento Grid) */
+.aviso-sesion {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 41, 55, 0.45);
+}
+
+.aviso-sesion__tarjeta {
+  max-width: 420px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.75rem;
+  text-align: center;
+}
+
+.aviso-sesion__tarjeta h2 { margin: 0 0 0.5rem; color: #1f2937; font-size: 1.2rem; }
+.aviso-sesion__tarjeta p { margin: 0 0 1.25rem; color: #4b5563; font-size: 0.95rem; }
+
+.aviso-sesion__btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.7rem 1.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.aviso-sesion__btn:hover { transform: translateY(-2px); }

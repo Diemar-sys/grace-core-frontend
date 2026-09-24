@@ -27,6 +27,8 @@ export interface ProblemaPedido {
   clave: string;
   producto: string;
   motivo: string;
+  /** De qué pestaña salió; lo pone `hojaDelDia` al juntar varias (23-sep). */
+  pestana?: string;
 }
 
 export interface HojaPedido {

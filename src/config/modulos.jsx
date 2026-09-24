@@ -66,6 +66,7 @@ export const MODULOS_REPORTES = [
   { key: "cxp_reporte", path: "/reportes/cuentas-por-pagar", icon: <IconReporte />, nombre: "Cuentas por Pagar", sub: "Saldo de egresos por proveedor", color: "#b45309", bg: "#fef3c7" },
   { key: "valorizacion", path: "/reportes/valorizacion", icon: <IconReporte />, nombre: "Valorización de Envíos", sub: "Cuánto se mandó y cuánto vale", color: "#0f766e", bg: "#ccfbf1" },
   { key: "cxc_reporte", path: "/reportes/cuentas-por-cobrar", icon: <IconReporte />, nombre: "Cuentas por Cobrar", sub: "Saldo de ventas B2B por cliente", color: "#15803d", bg: "#dcfce7" },
+  { key: "hoja", path: "/hoja?vista=estado", icon: <IconReporte />, nombre: "Estado de Cuenta", sub: "Camionetas y clientes de la hoja, por semana", color: "#15803d", bg: "#dcfce7" },
 ];
 
 // ── Configuración ─────────────────────────────────────

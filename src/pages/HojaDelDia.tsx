@@ -8,20 +8,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
+import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
 import { hoyISO } from '../components/modals/ModalEntradaPan';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
-import { bloquesDeHoja, cambiosEnviado, cantidad, totalCapturado } from '../utils/hojaDia';
+import { bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, totalCapturado } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
 import '../styles/global.css';
 import '../styles/HojaDelDia.css';
 
 const ESTADO: Record<DestinoDia['estado'], string> = {
-  sin_capturar: 'Sin capturar', sin_confirmar: 'Sin confirmar', confirmado: 'Cobrado',
+  sin_capturar: 'Sin capturar', sin_confirmar: 'Sin confirmar', en_ruta: 'En ruta', regreso: 'Regresó',
+  confirmado: 'Cobrado',
 };
 
 const ESTADO_CLASE: Record<DestinoDia['estado'], string> = {
-  sin_capturar: 'hoja-badge--gris', sin_confirmar: 'hoja-badge--ambar', confirmado: 'hoja-badge--verde',
+  sin_capturar: 'hoja-badge--gris', sin_confirmar: 'hoja-badge--ambar', en_ruta: 'hoja-badge--azul',
+  regreso: 'hoja-badge--ambar', confirmado: 'hoja-badge--verde',
 };
 
 export default function HojaDelDia() {
@@ -30,9 +33,15 @@ export default function HojaDelDia() {
   const [hoja, setHoja] = useState<Hoja | null>(null);
   const [captura, setCaptura] = useState<Record<string, string>>({});
   const [elegido, setElegido] = useState('');
+  // dos vistas en la misma pantalla (Diemar 23-sep): capturar el día, o el estado de cuenta
+  // `/hoja?vista=estado` (tarjeta de Reportes) abre directo en el estado de cuenta
+  const [vista, setVista] = useState<'captura' | 'estado'>(
+    () => (new URLSearchParams(window.location.search).get('vista') === 'estado' ? 'estado' : 'captura'));
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [confirmando, setConfirmando] = useState(false);
+  const [capturaMerma, setCapturaMerma] = useState<Record<string, string>>({});
+  // qué confirma el modal: el cobro, o (camioneta) el envío
+  const [accion, setAccion] = useState<null | 'cobrar' | 'envio'>(null);
 
   // Guarda de carrera (C2, 22-sep): cambiar de destino/fecha con una
   // petición en vuelo podía pintar la hoja VIEJA encima de la selección
@@ -47,7 +56,7 @@ export default function HojaDelDia() {
     catch (e: any) { setError(e?.message || 'No se pudo leer la hoja del día'); setDestinos([]); }
   }, [fecha]);
 
-  useEffect(() => { peticionRef.current++; setHoja(null); setCaptura({}); setElegido(''); cargarDestinos(); }, [cargarDestinos]);
+  useEffect(() => { peticionRef.current++; setHoja(null); setCaptura({}); setCapturaMerma({}); setElegido(''); cargarDestinos(); }, [cargarDestinos]);
 
   const abrir = async (destino: string) => {
     setElegido(destino);
@@ -56,7 +65,7 @@ export default function HojaDelDia() {
     try {
       const h = await hojaService.hoja(fecha, destino);
       if (peticionRef.current !== folio) return; // ya se abrió otro destino/fecha
-      setHoja(h); setCaptura({});
+      setHoja(h); setCaptura({}); setCapturaMerma({});
     } catch (e: any) {
       if (peticionRef.current !== folio) return;
       setError(e?.message || 'No se pudo abrir la hoja');
@@ -77,8 +86,17 @@ export default function HojaDelDia() {
   };
 
   const cobrado = Boolean(hoja?.factura);
+  // Camioneta en tres pasos (23-sep): '' captura enviado · 'enviado' en ruta ·
+  // 'liquidado' ya entregó su regreso y Héctor pone la merma antes de cobrar
+  const etapa = hoja?.camioneta ? hoja.etapa ?? '' : '';
+  const enviadoFijo = cobrado || etapa !== '';
+  const mermaAbierta = !cobrado && etapa === 'liquidado';
+  const mermaPendiente = hoja ? cambiosMerma(hoja.renglones, capturaMerma) : [];
   const estadoElegido = destinos.find(d => d.destino === hoja?.destino)?.estado;
   const bloques = useMemo(() => (hoja ? bloquesDeHoja(hoja.renglones) : []), [hoja]);
+  const columnas = useMemo(() => columnasDeHoja(bloques, Boolean(hoja?.camioneta)), [bloques, hoja?.camioneta]);
+  // camioneta: dos hojas de 2 columnas (Diemar 23-sep); los demás: una de 4
+  const hojasDeColumnas = hoja?.camioneta ? [columnas.slice(0, 2), columnas.slice(2)] : [columnas];
   const total = useMemo(() => (hoja ? totalCapturado(hoja.renglones, captura) : 0), [hoja, captura]);
 
   // Agrupar destinos por `grupo` en una sola pasada (HashMap: O(n), sin
@@ -124,41 +142,80 @@ export default function HojaDelDia() {
       if (peticionRef.current === folio) setHoja(fresca);
       await cargarDestinos();
     } catch (e: any) { setError(e?.message || 'No se cobró'); }
-    finally { setOcupado(false); setConfirmando(false); }
+    finally { setOcupado(false); setAccion(null); }
   };
+
+  // Un paso de camioneta: pide, y si nadie ganó la carrera mientras tanto pinta la
+  // hoja que regresa (misma guarda de folio que `abrir`).
+  const ejecutar = async (paso: (h: Hoja) => Promise<Hoja>, siFalla: string) => {
+    if (!hoja) return;
+    setOcupado(true);
+    try {
+      const folio = ++peticionRef.current;
+      const nueva = await paso(hoja);
+      if (peticionRef.current === folio) { setHoja(nueva); setCaptura({}); setCapturaMerma({}); }
+      await cargarDestinos();
+    } catch (e: any) { setError(e?.message || siFalla); }
+    finally { setOcupado(false); setAccion(null); }
+  };
+
+  // Confirmar el envío guarda antes lo tecleado, igual que cobrar (C1).
+  const confirmarEnvio = () => ejecutar(async h => {
+    const renglones = cambiosPendientes(h);
+    if (renglones.length) await hojaService.guardar(fecha, h.destino, renglones);
+    return hojaService.confirmarEnvio(fecha, h.destino);
+  }, 'No se confirmó el envío');
+  const reabrirEnvio = () => ejecutar(h => hojaService.reabrirEnvio(fecha, h.destino), 'No se reabrió el envío');
+  const guardarMerma = () => ejecutar(h => hojaService.guardarMerma(fecha, h.destino, mermaPendiente), 'No se guardó la merma');
 
   return (
     <Layout>
       <div className="hoja-dia">
+        {/* cabecera como Compras (24-sep): rombo + título + subtítulo en una línea, pestañas a la derecha */}
         <header className="hoja-dia__cabecera">
-          <div>
+          <div className="hoja-dia__titulo">
             <h1>Hoja del día</h1>
-            <p className="hoja-dia__sub">Cobrar lo que se llevó cada destino</p>
+            <span className="hoja-dia__sub">Cobrar lo que se llevó cada destino</span>
           </div>
-          <div className="hoja-dia__filtros">
-            <label className="hoja-dia__campo hoja-dia__campo--destino">
-              Destino
-              <select value={elegido} disabled={ocupado || !destinos.length} onChange={e => abrir(e.target.value)}>
-                <option value="">{destinos.length ? 'Elige cliente, camioneta, sucursal o pueblo' : 'Sin destinos para esta fecha'}</option>
-                {[...grupos.entries()].map(([grupo, lista]) => (
-                  <optgroup key={grupo} label={grupo}>
-                    {lista.map(d => (
-                      <option key={d.destino} value={d.destino}>
-                        {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.camioneta ? d.se_debe : d.total)}`}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
-            <label className="hoja-dia__campo">
-              Fecha
-              <input type="date" value={fecha} disabled={ocupado} onChange={e => setFecha(e.target.value)} />
-            </label>
+          <div className="hoja-tabs" role="tablist" aria-label="Vista">
+            <button type="button" role="tab" aria-selected={vista === 'captura'}
+              className={`hoja-tab${vista === 'captura' ? ' hoja-tab--activa' : ''}`} onClick={() => setVista('captura')}>
+              Captura del día
+            </button>
+            <button type="button" role="tab" aria-selected={vista === 'estado'}
+              className={`hoja-tab${vista === 'estado' ? ' hoja-tab--activa' : ''}`} onClick={() => setVista('estado')}>
+              Estado de cuenta
+            </button>
           </div>
         </header>
 
-        {hoja && (
+        {vista === 'captura' && (
+        <div className="hoja-dia__filtros hoja-toolbar">
+          <label className="hoja-dia__campo hoja-dia__campo--destino">
+            Destino
+            <select value={elegido} disabled={ocupado || !destinos.length} onChange={e => abrir(e.target.value)}>
+              <option value="">{destinos.length ? 'Elige cliente, camioneta, sucursal o pueblo' : 'Sin destinos para esta fecha'}</option>
+              {[...grupos.entries()].map(([grupo, lista]) => (
+                <optgroup key={grupo} label={grupo}>
+                  {lista.map(d => (
+                    <option key={d.destino} value={d.destino}>
+                      {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.camioneta ? d.se_debe : d.total)}`}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <label className="hoja-dia__campo">
+            Fecha
+            <input type="date" value={fecha} disabled={ocupado} onChange={e => setFecha(e.target.value)} />
+          </label>
+        </div>
+        )}
+
+        {vista === 'estado' && <EstadoCuentaHoja />}
+
+        {vista === 'captura' && hoja && (
           <section className="hoja-dia__detalle">
             <div className="hoja-dia__detalle-cabecera">
               <h2>{hoja.destino}</h2>
@@ -170,50 +227,73 @@ export default function HojaDelDia() {
               )}
             </div>
 
-            {bloques.map(b => (
-              <div key={b.categoria} className="hoja-bloque">
-                <h3>{b.categoria}</h3>
-                <table className="hoja-tabla">
-                  <thead>
-                    <tr>
-                      <th>CLAVE</th><th>PRODUCTO</th><th>$</th><th>PEDIDO</th><th>ENVIADO</th>
-                      {hoja.camioneta && (<><th>REGRESO</th><th>MERMA</th><th>VENDIDO</th></>)}
-                      <th>IMPORTE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {b.renglones.map(r => {
-                      const enviadoActual = r.item_code in captura ? cantidad(captura[r.item_code]) : r.enviado;
-                      const vendido = r.enviado - r.regreso - r.merma;
-                      return (
-                        <tr key={r.item_code} className={!r.pedido && !enviadoActual ? 'hoja-fila--sin-pedido' : undefined}>
-                          <td>{r.item_code}</td>
-                          <td>{r.producto}</td>
-                          <td>{pesos(r.precio)}</td>
-                          <td>{numero(r.pedido, 0)}</td>
-                          <td>
-                            <input
-                              type="number"
-                              min={0}
-                              aria-label={`Enviado ${r.producto}`}
-                              value={captura[r.item_code] ?? String(r.enviado)}
-                              disabled={cobrado}
-                              onChange={e => setCaptura(c => ({ ...c, [r.item_code]: e.target.value }))}
-                            />
-                          </td>
-                          {hoja.camioneta && (
-                            <>
-                              <td>{numero(r.regreso, 0)}</td>
-                              <td>{numero(r.merma, 0)}</td>
-                              <td>{numero(vendido, 0)}</td>
-                            </>
-                          )}
-                          <td>{pesos(enviadoActual * r.precio)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {/* 4 columnas con el acomodo del Excel (COLUMNAS_HOJA, 23-sep) */}
+            {hojasDeColumnas.map((cols, h) => (
+              <div key={h} className={`hoja-bloques${hoja.camioneta ? ' hoja-bloques--camioneta' : ''}`}>
+                {cols.map((col, i) => (
+                  <div key={i} className="hoja-columna">
+                    {col.map(b => (
+                      <div key={b.categoria} className="hoja-bloque">
+                        <h3>{b.categoria}</h3>
+                        <table className="hoja-tabla">
+                          <thead>
+                            <tr>
+                              <th>CLAVE</th><th>PRODUCTO</th><th>$</th><th>PEDIDO</th><th>ENVIADO</th>
+                              {hoja.camioneta && (<><th>REGRESO</th><th>MERMA</th><th>VENDIDO</th></>)}
+                              <th>IMPORTE</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {b.renglones.map(r => {
+                              const enviadoActual = r.item_code in captura ? cantidad(captura[r.item_code]) : r.enviado;
+                              const mermaActual = r.item_code in capturaMerma ? cantidad(capturaMerma[r.item_code]) : r.merma;
+                              // se cobra lo VENDIDO (23-sep: en camioneta IMPORTE enseñaba enviado × $), y se
+                              // ve al teclear la merma. Cliente/sucursal no tienen regreso ni merma: vendido = enviado
+                              const vendido = enviadoActual - r.regreso - mermaActual;
+                              return (
+                                <tr key={r.item_code} className={!r.pedido && !enviadoActual ? 'hoja-fila--sin-pedido' : undefined}>
+                                  <td className="hoja-celda--clave">{r.item_code}</td>
+                                  <td>{r.producto}</td>
+                                  <td className="hoja-celda--num">{pesos(r.precio)}</td>
+                                  <td className="hoja-celda--num">{numero(r.pedido, 0)}</td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      className={enviadoActual > 0 ? 'hoja-input--lleno' : undefined}
+                                      aria-label={`Enviado ${r.producto}`}
+                                      value={captura[r.item_code] ?? String(r.enviado)}
+                                      disabled={enviadoFijo}
+                                      onChange={e => setCaptura(c => ({ ...c, [r.item_code]: e.target.value }))}
+                                    />
+                                  </td>
+                                  {hoja.camioneta && (
+                                    <>
+                                      <td className="hoja-celda--num">{numero(r.regreso, 0)}</td>
+                                      <td>
+                                        {mermaAbierta && r.enviado > 0 ? (
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            aria-label={`Merma ${r.producto}`}
+                                            value={capturaMerma[r.item_code] ?? String(r.merma)}
+                                            onChange={e => setCapturaMerma(c => ({ ...c, [r.item_code]: e.target.value }))}
+                                          />
+                                        ) : numero(r.merma, 0)}
+                                      </td>
+                                      <td className="hoja-celda--num">{numero(vendido, 0)}</td>
+                                    </>
+                                  )}
+                                  <td className={`hoja-celda--num hoja-celda--importe${vendido * r.precio > 0 ? ' hoja-celda--cobra' : ''}`}>{pesos(vendido * r.precio)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             ))}
 
@@ -228,22 +308,53 @@ export default function HojaDelDia() {
                     líneas. */}
                 {hoja.comision > 0 && (
                   <>
-                    <div><span>Comisión 10%</span><strong>{pesos(hoja.comision - COMISION_FIJA)}</strong></div>
+                    {/* con la excepción la comisión viene topada a lo vendido: el 10% sale del sueldo completo */}
+                    <div><span>Comisión 10%</span><strong>{pesos(hoja.comision + (hoja.a_favor ?? 0) - COMISION_FIJA)}</strong></div>
                     <div><span>Cuota fija</span><strong>{pesos(COMISION_FIJA)}</strong></div>
                   </>
                 )}
                 <div><span>Se debe</span><strong>{pesos(hoja.se_debe)}</strong></div>
+                {(hoja.a_favor ?? 0) > 0 && (
+                  <p className="hoja-dia__aviso hoja-dia__aviso--a-favor" role="note">
+                    La comisión ({pesos(hoja.comision + hoja.a_favor)}) rebasa la venta ({pesos(hoja.total)}):
+                    la panadería le debe {pesos(hoja.a_favor)} a {hoja.destino}. Págalo por nómina.
+                  </p>
+                )}
               </div>
             )}
 
-            <div className="hoja-dia__total">Total: {pesos(total)}</div>
+            <div className="hoja-dia__total">
+              <span>{hoja.camioneta ? 'Total enviado' : 'Total'}</span>
+              <strong>{pesos(total)}</strong>
+            </div>
 
-            {!cobrado && (
+            {!cobrado && !enviadoFijo && (
               <div className="hoja-dia__acciones">
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardar} disabled={ocupado}>
                   Guardar
                 </button>
-                <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setConfirmando(true)} disabled={ocupado}>
+                <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion(hoja.camioneta ? 'envio' : 'cobrar')} disabled={ocupado}>
+                  {hoja.camioneta ? 'Confirmar envío' : 'Confirmar y cobrar'}
+                </button>
+              </div>
+            )}
+
+            {!cobrado && etapa === 'enviado' && (
+              <div className="hoja-dia__acciones">
+                <p className="hoja-dia__aviso">En ruta: esperando que {hoja.destino} capture lo que regresa.</p>
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={reabrirEnvio} disabled={ocupado}>
+                  Reabrir envío
+                </button>
+              </div>
+            )}
+
+            {mermaAbierta && (
+              <div className="hoja-dia__acciones">
+                {mermaPendiente.length > 0 && <p className="hoja-dia__aviso">Guarda la merma antes de cobrar.</p>}
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardarMerma} disabled={ocupado || !mermaPendiente.length}>
+                  Guardar merma
+                </button>
+                <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion('cobrar')} disabled={ocupado || mermaPendiente.length > 0}>
                   Confirmar y cobrar
                 </button>
               </div>
@@ -251,14 +362,18 @@ export default function HojaDelDia() {
           </section>
         )}
 
-        {confirmando && hoja && (
+        {accion && hoja && (
           <ConfirmModal
-            title="Cobrar destino"
-            description={`¿Cobrar ${pesos(total)} a ${hoja.destino}? Se genera la factura.`}
+            title={accion === 'envio' ? 'Confirmar envío' : 'Cobrar destino'}
+            description={accion === 'envio'
+              ? `¿Confirmar lo que se lleva ${hoja.destino}? Lo enviado queda fijo y ${hoja.destino} ya podrá capturar lo que regresa.`
+              // camioneta: lo que se debe (vendido − comisión) del servidor, con la merma ya guardada
+              : `¿Cobrar ${pesos(hoja.camioneta ? hoja.se_debe : total)} a ${hoja.destino}? Se genera la factura.`
+                + ((hoja.a_favor ?? 0) > 0 ? ` La panadería le debe ${pesos(hoja.a_favor)} a ${hoja.destino} (por nómina).` : '')}
             subdescription={undefined}
             icon={undefined}
             iconStyle={undefined}
-            confirmLabel="Cobrar"
+            confirmLabel={accion === 'envio' ? 'Confirmar envío' : 'Cobrar'}
             confirmClassName={undefined}
             confirmStyle={undefined}
             loading={ocupado}
@@ -267,8 +382,8 @@ export default function HojaDelDia() {
             fallbackLabel={undefined}
             fallbackDescription={undefined}
             passwordPrompt={undefined}
-            onConfirm={cobrar}
-            onCancel={() => setConfirmando(false)}
+            onConfirm={accion === 'envio' ? confirmarEnvio : cobrar}
+            onCancel={() => setAccion(null)}
           />
         )}
 

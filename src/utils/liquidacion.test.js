@@ -88,3 +88,17 @@ describe('vendidoSinPrecio', () => {
     expect(vendidoSinPrecio(liq)).toEqual([]);
   });
 });
+
+describe('excepción 23-sep: vende menos que su sueldo', () => {
+  it('🔴 neto nunca negativo; lo que falta queda a favor del repartidor', () => {
+    const l = calcularLiquidacion([{ item_code: 'A', qty: 1, precio: 12 }]);
+    expect(l.comision).toBe(201.2);
+    expect(l.neto).toBe(0);
+    expect(l.aFavor).toBe(189.2);
+  });
+  it('venta normal: sin saldo a favor', () => {
+    const l = calcularLiquidacion([{ item_code: 'A', qty: 100, precio: 12 }]);
+    expect(l.neto).toBe(880);
+    expect(l.aFavor).toBe(0);
+  });
+});

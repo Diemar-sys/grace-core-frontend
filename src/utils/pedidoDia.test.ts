@@ -58,4 +58,14 @@ describe('hojaDelDia', () => {
     expect(hojaDelDia(hojas, []).renglones).toEqual([]);
     expect(hojaDelDia(hojas, []).total_piezas).toBe(0);
   });
+
+  // 23-sep: «La clave 20022 ya venía…» salía en «todo el día» sin decir de qué pestaña
+  it('cada problema dice de qué pestaña viene', () => {
+    const conError = [
+      { ...hoja('ZAKIA', [], ['ZAKIA']), problemas: [{ clave: '20022', producto: 'X', motivo: 'm' }] },
+      { ...hoja('GRAN TOTAL', [], ['PANA']), problemas: [{ clave: '20022', producto: 'Y', motivo: 'm' }] },
+    ];
+    const dia = hojaDelDia(conError, ['ZAKIA', 'GRAN TOTAL']);
+    expect(dia.problemas.map((p) => p.pestana)).toEqual(['ZAKIA', 'GRAN TOTAL']);
+  });
 });
