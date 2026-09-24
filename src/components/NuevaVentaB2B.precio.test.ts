@@ -92,3 +92,23 @@ describe('visibleEnB2B — qué items aparecen en el buscador de Venta B2B', () 
     expect(visibleEnB2B({ custom_tipo_item: 'MATERIA PRIMA', item_group: 'Insumos', custom_vendible_b2b: 1 }, true)).toBe(true);
   });
 });
+
+describe('precioB2B — excepción DELI: la nata a precio de compra (Diemar 24-sep)', () => {
+  // La nata real de prod: tienda $50, compra $40, tasa 0.
+  const NATA = { item_code: '7500000000063', custom_precio_de_venta: '50', custom_precio_de_compra: '40', custom_impuesto: 'tasa0' };
+  const LECHE = { item_code: '7501020565942', custom_precio_de_venta: '35', custom_precio_de_compra: '28', custom_impuesto: 'tasa0' };
+
+  it('🔴 a DELI la nata sale a precio de compra', () => {
+    expect(precioB2B(NATA, true, 'DELI')).toBe(40);
+  });
+  it('🔴 a cualquier otro cliente la nata sigue a precio de tienda', () => {
+    expect(precioB2B(NATA, true, 'ALEJANDRO TORRES')).toBe(50);
+    expect(precioB2B(NATA, true)).toBe(50);
+  });
+  it('🔴 a DELI los demás abarrotes siguen a precio de tienda', () => {
+    expect(precioB2B(LECHE, true, 'DELI')).toBe(35);
+  });
+  it('🔴 el precio sale del catálogo: si la compra lo sube, DELI lo sigue', () => {
+    expect(precioB2B({ ...NATA, custom_precio_de_compra: '42' }, true, 'DELI')).toBe(42);
+  });
+});

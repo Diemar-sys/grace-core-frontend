@@ -221,6 +221,7 @@ class FrappeSalesService extends FrappeBase {
         'custom_impuesto', 'custom_tipo_item', 'custom_departamento',
         'custom_cantidad_por_presentación', 'custom_presentación',
         'custom_precio_de_venta', 'custom_precio_por_kg', 'standard_rate',
+        'custom_precio_de_compra',  // excepción DELI: la nata a precio de compra (24-sep)
         'valuation_rate', 'custom_vendible_b2b', 'custom_almacen_produccion',
       ]),
       filters: JSON.stringify(filters),

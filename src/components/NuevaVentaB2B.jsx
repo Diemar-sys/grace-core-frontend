@@ -30,9 +30,17 @@ const esPan = (item) => (item?.custom_tipo_item || '').trim().toUpperCase() === 
  *  • Pan: el pan se cobra desde la Hoja del día, Diemar 22-sep — NO tiene precio
  *    B2B; `visibleEnB2B` lo saca del buscador antes de que se pueda seleccionar.
  */
-export function precioB2B(item, esAbarrote) {
-  if (esAbarrote && item.custom_precio_de_venta) {
-    return parseFloat(item.custom_precio_de_venta) / (1 + getTasa(item.custom_impuesto));
+// Excepción (Diemar 24-sep): a DELI la NATA se le vende a precio de COMPRA. Regla,
+// no número: el precio sale de custom_precio_de_compra. Clave «cliente|item_code».
+// Misma tabla que el backend (sales_invoice.A_PRECIO_DE_COMPRA), que es quien manda.
+const A_PRECIO_DE_COMPRA = new Set(['DELI|7500000000063']);  // NATA DELICIAS DE LA CUENTA
+
+export function precioB2B(item, esAbarrote, cliente = '') {
+  const tienda = A_PRECIO_DE_COMPRA.has(`${cliente}|${item.item_code}`)
+    ? item.custom_precio_de_compra
+    : item.custom_precio_de_venta;
+  if (esAbarrote && tienda) {
+    return parseFloat(tienda) / (1 + getTasa(item.custom_impuesto));
   }
   const precio = item.custom_precio_por_kg || item.custom_precio_de_venta || item.standard_rate;
   return parseFloat(precio) || 0;
@@ -441,6 +449,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
                     onAddRow={agregarFila}
                     soloUna={filas.length === 1}
                     bloqueaMP={ocultaMateriaPrima(cliente.name)}
+                    cliente={cliente.name}
                     inputRef={(el) => { inputRefs.current[idx] = el; }}
                     onFocusNext={() => focusRow(idx + 1)}
                   />
@@ -511,7 +520,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, soloUna, bloqueaMP, onFocusNext }) {
+function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, soloUna, bloqueaMP, cliente, onFocusNext }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -568,7 +577,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     //  • Materia prima → al COSTO (precio_por_kg). Modelo confirmado 2026-05-20.
     // Tras la migración UOM, precio_de_venta y precio_por_kg ya son POR UNIDAD BASE
     // (no por presentación) → no se divide entre cantPres.
-    const ratePorUnidad = precioB2B(item, inventory.esProductoParaVenta(item.item_group));
+    const ratePorUnidad = precioB2B(item, inventory.esProductoParaVenta(item.item_group), cliente);
     // El buscador ya excluye el pan (visibleEnB2B): todo lo que llega aquí
     // (abarrote, materia prima) sale de Bodega Central.
     const almacen = BODEGA_CENTRAL;
