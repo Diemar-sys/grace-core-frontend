@@ -3,12 +3,21 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import HojaDelDia from './HojaDelDia';
 import { hojaService } from '../services/frappeHoja';
+import { hoyISO } from '../components/modals/ModalEntradaPan';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../components/EstadoCuentaHoja', () => ({ default: () => <div>VISTA ESTADO DE CUENTA</div> }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
-    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn() },
+    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn() },
+}));
+
+// IndexedDB en memoria: sobrevive al desmontar (la «recarga» de los tests del borrador)
+const almacen = vi.hoisted(() => new Map<string, any>());
+vi.mock('../db/borradorLocal', () => ({
+  cargarBorradorForm: async (k: string) => almacen.get(k),
+  guardarBorradorForm: async (k: string, datos: any) => { if (datos == null) almacen.delete(k); else almacen.set(k, { datos, actualizado: 'x' }); },
+  borrarBorradorForm: async (k: string) => { almacen.delete(k); },
 }));
 
 const R = { item_code: '1047', producto: 'CONCHAS', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
@@ -25,6 +34,7 @@ const elegir = async (destino: string) => {
 describe('HojaDelDia — cableado', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    almacen.clear();
     s.destinos.mockResolvedValue([{ destino: 'DELI', grupo: 'CLIENTES', camioneta: false, total: 0, comision: 0, se_debe: 0, estado: 'sin_capturar', factura: null }]);
   });
 
@@ -336,5 +346,129 @@ describe('HojaDelDia — cableado', () => {
     expect(screen.getByRole('note')).toHaveTextContent('la panadería le debe $189.20 a MARTIN');
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
     expect(await screen.findByText(/le debe \$189\.20 a MARTIN \(por nómina\)/)).toBeInTheDocument();
+  });
+});
+
+describe('HojaDelDia — lo tecleado sin guardar (25-sep)', () => {
+  const dia = (destino: string) => ({ destino, grupo: 'CLIENTES', camioneta: false, total: 0, comision: 0, se_debe: 0, estado: 'sin_capturar' as const, factura: null });
+  const guardadoEnDisco = () => JSON.stringify([...almacen.values()].map(v => v.datos));
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    almacen.clear();
+    s.destinos.mockResolvedValue([dia('DELI'), dia('ZAKIA')]);
+    s.hoja.mockImplementation(async (_f: string, destino: string) => ({ ...hoja(), destino }));
+  });
+
+  it('🔴 cambiar de destino y volver NO tira lo tecleado, y el dropdown avisa «sin guardar»', async () => {
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    await elegir('ZAKIA');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'ZAKIA' })).toBeInTheDocument());
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(0);
+    expect(screen.getByRole('option', { name: /^DELI ·.*sin guardar$/ })).toBeInTheDocument();
+    await elegir('DELI');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'DELI' })).toBeInTheDocument());
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(30);
+    expect(s.guardar).not.toHaveBeenCalled();
+  });
+
+  it('🔴 recargar la página conserva lo tecleado', async () => {
+    const { unmount } = render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    await waitFor(() => expect(guardadoEnDisco()).toContain('"1047":"30"'), { timeout: 2000 });
+    unmount();
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(30));
+  });
+
+  it('🔴 Guardar vacía el borrador de ese destino (ya está en el servidor)', async () => {
+    s.guardar.mockResolvedValue({ ...hoja(), renglones: [{ ...R, enviado: 30 }] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    await waitFor(() => expect(almacen.size).toBe(1), { timeout: 2000 });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(s.guardar).toHaveBeenCalled());
+    await waitFor(() => expect(almacen.size).toBe(0), { timeout: 2000 });
+    expect(screen.queryByRole('option', { name: /sin guardar/ })).toBeNull();
+  });
+
+  it('🔴 destino ya cobrado ignora el borrador viejo: enseña lo del servidor', async () => {
+    // en disco: 30 tecleados a DELI que nunca se guardaron; luego alguien lo cobró con 0
+    almacen.set('hoja-dia', { datos: { [hoyISO()]: { DELI: { enviado: { 1047: '30' } } } }, actualizado: 'x' });
+    s.hoja.mockResolvedValue(hoja({ name: 'ACC-SINV-2026-00099', grand_total: 0, outstanding_amount: 0 }));
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByText(/ACC-SINV-2026-00099/);
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(0));
+  });
+});
+
+describe('HojaDelDia — Guardar todo (25-sep)', () => {
+  const dia = (destino: string, estado: any = 'sin_capturar') => ({ destino, grupo: 'CLIENTES', camioneta: false, total: 0, comision: 0, se_debe: 0, estado, factura: null });
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    almacen.clear();
+    s.hoja.mockImplementation(async (_f: string, destino: string) => ({ ...hoja(), destino }));
+  });
+
+  it('🔴 manda la ronda de todos los destinos en UNA llamada y vacía el borrador', async () => {
+    s.destinos.mockResolvedValue([dia('DELI'), dia('ZAKIA')]);
+    s.guardarTodo.mockResolvedValue(['DELI', 'ZAKIA']);
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    await elegir('ZAKIA');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'ZAKIA' })).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Enviado CONCHAS'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar todo (2)' }));
+    await waitFor(() => expect(s.guardarTodo).toHaveBeenCalledTimes(1));
+    expect(s.guardarTodo).toHaveBeenCalledWith(hoyISO(), {
+      DELI: [{ item_code: '1047', enviado: 30 }], ZAKIA: [{ item_code: '1047', enviado: 5 }] });
+    expect(s.guardar).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Guardar todo/ })).toBeNull());
+    await waitFor(() => expect(almacen.size).toBe(0), { timeout: 2000 });
+  });
+
+  it('🔴 un destino ya cobrado no va en la ronda (tumbaría a los demás)', async () => {
+    // más un borrador de OTRO día, que la ronda de hoy no debe tocar
+    almacen.set('hoja-dia', { datos: { [hoyISO()]: { DELI: { enviado: { 1047: '30' } }, ZAKIA: { enviado: { 1047: '5' } } },
+      '2026-01-02': { DELI: { enviado: { 1047: '7' } } } }, actualizado: 'x' });
+    s.destinos.mockResolvedValue([dia('DELI', 'confirmado'), dia('ZAKIA')]);
+    s.guardarTodo.mockResolvedValue(['ZAKIA']);
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Guardar todo (1)' }));
+    await waitFor(() => expect(s.guardarTodo).toHaveBeenCalledWith(hoyISO(), { ZAKIA: [{ item_code: '1047', enviado: 5 }] }));
+    await waitFor(() => expect(almacen.get('hoja-dia')?.datos).toEqual({ '2026-01-02': { DELI: { enviado: { 1047: '7' } } } }), { timeout: 2000 });
+  });
+
+  it('🔴 si el servidor rechaza la ronda, lo tecleado se queda y se ve el error', async () => {
+    almacen.set('hoja-dia', { datos: { [hoyISO()]: { ZAKIA: { enviado: { 1047: '5' } } } }, actualizado: 'x' });
+    s.destinos.mockResolvedValue([dia('ZAKIA')]);
+    s.guardarTodo.mockRejectedValue(new Error('ZAKIA ya se cobró'));
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Guardar todo (1)' }));
+    expect(await screen.findByText('ZAKIA ya se cobró')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar todo (1)' })).toBeInTheDocument();
+    await elegir('ZAKIA');
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(5));
+  });
+
+  it('🔴 mientras guarda no se teclea (al terminar se vacía el borrador y se comería lo nuevo)', async () => {
+    s.destinos.mockResolvedValue([dia('DELI')]);
+    let responder: (v: string[]) => void = () => {};
+    s.guardarTodo.mockReturnValue(new Promise(r => { responder = r; }));
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar todo (1)' }));
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).toBeDisabled());
+    await act(async () => { responder(['DELI']); });
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).not.toBeDisabled());
   });
 });

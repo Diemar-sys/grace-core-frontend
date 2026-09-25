@@ -430,6 +430,8 @@
   border: 1px solid var(--color-brand-light);
 }
 
+.hoja-btn--todo { margin-left: auto; } /* Guardar todo, a la derecha de la barra de filtros */
+
 .hoja-btn--primario {
   background: var(--color-brand);
   color: #ffffff;

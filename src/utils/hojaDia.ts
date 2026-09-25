@@ -1,6 +1,6 @@
 // Lógica PURA de la Hoja del día. Lo tecleado son cadenas (lección del 04-sep):
 // se convierten aquí, no en el input.
-import type { RenglonHoja } from '../services/frappeHoja';
+import type { DestinoDia, RenglonHoja } from '../services/frappeHoja';
 import { cantidad } from './cierreRuta';
 
 export { cantidad };
@@ -75,6 +75,53 @@ export function cambiosEnviado(renglones: RenglonHoja[], captura: Record<string,
   return renglones
     .filter(r => r.item_code in captura && cantidad(captura[r.item_code]) !== r.enviado)
     .map(r => ({ item_code: r.item_code, enviado: cantidad(captura[r.item_code]) }));
+}
+
+/**
+ * Lo tecleado sin guardar (25-sep): fecha → destino → campo → item_code → texto.
+ * Vive en IndexedDB (`useBorradorLocal`): cambiar de destino o recargar ya no lo tira,
+ * y «Guardar» queda para el final de la ronda. Solo cantidades, nunca precio.
+ */
+export type CampoHoja = 'enviado' | 'merma';
+export type BorradorHoja = Record<string, Record<string, Partial<Record<CampoHoja, Record<string, string>>>>>;
+
+export function conTecleado(b: BorradorHoja, fecha: string, destino: string, campo: CampoHoja, item: string, valor: string): BorradorHoja {
+  const d = b[fecha]?.[destino] ?? {};
+  return { ...b, [fecha]: { ...b[fecha], [destino]: { ...d, [campo]: { ...d[campo], [item]: valor } } } };
+}
+
+/** Quita esos campos del destino y poda lo que queda vacío. Sin nada que quitar, devuelve el MISMO objeto. */
+export function sinTecleado(b: BorradorHoja, fecha: string, destino: string, campos: CampoHoja[]): BorradorHoja {
+  const d = b[fecha]?.[destino];
+  if (!d || !campos.some(c => c in d)) return b;
+  const resto = { ...d };
+  for (const c of campos) delete resto[c];
+  const dia = { ...b[fecha] };
+  if (Object.keys(resto).length) dia[destino] = resto; else delete dia[destino];
+  const nuevo = { ...b };
+  if (Object.keys(dia).length) nuevo[fecha] = dia; else delete nuevo[fecha];
+  return nuevo;
+}
+
+const SE_CAPTURA = new Set<DestinoDia['estado']>(['sin_capturar', 'sin_confirmar']);
+
+/**
+ * Lo que manda «Guardar todo» (25-sep): el ENVIADO tecleado de cada destino que todavía
+ * se captura. Los que ya salieron o se cobraron van en `fijos` (el servidor los rechazaría
+ * y tumbaría la ronda entera). Un destino que no está en la lista no va a ningún lado:
+ * sin saber su estado no se manda, pero tampoco se tira. O(n) con un Map.
+ */
+export function rondaPorGuardar(dia: BorradorHoja[string] | undefined, destinos: DestinoDia[]) {
+  const estado = new Map(destinos.map(d => [d.destino, d.estado]));
+  const capturas: Record<string, { item_code: string; enviado: number }[]> = {};
+  const fijos: string[] = [];
+  for (const [destino, t] of Object.entries(dia ?? {})) {
+    const e = estado.get(destino);
+    if (!t.enviado || !e) continue;
+    if (!SE_CAPTURA.has(e)) { fijos.push(destino); continue; }
+    capturas[destino] = Object.entries(t.enviado).map(([item_code, v]) => ({ item_code, enviado: cantidad(v) }));
+  }
+  return { capturas, fijos };
 }
 
 const isoLocal = (d: Date) =>

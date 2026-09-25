@@ -69,3 +69,45 @@ describe('semanaDe', () => {
     expect(semanaDe('2026-12-30')).toEqual({ desde: '2026-12-28', hasta: '2027-01-03' });
   });
 });
+
+import { conTecleado, sinTecleado } from './hojaDia';
+describe('borrador de la hoja (lo tecleado sin guardar)', () => {
+  it('guarda por fecha y destino sin pisar al vecino', () => {
+    let b = conTecleado({}, '2026-09-25', 'DELI', 'enviado', '1047', '30');
+    b = conTecleado(b, '2026-09-25', 'ZAKIA', 'enviado', '1047', '5');
+    b = conTecleado(b, '2026-09-25', 'DELI', 'enviado', '1016', '2');
+    expect(b).toEqual({ '2026-09-25': { DELI: { enviado: { 1047: '30', 1016: '2' } }, ZAKIA: { enviado: { 1047: '5' } } } });
+  });
+
+  it('quitar poda hasta dejar {} (el hook borra el renglón de IndexedDB con null)', () => {
+    const b = conTecleado({}, '2026-09-25', 'DELI', 'enviado', '1047', '30');
+    expect(sinTecleado(b, '2026-09-25', 'DELI', ['enviado'])).toEqual({});
+  });
+
+  it('quitar un campo deja el otro', () => {
+    let b = conTecleado({}, 'f', 'MARTIN', 'enviado', '1047', '30');
+    b = conTecleado(b, 'f', 'MARTIN', 'merma', '1047', '1');
+    expect(sinTecleado(b, 'f', 'MARTIN', ['enviado'])).toEqual({ f: { MARTIN: { merma: { 1047: '1' } } } });
+  });
+
+  it('sin nada que quitar devuelve el mismo objeto (no re-renderiza)', () => {
+    const b = conTecleado({}, 'f', 'DELI', 'enviado', '1047', '30');
+    expect(sinTecleado(b, 'f', 'DELI', ['merma'])).toBe(b);
+    expect(sinTecleado(b, 'f', 'ZAKIA', ['enviado'])).toBe(b);
+  });
+});
+
+import { rondaPorGuardar } from './hojaDia';
+describe('rondaPorGuardar (Guardar todo)', () => {
+  const d = (destino: string, estado: any) => ({ destino, estado }) as any;
+  it('manda lo que se captura, aparta lo que ya salió o se cobró, y no toca lo desconocido', () => {
+    const dia = { DELI: { enviado: { 1047: '30', 1016: '' } }, MARTIN: { enviado: { 1047: '5' } },
+      ISMA: { enviado: { 1047: '1' } }, FANTASMA: { enviado: { 1047: '9' } }, MILA: { merma: { 1047: '2' } } };
+    const r = rondaPorGuardar(dia, [d('DELI', 'sin_confirmar'), d('MARTIN', 'en_ruta'), d('ISMA', 'confirmado'), d('MILA', 'sin_capturar')]);
+    expect(r.capturas).toEqual({ DELI: [{ item_code: '1016', enviado: 0 }, { item_code: '1047', enviado: 30 }] });
+    expect(r.fijos.sort()).toEqual(['ISMA', 'MARTIN']);
+  });
+  it('sin borrador del día no hay ronda', () => {
+    expect(rondaPorGuardar(undefined, [])).toEqual({ capturas: {}, fijos: [] });
+  });
+});

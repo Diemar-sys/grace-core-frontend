@@ -11,7 +11,11 @@ import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
 import { hoyISO } from '../components/modals/ModalEntradaPan';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
-import { bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, totalCapturado } from '../utils/hojaDia';
+import useBorradorLocal from '../hooks/useBorradorLocal';
+import {
+  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, rondaPorGuardar, sinTecleado, totalCapturado,
+  type BorradorHoja, type CampoHoja,
+} from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
 import '../styles/global.css';
@@ -31,7 +35,6 @@ export default function HojaDelDia() {
   const [fecha, setFecha] = useState(hoyISO());
   const [destinos, setDestinos] = useState<DestinoDia[]>([]);
   const [hoja, setHoja] = useState<Hoja | null>(null);
-  const [captura, setCaptura] = useState<Record<string, string>>({});
   const [elegido, setElegido] = useState('');
   // dos vistas en la misma pantalla (Diemar 23-sep): capturar el día, o el estado de cuenta
   // `/hoja?vista=estado` (tarjeta de Reportes) abre directo en el estado de cuenta
@@ -39,7 +42,11 @@ export default function HojaDelDia() {
     () => (new URLSearchParams(window.location.search).get('vista') === 'estado' ? 'estado' : 'captura'));
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [capturaMerma, setCapturaMerma] = useState<Record<string, string>>({});
+  // Lo tecleado sin guardar vive en IndexedDB (25-sep): cambiar de destino o recargar no lo
+  // tira. «Guardar» queda para el final de la ronda; confirmar guarda antes de todos modos.
+  const [borrador, setBorrador] = useState<BorradorHoja>({});
+  useBorradorLocal('hoja-dia', Object.keys(borrador).length ? borrador : null, setBorrador);
+  const olvidar = (destino: string, campos: CampoHoja[]) => setBorrador(b => sinTecleado(b, fecha, destino, campos));
   // qué confirma el modal: el cobro, o (camioneta) el envío
   const [accion, setAccion] = useState<null | 'cobrar' | 'envio'>(null);
 
@@ -56,7 +63,7 @@ export default function HojaDelDia() {
     catch (e: any) { setError(e?.message || 'No se pudo leer la hoja del día'); setDestinos([]); }
   }, [fecha]);
 
-  useEffect(() => { peticionRef.current++; setHoja(null); setCaptura({}); setCapturaMerma({}); setElegido(''); cargarDestinos(); }, [cargarDestinos]);
+  useEffect(() => { peticionRef.current++; setHoja(null); setElegido(''); cargarDestinos(); }, [cargarDestinos]);
 
   const abrir = async (destino: string) => {
     setElegido(destino);
@@ -65,12 +72,21 @@ export default function HojaDelDia() {
     try {
       const h = await hojaService.hoja(fecha, destino);
       if (peticionRef.current !== folio) return; // ya se abrió otro destino/fecha
-      setHoja(h); setCaptura({}); setCapturaMerma({});
+      setHoja(h);
+      // lo que ya no se teclea no se trae del borrador: enseñaría un número que no es el guardado
+      const fijos: CampoHoja[] = [];
+      if (h.factura || (h.camioneta && h.etapa)) fijos.push('enviado');
+      if (h.factura || h.etapa !== 'liquidado') fijos.push('merma');
+      olvidar(destino, fijos);
     } catch (e: any) {
       if (peticionRef.current !== folio) return;
       setError(e?.message || 'No se pudo abrir la hoja');
     }
   };
+
+  const tecleado = hoja ? borrador[fecha]?.[hoja.destino] : undefined;
+  const captura = useMemo(() => tecleado?.enviado ?? {}, [tecleado]);
+  const capturaMerma = tecleado?.merma ?? {};
 
   // Lo que falta guardar: solo los renglones cuyo tecleado cambió.
   const cambiosPendientes = (h: Hoja) => cambiosEnviado(h.renglones, captura);
@@ -81,7 +97,8 @@ export default function HojaDelDia() {
   const guardarEnServidor = async (destino: string, renglones: { item_code: string; enviado: number }[]) => {
     const folio = ++peticionRef.current;
     const actualizada = await hojaService.guardar(fecha, destino, renglones);
-    if (peticionRef.current === folio) { setHoja(actualizada); setCaptura({}); }
+    olvidar(destino, ['enviado']); // ya está en el servidor, aunque la pantalla haya cambiado de destino
+    if (peticionRef.current === folio) setHoja(actualizada);
     return actualizada;
   };
 
@@ -110,6 +127,27 @@ export default function HojaDelDia() {
     return m;
   }, [destinos]);
 
+  // «Guardar todo» (25-sep): los destinos se surten a la vez; la ronda se guarda de un golpe
+  const ronda = useMemo(() => rondaPorGuardar(borrador[fecha], destinos), [borrador, fecha, destinos]);
+  const porGuardar = Object.keys(ronda.capturas).length;
+
+  const guardarTodo = async () => {
+    if (!porGuardar) return;
+    setOcupado(true);
+    try {
+      const hechos = await hojaService.guardarTodo(fecha, ronda.capturas);
+      // lo de los destinos que ya salieron o se cobraron no se puede guardar: se tira también
+      setBorrador(b => [...hechos, ...ronda.fijos].reduce((acc, d) => sinTecleado(acc, fecha, d, ['enviado']), b));
+      if (hoja && hechos.includes(hoja.destino)) {
+        const folio = ++peticionRef.current;
+        const fresca = await hojaService.hoja(fecha, hoja.destino);
+        if (peticionRef.current === folio) setHoja(fresca);
+      }
+      await cargarDestinos();
+    } catch (e: any) { setError(e?.message || 'No se guardó'); }
+    finally { setOcupado(false); }
+  };
+
   const guardar = async () => {
     if (!hoja) return;
     const renglones = cambiosPendientes(hoja);
@@ -137,6 +175,7 @@ export default function HojaDelDia() {
       const renglones = cambiosPendientes(hoja);
       if (renglones.length) await guardarEnServidor(destino, renglones);
       await hojaService.confirmar(fecha, destino);
+      olvidar(destino, ['enviado', 'merma']);
       const folio = ++peticionRef.current;
       const fresca = await hojaService.hoja(fecha, destino);
       if (peticionRef.current === folio) setHoja(fresca);
@@ -153,7 +192,8 @@ export default function HojaDelDia() {
     try {
       const folio = ++peticionRef.current;
       const nueva = await paso(hoja);
-      if (peticionRef.current === folio) { setHoja(nueva); setCaptura({}); setCapturaMerma({}); }
+      olvidar(hoja.destino, ['enviado', 'merma']);
+      if (peticionRef.current === folio) setHoja(nueva);
       await cargarDestinos();
     } catch (e: any) { setError(e?.message || siFalla); }
     finally { setOcupado(false); setAccion(null); }
@@ -199,7 +239,7 @@ export default function HojaDelDia() {
                 <optgroup key={grupo} label={grupo}>
                   {lista.map(d => (
                     <option key={d.destino} value={d.destino}>
-                      {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.camioneta ? d.se_debe : d.total)}`}
+                      {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.camioneta ? d.se_debe : d.total)}${borrador[fecha]?.[d.destino] ? ' · sin guardar' : ''}`}
                     </option>
                   ))}
                 </optgroup>
@@ -210,6 +250,11 @@ export default function HojaDelDia() {
             Fecha
             <input type="date" value={fecha} disabled={ocupado} onChange={e => setFecha(e.target.value)} />
           </label>
+          {porGuardar > 0 && (
+            <button type="button" className="hoja-btn hoja-btn--primario hoja-btn--todo" onClick={guardarTodo} disabled={ocupado}>
+              Guardar todo ({porGuardar})
+            </button>
+          )}
         </div>
         )}
 
@@ -263,8 +308,8 @@ export default function HojaDelDia() {
                                       className={enviadoActual > 0 ? 'hoja-input--lleno' : undefined}
                                       aria-label={`Enviado ${r.producto}`}
                                       value={captura[r.item_code] ?? String(r.enviado)}
-                                      disabled={enviadoFijo}
-                                      onChange={e => setCaptura(c => ({ ...c, [r.item_code]: e.target.value }))}
+                                      disabled={enviadoFijo || ocupado}
+                                      onChange={e => setBorrador(b => conTecleado(b, fecha, hoja.destino, 'enviado', r.item_code, e.target.value))}
                                     />
                                   </td>
                                   {hoja.camioneta && (
@@ -277,7 +322,7 @@ export default function HojaDelDia() {
                                             min={0}
                                             aria-label={`Merma ${r.producto}`}
                                             value={capturaMerma[r.item_code] ?? String(r.merma)}
-                                            onChange={e => setCapturaMerma(c => ({ ...c, [r.item_code]: e.target.value }))}
+                                            onChange={e => setBorrador(b => conTecleado(b, fecha, hoja.destino, 'merma', r.item_code, e.target.value))}
                                           />
                                         ) : numero(r.merma, 0)}
                                       </td>

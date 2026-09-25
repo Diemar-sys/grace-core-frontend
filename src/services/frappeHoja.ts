@@ -57,6 +57,10 @@ class HojaService extends FrappeBase {
   guardar(fecha: string, destino: string, renglones: { item_code: string; enviado: number }[]) {
     return this._post<Hoja>('guardar', { fecha, destino, renglones });
   }
+  /** «Guardar todo» (25-sep): la ronda completa en un solo save, todo o nada. Devuelve los destinos guardados. */
+  guardarTodo(fecha: string, capturas: Record<string, { item_code: string; enviado: number }[]>) {
+    return this._post<string[]>('guardar_todo', { fecha, capturas });
+  }
   /** Solo REGRESO: la merma ya no es del repartidor (la pone Héctor). */
   guardarRegreso(fecha: string, renglones: { item_code: string; regreso: number }[], destino?: string) {
     return this._post<Hoja>('guardar_regreso', { fecha, renglones, destino });
