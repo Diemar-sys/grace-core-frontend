@@ -31,6 +31,10 @@
   color: var(--color-text);
 }
 
+.liq-fecha {
+  width: auto;
+}
+
 .liq-sub {
   margin: 0.25rem 0 0;
   color: var(--color-text-muted);

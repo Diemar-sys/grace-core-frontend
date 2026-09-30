@@ -1,17 +1,17 @@
 // src/pages/Liquidacion.tsx
 // Liquidación del repartidor SOBRE LA HOJA (22-sep): sin inventario de
 // camioneta, sin almacén de regreso — no hay a dónde regresar porque ya no
-// hay traspaso. El repartidor solo teclea REGRESA: lo que trae de vuelta
-// (su inventario al regresar). Desde el 23-sep la MERMA («Se tiró») la pone
-// Héctor en la Hoja del día; aquí se ve, no se teclea. Y la hoja solo aparece
-// después de que matriz confirma el envío (etapa de la camioneta).
+// hay traspaso. El repartidor teclea la MERMA: lo que trae de vuelta (30-sep,
+// Diemar: «merma y regresó es lo mismo»). Héctor la confirma o corrige en la
+// Hoja del día antes de cobrar. La hoja solo aparece después de que matriz
+// confirma el envío (etapa de la camioneta).
 //
-// La venta no se teclea: sale por diferencia (enviado − regresa − tiro), en
+// La venta no se teclea: sale por diferencia (enviado − merma), en
 // una VISTA PREVIA calculada en el render con funciones puras — nada de
 // `useEffect` escribiendo estado derivado, que fue el bug de `precio_final`
 // que viajó desfasado al servidor el 17-ago.
 //
-// El servidor manda: `guardarRegreso` REEMPLAZA el regreso de cada
+// El servidor manda: `guardarRegreso` REEMPLAZA la merma de cada
 // renglón (no suma), así que siempre se mandan TODOS los renglones de la
 // hoja, no solo los tecleados. Una vez que matriz confirma y factura el
 // destino (`hoja.factura`), la hoja queda de solo lectura.
@@ -32,17 +32,20 @@ function Liquidacion() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [exito, setExito] = useState(false);
+  // El repartidor elige el día (28-sep: MARTIN no pudo liquidar el viernes el
+  // lunes). El servidor amarra la camioneta a su sesión; aquí solo va la fecha.
+  const [fecha, setFecha] = useState(hoyISO());
 
   const cargar = useCallback(async () => {
     setCargando(true);
     setError('');
     try {
-      const h = await hojaService.miHoja(hoyISO());
+      const h = await hojaService.miHoja(fecha);
       setHoja(h);
       setCaptura(Object.fromEntries(
         h.renglones.map(r => [
           r.item_code,
-          { regresa: r.regreso ? String(r.regreso) : '', tiro: r.merma ? String(r.merma) : '' },
+          { regresa: '', tiro: r.merma ? String(r.merma) : '' },
         ]),
       ));
     } catch (e: any) {
@@ -50,7 +53,7 @@ function Liquidacion() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [fecha]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -70,7 +73,7 @@ function Liquidacion() {
   const cobrado = Boolean(hoja?.factura);
   const renglones = hoja?.renglones ?? [];
 
-  const teclear = (item_code: string, campo: 'regresa', valor: string) =>
+  const teclear = (item_code: string, campo: 'tiro', valor: string) =>
     setCaptura(prev => {
       // Se guarda el TEXTO, no el número: "1." a medio teclear tiene que poder
       // seguir escribiéndose, y un campo vacío no es un cero.
@@ -89,9 +92,9 @@ function Liquidacion() {
       // servidor en un envío previo.
       const paraGuardar = hoja.renglones.map(r => ({
         item_code: r.item_code,
-        regreso: cantidad(captura[r.item_code]?.regresa),
+        merma: cantidad(captura[r.item_code]?.tiro),
       }));
-      const h = await hojaService.guardarRegreso(hoyISO(), paraGuardar);
+      const h = await hojaService.guardarRegreso(fecha, paraGuardar);
       setHoja(h);
       setExito(true);
     } catch (e: any) {
@@ -111,6 +114,11 @@ function Liquidacion() {
               {hoja ? hoja.destino : 'Cargando tu hoja…'}
             </p>
           </div>
+          <input
+            className="liq-input liq-fecha" type="date" aria-label="Día"
+            value={fecha} max={hoyISO()} disabled={guardando}
+            onChange={e => { if (e.target.value) { setExito(false); setFecha(e.target.value); } }}
+          />
           {cobrado && (
             <span className="liq-badge liq-badge--aviso">
               Cobrado{hoja?.factura ? ` · ${hoja.factura.name} · saldo ${pesos(hoja.factura.outstanding_amount)}` : ''}
@@ -156,7 +164,7 @@ function Liquidacion() {
 
         {liq.inconsistentes.length > 0 && (
           <div className="liq-aviso liq-aviso--error">
-            Estos productos regresaron o se tiraron más de lo que salieron:{' '}
+            Estos productos tienen más merma de lo que salió:{' '}
             {liq.inconsistentes.map(r => r.item_name).join(', ')}
           </div>
         )}
@@ -167,7 +175,7 @@ function Liquidacion() {
             <p className="liq-vacio">
               {hoja && !hoja.etapa && !cobrado
                 ? 'Todavía no te envían pan: cuando matriz confirme tu envío, aquí aparece lo que llevas.'
-                : 'Hoy no tienes hoja.'}
+                : 'Ese día no tienes hoja.'}
             </p>
           )}
 
@@ -178,8 +186,7 @@ function Liquidacion() {
                   <tr>
                     <th>Producto</th>
                     <th className="liq-num">Enviado</th>
-                    <th className="liq-num">Regresa</th>
-                    <th className="liq-num">Se tiró</th>
+                    <th className="liq-num">Merma</th>
                     <th className="liq-num">Vendido</th>
                     <th className="liq-num">Importe</th>
                   </tr>
@@ -195,14 +202,12 @@ function Liquidacion() {
                       <td className="liq-num">
                         <input
                           className="liq-input" type="text" inputMode="decimal"
-                          aria-label={`Regresa ${r.item_name}`}
-                          placeholder="0" value={captura[r.item_code]?.regresa ?? ''}
+                          aria-label={`Merma ${r.item_name}`}
+                          placeholder="0" value={captura[r.item_code]?.tiro ?? ''}
                           disabled={cobrado}
-                          onChange={e => teclear(r.item_code, 'regresa', e.target.value)}
+                          onChange={e => teclear(r.item_code, 'tiro', e.target.value)}
                         />
                       </td>
-                      {/* la merma la pone Héctor (23-sep): aquí solo se ve */}
-                      <td className="liq-num">{numero(cantidad(captura[r.item_code]?.tiro))}</td>
                       <td className="liq-num liq-vendido">{numero(r.vendido)} {r.uom}</td>
                       <td className="liq-num">{pesos(r.importe)}</td>
                     </tr>

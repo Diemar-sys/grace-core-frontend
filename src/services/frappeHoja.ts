@@ -8,7 +8,7 @@ const API = '/api/method/gestion_panaderia.api.hoja_api.';
 
 export interface RenglonHoja {
   item_code: string; producto: string; departamento: string; categoria: string; impuesto: string;
-  pedido: number; enviado: number; regreso: number; merma: number; precio: number; importe: number;
+  pedido: number; enviado: number; merma: number; precio: number; importe: number;
 }
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
 /** '' = capturando lo enviado · 'enviado' = en ruta · 'liquidado' = ya entregó su regreso */
@@ -62,7 +62,8 @@ class HojaService extends FrappeBase {
     return this._post<string[]>('guardar_todo', { fecha, capturas });
   }
   /** Solo REGRESO: la merma ya no es del repartidor (la pone Héctor). */
-  guardarRegreso(fecha: string, renglones: { item_code: string; regreso: number }[], destino?: string) {
+  /** 30-sep: el repartidor manda la MERMA (lo que regresa); ya no hay «regreso» aparte. */
+  guardarRegreso(fecha: string, renglones: { item_code: string; merma: number }[], destino?: string) {
     return this._post<Hoja>('guardar_regreso', { fecha, renglones, destino });
   }
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }

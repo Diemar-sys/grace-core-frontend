@@ -21,7 +21,7 @@ vi.mock('../db/borradorLocal', () => ({
 }));
 
 const R = { item_code: '1047', producto: 'CONCHAS', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
-  impuesto: 'ieps', pedido: 40, enviado: 0, regreso: 0, merma: 0, precio: 14, importe: 0 };
+  impuesto: 'ieps', pedido: 40, enviado: 0, merma: 0, precio: 14, importe: 0 };
 const hoja = (factura: any = null) => ({ destino: 'DELI', camioneta: false, etapa: '' as const, renglones: [R], total: 0, comision: 0, se_debe: 0, a_favor: 0, factura });
 const s = vi.mocked(hojaService);
 
@@ -149,9 +149,9 @@ describe('HojaDelDia — cableado', () => {
   // recálculo. `se_debe` aquí ($850) NO es total-comision ($900) a
   // propósito: si alguien lo recalculara en el navegador, el número que
   // saldría sería otro y el test lo cachería.
-  it('🔴 I: camioneta — regreso/merma/vendido de solo lectura, resumen tal cual del servidor (con comisión partida)', async () => {
+  it('🔴 I: camioneta — merma/vendido de solo lectura, resumen tal cual del servidor (con comisión partida)', async () => {
     const rCamioneta = { item_code: '3003', producto: 'BOLSA NEGRA', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
-      impuesto: 'ieps', pedido: 50, enviado: 40, regreso: 5, merma: 2, precio: 10, importe: 330 };
+      impuesto: 'ieps', pedido: 50, enviado: 40, merma: 7, precio: 10, importe: 330 };
     // 🔴 Los tres números NO se derivan entre sí, a propósito (fix round 2):
     // total 1025, comisión 302, se_debe 718. Con 1020/302/718 el test era
     // hueco — 1020-302 daba 718 y 10% de 1020 daba 102, así que recalcular
@@ -169,9 +169,9 @@ describe('HojaDelDia — cableado', () => {
     // regreso/merma/vendido no son campos capturables aquí (los captura
     // el repartidor en /liquidacion): ningún input con esos aria-label.
     expect(screen.queryByLabelText(/Regreso|Merma|Vendido/i)).toBeNull();
-    expect(screen.getByText('5')).toBeInTheDocument();   // REGRESO
-    expect(screen.getByText('2')).toBeInTheDocument();   // MERMA
-    expect(screen.getByText('33')).toBeInTheDocument();  // VENDIDO = 40-5-2
+    expect(screen.queryByText('REGRESO')).toBeNull();    // 30-sep: solo MERMA
+    expect(screen.getByText('7')).toBeInTheDocument();   // MERMA
+    expect(screen.getByText('33')).toBeInTheDocument();  // VENDIDO = 40-7
 
     // Venta, Comisión 10%, Cuota fija, Se debe — en ese orden y con el
     // <strong> asociado a cada etiqueta (Se debe se repite en el botón del
@@ -203,7 +203,7 @@ describe('HojaDelDia — cableado', () => {
 
   it('🔴 I: camioneta sin venta (comisión 0) no pinta renglones de comisión', async () => {
     const rCamioneta = { item_code: '3003', producto: 'BOLSA NEGRA', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
-      impuesto: 'ieps', pedido: 50, enviado: 0, regreso: 0, merma: 0, precio: 10, importe: 0 };
+      impuesto: 'ieps', pedido: 50, enviado: 0, merma: 0, precio: 10, importe: 0 };
     s.destinos.mockResolvedValue([
       { destino: 'CAMIONETA 1', grupo: 'REPARTO', camioneta: true, total: 0, comision: 0, se_debe: 0, estado: 'sin_capturar', factura: null },
     ]);
@@ -297,16 +297,17 @@ describe('HojaDelDia — cableado', () => {
       expect(await screen.findByLabelText('Enviado CHINOS')).not.toBeDisabled();
     });
 
-    it('🔴 regresó: Héctor captura la merma; no se cobra con merma sin guardar; el modal dice lo que se debe', async () => {
+    it('🔴 regresó: Héctor ve la merma del repartidor y la corrige; no se cobra con merma sin guardar; el modal dice lo que se debe', async () => {
       s.destinos.mockResolvedValue(destinoIsma);
-      s.hoja.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, regreso: 3 }));
-      s.guardarMerma.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, regreso: 3, merma: 2 }));
+      s.hoja.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, merma: 3 }));   // la capturó ISMA
+      s.guardarMerma.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, merma: 5 }));
       s.confirmar.mockResolvedValue({ factura: 'ACC-SINV-2026-00200', total: 1025, comision: 302, se_debe: 718 });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
       expect(await screen.findByLabelText('Enviado CHINOS')).toBeDisabled();
-      fireEvent.change(screen.getByLabelText('Merma CHINOS'), { target: { value: '2' } });
-      // al teclear: vendido 20 − 3 − 2 = 15 e importe 15 × $12 = $180 (no 20 × $12 = $240)
+      expect(screen.getByLabelText('Merma CHINOS')).toHaveValue(3);     // lo que capturó el repartidor
+      fireEvent.change(screen.getByLabelText('Merma CHINOS'), { target: { value: '5' } });
+      // al teclear: vendido 20 − 5 = 15 e importe 15 × $12 = $180 (no 20 × $12 = $240)
       const fila = screen.getByLabelText('Merma CHINOS').closest('tr')!;
       expect(within(fila).getByText('15')).toBeInTheDocument();
       expect(within(fila).getByText('$180.00')).toBeInTheDocument();
@@ -314,7 +315,7 @@ describe('HojaDelDia — cableado', () => {
       expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: 'Guardar merma' }));
       expect(screen.queryByLabelText('Merma PANQUECITOS')).toBeNull();   // no se lo llevó: no hay merma que poner
-      await waitFor(() => expect(s.guardarMerma).toHaveBeenCalledWith(expect.any(String), 'ISMA', [{ item_code: '1003', merma: 2 }]));
+      await waitFor(() => expect(s.guardarMerma).toHaveBeenCalledWith(expect.any(String), 'ISMA', [{ item_code: '1003', merma: 5 }]));
       await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).not.toBeDisabled());
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
       // se debe (718) del servidor, no lo enviado × precio (240)
@@ -336,7 +337,7 @@ describe('HojaDelDia — cableado', () => {
   // 23-sep: excepción — vendió menos que su sueldo
   it('🔴 camioneta que vende menos que su sueldo: 10% del sueldo completo y aviso de lo que se le debe', async () => {
     const r = { item_code: '1003', producto: 'CHINOS', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
-      impuesto: 'tasa0', pedido: 10, enviado: 10, regreso: 9, merma: 0, precio: 12, importe: 12 };
+      impuesto: 'tasa0', pedido: 10, enviado: 10, merma: 9, precio: 12, importe: 12 };
     s.destinos.mockResolvedValue([{ destino: 'MARTIN', grupo: 'CAMIONETAS', camioneta: true, total: 12, comision: 12, se_debe: 0, estado: 'regreso', factura: null }]);
     s.hoja.mockResolvedValue({ destino: 'MARTIN', camioneta: true, etapa: 'liquidado', renglones: [r], total: 12, comision: 12, se_debe: 0, a_favor: 189.2, factura: null });
     render(<MemoryRouter><HojaDelDia /></MemoryRouter>);

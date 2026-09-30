@@ -4,7 +4,7 @@ import type { RenglonHoja } from '../services/frappeHoja';
 
 const r = (item_code: string, categoria: string, enviado: number, precio: number): RenglonHoja => ({
   item_code, producto: item_code, departamento: 'PAN DULCE', categoria, impuesto: 'ieps',
-  pedido: enviado, enviado, regreso: 0, merma: 0, precio, importe: enviado * precio,
+  pedido: enviado, enviado, merma: 0, precio, importe: enviado * precio,
 });
 
 describe('hojaDia — la hoja con el acomodo del Excel', () => {

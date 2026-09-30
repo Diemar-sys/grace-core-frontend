@@ -104,7 +104,7 @@ export default function HojaDelDia() {
 
   const cobrado = Boolean(hoja?.factura);
   // Camioneta en tres pasos (23-sep): '' captura enviado · 'enviado' en ruta ·
-  // 'liquidado' ya entregó su regreso y Héctor pone la merma antes de cobrar
+  // 'liquidado': el repartidor ya capturó su merma; Héctor la confirma o corrige y cobra
   const etapa = hoja?.camioneta ? hoja.etapa ?? '' : '';
   const enviadoFijo = cobrado || etapa !== '';
   const mermaAbierta = !cobrado && etapa === 'liquidado';
@@ -284,7 +284,7 @@ export default function HojaDelDia() {
                           <thead>
                             <tr>
                               <th>CLAVE</th><th>PRODUCTO</th><th>$</th><th>PEDIDO</th><th>ENVIADO</th>
-                              {hoja.camioneta && (<><th>REGRESO</th><th>MERMA</th><th>VENDIDO</th></>)}
+                              {hoja.camioneta && (<><th>MERMA</th><th>VENDIDO</th></>)}
                               <th>IMPORTE</th>
                             </tr>
                           </thead>
@@ -293,8 +293,9 @@ export default function HojaDelDia() {
                               const enviadoActual = r.item_code in captura ? cantidad(captura[r.item_code]) : r.enviado;
                               const mermaActual = r.item_code in capturaMerma ? cantidad(capturaMerma[r.item_code]) : r.merma;
                               // se cobra lo VENDIDO (23-sep: en camioneta IMPORTE enseñaba enviado × $), y se
-                              // ve al teclear la merma. Cliente/sucursal no tienen regreso ni merma: vendido = enviado
-                              const vendido = enviadoActual - r.regreso - mermaActual;
+                              // ve al teclear la merma. Cliente/sucursal no tienen merma: vendido = enviado.
+                              // 30-sep: solo MERMA (merma y regreso eran lo mismo)
+                              const vendido = enviadoActual - mermaActual;
                               return (
                                 <tr key={r.item_code} className={!r.pedido && !enviadoActual ? 'hoja-fila--sin-pedido' : undefined}>
                                   <td className="hoja-celda--clave">{r.item_code}</td>
@@ -314,7 +315,6 @@ export default function HojaDelDia() {
                                   </td>
                                   {hoja.camioneta && (
                                     <>
-                                      <td className="hoja-celda--num">{numero(r.regreso, 0)}</td>
                                       <td>
                                         {mermaAbierta && r.enviado > 0 ? (
                                           <input
