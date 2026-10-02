@@ -78,6 +78,9 @@ export default function Pedido() {
       const b64 = await leerBase64(f);
       setDatos(b64);
       const previa = await pedidoService.previsualizar(b64, f.name);
+      // el archivo dice de qué día es (02-oct): se precarga para no guardar el
+      // Excel de ayer como pedido de hoy. El servidor rechaza si no coincide.
+      if (previa.fecha) setFecha(previa.fecha);
       setHojas(previa.hojas);
       setCuadre(previa.cuadre);
       setGrupos(previa.grupos);

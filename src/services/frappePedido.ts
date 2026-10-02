@@ -205,6 +205,8 @@ export function leerBase64(archivo: File): Promise<string> {
 class FrappePedidoService extends FrappeBase {
   /** Lee el archivo y dice qué entraría por pestaña, sin guardar nada. */
   async previsualizar(archivo: string, nombreArchivo: string): Promise<{
+    /** La FECHA que trae el Excel (AAAA-MM-DD), o null si no la trae o no coincide entre pestañas. */
+    fecha: string | null;
     hojas: HojaPedido[];
     cuadre: Cuadre | null;
     grupos: Record<string, string>;
@@ -216,6 +218,7 @@ class FrappePedidoService extends FrappeBase {
     });
     if (!r) throw new Error('Sin conexión con el servidor.');
     return {
+      fecha: r.message?.fecha ?? null,
       hojas: (r.message?.hojas ?? []).map(normalizarHoja),
       cuadre: r.message?.cuadre ?? null,
       grupos: r.message?.grupos ?? {},
