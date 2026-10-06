@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bloquesDeHoja, cambiosEnviado, columnasDeHoja, totalCapturado } from './hojaDia';
+import { sumarCharolas, bloquesDeHoja, cambiosEnviado, columnasDeHoja, totalCapturado } from './hojaDia';
 import type { RenglonHoja } from '../services/frappeHoja';
 
 const r = (item_code: string, categoria: string, enviado: number, precio: number): RenglonHoja => ({
@@ -109,5 +109,22 @@ describe('rondaPorGuardar (Guardar todo)', () => {
   });
   it('sin borrador del día no hay ronda', () => {
     expect(rondaPorGuardar(undefined, [])).toEqual({ capturas: {}, fijos: [] });
+  });
+});
+
+describe('sumarCharolas (06-oct)', () => {
+  it('🔴 suma charolas a lo que ya había: 10 de bolillo y luego 5 = 240 piezas', () => {
+    expect(sumarCharolas(sumarCharolas(0, 10, 16), 5, 16)).toBe(240);
+    expect(sumarCharolas(0, 3, 12)).toBe(36);          // telera
+    expect(sumarCharolas(0, 0.5, 16)).toBe(8);         // media charola
+  });
+  it('negativo resta para corregir, pero nunca deja piezas negativas', () => {
+    expect(sumarCharolas(240, -5, 16)).toBe(160);
+    expect(sumarCharolas(32, -5, 16)).toBe(0);
+  });
+  it('lo que no es número no mueve lo enviado', () => {
+    expect(sumarCharolas(160, Number('abc'), 16)).toBe(160);
+    expect(sumarCharolas(160, Infinity, 16)).toBe(160);
+    expect(sumarCharolas(160, 5, NaN)).toBe(160);
   });
 });

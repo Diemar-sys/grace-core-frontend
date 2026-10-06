@@ -9,6 +9,8 @@ const API = '/api/method/gestion_panaderia.api.hoja_api.';
 export interface RenglonHoja {
   item_code: string; producto: string; departamento: string; categoria: string; impuesto: string;
   pedido: number; enviado: number; merma: number; precio: number; importe: number;
+  /** Piezas por charola del catálogo (bolillo 16, telera 12); 0 = va por pieza. 06-oct */
+  por_charola?: number;
 }
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
 /** '' = capturando lo enviado · 'enviado' = en ruta · 'liquidado' = ya entregó su regreso */
@@ -19,6 +21,9 @@ export interface Hoja {
   /** Vendió menos que su sueldo (10% + $200): la comisión se topó a lo vendido y esto
    *  es lo que la panadería le debe al repartidor (excepción 23-sep). */
   a_favor: number;
+  /** Cobrada, dentro de la ventana y sin abono: «Corregir» cancela la factura (06-oct).
+   *  La regla vive en el servidor; aquí solo se lee. */
+  corregible?: boolean;
 }
 export interface DestinoDia {
   destino: string; grupo: string; camioneta: boolean; total: number; comision: number; se_debe: number;
@@ -68,6 +73,7 @@ class HojaService extends FrappeBase {
   }
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }
   reabrirEnvio(fecha: string, destino: string) { return this._post<Hoja>('reabrir_envio', { fecha, destino }); }
+  corregir(fecha: string, destino: string) { return this._post<Hoja>('corregir', { fecha, destino }); }
   guardarMerma(fecha: string, destino: string, renglones: { item_code: string; merma: number }[]) {
     return this._post<Hoja>('guardar_merma', { fecha, destino, renglones });
   }

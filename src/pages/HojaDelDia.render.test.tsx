@@ -9,7 +9,7 @@ vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{c
 vi.mock('../components/EstadoCuentaHoja', () => ({ default: () => <div>VISTA ESTADO DE CUENTA</div> }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
-    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn() },
+    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn() },
 }));
 
 // IndexedDB en memoria: sobrevive al desmontar (la «recarga» de los tests del borrador)
@@ -75,6 +75,77 @@ describe('HojaDelDia — cableado', () => {
     expect(await screen.findByText(/ACC-SINV-2026-00099/)).toBeInTheDocument();
     expect(screen.getByLabelText('Enviado CONCHAS')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Confirmar y cobrar' })).toBeNull();
+  });
+
+  // 06-oct: el pan por charola se captura sumando charolas; el que va por pieza no tiene la casilla
+  it('🔴 + charolas: 10 y luego 5 de bolillo = 240 piezas en ENVIADO; solo en pan por charola', async () => {
+    const bol = { ...R, item_code: '3001', producto: 'BOLILLO', categoria: 'PAN BLANCO', precio: 2.5, por_charola: 16 };
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [R, bol] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    const ch = await screen.findByLabelText('Charolas BOLILLO');
+    expect(screen.queryByLabelText('Charolas CONCHAS')).toBeNull();
+    fireEvent.change(ch, { target: { value: '10' } });
+    fireEvent.keyDown(ch, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByLabelText('Enviado BOLILLO')).toHaveValue(160));
+    fireEvent.change(ch, { target: { value: '5' } });
+    fireEvent.keyDown(ch, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByLabelText('Enviado BOLILLO')).toHaveValue(240));
+    expect(ch).toHaveValue(null);   // la casilla se vacía para la siguiente ronda
+  });
+
+  // tablet (06-oct): el teclado numérico no tiene Enter; la tecla →| solo sale de la casilla
+  it('🔴 tablet: salir de la casilla suma; «+» suma; nunca suma dos veces lo mismo', async () => {
+    const bol = { ...R, item_code: '3001', producto: 'BOLILLO', categoria: 'PAN BLANCO', precio: 2.5, por_charola: 16 };
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [bol] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    const ch = await screen.findByLabelText('Charolas BOLILLO');
+    const enviado = () => screen.getByLabelText('Enviado BOLILLO');
+    fireEvent.change(ch, { target: { value: '10' } });
+    fireEvent.blur(ch);                                            // →| de la tablet
+    await waitFor(() => expect(enviado()).toHaveValue(160));
+    fireEvent.change(ch, { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sumar charolas BOLILLO' }));
+    await waitFor(() => expect(enviado()).toHaveValue(240));
+    // tocar «+» primero saca el foco (blur) y luego hace clic: debe sumar UNA vez
+    fireEvent.change(ch, { target: { value: '1' } });
+    fireEvent.blur(ch);
+    fireEvent.click(screen.getByRole('button', { name: 'Sumar charolas BOLILLO' }));
+    await waitFor(() => expect(enviado()).toHaveValue(256));
+    expect(ch).toHaveValue(null);
+  });
+
+  it('un destino cobrado no ofrece + charolas', async () => {
+    const bol = { ...R, item_code: '3001', producto: 'BOLILLO', por_charola: 16 };
+    s.hoja.mockResolvedValue({ ...hoja({ name: 'ACC-SINV-2026-00099', grand_total: 1, outstanding_amount: 1 }), renglones: [bol] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByText(/ACC-SINV-2026-00099/);
+    expect(screen.queryByLabelText('Charolas BOLILLO')).toBeNull();
+  });
+
+  // 06-oct: «Corregir» cancela el cobro. Se ofrece solo si el servidor dice `corregible`
+  // (ventana y sin abono); al confirmar, la hoja que regresa vuelve a capturarse.
+  it('🔴 Corregir: solo si el servidor lo permite; cancela y la hoja vuelve a captura', async () => {
+    const f = { name: 'ACC-SINV-2026-00099', grand_total: 420, outstanding_amount: 420 };
+    s.hoja.mockResolvedValue({ ...hoja(f), corregible: false });
+    const { unmount } = render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByText(/ACC-SINV-2026-00099/);
+    expect(screen.queryByRole('button', { name: 'Corregir' })).toBeNull();
+    unmount();
+
+    s.hoja.mockResolvedValue({ ...hoja(f), corregible: true });
+    s.corregir.mockResolvedValue({ ...hoja(null), corregible: false });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.click(await screen.findByRole('button', { name: 'Corregir' }));
+    expect(screen.getByText(/Se cancela la factura ACC-SINV-2026-00099 por \$420\.00/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar factura' }));
+    await waitFor(() => expect(s.corregir).toHaveBeenCalledWith(expect.any(String), 'DELI'));
+    await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).not.toBeDisabled());
+    expect(s.confirmar).not.toHaveBeenCalled();
   });
 
   // C1 (fix round 1, controller): el modal enseña totalCapturado (lo

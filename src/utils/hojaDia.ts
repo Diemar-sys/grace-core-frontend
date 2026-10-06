@@ -138,3 +138,12 @@ export function semanaDe(iso: string, mover = 0): { desde: string; hasta: string
   const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
   return { desde: isoLocal(lunes), hasta: isoLocal(domingo) };
 }
+
+/** «+ charolas» (06-oct): el pan blanco se manda por charola y se va sumando — 10 de
+ *  bolillo (16) y luego 5 más = 240. Negativo resta para corregir; nunca baja de 0. */
+export function sumarCharolas(actual: number, charolas: number, porCharola: number): number {
+  // lo tecleado no es de fiar: texto, NaN o Infinity no mueven nada (el tope real, 0–100,000
+  // piezas, lo pone el servidor al guardar)
+  if (!Number.isFinite(charolas) || !Number.isFinite(porCharola)) return actual;
+  return Math.max(0, actual + charolas * porCharola);
+}

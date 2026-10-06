@@ -324,6 +324,41 @@
   border-color: var(--tv-marca);
   box-shadow: 0 0 0 3px rgba(200, 80, 60, 0.18);
 }
+/* «+ charolas» (06-oct): chica, junto a ENVIADO; fondo lavado de marca (tokens de
+   global.css) para que se lea como «agregar» y no como otro ENVIADO */
+/* ENVIADO + «charolas» + «+» en UNA línea, misma altura (06-oct: en la tablet se
+   encimaban). La casilla de charolas mide igual que ENVIADO; solo cambia el fondo. */
+.hoja-enviado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.hoja-charolas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.hoja-tabla input.hoja-input--charolas {
+  background: var(--tv-marca-wash);
+  border-color: var(--tv-hairline);
+}
+/* «+»: píldora de marca a la altura de las casillas */
+.hoja-btn-charolas {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hoja-btn-charolas:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-bento); }
+.hoja-btn-charolas:disabled { opacity: 0.5; cursor: default; }
 /* lo que ya se capturó se ve de un vistazo */
 .hoja-tabla input.hoja-input--lleno {
   background: var(--tv-ok-bg);

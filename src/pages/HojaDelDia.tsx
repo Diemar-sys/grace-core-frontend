@@ -13,7 +13,7 @@ import { hoyISO } from '../components/modals/ModalEntradaPan';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, rondaPorGuardar, sinTecleado, totalCapturado,
+  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -47,8 +47,8 @@ export default function HojaDelDia() {
   const [borrador, setBorrador] = useState<BorradorHoja>({});
   useBorradorLocal('hoja-dia', Object.keys(borrador).length ? borrador : null, setBorrador);
   const olvidar = (destino: string, campos: CampoHoja[]) => setBorrador(b => sinTecleado(b, fecha, destino, campos));
-  // qué confirma el modal: el cobro, o (camioneta) el envío
-  const [accion, setAccion] = useState<null | 'cobrar' | 'envio'>(null);
+  // qué confirma el modal: el cobro, (camioneta) el envío, o cancelar un cobro para corregirlo
+  const [accion, setAccion] = useState<null | 'cobrar' | 'envio' | 'corregir'>(null);
 
   // Guarda de carrera (C2, 22-sep): cambiar de destino/fecha con una
   // petición en vuelo podía pintar la hoja VIEJA encima de la selección
@@ -207,6 +207,23 @@ export default function HojaDelDia() {
   }, 'No se confirmó el envío');
   const reabrirEnvio = () => ejecutar(h => hojaService.reabrirEnvio(fecha, h.destino), 'No se reabrió el envío');
   const guardarMerma = () => ejecutar(h => hojaService.guardarMerma(fecha, h.destino, mermaPendiente), 'No se guardó la merma');
+  // 06-oct: suma las charolas tecleadas a lo ENVIADO de ese pan y vacía la casilla. La llaman
+  // tres disparadores (salir de la casilla, Enter, «+»); como la casilla queda vacía, el
+  // segundo en llegar no suma otra vez. Lee lo tecleado del borrador VIGENTE (no del render)
+  // para que dos sumas seguidas no se pisen.
+  const aplicarCharolas = (input: HTMLInputElement, item: string, guardado: number, porCharola: number) => {
+    const charolas = Number(input.value);
+    input.value = '';
+    if (!hoja || !charolas || !Number.isFinite(charolas)) return;
+    const destino = hoja.destino;
+    setBorrador(b => {
+      const tecleado = b[fecha]?.[destino]?.enviado?.[item];
+      const actual = tecleado !== undefined ? cantidad(tecleado) : guardado;
+      return conTecleado(b, fecha, destino, 'enviado', item, String(sumarCharolas(actual, charolas, porCharola)));
+    });
+  };
+  // 06-oct: cancela la factura y la hoja vuelve a capturarse (camioneta: a la merma)
+  const corregir = () => ejecutar(h => hojaService.corregir(fecha, h.destino), 'No se pudo corregir');
 
   return (
     <Layout>
@@ -270,6 +287,11 @@ export default function HojaDelDia() {
                   Cobrado · {hoja.factura.name} · saldo {pesos(hoja.factura.outstanding_amount)}
                 </p>
               )}
+              {cobrado && hoja.corregible && (
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={() => setAccion('corregir')} disabled={ocupado}>
+                  Corregir
+                </button>
+              )}
             </div>
 
             {/* 4 columnas con el acomodo del Excel (COLUMNAS_HOJA, 23-sep) */}
@@ -303,6 +325,7 @@ export default function HojaDelDia() {
                                   <td className="hoja-celda--num">{pesos(r.precio)}</td>
                                   <td className="hoja-celda--num">{numero(r.pedido, 0)}</td>
                                   <td>
+                                    <div className="hoja-enviado">
                                     <input
                                       type="number"
                                       min={0}
@@ -312,6 +335,36 @@ export default function HojaDelDia() {
                                       disabled={enviadoFijo || ocupado}
                                       onChange={e => setBorrador(b => conTecleado(b, fecha, hoja.destino, 'enviado', r.item_code, e.target.value))}
                                     />
+                                    {/* 06-oct: pan por charola — las charolas tecleadas se SUMAN en piezas al salir
+                                        de la casilla (la tecla →| de la tablet), con Enter o con «+» */}
+                                    {!!r.por_charola && !enviadoFijo && (
+                                      <span className="hoja-charolas">
+                                        <input
+                                          type="number"
+                                          step="any"
+                                          inputMode="decimal"
+                                          enterKeyHint="done"
+                                          className="hoja-input--charolas"
+                                          aria-label={`Charolas ${r.producto}`}
+                                          placeholder={`ch×${r.por_charola}`}
+                                          title={`Charolas de ${r.por_charola}: se suman a lo enviado (negativo resta)`}
+                                          disabled={ocupado}
+                                          onBlur={e => aplicarCharolas(e.currentTarget, r.item_code, r.enviado, r.por_charola ?? 0)}
+                                          onKeyDown={e => { if (e.key === 'Enter') aplicarCharolas(e.currentTarget, r.item_code, r.enviado, r.por_charola ?? 0); }}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="hoja-btn-charolas"
+                                          aria-label={`Sumar charolas ${r.producto}`}
+                                          disabled={ocupado}
+                                          onClick={e => {
+                                            const input = e.currentTarget.previousElementSibling;
+                                            if (input instanceof HTMLInputElement) aplicarCharolas(input, r.item_code, r.enviado, r.por_charola ?? 0);
+                                          }}
+                                        >+</button>
+                                      </span>
+                                    )}
+                                    </div>
                                   </td>
                                   {hoja.camioneta && (
                                     <>
@@ -409,16 +462,18 @@ export default function HojaDelDia() {
 
         {accion && hoja && (
           <ConfirmModal
-            title={accion === 'envio' ? 'Confirmar envío' : 'Cobrar destino'}
+            title={accion === 'envio' ? 'Confirmar envío' : accion === 'corregir' ? 'Corregir cobro' : 'Cobrar destino'}
             description={accion === 'envio'
               ? `¿Confirmar lo que se lleva ${hoja.destino}? Lo enviado queda fijo y ${hoja.destino} ya podrá capturar lo que regresa.`
+              : accion === 'corregir'
+              ? `Se cancela la factura ${hoja.factura?.name} por ${pesos(hoja.factura?.grand_total ?? 0)}. ${hoja.destino} vuelve a captura y hay que cobrar otra vez.`
               // camioneta: lo que se debe (vendido − comisión) del servidor, con la merma ya guardada
               : `¿Cobrar ${pesos(hoja.camioneta ? hoja.se_debe : total)} a ${hoja.destino}? Se genera la factura.`
                 + ((hoja.a_favor ?? 0) > 0 ? ` La panadería le debe ${pesos(hoja.a_favor)} a ${hoja.destino} (por nómina).` : '')}
             subdescription={undefined}
             icon={undefined}
             iconStyle={undefined}
-            confirmLabel={accion === 'envio' ? 'Confirmar envío' : 'Cobrar'}
+            confirmLabel={accion === 'envio' ? 'Confirmar envío' : accion === 'corregir' ? 'Cancelar factura' : 'Cobrar'}
             confirmClassName={undefined}
             confirmStyle={undefined}
             loading={ocupado}
@@ -427,7 +482,7 @@ export default function HojaDelDia() {
             fallbackLabel={undefined}
             fallbackDescription={undefined}
             passwordPrompt={undefined}
-            onConfirm={accion === 'envio' ? confirmarEnvio : cobrar}
+            onConfirm={{ envio: confirmarEnvio, corregir, cobrar }[accion]}
             onCancel={() => setAccion(null)}
           />
         )}
