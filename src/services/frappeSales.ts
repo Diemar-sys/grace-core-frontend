@@ -8,7 +8,7 @@
 
 import FrappeBase from './FrappeBase';
 import { COMPANY, BODEGA_CENTRAL, DEFAULT_CUSTOMER } from '../config/constants';
-import { IMPUESTOS_LIST } from '../config/impuestos';
+import { IMPUESTOS_LIST, getTasa } from '../config/impuestos';
 import { loadAppConfig, getAppConfigSync } from './appConfig';
 import { getSucursalesInternas } from '../config/clientesB2B';
 
@@ -120,8 +120,8 @@ export function grupoCobro(customer: string, customer_name: string, facturas: an
  * Factor del impuesto que trae un renglón de factura (`item_tax_rate`, JSON
  * `{cuenta: tasa}`): Π(1 + tasa). En cascada, IVA sobre base+IEPS:
  * 1.08 × 1.16 = 1.2528, no 1.24.
- * Del RENGLÓN y no del catálogo: si el pan cambió de impuesto después, la
- * factura sigue diciendo lo que cobró. Tampoco de `item_wise_tax_detail`: con
+ * Para la Venta B2B (abarrote), que sí cobra con la plantilla del renglón. La
+ * factura de la Hoja NO: ver `getFacturaItems` (07-oct). Tampoco de `item_wise_tax_detail`: con
  * cargos «Actual» (Hoja del día) ERPNext reparte el IEPS entre TODOS los
  * renglones, también los de tasa 0.
  */
@@ -516,6 +516,7 @@ class FrappeSalesService extends FrappeBase {
         const params = new URLSearchParams({
           fields: JSON.stringify([
             'item_code', 'stock_uom', 'custom_cantidad_por_presentación', 'custom_presentación',
+            'custom_impuesto',
           ]),
           filters: JSON.stringify([['name', 'in', codes]]),
           limit_page_length: '200',
@@ -527,9 +528,19 @@ class FrappeSalesService extends FrappeBase {
       }
     }
 
+    // 07-oct: la factura de la Hoja cobra el impuesto de `custom_impuesto` (hoja_calculo),
+    // NO el de la plantilla del Item, que el patch del IEPS (09-sep) no tocó: el pan de
+    // $14 salía en $12.96 (sin plantilla) o $15.04 (plantilla de IVA). Medido en la torre:
+    // 1,238 de 1,548 renglones mal; con esto, 0 (~/verificar_precio_cxc_20261007.sh).
+    // ponytail: si un pan cambia de impuesto DESPUÉS de cobrado, su factura vieja se pinta
+    // con la tasa nueva; si llega a pasar, que el backend devuelva el $ de la hoja.
+    const esDeHoja = !!data?.data?.custom_pedido_diario;
     return itemsRaw.map((it: any) => {
       const m = dict[it.item_code] || {};
       const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
+      const factor = esDeHoja && m.custom_impuesto != null
+        ? 1 + getTasa(m.custom_impuesto || 'tasa0')
+        : factorImpuestoRenglon(it.item_tax_rate);
       return {
         item_code: it.item_code,
         item_name: it.item_name,
@@ -539,8 +550,8 @@ class FrappeSalesService extends FrappeBase {
         amount: parseFloat(it.amount || 0), // total preservado
         // Lo que paga el cliente (23-sep): `rate` es la base SIN impuesto y en
         // pantalla hacía ver la MANTECADA de $14 en $12.07.
-        precio: parseFloat(it.rate || 0) * factorImpuestoRenglon(it.item_tax_rate),
-        importe: parseFloat(it.amount || 0) * factorImpuestoRenglon(it.item_tax_rate),
+        precio: parseFloat(it.rate || 0) * factor,
+        importe: parseFloat(it.amount || 0) * factor,
         description: it.description || '',
         cantidad_por_presentacion: cantPres,
         presentacion: m.custom_presentación || '',

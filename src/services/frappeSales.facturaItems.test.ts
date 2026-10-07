@@ -48,6 +48,55 @@ describe('getFacturaItems', () => {
   });
 });
 
+// 07-oct: foto de la tablet (CxC, cobro de la Hoja): todo a $14, pero el modal pintaba
+// MANTECADA $15.04 (plantilla de IVA), BESOS $12.96 (sin plantilla) y MARMOLEADO $14
+// (plantilla IEPS). La Hoja cobra con `custom_impuesto`, no con la plantilla.
+describe('getFacturaItems — factura de la Hoja', () => {
+  const CATALOGO: Record<string, any> = {
+    '1001': { item_code: '1001', stock_uom: 'PZA', custom_impuesto: 'ieps' },  // MANTECADA GDE
+    '1012': { item_code: '1012', stock_uom: 'PZA', custom_impuesto: 'ieps' },  // BESOS
+    '1006': { item_code: '1006', stock_uom: 'PZA', custom_impuesto: 'ieps' },  // MARMOLEADO
+    '1068': { item_code: '1068', stock_uom: 'PZA', custom_impuesto: 'tasa0' }, // BISQUET (exento)
+  };
+  const RATE_IEPS = 12.962963; // 14 / 1.08, como lo guarda hoja_calculo
+  const renglones = [
+    { item_code: '1001', qty: 6, rate: RATE_IEPS, amount: 77.777778, item_tax_rate: '{"IVA - PG": 16.0}' },
+    { item_code: '1012', qty: 6, rate: RATE_IEPS, amount: 77.777778, item_tax_rate: '{}' },
+    { item_code: '1006', qty: 6, rate: RATE_IEPS, amount: 77.777778, item_tax_rate: '{"IEPS - PG - PG": 8.0}' },
+    { item_code: '1068', qty: 6, rate: 14, amount: 84, item_tax_rate: '{}' },
+  ];
+
+  async function abrir(doc: any) {
+    const svc = ventasService as any;
+    const original = svc._fetch;
+    svc._fetch = vi.fn(async (url: string) => {
+      if (url.includes('/Sales Invoice/')) return { data: doc };
+      // el catálogo devuelve SOLO los campos pedidos: olvidar uno en la consulta truena
+      const campos: string[] = JSON.parse(new URLSearchParams(url.split('?')[1]).get('fields') || '[]');
+      return { data: Object.values(CATALOGO).map((it) =>
+        Object.fromEntries(campos.filter((c) => c in it).map((c) => [c, it[c]]))) };
+    });
+    try {
+      const items = await ventasService.getFacturaItems('ACC-SINV-2026-00999');
+      return Object.fromEntries(items.map((i: any) => [i.item_code, i]));
+    } finally { svc._fetch = original; }
+  }
+
+  it('🔴 el pan de $14 se ve a $14 con plantilla de IVA, sin plantilla, con IEPS y exento', async () => {
+    const por = await abrir({ custom_pedido_diario: 'PED-2026-10-06', items: renglones });
+    for (const code of ['1001', '1012', '1006', '1068']) {
+      expect(por[code].precio, code).toBeCloseTo(14, 4);
+      expect(por[code].importe, code).toBeCloseTo(84, 3);
+    }
+  });
+
+  it('la Venta B2B (sin pedido de la hoja) sigue con la plantilla del renglón', async () => {
+    const por = await abrir({ items: renglones });
+    expect(por['1001'].precio).toBeCloseTo(15.04, 2);
+    expect(por['1012'].precio).toBeCloseTo(12.96, 2);
+  });
+});
+
 // 23-sep: la preventa #87 no se podía confirmar en prod: fecha nueva (hoy) con
 // vencimiento y calendario de pagos viejos
 describe('confirmarBorrador', () => {
