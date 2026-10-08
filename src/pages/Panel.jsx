@@ -6,6 +6,7 @@ import { auth } from "../services/frappeAuth";
 import { getRoleConfig } from "../config/roles";
 import { TENANT } from "../config/tenant";
 import { MODULOS, MODULOS_CONSULTAS, MODULOS_REPORTES, MODULOS_CONFIG } from "../config/modulos";
+import Reloj from "../components/Reloj";
 import "../styles/Panel.css";
 
 // ── Iconos topbar ─────────────────────────────────────
@@ -197,6 +198,7 @@ function Panel() {
           </div>
         </div>
         <div className="panel-topbar-right">
+          <Reloj />
           <div className="panel-user-chip">
             <User size={18} />
             {user?.fullName || user?.email || "Usuario"}

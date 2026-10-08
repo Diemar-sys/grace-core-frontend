@@ -136,13 +136,43 @@
   transition: background 0.15s, border-color 0.15s; font-family: inherit;
 }
 .panel-logout-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.5); }
+/*--- RELOJ (08-oct): fecha + hora local, en las dos barras (Layout y Panel) ---*/
+.panel-reloj {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  padding: 6px 16px; border-radius: var(--radius-pill);
+  background: rgba(255,255,255,0.08); color: var(--tv-cream);
+  font-family: var(--tv-mono); white-space: nowrap;
+}
+.panel-reloj__fecha { font-size: 15px; color: var(--tv-marca); font-weight: 600; }
+.panel-reloj__hora  { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Tablet: fecha y hora, más compacto. Celular: solo la hora (la barra no da para más). */
+@media (max-width: 1024px) {
+  .panel-reloj        { padding: 5px 12px; }
+  .panel-reloj__fecha { font-size: 13px; }
+  .panel-reloj__hora  { font-size: 17px; }
+}
+@media (max-width: 600px) {
+  .panel-reloj        { padding: 4px 10px; }
+  .panel-reloj__fecha { display: none; }
+  .panel-reloj__hora  { font-size: 15px; }
+  /* Celular (08-oct): la barra no cabía en 360px y el navegador encogía TODA la página.
+     Queda logo · hora · sucursal · icono de salir. El nombre y «Salir» se esconden con
+     font-size: 0 (siguen ahí para el lector de pantalla); el badge y los iconos traen su tamaño. */
+  .panel-topbar               { padding: 0 var(--space-3); gap: var(--space-2); }
+  .panel-topbar-left > div    { display: none; }
+  .panel-topbar-right         { gap: var(--space-2); }
+  .panel-user-chip            { font-size: 0; padding: 6px 10px; gap: 4px; }
+  .panel-logout-btn           { font-size: 0; padding: 8px; gap: 0; }
+}
 
 /* ── Barra de menú principal ────────────────────────── */
 .panel-menubar, .layout-menubar {
   background: #232220;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* safe (08-oct): centrado en PC; si no cabe (celular) arranca a la izquierda en vez de
+     desbordarse hacia un lado al que el scroll no llega («onsultas» cortado). */
+  justify-content: safe center;
   padding: 0 var(--space-6);
   height: 46px;
   gap: var(--space-1);
@@ -660,7 +690,9 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
 
 @media (max-width: 768px) {
   .page-header          { flex-direction:column; gap:16px; align-items:flex-start; }
-  .filtros-section      { flex-direction:column; }
+  /* stretch (08-oct): en columna, cada filtro a todo el ancho; con el flex-end de PC
+     quedaban escalonados a la derecha, cada uno de su propio ancho. */
+  .filtros-section      { flex-direction:column; align-items:stretch; }
   .filtro-group select,
   .filtro-group input   { min-width:100%; }
   .vistas-tabs          { gap:6px; }
@@ -1027,4 +1059,29 @@ td.col-actions > * { display: inline-flex; margin: 0 5px; vertical-align: middle
 @media (max-width: 768px) {
   .cxc-abonos { padding: 10px 12px 14px; }
   .cxc-abonos-tabla th, .cxc-abonos-tabla td { padding: 7px 8px; font-size: .84rem; }
+}
+
+/* ── Campos de fecha más grandes (08-oct) ───────────── */
+/* Una sola regla para los ~40 <input type="date"> de la app (cada pantalla los estilizaba
+   de 13 a 17px). ponytail: !important porque los estilos de cada pantalla tienen más
+   especificidad (.comprasv2 .comp-date-input, .ped-field input[type="date"]…); la
+   alternativa era tocar 8 archivos. Si una pantalla necesita otro tamaño, que lo diga ahí. */
+input[type="date"] {
+  font-size: 17px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Icono del calendario más grande: blanco fácil para el dedo en la tablet (Chrome/Edge). */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  transform: scale(1.35);
+  cursor: pointer;
+}
+/* Pantalla táctil (tablet o celular, no importa el ancho): blanco de dedo de 48px. */
+@media (pointer: coarse) {
+  input[type="date"] { min-height: 48px; font-size: 18px !important; }
+  input[type="date"]::-webkit-calendar-picker-indicator { transform: scale(1.6); }
+}
+/* Celular: 16px es el mínimo para que iOS no haga zoom al tocar; nunca más ancho que la pantalla. */
+@media (max-width: 600px) {
+  input[type="date"] { font-size: 16px !important; max-width: 100%; box-sizing: border-box; }
 }

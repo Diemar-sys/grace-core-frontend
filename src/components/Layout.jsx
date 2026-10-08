@@ -5,6 +5,7 @@ import { auth } from "../services/frappeAuth";
 import { getRoleConfig } from "../config/roles";
 import { TENANT } from "../config/tenant";
 import { useVersionNueva } from "../hooks/useVersionNueva";
+import Reloj from "./Reloj";
 import "../styles/Layout.css";
 
 /**
@@ -91,6 +92,7 @@ function Layout({ children }) {
           </div>
         </div>
         <div className="panel-topbar-right">
+          <Reloj />
           <div className="panel-user-chip">
             <User size={18} />
             {user?.fullName || user?.email || "Usuario"}
