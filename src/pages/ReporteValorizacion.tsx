@@ -12,8 +12,9 @@ import { pedidoService } from '../services/frappePedido';
 import type { Valorizacion } from '../services/frappePedido';
 import '../styles/global.css';
 import '../styles/Pedido.css';
+import { hoyISO } from '../utils/hora';
 
-const hoy = () => new Date().toISOString().split('T')[0];
+const hoy = () => hoyISO();
 
 /** Dinero, o «—» cuando NO HAY dinero que mostrar.
  *

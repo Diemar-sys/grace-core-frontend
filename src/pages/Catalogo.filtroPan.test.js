@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filtrarPanes, categoriasDePanes, calcularMargen } from './Catalogo.jsx';
+import { filtrarPanes, categoriasDePanes, calcularMargen } from '../utils/catalogoUtils';
 
 const PANES = [
   { item_code: '1001', item_name: 'MANTECADA GDE', item_group: 'PAN MANTECA' },

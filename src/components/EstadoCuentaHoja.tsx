@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import ModalError from './modals/ModalError';
-import { hoyISO } from './modals/ModalEntradaPan';
+import { hoyISO } from '../utils/hora';
 import { hojaService, type DeudorHoja, type DiaCuenta, type EstadoCuenta } from '../services/frappeHoja';
 import { grupoCobro, ventasService } from '../services/frappeSales';
 import { semanaDe } from '../utils/hojaDia';

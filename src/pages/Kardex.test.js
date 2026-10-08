@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { consumoEntreConteos } from './Kardex';
+import { consumoEntreConteos } from '../utils/kardex';
 
 // Filas tal como las devuelve kardex_api (cantidades en unidad BASE, Kg).
 const f = (fecha, voucher_type, entrada, salida, resultado) =>

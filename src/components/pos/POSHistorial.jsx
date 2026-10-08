@@ -1,6 +1,7 @@
 import React from 'react';
 import { fmt, fechaActual, deptColor, fmtModoPago } from './posUtils';
 import '../../styles/pos/POSHistorial.css';
+import { hoyISO } from '../../utils/hora';
 
 function POSHistorial({
   ventasHoy,
@@ -46,7 +47,7 @@ function POSHistorial({
             className="pos-rango-date"
             value={rangoFin}
             min={rangoInicio}
-            max={new Date().toISOString().split('T')[0]}
+            max={hoyISO()}
             onChange={e => setRangoFin(e.target.value)}
           />
         </div>

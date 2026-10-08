@@ -3,6 +3,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Los tests corren en la hora de la panadería: el bug de `toISOString()` (UTC) solo se ve
+// detrás de UTC. Los workers heredan el TZ del proceso que carga este archivo (07-oct).
+/* global process */
+process.env.TZ = 'America/Mexico_City'
+
 export default defineConfig({
   plugins: [react()],
   test: {

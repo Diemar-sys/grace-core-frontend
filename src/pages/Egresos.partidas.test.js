@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcTotalesPartidas, autoAgua } from './Egresos';
+import { calcTotalesPartidas, autoAgua } from '../utils/egresosUtils';
 
 describe('autoAgua — proveedor autocompleta Agua', () => {
   it('Bonafont → consumo humano', () => {

@@ -4,12 +4,12 @@ import Layout from '../components/Layout';
 import { ventasService } from '../services/frappeSales';
 import { fmtUom } from '../utils/uom';
 import '../styles/global.css';
+import { hoyISO } from '../utils/hora';
 
-function hoyISO() { return new Date().toISOString().split('T')[0]; }
 
 function primerDiaMesISO() {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  return hoyISO(new Date(d.getFullYear(), d.getMonth(), 1));
 }
 
 function fmtMoney(n) {

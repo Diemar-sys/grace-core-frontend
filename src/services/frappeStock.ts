@@ -32,6 +32,7 @@ const qtyNum = (v: unknown, item: string): number => {
 // La resolución de precio por canal se movió a utils/precioCanal (pura, testeada).
 export type { TipoPrecio } from '../utils/precioCanal';
 import { type TipoPrecio, resolverPrecioVenta, tipoPrecioPorAlmacen } from '../utils/precioCanal';
+import { hoyISO } from '../utils/hora';
 
 // Superficie limpia consumida por los selects de almacén en la UI.
 interface Almacen {
@@ -288,7 +289,7 @@ class FrappeStockService extends FrappeBase {
       doctype:          "Stock Entry",
       stock_entry_type: "Material Receipt",
       company:          datos.company || COMPANY,
-      posting_date:     datos.fecha || new Date().toISOString().split("T")[0],
+      posting_date:     datos.fecha || hoyISO(),
       items: datos.items.map((item: any) => ({
         item_code:         item.item_code,
         t_warehouse:       item.almacen_destino || BODEGA_CENTRAL,
@@ -691,7 +692,7 @@ class FrappeStockService extends FrappeBase {
       doctype: 'Stock Entry',
       stock_entry_type: 'Material Transfer',
       company: COMPANY,
-      posting_date: fecha || new Date().toISOString().split('T')[0],
+      posting_date: fecha || hoyISO(),
       from_warehouse: warehouseOrigen,
       to_warehouse: warehouseDestino,
       remarks: notas || `Envio a sucursal ${warehouseDestino}`,

@@ -10,14 +10,14 @@ import { hojaDelDia } from '../utils/pedidoDia';
 import { agruparDestinos, enOrden } from '../utils/gruposDestino';
 import '../styles/global.css';
 import '../styles/Pedido.css';
+import { hoyISO } from '../utils/hora';
 
-const hoy = () => new Date().toISOString().slice(0, 10);
 const suma = (piezas) => Object.values(piezas).reduce((a, b) => a + b, 0);
 
 export default function Pedido() {
   const [archivo, setArchivo] = useState(null);
   const [datos, setDatos] = useState('');
-  const [fecha, setFecha] = useState(hoy());
+  const [fecha, setFecha] = useState(hoyISO());
   const [hojas, setHojas] = useState(null);
   const [cuadre, setCuadre] = useState(null);
   const [grupos, setGrupos] = useState({});

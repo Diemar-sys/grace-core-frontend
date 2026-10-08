@@ -4,6 +4,17 @@
  * Invalid Date, y `"4:05:00".slice(0, 5)` deja `"4:05:"` con dos puntos colgando.
  */
 
+/**
+ * Fecha LOCAL `YYYY-MM-DD`, la que espera el backend. Única fuente de «hoy» en el front.
+ * NUNCA `toISOString()`: es UTC y en México (UTC-6) después de las 18:00 da el día de
+ * MAÑANA — así se proponía el pedido de mañana y se fechaban ventas/envíos/egresos al
+ * día siguiente (07-oct). Recibe cualquier Date armada en hora local (lunes, día 1…).
+ * Ojo: `new Date('2026-10-07')` es medianoche UTC; esa NO se pasa por aquí.
+ */
+export function hoyISO(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Hora en el formato de los tickets: `"04:05 a.m."`. */
 export function horaLocal(d: Date = new Date()): string {
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });

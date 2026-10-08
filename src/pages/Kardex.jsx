@@ -4,49 +4,16 @@ import Layout from '../components/Layout';
 import { kardexService } from '../services/frappeKardex';
 import { inventory } from '../services/frappeInventory';
 import '../styles/global.css';
+import { hoyISO } from '../utils/hora';
+import { consumoEntreConteos } from '../utils/kardex';
 
 // Cantidades (kg/pza/lt), no moneda.
 function qty(n) {
   return (parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 3 });
 }
 
-/**
- * Cuánta materia prima se gastó entre los DOS últimos conteos físicos.
- *
- * Es la pregunta del jefe: "si al conteo había 100, compré 200 y el siguiente
- * conteo dio 50, gasté 250, ¿no?". Sí. Un conteo físico es la única verdad que
- * tiene el sistema, así que entre dos conteos todo lo que desapareció sin
- * documento (venta, traslado) se fue a producción.
- *
- * OJO al leerlo: ese número también se lleva la merma, lo que se echó a perder y
- * los errores de conteo. Sin BOM cargado no hay forma de separarlos — la etiqueta
- * de la vista lo dice.
- *
- * Devuelve null con menos de dos conteos: sin conteo de apertura no hay contra
- * qué medir, y adivinarlo con el saldo del rango daría un número inventado.
- */
-export function consumoEntreConteos(filas) {
-  const conteos = [];
-  filas.forEach((f, i) => { if (f.voucher_type === 'Stock Reconciliation') conteos.push(i); });
-  if (conteos.length < 2) return null;
-
-  const [ini, fin] = conteos.slice(-2);
-  let entradas = 0, salidas = 0;
-  for (let i = ini + 1; i < fin; i++) {           // entre dos conteos seguidos no hay otro conteo
-    entradas += parseFloat(filas[i].entrada) || 0;
-    salidas  += parseFloat(filas[i].salida)  || 0;
-  }
-  const habia = parseFloat(filas[ini].resultado) || 0;
-  const quedo = parseFloat(filas[fin].resultado) || 0;
-  return {
-    desde: filas[ini].fecha, hasta: filas[fin].fecha,
-    habia, entradas, salidas, quedo,
-    usado: habia + entradas - salidas - quedo,
-  };
-}
-
-const hoyStr = () => new Date().toISOString().split('T')[0];
-const primeroMesStr = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]; };
+const hoyStr = () => hoyISO();
+const primeroMesStr = () => { const d = new Date(); return hoyISO(new Date(d.getFullYear(), d.getMonth(), 1)); };
 
 function Kardex() {
   const navigate = useNavigate();

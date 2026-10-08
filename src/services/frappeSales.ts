@@ -11,6 +11,7 @@ import { COMPANY, BODEGA_CENTRAL, DEFAULT_CUSTOMER } from '../config/constants';
 import { IMPUESTOS_LIST, getTasa } from '../config/impuestos';
 import { loadAppConfig, getAppConfigSync } from './appConfig';
 import { getSucursalesInternas } from '../config/clientesB2B';
+import { hoyISO } from '../utils/hora';
 
 // Respuestas Frappe heterogéneas → any deliberado (mismo criterio que FrappeBase).
 type Cuentas = any;
@@ -274,8 +275,8 @@ class FrappeSalesService extends FrappeBase {
       doctype: 'Sales Invoice',
       customer,
       company: COMPANY,
-      posting_date: fecha || new Date().toISOString().split('T')[0],
-      due_date: fecha || new Date().toISOString().split('T')[0],
+      posting_date: fecha || hoyISO(),
+      due_date: fecha || hoyISO(),
       update_stock: 1,
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || '',
@@ -759,7 +760,7 @@ class FrappeSalesService extends FrappeBase {
       doctype: 'Payment Entry',
       payment_type: 'Receive',
       company: COMPANY,
-      posting_date: fecha || new Date().toISOString().split('T')[0],
+      posting_date: fecha || hoyISO(),
       party_type: 'Customer',
       party: customer,
       paid_from: cuentas.receivable,

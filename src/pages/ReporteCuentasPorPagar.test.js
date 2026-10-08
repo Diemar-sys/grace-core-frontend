@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   pendientePorFacturado, filasCxP, deudaTotal, consultaPendientes, deVista, docsDeVista,
-} from './ReporteCuentasPorPagar';
+} from '../utils/cuentasPorPagar';
 
 const rows = [
   { proveedor: 'Bimbo', facturado_a: 'ALMA RODRIGUEZ', tipo: 'Compra', n: 2, total: 300, pagado: 100, pendiente: 200 },

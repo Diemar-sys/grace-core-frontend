@@ -9,7 +9,6 @@ import { IMPUESTOS_MAP } from '../config/impuestos';
 import { calcGasolina } from '../components/compras/compraUtils';
 import BuscadorProveedor from '../components/compras/BuscadorProveedor';
 import { autoAgua, calcTotalesPartidas } from '../utils/egresosUtils';
-export { autoAgua, calcTotalesPartidas };
 
 import { CATEGORIAS, FACTURA_OPTIONS, FORM_INIT, IMP_ERPNEXT, IVA_RATE, impuestoDefault, n } from '../components/egresos/egresosConstants';
 import { GasolinaForm } from '../components/egresos/GasolinaForm';

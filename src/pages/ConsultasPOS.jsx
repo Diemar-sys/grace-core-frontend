@@ -12,10 +12,8 @@ import { imprimirCorteTermico } from '../services/printService';
 import '../styles/global.css';
 import '../styles/Panel.css';
 import '../styles/pos/POSModals.css';
+import { hoyISO } from '../utils/hora';
 
-function hoyISO() {
-  return new Date().toISOString().split('T')[0];
-}
 
 const IconHistorial = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
@@ -108,15 +106,15 @@ function ConsultasPOS() {
     const d = new Date();
     const lunes = new Date(d);
     lunes.setDate(d.getDate() - d.getDay() + (d.getDay() === 0 ? -6 : 1));
-    setRangoInicio(lunes.toISOString().split('T')[0]);
-    setRangoFin(d.toISOString().split('T')[0]);
+    setRangoInicio(hoyISO(lunes));
+    setRangoFin(hoyISO(d));
   }, []);
 
   const setEsteMes = useCallback(() => {
     const d = new Date();
     const primero = new Date(d.getFullYear(), d.getMonth(), 1);
-    setRangoInicio(primero.toISOString().split('T')[0]);
-    setRangoFin(d.toISOString().split('T')[0]);
+    setRangoInicio(hoyISO(primero));
+    setRangoFin(hoyISO(d));
   }, []);
 
   const cancelarVenta = useCallback((name) => {

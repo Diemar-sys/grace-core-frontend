@@ -3,80 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { egresosService } from '../services/frappeEgresos';
 import '../styles/global.css';
+import { FACTURADOS, pendientePorFacturado, VISTAS, deVista, filasCxP, deudaTotal, consultaPendientes, docsDeVista } from '../utils/cuentasPorPagar';
 
 function fmt(n) {
   return (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export const FACTURADOS = ['ALMA RODRIGUEZ', 'LUIS TORRES', 'SIN FACTURA'];
 const FACT_LABEL = { 'ALMA RODRIGUEZ': 'Alma Rodríguez', 'LUIS TORRES': 'Luis Torres', 'SIN FACTURA': 'Sin factura' };
-
-// Saldo pendiente por facturado_a — siempre los 3 buckets (aunque vengan en 0).
-export function pendientePorFacturado(rows) {
-  const acc = Object.fromEntries(FACTURADOS.map(f => [f, 0]));
-  for (const r of rows || []) {
-    const k = FACTURADOS.includes(r.facturado_a) ? r.facturado_a : 'SIN FACTURA';
-    acc[k] += parseFloat(r.pendiente) || 0;
-  }
-  return acc;
-}
-
-// Vistas: el backend manda un renglón por (proveedor, facturado_a, tipo).
-export const VISTAS = [
-  { key: 'general', label: 'General' },
-  { key: 'Compra',  label: 'Compras' },
-  { key: 'Egreso',  label: 'Egresos' },
-];
-
-// Renglones (o documentos del desglose) de la vista elegida. General = todo.
-export function deVista(rows, vista) {
-  rows = rows || [];
-  return vista === 'general' ? rows : rows.filter(r => r.tipo === vista);
-}
-
-// Filas por proveedor para la tabla. Siempre agrupa por proveedor: un mismo
-// proveedor trae un renglón por tipo (compras y egresos) y por facturado_a.
-export function filasCxP(rows, facturadoFiltro) {
-  rows = rows || [];
-  if (facturadoFiltro !== 'todas') rows = rows.filter(r => r.facturado_a === facturadoFiltro);
-  const map = new Map();
-  for (const r of rows) {
-    const cur = map.get(r.proveedor) || { proveedor: r.proveedor, n: 0, total: 0, pagado: 0, pendiente: 0 };
-    cur.n        += r.n || 0;
-    cur.total    += parseFloat(r.total) || 0;
-    cur.pagado   += parseFloat(r.pagado) || 0;
-    cur.pendiente += parseFloat(r.pendiente) || 0;
-    map.set(r.proveedor, cur);
-  }
-  return [...map.values()].sort((a, b) => b.pendiente - a.pendiente);
-}
-
-// Deuda total, partida en lo que viene de compras y lo que viene de egresos.
-// Cada parte se suma por su tipo, no por resta: un renglón sin tipo no se cuela.
-export function deudaTotal(rows) {
-  const d = { total: 0, compras: 0, egresos: 0 };
-  for (const r of rows || []) {
-    const p = parseFloat(r.pendiente) || 0;
-    d.total += p;
-    if (r.tipo === 'Compra') d.compras += p;
-    else if (r.tipo === 'Egreso') d.egresos += p;
-  }
-  return d;
-}
-
-// Qué se pide al desplegar un renglón: en "Todas" el renglón junta los tres
-// facturados, así que su desglose va sin filtro; filtrado, solo el de ese facturado.
-// La clave del caché lleva el filtro: el mismo proveedor debe distinto por facturado.
-export function consultaPendientes(proveedor, facturado) {
-  const facturado_a = facturado === 'todas' ? '' : facturado;
-  return { proveedor, facturado_a, clave: `${proveedor}|${facturado_a}` };
-}
-
-// El desglose se pide completo (compras y egresos) y se filtra al pintar: cambiar
-// de vista no vuelve a pedir. 'cargando' y {error} pasan tal cual.
-export function docsDeVista(docs, vista) {
-  return Array.isArray(docs) ? deVista(docs, vista) : docs;
-}
 
 function ReporteCuentasPorPagar() {
   const navigate = useNavigate();

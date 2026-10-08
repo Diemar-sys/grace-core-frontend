@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { precioB2B, precioConImpuesto, visibleEnB2B } from './NuevaVentaB2B';
+import { precioB2B, precioConImpuesto, visibleEnB2B } from '../utils/ventaB2B';
 import { calcularTotalesVenta } from '../services/frappeSales';
 import { IMPUESTOS_MAP } from '../config/impuestos';
 

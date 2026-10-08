@@ -18,6 +18,7 @@ import { fmtUom } from '../utils/uom';
 import { pesos, cantidad } from '../utils/formato';
 import { revisarCostoUnitario, costoPorUnidadBase } from '../utils/costoAnomalo';
 import '../styles/NuevaCompra.css';
+import { hoyISO } from '../utils/hora';
 
 function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
   const esEdicion = !!initialData;
@@ -27,7 +28,7 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       ? { name: initialData.supplier, label: initialData.supplier_name || initialData.supplier }
       : { name: '', label: '' }
   );
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const hoyStr = hoyISO();
   const [fecha, setFecha] = useState(initialData?.posting_date || hoyStr);
   const [billNo, setBillNo] = useState('');
   const [notaRemision, setNotaRemision] = useState('');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { margen, comparaConSucursal } from './NuevoPan';
+import { margen, comparaConSucursal } from '../utils/precioPan';
 
 describe('margen del pan', () => {
   it('calcula ganancia y porcentaje contra el costo', () => {

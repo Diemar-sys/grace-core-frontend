@@ -12,7 +12,7 @@ vi.mock('../services/frappeSales', async (orig) => {
 vi.mock('./modals/ModalRegistrarPago', () => ({
   default: ({ grupo }: any) => <div role="dialog">COBRO {grupo.customer} · {grupo.facturas.length} facturas · {grupo.totalDeuda}</div>,
 }));
-vi.mock('./modals/ModalEntradaPan', () => ({ hoyISO: () => '2026-09-23' }));
+vi.mock('../utils/hora', async (orig) => ({ ...(await orig<typeof import('../utils/hora')>()), hoyISO: () => '2026-09-23' }));
 
 const h = vi.mocked(hojaService);
 const v = vi.mocked(ventasService);

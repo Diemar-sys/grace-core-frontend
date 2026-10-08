@@ -11,6 +11,7 @@ import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
 import SelectorTipoItem from './SelectorTipoItem';
 import { numero, pesos } from '../utils/formato';
+import { hoyISO } from '../utils/hora';
 
 const fmtMXN = n => pesos(n);
 const num    = v => parseFloat(v) || 0;
@@ -87,7 +88,7 @@ function RegistroRegalo({ onSuccess, onCancel }) {
       // Auto-imprime el ticket, igual que compras/ventas/traspasos.
       // ponytail: fire-and-forget; la térmica caída no debe tumbar el regalo ya registrado.
       imprimirRegaloTermico({
-        noEntrada: res?.name, fecha: new Date().toISOString().split('T')[0], hora: horaLocal(),
+        noEntrada: res?.name, fecha: hoyISO(), hora: horaLocal(),
         almacen: lbl, itemName: item.item_name, qty: cantNum, unidad,
         qtyBase, uomBase: fmtUom(item.uom), precio: precNum, rateBase: ratePorBase, total,
       }).catch(err => console.error('Auto-print regalo:', err));

@@ -17,7 +17,7 @@
 // destino (`hoja.factura`), la hoja queda de solo lectura.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
-import { hoyISO } from '../components/modals/ModalEntradaPan';
+import { hoyISO } from '../utils/hora';
 import { hojaService, type Hoja } from '../services/frappeHoja';
 import { cantidad, excesos, previsualizar, type Captura, type ResumenRuta } from '../utils/cierreRuta';
 import { COMISION_FIJA } from '../utils/liquidacion';

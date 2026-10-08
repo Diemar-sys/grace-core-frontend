@@ -1,5 +1,28 @@
-import { describe, it, expect } from 'vitest';
-import { horaFrappe, horaLocal, haceCuanto, nombreCorto } from './hora';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { globSync, readFileSync } from 'node:fs';
+import { horaFrappe, horaLocal, haceCuanto, nombreCorto, hoyISO } from './hora';
+
+// 07-oct: «hoy» salía de `toISOString()` (UTC). En México, después de las 18:00 ya es mañana en UTC:
+// el pedido proponía el día siguiente y ventas/envíos/egresos se fechaban al día siguiente.
+describe('hoyISO', () => {
+  afterEach(() => vi.useRealTimers());
+  it('🔴 a las 19:30 de México sigue siendo hoy (en UTC ya es mañana)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-08T01:30:00Z')); // 07-oct 19:30 en México
+    expect(hoyISO()).toBe('2026-10-07');
+  });
+  it('una fecha armada en hora local se queda en su día (el día 1 del mes, un lunes)', () => {
+    expect(hoyISO(new Date(2026, 9, 1))).toBe('2026-10-01');
+    expect(hoyISO(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
+  });
+  it('🔴 nadie vuelve a sacar la fecha de toISOString() (solo comprasPrint: parte de medianoche UTC)', () => {
+    const malos = globSync('src/**/*.{js,jsx,ts,tsx}')
+      .filter((f) => !/\.test\./.test(f) && !f.endsWith('comprasPrint.ts'))
+      .filter((f) => readFileSync(f, 'utf8').split('\n')
+        .some((l) => !/^\s*(\*|\/\/)/.test(l) && /toISOString\(\)\s*\.\s*(split|slice)/.test(l)));
+    expect(malos).toEqual([]);
+  });
+});
 
 describe('horaFrappe', () => {
   it('rellena la hora sin cero a la izquierda que manda Frappe', () => {

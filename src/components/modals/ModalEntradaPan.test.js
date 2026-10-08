@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { itemsPayload, calcularValor, resolverItemCode, filasDesdePedido, hoyISO, costoTexto, costoEditable } from './ModalEntradaPan';
+import { itemsPayload, calcularValor, resolverItemCode, filasDesdePedido, costoTexto, costoEditable } from '../../utils/entradaPan';
+import { hoyISO } from '../../utils/hora';
 
 /**
  * Reglas que se están probando, en español:

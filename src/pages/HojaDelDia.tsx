@@ -9,7 +9,7 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
-import { hoyISO } from '../components/modals/ModalEntradaPan';
+import { hoyISO } from '../utils/hora';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {

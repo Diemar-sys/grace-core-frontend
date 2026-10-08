@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { presFactor, presUnit, lineasAjuste, filtrarPorTipo, contarPendientes } from './ConteoFisico';
+import { presFactor, presUnit, lineasAjuste, filtrarPorTipo, contarPendientes } from '../utils/conteoFisico';
 
 // El bug del Bin: a Stock Reconciliation siempre se le manda BASE. presFactor=1 solo
 // cuando el item ya está en base (sin presentación o factor inválido) → no multiplicar de más.
@@ -52,6 +52,12 @@ describe('lineasAjuste — solo ítems con diferencia real', () => {
   });
   it('celdas vacías se ignoran', () => {
     expect(lineasAjuste({ HARAAP25: '', BARCODE: '' }, items)).toEqual([]);
+  });
+  // 07-oct: un mutante que tragaba diferencias de hasta 1 Kg sobrevivía. La tolerancia es el
+  // step del input (0.001): medio kilo de menos es un ajuste real, una milésima no.
+  it('🔴 medio kilo de diferencia SÍ es ajuste; menos de una milésima no', () => {
+    expect(lineasAjuste({ BARCODE: '3.5' }, items)).toEqual([{ item_code: 'BARCODE', qty: 3.5 }]);
+    expect(lineasAjuste({ BARCODE: '3.0004' }, items)).toEqual([]);
   });
 });
 

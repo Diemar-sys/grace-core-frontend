@@ -6,6 +6,7 @@ import { claveImpuesto } from '../config/impuestos';
 import { produccionService } from '../services/frappeProduccion';
 import { auth } from '../services/frappeAuth';
 import { numero } from '../utils/formato';
+import { margen, comparaConSucursal } from '../utils/precioPan';
 
 /**
  * Alta y precios del pan.
@@ -47,31 +48,6 @@ const CANALES = [
     obligatorio: false,
   },
 ];
-
-/** Margen contra el costo estimado. Sin costo no hay nada que comparar. */
-export function margen(precio, costo) {
-  const p = parseFloat(precio) || 0;
-  const c = parseFloat(costo) || 0;
-  if (!(p > 0) || !(c > 0)) return null;
-  return { ganancia: p - c, porcentaje: ((p - c) / c) * 100 };
-}
-
-/**
- * Compara un canal contra el precio de Sucursal, que es la base.
- *
- * Existe para que capturar un precio SIEMPRE responda algo, aunque no haya
- * costo estimado: sin esto el formulario se queda mudo justo cuando el usuario
- * acaba de teclear. Además delata el error silencioso — poner en Pueblos el
- * mismo precio que en Sucursal deja el canal sin efecto.
- */
-export function comparaConSucursal(precioCanal, precioSucursal) {
-  const p = parseFloat(precioCanal) || 0;
-  const s = parseFloat(precioSucursal) || 0;
-  if (!(p > 0) || !(s > 0)) return null;
-  const dif = p - s;
-  // Medio centavo: por debajo de eso son el mismo precio en la caja.
-  return { dif, igual: Math.abs(dif) < 0.005 };
-}
 
 function NuevoPan({ onSuccess, onCancel, editItem = null }) {
   const {

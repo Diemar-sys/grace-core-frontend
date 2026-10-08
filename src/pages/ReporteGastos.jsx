@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { reportesService } from '../services/frappeReportes';
 import '../styles/global.css';
+import { hoyISO } from '../utils/hora';
 
-function hoyISO() { return new Date().toISOString().split('T')[0]; }
-function iso(d) { return d.toISOString().split('T')[0]; }
+function iso(d) { return hoyISO(d); }
 
 function inicioSemanaISO() {
   const d = new Date();

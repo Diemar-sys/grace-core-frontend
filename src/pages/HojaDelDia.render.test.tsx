@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import HojaDelDia from './HojaDelDia';
 import { hojaService } from '../services/frappeHoja';
-import { hoyISO } from '../components/modals/ModalEntradaPan';
+import { hoyISO } from '../utils/hora';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../components/EstadoCuentaHoja', () => ({ default: () => <div>VISTA ESTADO DE CUENTA</div> }));

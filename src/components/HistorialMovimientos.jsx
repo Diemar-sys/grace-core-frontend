@@ -3,11 +3,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fmtUom } from '../utils/uom';
 import { stockService } from '../services/frappeStock';
 import { pesos } from '../utils/formato';
+import { hoyISO } from '../utils/hora';
 
-function hoyISO() { return new Date().toISOString().split('T')[0]; }
 function hace7ISO() {
   const d = new Date(); d.setDate(d.getDate() - 7);
-  return d.toISOString().split('T')[0];
+  return hoyISO(d);
 }
 
 const TIPO_LABEL = {

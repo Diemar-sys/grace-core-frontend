@@ -11,6 +11,7 @@ import {
 import { imprimirNominaTermico } from '../services/printService';
 import { calcRenglon, sumarTotales, payloadTicketNomina } from '../utils/nominaTotales';
 import { pesos } from '../utils/formato';
+import { hoyISO } from '../utils/hora';
 import '../styles/Nomina.css'; // <-- Tu CSS hace toda la magia aquí
 
 type Num = number | string | null | undefined;
@@ -23,7 +24,7 @@ function proximoMiercoles(): string {
   const d = new Date();
   const diff = (3 - d.getDay() + 7) % 7; 
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
+  return hoyISO(d);
 }
 
 interface Fila {

@@ -32,6 +32,16 @@ describe('Pedido — la fecha la dice el archivo', () => {
     await waitFor(() => expect(screen.getByLabelText(/Fecha del pedido/)).toHaveValue('2026-10-01'));
   });
 
+  // 07-oct: arrancaba con toISOString (UTC): después de las 18:00 proponía el día de MAÑANA
+  it('🔴 a las 19:30 el campo arranca en HOY, no en mañana', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-08T01:30:00Z')); // 07-oct 19:30 en México
+    try {
+      render(<MemoryRouter><Pedido /></MemoryRouter>);
+      expect(screen.getByLabelText(/Fecha del pedido/)).toHaveValue('2026-10-07');
+    } finally { vi.useRealTimers(); }
+  });
+
   it('sin fecha en el archivo deja la que estaba (el servidor rechaza al importar)', async () => {
     s.previsualizar.mockResolvedValue(previa(null));
     render(<MemoryRouter><Pedido /></MemoryRouter>);

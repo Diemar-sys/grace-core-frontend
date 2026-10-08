@@ -21,7 +21,7 @@ import { DEFAULT_CUSTOMER } from '../config/constants';
 const PAGOS_INIT = { Efectivo: '', Tarjeta: '', Transferencia: '' };
 
 
-function POS() {
+function PuntoDeVenta() {
   // ── Catálogo ──────────────────────────────────
 
   // Constante para obtener los productos de Dexie en tiempo real
@@ -402,4 +402,4 @@ function POS() {
   );
 }
 
-export default POS;
+export default PuntoDeVenta;

@@ -15,6 +15,7 @@ import { parseErrorFrappe } from '../utils/errorFrappe';
 import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
 import SelectorTipoItem from './SelectorTipoItem';
+import { hoyISO } from '../utils/hora';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -61,7 +62,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
       setWarehouseDestino(sucursales[0].warehouse);
     }
   }, [sucursales, warehouseDestino]);
-  const [fecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha] = useState(hoyISO());
   const [filas, setFilas] = useState([FILA_VACIA()]);
   const [tipoItem, setTipoItem] = useState('');
   const [notas, setNotas] = useState('');

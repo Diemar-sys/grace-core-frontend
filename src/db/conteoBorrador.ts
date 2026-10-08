@@ -9,8 +9,8 @@
 // tablet a media jornada, esto sube al servidor (doctype propio o un draft en
 // el backend), no se parcha con más lógica local.
 import { db as dbDefault } from './db';
+import { hoyISO } from '../utils/hora';
 
-export const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 /** Un borrador por almacén y día: el conteo de mañana no pisa el de hoy. */
 export const claveBorrador = (warehouse: string, fecha: string = hoyISO()) =>

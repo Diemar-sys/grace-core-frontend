@@ -1,3 +1,4 @@
+import { hoyISO } from '../../utils/hora';
 // src/components/egresos/egresosConstants.ts
 import React from 'react';
 import { CategoriaConfig, FacturaOption, EgresoFormState } from './egresosTypes';
@@ -154,7 +155,7 @@ export function n(v: string | number | null | undefined): number {
 }
 
 export const FORM_INIT: EgresoFormState = {
-  fecha: new Date().toISOString().split('T')[0],
+  fecha: hoyISO(),
   proveedor: { name: '', label: '' },
   subcategoria: '',
   concepto: '',

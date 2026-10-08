@@ -9,6 +9,7 @@ import FrappeBase from './FrappeBase';
 import { stockService } from './frappeStock';
 import { COMPANY } from '../config/constants';
 import { costearLineas, factorProduccion, escalarIngrediente } from '../utils/produccionCalc';
+import { hoyISO } from '../utils/hora';
 
 interface BOMItemInput {
   item_code: string;
@@ -421,7 +422,7 @@ class FrappeProduccionService extends FrappeBase {
 
     return stockService.entradaPorManufactura({
       company: COMPANY,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: hoyISO(),
       orden_produccion: `BOM: ${bom.item_name} × ${cantidadProducida}`,
       bom_no: bomName,
       almacen_produccion: almacenOrigen,

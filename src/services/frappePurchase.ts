@@ -8,6 +8,7 @@ import { COMPANY, BODEGA_CENTRAL } from '../config/constants';
 import { IMPUESTOS_LIST } from '../config/impuestos';
 import { calcConversion } from '../components/compras/compraUtils';
 import { getAppConfigSync } from './appConfig';
+import { hoyISO } from '../utils/hora';
 
 // Payload del formulario de compra, compartido por guardar/registrar/actualizar.
 interface CompraInput {
@@ -229,7 +230,7 @@ class FrappeComprasService extends FrappeBase {
       doctype: "Purchase Receipt",
       supplier: supplier,
       company: COMPANY,
-      posting_date: fecha || new Date().toISOString().split("T")[0],
+      posting_date: fecha || hoyISO(),
       supplier_delivery_note: billNo || "",
       set_warehouse: BODEGA_CENTRAL,
       remarks: notas || "",
@@ -597,7 +598,7 @@ class FrappeComprasService extends FrappeBase {
   async getHistorialPrecios(itemCode: string, meses = 6): Promise<any[]> {
     const desde = new Date();
     desde.setMonth(desde.getMonth() - meses);
-    const desdeStr = desde.toISOString().split("T")[0];
+    const desdeStr = hoyISO(desde);
     const params = new URLSearchParams({
       fields: JSON.stringify([
         "parent", "item_code", "item_name",
