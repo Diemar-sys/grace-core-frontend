@@ -147,3 +147,39 @@ export function sumarCharolas(actual: number, charolas: number, porCharola: numb
   if (!Number.isFinite(charolas) || !Number.isFinite(porCharola)) return actual;
   return Math.max(0, actual + charolas * porCharola);
 }
+
+/** Color de ENVIADO contra PEDIDO (08-oct): ámbar si se mandó menos, verde si cuadra, azul si
+ *  de más. Sin pedido y sin envío no hay nada que comparar (null). Pedido > 0 y nada enviado
+ *  es «falta»: al arrancar el día todo lo pedido sale en ámbar y se va poniendo verde. */
+export type EstadoEnviado = 'falta' | 'exacto' | 'demas';
+export function estadoEnviado(pedido: number, enviado: number): EstadoEnviado | null {
+  if (!pedido && !enviado) return null;
+  if (enviado < pedido) return 'falta';
+  return enviado === pedido ? 'exacto' : 'demas';
+}
+
+/** Orden dictado por Diemar (08-oct); un departamento fuera de la lista (PIZZERIA…) va al final. */
+export const ORDEN_DEPARTAMENTOS = ['PAN DULCE', 'PAN BLANCO', 'REPOSTERIA', 'PANQUELERIA'];
+
+export interface TotalDepartamento { departamento: string; pedido: number; enviado: number; importe: number }
+
+/** Piezas pedidas/enviadas e importe por departamento, con lo TECLEADO (sin guardar), igual que
+ *  `totalCapturado`. Una pasada con Map, O(n). El total final NO se suma de aquí: lo da
+ *  `totalCapturado` (redondear la suma, no sumar redondeados). */
+export function totalesPorDepartamento(renglones: RenglonHoja[], captura: Record<string, string>): TotalDepartamento[] {
+  const porDepto = new Map<string, TotalDepartamento & { bruto: number }>();
+  for (const r of renglones) {
+    const enviado = enviadoDe(r, captura);
+    if (!r.pedido && !enviado) continue;
+    const t = porDepto.get(r.departamento)
+      ?? { departamento: r.departamento, pedido: 0, enviado: 0, importe: 0, bruto: 0 };
+    t.pedido += r.pedido;
+    t.enviado += enviado;
+    t.bruto += enviado * r.precio;
+    porDepto.set(r.departamento, t);
+  }
+  const lugar = (d: string) => (ORDEN_DEPARTAMENTOS.includes(d) ? ORDEN_DEPARTAMENTOS.indexOf(d) : ORDEN_DEPARTAMENTOS.length);
+  return [...porDepto.values()]
+    .sort((a, b) => lugar(a.departamento) - lugar(b.departamento) || a.departamento.localeCompare(b.departamento))
+    .map(({ bruto, ...t }) => ({ ...t, importe: centavos(bruto) }));
+}

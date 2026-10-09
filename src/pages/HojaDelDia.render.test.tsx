@@ -7,6 +7,7 @@ import { hoyISO } from '../utils/hora';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../components/EstadoCuentaHoja', () => ({ default: () => <div>VISTA ESTADO DE CUENTA</div> }));
+vi.mock('../components/VistaBolillo', () => ({ default: ({ fecha, destino }: any) => <div>VISTA BOLILLO {fecha} {destino}</div> }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
     confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn() },
@@ -64,6 +65,66 @@ describe('HojaDelDia — cableado', () => {
     // el importe del renglón y el total del día se recalculan al teclear
     expect(within(input.closest('tr')!).getByText('$420.00')).toBeInTheDocument();
     expect(screen.getByText('$420.00', { selector: '.hoja-dia__total strong' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(s.guardar).toHaveBeenCalledWith(expect.any(String), 'DELI', [{ item_code: '1047', enviado: 30 }]));
+  });
+
+  it('🔴 08-oct: ENVIADO se pinta contra PEDIDO (falta / cuadra / de más) al teclear', async () => {
+    s.hoja.mockResolvedValue(hoja());
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    const input = await screen.findByLabelText('Enviado CONCHAS');   // pedido 40
+    expect(input).toHaveClass('hoja-input--falta');                  // 0 enviado: falta
+    fireEvent.change(input, { target: { value: '40' } });
+    expect(input).toHaveClass('hoja-input--exacto');
+    fireEvent.change(input, { target: { value: '41' } });
+    expect(input).toHaveClass('hoja-input--demas');
+  });
+
+  it('🔴 08-oct: totales por departamento con lo tecleado, arriba del total de la hoja', async () => {
+    const BOLILLO = { ...R, item_code: '3001', producto: 'BOLILLO', departamento: 'PAN BLANCO', pedido: 160, precio: 2.5 };
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [BOLILLO, R] });   // llega PAN BLANCO primero
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText('Enviado BOLILLO'), { target: { value: '144' } });
+    const filas = within(screen.getByRole('table', { name: 'Totales por departamento' })).getAllByRole('row').slice(1);
+    expect(filas.map(f => [...f.querySelectorAll('td')].map(td => td.textContent))).toEqual([
+      ['PAN DULCE', '40', '30', '$420.00'],                            // orden de Diemar, no el de llegada
+      ['PAN BLANCO', '160', '144', '$360.00'],
+    ]);
+    expect(screen.getByText('$780.00', { selector: '.hoja-dia__total strong' })).toBeInTheDocument();
+  });
+
+  it('🔴 08-oct: «Bolillo» junto a la fecha cambia a la vista de tandas del destino ELEGIDO', async () => {
+    s.hoja.mockResolvedValue(hoja());
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    fireEvent.click(screen.getByRole('tab', { name: 'Bolillo' }));
+    expect(screen.getByText(`VISTA BOLILLO ${hoyISO()} DELI`)).toBeInTheDocument();
+    expect(screen.getByLabelText('Destino')).toBeInTheDocument();     // el selector se queda
+    expect(screen.queryByLabelText('Enviado CONCHAS')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Captura' }));
+    expect(await screen.findByLabelText('Enviado CONCHAS')).toBeInTheDocument();
+  });
+
+  it('🔴 08-oct: en la Captura el bolillo de un destino con tandas se ve pero no se teclea, ni cuenta lo tecleado de antes', async () => {
+    const BOLILLO = { ...R, item_code: '3001', producto: 'BOLILLO', departamento: 'PAN BLANCO', pedido: 0,
+      enviado: 576, precio: 5, por_charola: 16, de_bolillo: true };
+    // un borrador de ANTES de las tandas traía 999 tecleado para el bolillo de DELI
+    almacen.set('hoja-dia', { datos: { [hoyISO()]: { DELI: { enviado: { '3001': '999' } } } }, actualizado: 'x' });
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [BOLILLO, R] });
+    s.guardar.mockResolvedValue({ ...hoja(), renglones: [BOLILLO, R] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    const input = await screen.findByLabelText('Enviado BOLILLO');
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue(576);
+    expect(within(input.closest('tr')!).getByText('de Bolillo')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Charolas BOLILLO')).toBeNull();
+    expect(screen.getByText('$2,880.00', { selector: '.hoja-dia__total strong' })).toBeInTheDocument();   // 576 × $5, no 999
+    fireEvent.change(screen.getByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(s.guardar).toHaveBeenCalledWith(expect.any(String), 'DELI', [{ item_code: '1047', enviado: 30 }]));
   });

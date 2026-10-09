@@ -9,11 +9,12 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
+import VistaBolillo from '../components/VistaBolillo';
 import { hoyISO } from '../utils/hora';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado,
+  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -40,6 +41,8 @@ export default function HojaDelDia() {
   // `/hoja?vista=estado` (tarjeta de Reportes) abre directo en el estado de cuenta
   const [vista, setVista] = useState<'captura' | 'estado'>(
     () => (new URLSearchParams(window.location.search).get('vista') === 'estado' ? 'estado' : 'captura'));
+  // 08-oct: la captura del día, o el bolillo por tandas (selector junto a la fecha)
+  const [modo, setModo] = useState<'captura' | 'bolillo'>('captura');
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
   // Lo tecleado sin guardar vive en IndexedDB (25-sep): cambiar de destino o recargar no lo
@@ -85,7 +88,13 @@ export default function HojaDelDia() {
   };
 
   const tecleado = hoja ? borrador[fecha]?.[hoja.destino] : undefined;
-  const captura = useMemo(() => tecleado?.enviado ?? {}, [tecleado]);
+  // 08-oct: lo tecleado de un pan que sale de «Bolillo» no cuenta (ni en el total ni en el color):
+  // su ENVIADO es el del servidor. Un borrador de antes de las tandas lo podía traer.
+  const captura = useMemo(() => {
+    const t = tecleado?.enviado ?? {};
+    const deBolillo = new Set(hoja?.renglones.filter(r => r.de_bolillo).map(r => r.item_code));
+    return deBolillo.size ? Object.fromEntries(Object.entries(t).filter(([item]) => !deBolillo.has(item))) : t;
+  }, [tecleado, hoja]);
   const capturaMerma = tecleado?.merma ?? {};
 
   // Lo que falta guardar: solo los renglones cuyo tecleado cambió.
@@ -115,6 +124,8 @@ export default function HojaDelDia() {
   // camioneta: dos hojas de 2 columnas (Diemar 23-sep); los demás: una de 4
   const hojasDeColumnas = hoja?.camioneta ? [columnas.slice(0, 2), columnas.slice(2)] : [columnas];
   const total = useMemo(() => (hoja ? totalCapturado(hoja.renglones, captura) : 0), [hoja, captura]);
+  // 08-oct: piezas e importe por departamento; el total final sigue siendo `total`
+  const porDepartamento = useMemo(() => (hoja ? totalesPorDepartamento(hoja.renglones, captura) : []), [hoja, captura]);
 
   // Agrupar destinos por `grupo` en una sola pasada (HashMap: O(n), sin
   // ciclos anidados) — la lista es corta pero la regla es pareja siempre.
@@ -267,7 +278,16 @@ export default function HojaDelDia() {
             Fecha
             <input type="date" value={fecha} disabled={ocupado} onChange={e => setFecha(e.target.value)} />
           </label>
-          {porGuardar > 0 && (
+          {/* 08-oct: el bolillo sale por tandas; se captura en su propia vista */}
+          <div className="hoja-modo" role="tablist" aria-label="Qué capturar">
+            {(['captura', 'bolillo'] as const).map(m => (
+              <button key={m} type="button" role="tab" aria-selected={modo === m} disabled={ocupado}
+                className={`hoja-modo__btn${modo === m ? ' hoja-modo__btn--activo' : ''}`} onClick={() => setModo(m)}>
+                {m === 'captura' ? 'Captura' : 'Bolillo'}
+              </button>
+            ))}
+          </div>
+          {modo === 'captura' && porGuardar > 0 && (
             <button type="button" className="hoja-btn hoja-btn--primario hoja-btn--todo" onClick={guardarTodo} disabled={ocupado}>
               Guardar todo ({porGuardar})
             </button>
@@ -277,7 +297,10 @@ export default function HojaDelDia() {
 
         {vista === 'estado' && <EstadoCuentaHoja />}
 
-        {vista === 'captura' && hoja && (
+        {/* 08-oct: solo el bolillo del destino elegido */}
+        {vista === 'captura' && modo === 'bolillo' && <VistaBolillo fecha={fecha} destino={elegido} />}
+
+        {vista === 'captura' && modo === 'captura' && hoja && (
           <section className="hoja-dia__detalle">
             <div className="hoja-dia__detalle-cabecera">
               <h2>{hoja.destino}</h2>
@@ -318,6 +341,8 @@ export default function HojaDelDia() {
                               // ve al teclear la merma. Cliente/sucursal no tienen merma: vendido = enviado.
                               // 30-sep: solo MERMA (merma y regreso eran lo mismo)
                               const vendido = enviadoActual - mermaActual;
+                              // 08-oct: ENVIADO contra PEDIDO — ámbar si faltó, verde si cuadra, azul si de más
+                              const color = estadoEnviado(r.pedido, enviadoActual);
                               return (
                                 <tr key={r.item_code} className={!r.pedido && !enviadoActual ? 'hoja-fila--sin-pedido' : undefined}>
                                   <td className="hoja-celda--clave">{r.item_code}</td>
@@ -329,15 +354,17 @@ export default function HojaDelDia() {
                                     <input
                                       type="number"
                                       min={0}
-                                      className={enviadoActual > 0 ? 'hoja-input--lleno' : undefined}
+                                      className={color ? `hoja-input--${color}` : undefined}
                                       aria-label={`Enviado ${r.producto}`}
+                                      title={r.de_bolillo ? 'Sale de las tandas: se captura en «Bolillo»' : undefined}
                                       value={captura[r.item_code] ?? String(r.enviado)}
-                                      disabled={enviadoFijo || ocupado}
+                                      disabled={enviadoFijo || ocupado || r.de_bolillo}
                                       onChange={e => setBorrador(b => conTecleado(b, fecha, hoja.destino, 'enviado', r.item_code, e.target.value))}
                                     />
                                     {/* 06-oct: pan por charola — las charolas tecleadas se SUMAN en piezas al salir
                                         de la casilla (la tecla →| de la tablet), con Enter o con «+» */}
-                                    {!!r.por_charola && !enviadoFijo && (
+                                    {r.de_bolillo && <span className="hoja-de-bolillo">de Bolillo</span>}
+                                    {!!r.por_charola && !enviadoFijo && !r.de_bolillo && (
                                       <span className="hoja-charolas">
                                         <input
                                           type="number"
@@ -419,6 +446,24 @@ export default function HojaDelDia() {
                   </p>
                 )}
               </div>
+            )}
+
+            {porDepartamento.length > 0 && (
+              <table className="hoja-deptos" aria-label="Totales por departamento">
+                <thead>
+                  <tr><th>DEPARTAMENTO</th><th>PEDIDO (PZ)</th><th>ENVIADO (PZ)</th><th>IMPORTE</th></tr>
+                </thead>
+                <tbody>
+                  {porDepartamento.map(d => (
+                    <tr key={d.departamento}>
+                      <td>{d.departamento}</td>
+                      <td className="hoja-celda--num">{numero(d.pedido, 0)}</td>
+                      <td className="hoja-celda--num">{numero(d.enviado, 0)}</td>
+                      <td className="hoja-celda--num">{pesos(d.importe)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
 
             <div className="hoja-dia__total">

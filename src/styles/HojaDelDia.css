@@ -359,13 +359,13 @@
 }
 .hoja-btn-charolas:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-bento); }
 .hoja-btn-charolas:disabled { opacity: 0.5; cursor: default; }
-/* lo que ya se capturó se ve de un vistazo */
-.hoja-tabla input.hoja-input--lleno {
-  background: var(--tv-ok-bg);
-  border-color: var(--tv-ok);
-  color: var(--tv-ok);
-  font-weight: 700;
-}
+/* ENVIADO contra PEDIDO (08-oct): faltó ámbar, cuadra verde, de más azul — pastel + texto oscuro */
+.hoja-tabla input.hoja-input--falta,
+.hoja-tabla input.hoja-input--exacto,
+.hoja-tabla input.hoja-input--demas { font-weight: 700; }
+.hoja-tabla input.hoja-input--falta  { background: var(--tv-warn-bg); border-color: var(--tv-warn); color: var(--tv-warn); }
+.hoja-tabla input.hoja-input--exacto { background: var(--tv-ok-bg);   border-color: var(--tv-ok);   color: var(--tv-ok); }
+.hoja-tabla input.hoja-input--demas  { background: #dbeafe;           border-color: #1e40af;        color: #1e40af; }
 
 .hoja-tabla input[disabled] {
   background: var(--tv-sunk);
@@ -421,6 +421,33 @@
   letter-spacing: 0.1em;
 }
 .hoja-dia__total strong { color: #ffffff; font-family: var(--tv-mono); font-size: 1.6rem; }
+
+/* Totales por departamento (08-oct): mini tabla con el lenguaje de la hoja, arriba del total */
+.hoja-deptos {
+  width: 100%;
+  max-width: 40rem;
+  margin: 1.5rem 0 0 auto;
+  border-collapse: collapse;
+  background: #ffffff;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-bento);
+  font-size: 0.95rem;
+}
+.hoja-deptos th {
+  background: var(--tv-sunk);
+  font-family: var(--tv-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  text-align: right;
+  padding: 0.5rem 0.9rem;
+}
+.hoja-deptos th:first-child,
+.hoja-deptos td:first-child { text-align: left; font-weight: 700; }
+.hoja-deptos td { padding: 0.5rem 0.9rem; border-top: 1px solid var(--tv-hairline); text-align: right; }
+.hoja-dia__total { margin-left: auto; max-width: 40rem; }
+@media (max-width: 860px) { .hoja-deptos, .hoja-dia__total { max-width: none; } }
 
 .hoja-dia__aviso--a-favor { flex-basis: 100%; margin: 0.5rem 0 0; }
 
@@ -481,4 +508,88 @@
   .hoja-bloques, .hoja-bloques--camioneta { grid-template-columns: 1fr; }
   .hoja-dia__campo--destino select { min-width: 0; width: 100%; }
   .hoja-dia__campo--destino { flex: 1 1 100%; }
+}
+
+/* ── Captura | Bolillo (08-oct) ─────────────────────────────────────────── */
+/* Píldora segmentada como «Insumos | Pan» del Catálogo: carril hundido, la activa blanca. */
+.hoja-modo {
+  display: inline-flex;
+  align-self: flex-end;
+  gap: 4px;
+  padding: 4px;
+  background: var(--tv-sunk);
+  border-radius: var(--radius-pill);
+}
+.hoja-modo__btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: 600 0.95rem var(--font-body);
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.hoja-modo__btn--activo { background: #ffffff; color: var(--color-brand); box-shadow: var(--shadow-bento); }
+.hoja-modo__btn:disabled { cursor: default; opacity: 0.6; }
+
+/* En la Captura, el pan que sale de «Bolillo» se ve pero no se teclea */
+.hoja-de-bolillo {
+  font-family: var(--tv-mono);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  background: var(--tv-sunk);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ── Vista Bolillo ──────────────────────────────────────────────────────── */
+.bolillo { width: 100%; }
+.bolillo__vacio { color: var(--color-text-muted); padding: 2rem 0; }
+.bolillo__barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+}
+.bolillo__barra p { margin: 0; color: var(--color-text-muted); font-size: 0.9rem; }
+.bolillo__tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+  gap: 1.25rem;
+}
+.bolillo__tarjeta {
+  background: #ffffff;
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.25rem;
+  transition: box-shadow 0.2s ease;
+}
+.bolillo__tarjeta:hover { box-shadow: var(--shadow-bento-hover); }
+.bolillo__cabecera { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.bolillo__cabecera h3 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.bolillo__tabla { width: 100%; }
+.bolillo__tabla th small { font-weight: 400; opacity: 0.7; }
+.bolillo__tanda { white-space: nowrap; font-weight: 600; }
+.bolillo__tanda small { display: block; font-family: var(--tv-mono); font-weight: 400; color: var(--color-text-muted); }
+.bolillo__celda { white-space: nowrap; text-align: right; }
+.bolillo__pedido { color: var(--color-text-muted); font-family: var(--tv-mono); font-size: 0.8rem; margin-right: 0.35rem; }
+.bolillo__fila-bolsa td { color: var(--color-text-muted); }
+.hoja-tabla input.bolillo__input { width: 4.25rem; min-height: 40px; }
+.bolillo__fila-total td { border-top: 1px solid var(--tv-hairline); font-family: var(--tv-mono); font-weight: 700; }
+.bolillo__total { padding: 0.1rem 0.5rem; border-radius: var(--radius-pill); }
+.bolillo__total--falta  { background: var(--tv-warn-bg); color: var(--tv-warn); }
+.bolillo__total--exacto { background: var(--tv-ok-bg);   color: var(--tv-ok); }
+.bolillo__total--demas  { background: #dbeafe;           color: #1e40af; }
+.bolillo__piezas { display: block; font-weight: 400; color: var(--color-text-muted); }
+.bolillo__mas { margin-top: 0.75rem; }
+
+@media (pointer: coarse) { .hoja-tabla input.bolillo__input { min-height: 48px; } }
+@media (max-width: 600px) {
+  .bolillo__tarjetas { grid-template-columns: 1fr; }
+  .bolillo__tarjeta { padding: 0.9rem; overflow-x: auto; }
+  .hoja-tabla input.bolillo__input { width: 3.5rem; }
 }

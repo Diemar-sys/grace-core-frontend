@@ -11,6 +11,8 @@ export interface RenglonHoja {
   pedido: number; enviado: number; merma: number; precio: number; importe: number;
   /** Piezas por charola del catálogo (bolillo 16, telera 12); 0 = va por pieza. 06-oct */
   por_charola?: number;
+  /** 08-oct: su ENVIADO sale de las tandas de «Bolillo»; en la Captura se ve, no se teclea */
+  de_bolillo?: boolean;
 }
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
 /** '' = capturando lo enviado · 'enviado' = en ruta · 'liquidado' = ya entregó su regreso */
@@ -29,6 +31,21 @@ export interface DestinoDia {
   destino: string; grupo: string; camioneta: boolean; total: number; comision: number; se_debe: number;
   estado: 'sin_capturar' | 'sin_confirmar' | 'en_ruta' | 'regreso' | 'confirmado'; factura: Factura | null;
 }
+
+/** Bolillo por tandas (08-oct). Spec: gestion_panaderia/docs/superpowers/specs/2026-10-08-bolillo-tandas-design.md */
+export interface CeldaTanda { pedido: number; salio: number }
+export interface Tanda { tanda: number; tipo: string; segundo: string; horario: string; celdas: Record<string, CeldaTanda> }
+export interface ItemBolillo { item_code: string; unidad: 'charolas' | 'piezas'; por_charola: number }
+export interface DestinoBolillo { destino: string; cobrado: boolean; tandas: Tanda[] }
+export interface CamionetaBolillo { destino: string; cerrada: boolean; cobrada: boolean; cantidades: Record<string, number> }
+export interface BolilloDia {
+  items: ItemBolillo[];
+  destinos: DestinoBolillo[];
+  /** La bolsa común (bloque CAMIONETA del Excel) y las camionetas que salen; null si no hay */
+  camionetas: { tandas: Tanda[]; salen: CamionetaBolillo[] } | null;
+}
+export interface CeldaPorGuardar { destino: string; tanda: number; item_code: string; salio: number }
+export interface CamionetaPorGuardar { destino: string; item_code: string; cantidad: number }
 
 export interface DeudorHoja { destino: string; grupo: string; cliente: string; camioneta: boolean }
 export interface DiaCuenta {
@@ -74,6 +91,11 @@ class HojaService extends FrappeBase {
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }
   reabrirEnvio(fecha: string, destino: string) { return this._post<Hoja>('reabrir_envio', { fecha, destino }); }
   corregir(fecha: string, destino: string) { return this._post<Hoja>('corregir', { fecha, destino }); }
+  vistaBolillo(fecha: string) { return this._get<BolilloDia>('vista_bolillo', { fecha }); }
+  guardarBolillo(fecha: string, tandas: CeldaPorGuardar[], camionetas: CamionetaPorGuardar[]) {
+    return this._post<BolilloDia>('guardar_bolillo', { fecha, tandas, camionetas });
+  }
+  agregarTanda(fecha: string, destino: string) { return this._post<BolilloDia>('agregar_tanda', { fecha, destino }); }
   guardarMerma(fecha: string, destino: string, renglones: { item_code: string; merma: number }[]) {
     return this._post<Hoja>('guardar_merma', { fecha, destino, renglones });
   }

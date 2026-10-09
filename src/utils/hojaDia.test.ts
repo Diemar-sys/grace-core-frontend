@@ -128,3 +128,50 @@ describe('sumarCharolas (06-oct)', () => {
     expect(sumarCharolas(160, 5, NaN)).toBe(160);
   });
 });
+
+import { estadoEnviado, totalesPorDepartamento } from './hojaDia';
+describe('estadoEnviado (color de ENVIADO contra PEDIDO, 08-oct)', () => {
+  it('menos = falta, igual = exacto, más = de más; sin pedido ni envío no pinta', () => {
+    expect(estadoEnviado(12, 10)).toBe('falta');
+    expect(estadoEnviado(12, 0)).toBe('falta');      // pedido y nada enviado: falta, no neutro
+    expect(estadoEnviado(12, 12)).toBe('exacto');
+    expect(estadoEnviado(12, 13)).toBe('demas');
+    expect(estadoEnviado(0, 5)).toBe('demas');       // sin pedido y se mandó: de más
+    expect(estadoEnviado(0, 0)).toBeNull();
+  });
+});
+
+describe('totalesPorDepartamento (08-oct)', () => {
+  const r = (item_code: string, departamento: string, pedido: number, enviado: number, precio: number): RenglonHoja =>
+    ({ item_code, producto: item_code, departamento, categoria: 'X', impuesto: '', pedido, enviado, merma: 0, precio, importe: 0 });
+  // desordenados a propósito: el orden de salida lo pone ORDEN_DEPARTAMENTOS, no el de llegada
+  const renglones = [
+    r('2001', 'REPOSTERIA', 1, 1, 150), r('1001', 'PANQUELERIA', 12, 12, 12),
+    r('3001', 'PAN BLANCO', 160, 144, 2.5), r('1052', 'PAN DULCE', 6, 6, 12),
+    r('1053', 'PAN DULCE', 18, 0, 12), r('5001', 'PIZZERIA', 0, 2, 45),
+    r('1099', 'PAN DULCE', 0, 0, 12),               // ni pedido ni enviado: no cuenta
+    r('6001', 'BOCADILLOS', 0, 0, 10),               // depto solo con renglones en 0: no sale con 0 · 0 · $0
+  ];
+
+  it('suma piezas e importe por departamento en el orden de Diemar; PIZZERIA al final', () => {
+    expect(totalesPorDepartamento(renglones, {})).toEqual([
+      { departamento: 'PAN DULCE',   pedido: 24,  enviado: 6,   importe: 72 },
+      { departamento: 'PAN BLANCO',  pedido: 160, enviado: 144, importe: 360 },
+      { departamento: 'REPOSTERIA',  pedido: 1,   enviado: 1,   importe: 150 },
+      { departamento: 'PANQUELERIA', pedido: 12,  enviado: 12,  importe: 144 },
+      { departamento: 'PIZZERIA',    pedido: 0,   enviado: 2,   importe: 90 },
+    ]);
+  });
+
+  it('usa lo TECLEADO sin guardar, como totalCapturado', () => {
+    const [dulce] = totalesPorDepartamento(renglones, { '1053': '18' });
+    expect(dulce).toEqual({ departamento: 'PAN DULCE', pedido: 24, enviado: 24, importe: 288 });
+  });
+
+  it('la suma de los departamentos da EXACTO el total de la hoja (con centavos)', () => {
+    const conCentavos = [...renglones, r('1022', 'PAN DULCE', 7, 7, 3.33), r('3003', 'PAN BLANCO', 3, 3, 0.35)];
+    const deptos = totalesPorDepartamento(conCentavos, {});
+    const suma = Math.round(deptos.reduce((s, d) => s + d.importe, 0) * 100) / 100;
+    expect(suma).toBe(totalCapturado(conCentavos, {}));
+  });
+});
