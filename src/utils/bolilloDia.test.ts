@@ -30,18 +30,18 @@ const DIA: BolilloDia = {
 describe('totalesDestino (08-oct)', () => {
   it('suma pedido y lo que salió con lo TECLEADO encima de lo guardado; piezas = charolas × 16', () => {
     const tot = totalesDestino('P.REAL', PREAL, ITEMS, { [claveTanda('P.REAL', 2, '3001')]: '20', [claveTanda('P.REAL', 3, '3001')]: '12' });
-    expect(tot['3001']).toEqual({ pedido: 42, salio: 36, piezas: 576 });
-    expect(tot['3003']).toEqual({ pedido: 30, salio: 0, piezas: 0 });     // mini en piezas
+    expect(tot['3001']).toEqual({ pedido: 42, salio: 36, piezas: 576, pedidoPiezas: 672 });
+    expect(tot['3003']).toEqual({ pedido: 30, salio: 0, piezas: 0, pedidoPiezas: 30 });     // mini en piezas
   });
   it('sin tecleado, lo guardado', () => {
-    expect(totalesDestino('P.REAL', PREAL, ITEMS, {})['3001']).toEqual({ pedido: 42, salio: 4, piezas: 64 });
+    expect(totalesDestino('P.REAL', PREAL, ITEMS, {})['3001']).toEqual({ pedido: 42, salio: 4, piezas: 64, pedidoPiezas: 672 });
   });
 });
 
 describe('totalesCamionetas (08-oct)', () => {
   it('pedido de la bolsa contra la suma de lo que se lleva cada camioneta', () => {
     const tot = totalesCamionetas(DIA.camionetas!.tandas, DIA.camionetas!.salen, ITEMS, { [claveCamioneta('ISMA', '3001')]: '9' });
-    expect(tot['3001']).toEqual({ pedido: 14, salio: 15, piezas: 240 });
+    expect(tot['3001']).toEqual({ pedido: 14, salio: 15, piezas: 240, pedidoPiezas: 224 });
   });
 });
 

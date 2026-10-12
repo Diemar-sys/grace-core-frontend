@@ -383,19 +383,6 @@
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
-/* Quitar flechas spinner de inputs number — se teclea valor exacto */
-.nc-input[type="number"],
-.nc-input-ajuste[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-.nc-input[type="number"]::-webkit-outer-spin-button,
-.nc-input[type="number"]::-webkit-inner-spin-button,
-.nc-input-ajuste[type="number"]::-webkit-outer-spin-button,
-.nc-input-ajuste[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
 
 /* Precio de catálogo (fijo, solo lectura) */
 .nc-precio-fijo {

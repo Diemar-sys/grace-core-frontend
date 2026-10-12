@@ -87,6 +87,15 @@ export default function HojaDelDia() {
     }
   };
 
+  // 09-oct: lo guardado en «Bolillo» cambia el ENVIADO y el total en el servidor; al volver a
+  // la Captura se relee (la hoja y los montos del selector), si no se veía la hoja de antes.
+  const cambiarModo = (m: 'captura' | 'bolillo') => {
+    setModo(m);
+    if (m !== 'captura' || modo === 'captura') return;
+    cargarDestinos();
+    if (elegido) abrir(elegido);
+  };
+
   const tecleado = hoja ? borrador[fecha]?.[hoja.destino] : undefined;
   // 08-oct: lo tecleado de un pan que sale de «Bolillo» no cuenta (ni en el total ni en el color):
   // su ENVIADO es el del servidor. Un borrador de antes de las tandas lo podía traer.
@@ -282,7 +291,7 @@ export default function HojaDelDia() {
           <div className="hoja-modo" role="tablist" aria-label="Qué capturar">
             {(['captura', 'bolillo'] as const).map(m => (
               <button key={m} type="button" role="tab" aria-selected={modo === m} disabled={ocupado}
-                className={`hoja-modo__btn${modo === m ? ' hoja-modo__btn--activo' : ''}`} onClick={() => setModo(m)}>
+                className={`hoja-modo__btn${modo === m ? ' hoja-modo__btn--activo' : ''}`} onClick={() => cambiarModo(m)}>
                 {m === 'captura' ? 'Captura' : 'Bolillo'}
               </button>
             ))}

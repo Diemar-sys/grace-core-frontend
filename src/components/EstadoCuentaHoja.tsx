@@ -3,6 +3,9 @@
 // PAGADO/ABONO. Cliente, sucursal y pueblo no llevan comisión: VENTA | RECIBIR |
 // PAGADO/ABONO. Los números salen de las facturas (servidor); aquí no se calcula
 // dinero. «Cobrar» abre el MISMO modal que Venta B2B → Cobrar: un solo camino.
+// 09-oct: LIQUIDADO, última columna — lo que Eva le entregó a Luis de lo cobrado ese día
+// (un segundo cobro: no cambia lo que debe el destino). Solo lo teclean Administrator y
+// luis.th: lo dice el servidor (`puede_liquidar`), y la diferencia (`eva_debe`) también.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import ModalError from './modals/ModalError';
@@ -13,7 +16,8 @@ import { semanaDe } from '../utils/hojaDia';
 import { pesos } from '../utils/formato';
 
 const ESTADO_DIA: Record<DiaCuenta['estado'], [string, string]> = {
-  liquidado: ['LIQUIDADO', 'hoja-badge--verde'],
+  // «PAGADO» (antes «LIQUIDADO»): LIQUIDADO es ahora la columna de lo que Eva entregó
+  liquidado: ['PAGADO', 'hoja-badge--verde'],
   abono: ['ABONÓ', 'hoja-badge--ambar'],
   pendiente: ['PENDIENTE', 'hoja-badge--rojo'],
 };
@@ -31,6 +35,14 @@ function PagadoAbono({ d }: { d: Pick<DiaCuenta, 'estado' | 'pagado' | 'debe' | 
   );
 }
 
+function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_debe'> }) {
+  if (d.pagado <= 0) return <span className="hoja-estado__sin">—</span>;
+  if (d.liquidado == null || d.eva_debe == null) return <span className="hoja-badge hoja-badge--ambar">SIN LIQUIDAR</span>;
+  if (d.eva_debe > 0) return <span className="hoja-badge hoja-badge--rojo">EVA DEBE {pesos(d.eva_debe)}</span>;
+  if (d.eva_debe < 0) return <span className="hoja-badge hoja-badge--azul">SOBRA {pesos(-d.eva_debe)}</span>;
+  return <span className="hoja-badge hoja-badge--verde">ENTREGÓ TODO</span>;
+}
+
 export default function EstadoCuentaHoja() {
   const [deudores, setDeudores] = useState<DeudorHoja[]>([]);
   const [destino, setDestino] = useState('');
@@ -42,6 +54,9 @@ export default function EstadoCuentaHoja() {
   const [pagoModal, setPagoModal] = useState<ReturnType<typeof grupoCobro>>(null);
   const [error, setError] = useState('');
   const peticionRef = useRef(0);
+  // lo tecleado en LIQUIDADO sin guardar, por factura
+  const [tecleoLiq, setTecleoLiq] = useState<Record<string, string>>({});
+  const [guardando, setGuardando] = useState('');
 
   useEffect(() => {
     hojaService.deudores().then(setDeudores).catch((e: any) => setError(e?.message || 'No se pudo leer la lista'));
@@ -59,6 +74,19 @@ export default function EstadoCuentaHoja() {
   }, [destino, semana]);
 
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { setTecleoLiq({}); }, [destino, semana]);
+
+  const liquidar = async (factura: string) => {
+    const texto = tecleoLiq[factura];
+    if (texto == null || texto.trim() === '') return;
+    setGuardando(factura);
+    try {
+      await hojaService.liquidar(factura, Number(texto));
+      setTecleoLiq(({ [factura]: _, ...resto }) => resto);
+      await cargar();
+    } catch (e: any) { setError(e?.message || 'No se guardó lo liquidado'); }
+    finally { setGuardando(''); }
+  };
 
   const grupos = useMemo(() => {
     const m = new Map<string, DeudorHoja[]>();
@@ -156,6 +184,7 @@ export default function EstadoCuentaHoja() {
                     <th>FECHA</th><th className="cell-right">VENTA TOTAL</th>
                     {camioneta && (<><th className="cell-right">COMISIÓN 10%</th><th className="cell-right">AYUDANTE (FIJO)</th><th className="cell-right">SUELDO TOTAL</th></>)}
                     <th className="cell-right">{camioneta ? 'RECIBIR/PAGAR' : 'RECIBIR'}</th><th className="hoja-estado__col-pago">PAGADO/ABONO</th>
+                    <th className="hoja-estado__col-liq">LIQUIDADO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,6 +199,28 @@ export default function EstadoCuentaHoja() {
                       </>)}
                       <td className="cell-right hoja-estado__recibir">{pesos(d.recibir)}</td>
                       <td className="hoja-estado__col-pago"><PagadoAbono d={d} /></td>
+                      <td className="hoja-estado__col-liq">
+                        <span className="hoja-estado__liq">
+                          {estado.puede_liquidar && d.pagado > 0 && (
+                            <>
+                              <input
+                                type="number" min={0} step="0.01" inputMode="decimal"
+                                aria-label={`Liquidado ${fechaCorta(d.fecha)}`}
+                                className="hoja-input hoja-estado__liq-input"
+                                value={tecleoLiq[d.factura] ?? (d.liquidado == null ? '' : String(d.liquidado))}
+                                disabled={guardando === d.factura}
+                                onChange={e => setTecleoLiq(t => ({ ...t, [d.factura]: e.target.value }))}
+                                onKeyDown={e => { if (e.key === 'Enter') liquidar(d.factura); }}
+                              />
+                              <button type="button" className="hoja-btn hoja-btn--primario hoja-estado__liq-btn"
+                                onClick={() => liquidar(d.factura)}
+                                disabled={guardando === d.factura || tecleoLiq[d.factura] == null}>Guardar</button>
+                            </>
+                          )}
+                          {!estado.puede_liquidar && d.liquidado != null && <span className="hoja-estado__liq-monto">{pesos(d.liquidado)}</span>}
+                          <Liquidado d={d} />
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -184,8 +235,13 @@ export default function EstadoCuentaHoja() {
                     </>)}
                     <td className="cell-right">{pesos(estado.total.recibir)}</td>
                     <td className="hoja-estado__col-pago">
-                      {estado.total.debe > 0 ? `Debe ${pesos(estado.total.debe)}` : 'LIQUIDADO'}
+                      {estado.total.debe > 0 ? `Debe ${pesos(estado.total.debe)}` : 'PAGADO'}
                       {estado.total.a_favor > 0 && ` · a favor del repartidor ${pesos(estado.total.a_favor)}`}
+                    </td>
+                    <td className="hoja-estado__col-liq">
+                      {pesos(estado.total.liquidado)}
+                      {estado.total.eva_debe > 0 && ` · Eva debe ${pesos(estado.total.eva_debe)}`}
+                      {estado.total.eva_debe < 0 && ` · sobra ${pesos(-estado.total.eva_debe)}`}
                     </td>
                   </tr>
                 </tfoot>

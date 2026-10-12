@@ -26,7 +26,8 @@ export function llevaCamioneta(tecleado: TecleadoBolillo, c: CamionetaBolillo, i
   return k in tecleado ? cantidad(tecleado[k]) : (c.cantidades[item] ?? 0);
 }
 
-export interface TotalBolillo { pedido: number; salio: number; piezas: number }
+/** pedido y salió en su unidad (charolas o piezas) y los dos en PIEZAS (09-oct: los TOTALES van en piezas). */
+export interface TotalBolillo { pedido: number; salio: number; piezas: number; pedidoPiezas: number }
 
 const piezasDe = (item: ItemBolillo, unidades: number) => unidades * (item.unidad === 'charolas' ? item.por_charola : 1);
 
@@ -40,7 +41,7 @@ export function totalesDestino(destino: string, tandas: Tanda[], items: ItemBoli
       pedido += t.celdas[it.item_code]?.pedido ?? 0;
       salio += salioDe(tecleado, destino, t, it.item_code);
     }
-    tot[it.item_code] = { pedido, salio, piezas: piezasDe(it, salio) };
+    tot[it.item_code] = { pedido, salio, piezas: piezasDe(it, salio), pedidoPiezas: piezasDe(it, pedido) };
   }
   return tot;
 }
@@ -52,7 +53,7 @@ export function totalesCamionetas(bolsa: Tanda[], salen: CamionetaBolillo[], ite
   for (const it of items) {
     const pedido = bolsa.reduce((s, t) => s + (t.celdas[it.item_code]?.pedido ?? 0), 0);
     const salio = salen.reduce((s, c) => s + llevaCamioneta(tecleado, c, it.item_code), 0);
-    tot[it.item_code] = { pedido, salio, piezas: piezasDe(it, salio) };
+    tot[it.item_code] = { pedido, salio, piezas: piezasDe(it, salio), pedidoPiezas: piezasDe(it, pedido) };
   }
   return tot;
 }

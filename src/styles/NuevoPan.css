@@ -161,10 +161,6 @@
   border-color: var(--color-brand-light);
   box-shadow: 0 0 0 3px var(--color-brand-hover);
 }
-/* Las flechitas del number estorban al teclear precios rápido. */
-.pan-field input[type=number]::-webkit-outer-spin-button,
-.pan-field input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.pan-field input[type=number] { -moz-appearance: textfield; }
 
 .pan-grid-2 {
   display: grid;
@@ -257,9 +253,6 @@
   color: var(--color-text);
 }
 .pan-canal-input input:focus { outline: none; }
-.pan-canal-input input[type=number]::-webkit-outer-spin-button,
-.pan-canal-input input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.pan-canal-input input[type=number] { -moz-appearance: textfield; }
 
 .pan-canal-hint { font-size: 11.5px; line-height: 1.4; color: var(--color-text-muted); }
 .pan-margen {

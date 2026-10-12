@@ -1085,3 +1085,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 600px) {
   input[type="date"] { font-size: 16px !important; max-width: 100%; box-sizing: border-box; }
 }
+
+/* 09-oct (Diemar): sin flechitas en NINGÚN campo numérico — se usa Tab o se borra y se
+   escribe. Solo quita las flechas (la rueda del mouse sigue igual). Una sola regla para
+   toda la app: antes había tres copias (NuevaCompra.css, NuevoPan.css ×2). */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }

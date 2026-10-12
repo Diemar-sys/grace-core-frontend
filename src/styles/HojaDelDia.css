@@ -195,7 +195,17 @@
 }
 .hoja-estado__recibir { font-weight: 700; }
 /* PAGADO/ABONO separado de RECIBIR, como FECHA de VENTA TOTAL */
-.hoja-estado__tabla .hoja-estado__col-pago { padding-left: 4rem; width: 38%; }
+.hoja-estado__tabla .hoja-estado__col-pago { padding-left: 4rem; width: 30%; }
+/* 09-oct: LIQUIDADO, lo que Eva le entregó a Luis — última columna, separada de PAGADO */
+.hoja-estado__tabla .hoja-estado__col-liq { padding-left: 2rem; border-left: 1px dashed var(--tv-hairline); }
+.hoja-estado__liq { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.hoja-estado__tabla input.hoja-estado__liq-input { width: 7.5rem; min-height: 40px; text-align: right; font-family: var(--tv-mono); }
+.hoja-estado__liq-btn { min-height: 40px; padding: 0 1rem; }
+.hoja-estado__liq-monto { font-weight: 700; }
+.hoja-estado__sin { color: var(--tv-ink-soft); }
+@media (pointer: coarse) {
+  .hoja-estado__tabla input.hoja-estado__liq-input, .hoja-estado__liq-btn { min-height: 48px; }
+}
 .hoja-estado__tabla tfoot td {
   font-weight: 700; background: var(--tv-sunk);
   border-top: 2px solid var(--tv-hairline); border-bottom: none;
@@ -556,11 +566,6 @@
   margin: 0 0 1rem;
 }
 .bolillo__barra p { margin: 0; color: var(--color-text-muted); font-size: 0.9rem; }
-.bolillo__tarjetas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
-  gap: 1.25rem;
-}
 .bolillo__tarjeta {
   background: #ffffff;
   border-radius: var(--radius-bento);
@@ -571,25 +576,36 @@
 .bolillo__tarjeta:hover { box-shadow: var(--shadow-bento-hover); }
 .bolillo__cabecera { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
 .bolillo__cabecera h3 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+/* 09-oct, como la hoja en papel de Diemar: PEDIDO a la izquierda, ENVIADO a la derecha */
+.bolillo__par { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
 .bolillo__tabla { width: 100%; }
-.bolillo__tabla th small { font-weight: 400; opacity: 0.7; }
-.bolillo__tanda { white-space: nowrap; font-weight: 600; }
-.bolillo__tanda small { display: block; font-family: var(--tv-mono); font-weight: 400; color: var(--color-text-muted); }
-.bolillo__celda { white-space: nowrap; text-align: right; }
-.bolillo__pedido { color: var(--color-text-muted); font-family: var(--tv-mono); font-size: 0.8rem; margin-right: 0.35rem; }
-.bolillo__fila-bolsa td { color: var(--color-text-muted); }
-.hoja-tabla input.bolillo__input { width: 4.25rem; min-height: 40px; }
-.bolillo__fila-total td { border-top: 1px solid var(--tv-hairline); font-family: var(--tv-mono); font-weight: 700; }
+/* PEDIDO y ENVIADO homologados (Diemar 09-oct): mismas columnas, misma altura de fila y el
+   número en el mismo lugar, para leer una tanda de izquierda a derecha sin perderse. */
+.hoja-tabla.bolillo__tabla { table-layout: fixed; font-size: 1rem; }
+.hoja-tabla.bolillo__tabla th,
+.hoja-tabla.bolillo__tabla td { width: 25%; text-align: center; vertical-align: middle; }
+.hoja-tabla.bolillo__tabla tbody td { height: 3.25rem; padding: 0.25rem; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
+.hoja-tabla.bolillo__tabla input.bolillo__input {
+  width: 100%; max-width: 5.5rem; min-height: 40px; text-align: center; font-size: 1rem;
+}
+.bolillo__tabla caption {
+  caption-side: top; padding-bottom: 0.5rem;
+  font-family: var(--tv-mono); font-weight: 700; letter-spacing: 0.08em; text-align: center;
+}
+.bolillo__tabla--pedido td { color: var(--color-text-muted); font-family: var(--tv-mono); }
+.bolillo__tabla--enviado caption { color: var(--tv-marca); }
+.bolillo__fila-total td { border-top: 2px solid var(--tv-carbon); font-family: var(--tv-mono); font-weight: 700; }
 .bolillo__total { padding: 0.1rem 0.5rem; border-radius: var(--radius-pill); }
 .bolillo__total--falta  { background: var(--tv-warn-bg); color: var(--tv-warn); }
 .bolillo__total--exacto { background: var(--tv-ok-bg);   color: var(--tv-ok); }
 .bolillo__total--demas  { background: #dbeafe;           color: #1e40af; }
-.bolillo__piezas { display: block; font-weight: 400; color: var(--color-text-muted); }
-.bolillo__mas { margin-top: 0.75rem; }
+.bolillo__nota { margin: 0.75rem 0 0; color: var(--color-text-muted); font-size: 0.85rem; }
 
-@media (pointer: coarse) { .hoja-tabla input.bolillo__input { min-height: 48px; } }
+@media (pointer: coarse) {
+  .hoja-tabla.bolillo__tabla input.bolillo__input { min-height: 48px; }
+  .hoja-tabla.bolillo__tabla tbody td { height: 3.6rem; }
+}
 @media (max-width: 600px) {
-  .bolillo__tarjetas { grid-template-columns: 1fr; }
+  .bolillo__par { grid-template-columns: 1fr; gap: 1.25rem; }
   .bolillo__tarjeta { padding: 0.9rem; overflow-x: auto; }
-  .hoja-tabla input.bolillo__input { width: 3.5rem; }
 }

@@ -4,7 +4,7 @@ import EstadoCuentaHoja from './EstadoCuentaHoja';
 import { hojaService } from '../services/frappeHoja';
 import { ventasService } from '../services/frappeSales';
 
-vi.mock('../services/frappeHoja', () => ({ hojaService: { deudores: vi.fn(), estadoCuenta: vi.fn() } }));
+vi.mock('../services/frappeHoja', () => ({ hojaService: { deudores: vi.fn(), estadoCuenta: vi.fn(), liquidar: vi.fn() } }));
 vi.mock('../services/frappeSales', async (orig) => {
   const actual = await orig<typeof import('../services/frappeSales')>();
   return { ...actual, ventasService: { getFacturasPendientes: vi.fn() } };
@@ -21,7 +21,8 @@ const DEUDORES = [
   { destino: 'ISMA', grupo: 'CAMIONETAS', cliente: 'REPARTIDOR ISMA', camioneta: true },
 ];
 const dia = (fecha: string, factura: string, x: Partial<any>) => ({
-  fecha, factura, estado: 'pendiente', venta: 0, comision: 0, ayudante: 0, sueldo: 0, recibir: 0, pagado: 0, debe: 0, a_favor: 0, ...x,
+  fecha, factura, estado: 'pendiente', venta: 0, comision: 0, ayudante: 0, sueldo: 0, recibir: 0, pagado: 0, debe: 0, a_favor: 0,
+  liquidado: null, eva_debe: null, ...x,
 });
 const ISMA = {
   destino: 'ISMA', cliente: 'REPARTIDOR ISMA', camioneta: true, desde: '2026-09-21', hasta: '2026-09-27',
@@ -29,7 +30,9 @@ const ISMA = {
     dia('2026-09-22', 'SI-1', { estado: 'liquidado', venta: 8761, comision: 876.1, ayudante: 200, sueldo: 1076.1, recibir: 7684.9, pagado: 7684.9 }),
     dia('2026-09-23', 'SI-2', { estado: 'abono', venta: 6571, comision: 657.1, ayudante: 200, sueldo: 857.1, recibir: 5713.9, pagado: 1000, debe: 4713.9 }),
   ],
-  total: { venta: 15332, comision: 1533.2, ayudante: 400, sueldo: 1933.2, recibir: 13398.8, pagado: 8684.9, debe: 4713.9, a_favor: 0 },
+  puede_liquidar: false,
+  total: { venta: 15332, comision: 1533.2, ayudante: 400, sueldo: 1933.2, recibir: 13398.8, pagado: 8684.9, debe: 4713.9, a_favor: 0,
+           liquidado: 0, eva_debe: 0 },
 };
 
 const elegir = async (destino: string) => {
@@ -49,7 +52,7 @@ describe('EstadoCuentaHoja', () => {
     await elegir('ISMA');
     await waitFor(() => expect(h.estadoCuenta).toHaveBeenCalledWith('ISMA', '2026-09-21', '2026-09-27'));
     const fila = (await screen.findByText('22/09/2026')).closest('tr')!;
-    for (const t of ['$8,761.00', '$876.10', '$200.00', '$1,076.10', '$7,684.90', 'LIQUIDADO'])
+    for (const t of ['$8,761.00', '$876.10', '$200.00', '$1,076.10', '$7,684.90', 'PAGADO'])
       expect(within(fila).getByText(t)).toBeInTheDocument();
     const abono = screen.getByText('23/09/2026').closest('tr')!;
     expect(within(abono).getByText('Debe $4,713.90')).toBeInTheDocument();
@@ -122,5 +125,63 @@ describe('EstadoCuentaHoja', () => {
     const fila = (await screen.findByText('25/09/2026')).closest('tr')!;
     expect(within(fila).getByText('A FAVOR $189.20')).toBeInTheDocument();
     expect(screen.getByText(/a favor del repartidor \$189\.20/)).toBeInTheDocument();
+  });
+
+  // 09-oct: LIQUIDADO = lo que Eva le entregó a Luis. Lo dice el servidor (liquidado/eva_debe/puede_liquidar).
+  const DELI_LIQ = (puede: boolean) => ({ ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false, puede_liquidar: puede,
+    dias: [
+      dia('2026-09-22', 'SI-1', { estado: 'liquidado', venta: 1000, recibir: 1000, pagado: 1000, liquidado: 900, eva_debe: 100 }),
+      dia('2026-09-23', 'SI-2', { estado: 'liquidado', venta: 500, recibir: 500, pagado: 500 }),
+      dia('2026-09-24', 'SI-3', { estado: 'pendiente', venta: 300, recibir: 300, debe: 300 }),
+      dia('2026-09-25', 'SI-4', { estado: 'liquidado', venta: 200, recibir: 200, pagado: 200, liquidado: 200, eva_debe: 0 }),
+      dia('2026-09-26', 'SI-5', { estado: 'liquidado', venta: 100, recibir: 100, pagado: 100, liquidado: 120, eva_debe: -20 }),
+    ],
+    total: { ...ISMA.total, debe: 300, liquidado: 1220, eva_debe: 80 } });
+  const filaDe = (fecha: string) => screen.getByText(fecha).closest('tr')!;
+
+  it('🔴 LIQUIDADO de solo lectura: monto y diferencia del servidor; sin liquidar ≠ debe 0; sin cobro no aplica', async () => {
+    h.estadoCuenta.mockResolvedValue(DELI_LIQ(false) as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('22/09/2026');
+    expect(screen.getByText('LIQUIDADO')).toBeInTheDocument();
+    expect(within(filaDe('22/09/2026')).getByText('$900.00')).toBeInTheDocument();
+    expect(within(filaDe('22/09/2026')).getByText('EVA DEBE $100.00')).toBeInTheDocument();
+    expect(within(filaDe('23/09/2026')).getByText('SIN LIQUIDAR')).toBeInTheDocument();
+    expect(within(filaDe('24/09/2026')).getByText('—')).toBeInTheDocument();
+    expect(within(filaDe('25/09/2026')).getByText('ENTREGÓ TODO')).toBeInTheDocument();
+    expect(within(filaDe('26/09/2026')).getByText('SOBRA $20.00')).toBeInTheDocument();
+    expect(screen.getByText(/\$1,220\.00 · Eva debe \$80\.00/)).toBeInTheDocument();
+    expect(screen.queryAllByLabelText(/^Liquidado /)).toHaveLength(0);              // no es Luis: no se teclea
+  });
+
+  it('🔴 Luis/Administrator: casilla solo en días con cobro; Guardar manda la factura y vuelve a leer', async () => {
+    h.estadoCuenta.mockResolvedValue(DELI_LIQ(true) as any);
+    h.liquidar.mockResolvedValue({ factura: 'SI-2', liquidado: 450, eva_debe: 50 });
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('22/09/2026');
+    expect(screen.getByLabelText('Liquidado 22/09/2026')).toHaveValue(900);        // lo guardado precargado
+    expect(screen.getByLabelText('Liquidado 23/09/2026')).toHaveValue(null);       // sin liquidar: vacío, no 0
+    expect(screen.queryByLabelText('Liquidado 24/09/2026')).toBeNull();            // pendiente: no se liquida
+    const guardar = within(filaDe('23/09/2026')).getByRole('button', { name: 'Guardar' });
+    expect(guardar).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Liquidado 23/09/2026'), { target: { value: '450' } });
+    const lecturas = h.estadoCuenta.mock.calls.length;
+    fireEvent.click(guardar);
+    await waitFor(() => expect(h.liquidar).toHaveBeenCalledWith('SI-2', 450));
+    await waitFor(() => expect(h.estadoCuenta.mock.calls.length).toBe(lecturas + 1));
+  });
+
+  it('🔴 si el servidor rechaza (más de lo cobrado) se ve el error y lo tecleado se queda', async () => {
+    h.estadoCuenta.mockResolvedValue(DELI_LIQ(true) as any);
+    h.liquidar.mockRejectedValue(new Error('SI-2: no puede pasar de lo cobrado ($500.00).'));
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('23/09/2026');
+    fireEvent.change(screen.getByLabelText('Liquidado 23/09/2026'), { target: { value: '600' } });
+    fireEvent.keyDown(screen.getByLabelText('Liquidado 23/09/2026'), { key: 'Enter' });
+    expect(await screen.findByText(/no puede pasar de lo cobrado/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Liquidado 23/09/2026')).toHaveValue(600);
   });
 });

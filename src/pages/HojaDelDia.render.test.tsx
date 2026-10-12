@@ -109,6 +109,26 @@ describe('HojaDelDia — cableado', () => {
     expect(await screen.findByLabelText('Enviado CONCHAS')).toBeInTheDocument();
   });
 
+  it('🔴 09-oct: volver de Bolillo a Captura relee la hoja y los destinos (lo guardado en tandas se ve)', async () => {
+    const BOLILLO = { ...R, item_code: '3001', producto: 'BOLILLO', departamento: 'PAN BLANCO', pedido: 0,
+      enviado: 96, precio: 5, por_charola: 16, de_bolillo: true };
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [BOLILLO, R] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    expect(await screen.findByLabelText('Enviado BOLILLO')).toHaveValue(96);
+    const destinosAntes = s.destinos.mock.calls.length;
+    fireEvent.click(screen.getByRole('tab', { name: 'Bolillo' }));
+    // en «Bolillo» se guardaron 2 charolas más: el servidor ya dice 128
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [{ ...BOLILLO, enviado: 128 }, R] });
+    fireEvent.click(screen.getByRole('tab', { name: 'Captura' }));
+    await waitFor(() => expect(screen.getByLabelText('Enviado BOLILLO')).toHaveValue(128));
+    expect(s.destinos.mock.calls.length).toBe(destinosAntes + 1);
+    // quedarse en Captura y volver a picarle no relee
+    const lecturas = s.hoja.mock.calls.length;
+    fireEvent.click(screen.getByRole('tab', { name: 'Captura' }));
+    expect(s.hoja.mock.calls.length).toBe(lecturas);
+  });
+
   it('🔴 08-oct: en la Captura el bolillo de un destino con tandas se ve pero no se teclea, ni cuenta lo tecleado de antes', async () => {
     const BOLILLO = { ...R, item_code: '3001', producto: 'BOLILLO', departamento: 'PAN BLANCO', pedido: 0,
       enviado: 576, precio: 5, por_charola: 16, de_bolillo: true };

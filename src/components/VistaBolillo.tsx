@@ -1,13 +1,14 @@
 // src/components/VistaBolillo.tsx
 // Vista «Bolillo» de la Hoja del día (08-oct): la pestaña BOLILLO del Excel en el sistema.
-// Solo el destino elegido en el selector (Diemar 08-oct): sus tandas (pedido en gris, lo que
-// SALIÓ en la casilla) o, si es camioneta, la bolsa común y el TOTAL que se lleva. El ENVIADO de esos 4 panes
+// Solo el destino elegido en el selector (Diemar 08-oct). 09-oct, como su hoja en papel: dos
+// tablas, PEDIDO (fijo, del Excel) y ENVIADO (lo único que se teclea), sin hora ni tipo de
+// tanda, sin «+ tanda», y TOTALES en piezas. Camioneta: la bolsa común y lo que se lleva. El ENVIADO de esos 4 panes
 // lo calcula el servidor (Σ salió × charola); aquí solo se teclean cantidades.
 // Spec: gestion_panaderia/docs/superpowers/specs/2026-10-08-bolillo-tandas-design.md
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ModalError from './modals/ModalError';
 import useBorradorLocal from '../hooks/useBorradorLocal';
-import { hojaService, type BolilloDia, type ItemBolillo } from '../services/frappeHoja';
+import { hojaService, type BolilloDia, type ItemBolillo, type Tanda } from '../services/frappeHoja';
 import {
   bolilloDe, cambiosBolillo, claveCamioneta, claveTanda, llevaCamioneta, salioDe, sinDestino, totalesCamionetas, totalesDestino,
   type BorradorBolillo, type TecleadoBolillo, type TotalBolillo,
@@ -16,6 +17,8 @@ import { estadoEnviado } from '../utils/hojaDia';
 import { numero } from '../utils/formato';
 
 const NOMBRE: Record<string, string> = { '3001': 'BOLILLO', '3002': 'TELERA', '3003': 'MINI', '3004': 'BAGUET' };
+// 09-oct: como la hoja en papel de Diemar
+const TITULO: Record<string, string> = { '3001': 'Bolillo', '3002': 'Telera', '3003': 'Mini Bolillo', '3004': 'Baguets' };
 const SIN_CAMBIOS = { tandas: [], camionetas: [] };
 
 const colorDe = (pedido: number, salio: number) => {
@@ -23,44 +26,52 @@ const colorDe = (pedido: number, salio: number) => {
   return c ? ` hoja-input--${c}` : '';
 };
 
-function Encabezado({ items, primera }: { items: ItemBolillo[]; primera: string }) {
+function Encabezado({ items }: { items: ItemBolillo[] }) {
   return (
     <thead>
-      <tr>
-        <th>{primera}</th>
-        {items.map(it => (
-          <th key={it.item_code} className="hoja-celda--num">
-            {NOMBRE[it.item_code] ?? it.item_code}<small>{it.unidad === 'charolas' ? ' (ch)' : ' (pz)'}</small>
-          </th>
-        ))}
-      </tr>
+      <tr>{items.map(it => <th key={it.item_code} className="hoja-celda--num">{TITULO[it.item_code] ?? it.item_code}</th>)}</tr>
     </thead>
   );
 }
 
-function Totales({ items, totales, etiqueta }: { items: ItemBolillo[]; totales: Record<string, TotalBolillo>; etiqueta: string }) {
+/** TOTALES en piezas (charolas × 16/12; mini y baguet ya son piezas). En ENVIADO, con el color contra el pedido. */
+function Totales({ items, totales, enviado }: { items: ItemBolillo[]; totales: Record<string, TotalBolillo>; enviado?: boolean }) {
   return (
-    <>
+    <tfoot>
       <tr className="bolillo__fila-total">
-        <td>PEDIDO</td>
-        {items.map(it => <td key={it.item_code} className="hoja-celda--num">{numero(totales[it.item_code].pedido, 0)}</td>)}
-      </tr>
-      <tr className="bolillo__fila-total">
-        <td>{etiqueta}</td>
         {items.map(it => {
           const t = totales[it.item_code];
-          const estado = estadoEnviado(t.pedido, t.salio);
+          const n = enviado ? t.piezas : t.pedidoPiezas;
+          const estado = enviado ? estadoEnviado(t.pedidoPiezas, t.piezas) : null;
           return (
             <td key={it.item_code} className="hoja-celda--num">
-              <span className={estado ? `bolillo__total bolillo__total--${estado}` : 'bolillo__total'}>
-                {numero(t.salio, 0)}
-              </span>
-              {it.unidad === 'charolas' && t.salio > 0 && <small className="bolillo__piezas">= {numero(t.piezas, 0)} pz</small>}
+              <span className={estado ? `bolillo__total bolillo__total--${estado}` : 'bolillo__total'}>{numero(n, 0)}</span>
             </td>
           );
         })}
       </tr>
-    </>
+    </tfoot>
+  );
+}
+
+/** PEDIDO del Excel, fijo: una fila por tanda, sin hora ni tipo; vacío donde no se pidió. */
+function TablaPedido({ nombre, tandas, items, totales }: { nombre: string; tandas: Tanda[]; items: ItemBolillo[]; totales: Record<string, TotalBolillo> }) {
+  return (
+    <table className="hoja-tabla bolillo__tabla bolillo__tabla--pedido" aria-label={`Pedido ${nombre}`}>
+      <caption>PEDIDO</caption>
+      <Encabezado items={items} />
+      <tbody>
+        {tandas.map(t => (
+          <tr key={t.tanda}>
+            {items.map(it => {
+              const n = t.celdas[it.item_code]?.pedido ?? 0;
+              return <td key={it.item_code} className="hoja-celda--num">{n ? numero(n, 0) : ''}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+      <Totales items={items} totales={totales} />
+    </table>
   );
 }
 
@@ -103,13 +114,6 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
     finally { setOcupado(false); }
   };
 
-  const agregarTanda = async () => {
-    setOcupado(true);
-    try { setDia(await hojaService.agregarTanda(fecha, destino)); }
-    catch (e: any) { setError(e?.message || 'No se agregó la tanda'); }
-    finally { setOcupado(false); }
-  };
-
   const modalError = <ModalError isOpen={Boolean(error)} message={error} onClose={() => setError('')} />;
   if (!dia) return <>{!error && <p className="bolillo__vacio">Cargando el bolillo…</p>}{modalError}</>;
   if (!dia.destinos.length && !dia.camionetas) {
@@ -132,101 +136,95 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
   return (
     <section className="bolillo">
       <div className="bolillo__barra">
-        <p>Lo pedido en gris; en la casilla, lo que <strong>salió</strong>. Bolillo y telera en charolas; mini y baguet en piezas.</p>
+        <p>Se teclea solo lo <strong>ENVIADO</strong>. Tandas: bolillo y telera en charolas; mini y baguet en piezas. TOTALES en piezas.</p>
         <button type="button" className="hoja-btn hoja-btn--primario" onClick={guardar} disabled={!pendientes || ocupado}>
           Guardar{pendientes ? ` (${pendientes})` : ''}
         </button>
       </div>
 
-      <div className="bolillo__tarjetas">
-        {sel.destino && [sel.destino].map(d => (
-          <article key={d.destino} className="bolillo__tarjeta">
+      {sel.destino && (() => {
+        const d = sel.destino;
+        const totales = totalesDestino(d.destino, d.tandas, items, tecleado);
+        return (
+          <article className="bolillo__tarjeta">
             <header className="bolillo__cabecera">
               <h3>{d.destino}</h3>
               {d.cobrado && <span className="hoja-badge hoja-badge--verde">Cobrado</span>}
             </header>
-            <table className="hoja-tabla bolillo__tabla" aria-label={`Bolillo ${d.destino}`}>
-              <Encabezado items={items} primera="TANDA" />
-              <tbody>
-                {d.tandas.map(t => (
-                  <tr key={t.tanda}>
-                    <td className="bolillo__tanda">{t.tipo || '—'}<small>{t.horario}</small></td>
-                    {items.map(it => {
-                      const k = claveTanda(d.destino, t.tanda, it.item_code);
-                      const pedido = t.celdas[it.item_code]?.pedido ?? 0;
-                      return (
-                        <td key={it.item_code} className="bolillo__celda">
-                          <span className="bolillo__pedido">{pedido ? numero(pedido, 0) : ''}</span>
-                          <input
-                            type="number" min={0} step="any" inputMode="decimal"
-                            aria-label={`${d.destino} tanda ${t.tanda} ${NOMBRE[it.item_code] ?? it.item_code}`}
-                            className={`bolillo__input${colorDe(pedido, salioDe(tecleado, d.destino, t, it.item_code))}`}
-                            value={k in tecleado ? tecleado[k] : String(t.celdas[it.item_code]?.salio ?? 0)}
-                            disabled={d.cobrado || ocupado}
-                            onChange={e => teclear(k, e.target.value)}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                <Totales items={items} totales={totalesDestino(d.destino, d.tandas, items, tecleado)} etiqueta="SALIÓ" />
-              </tbody>
-            </table>
-            {!d.cobrado && (
-              <button type="button" className="hoja-btn hoja-btn--secundario bolillo__mas" onClick={agregarTanda} disabled={ocupado}>
-                + tanda
-              </button>
-            )}
+            <div className="bolillo__par">
+              <TablaPedido nombre={d.destino} tandas={d.tandas} items={items} totales={totales} />
+              <table className="hoja-tabla bolillo__tabla bolillo__tabla--enviado" aria-label={`Enviado ${d.destino}`}>
+                <caption>ENVIADO</caption>
+                <Encabezado items={items} />
+                <tbody>
+                  {d.tandas.map(t => (
+                    <tr key={t.tanda}>
+                      {items.map(it => {
+                        const k = claveTanda(d.destino, t.tanda, it.item_code);
+                        const pedido = t.celdas[it.item_code]?.pedido ?? 0;
+                        return (
+                          <td key={it.item_code} className="bolillo__celda">
+                            <input
+                              type="number" min={0} step="any" inputMode="decimal"
+                              aria-label={`${d.destino} tanda ${t.tanda} ${NOMBRE[it.item_code] ?? it.item_code}`}
+                              className={`bolillo__input${colorDe(pedido, salioDe(tecleado, d.destino, t, it.item_code))}`}
+                              value={k in tecleado ? tecleado[k] : String(t.celdas[it.item_code]?.salio ?? 0)}
+                              disabled={d.cobrado || ocupado}
+                              onChange={e => teclear(k, e.target.value)}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+                <Totales items={items} totales={totales} enviado />
+              </table>
+            </div>
           </article>
-        ))}
+        );
+      })()}
 
-        {sel.camioneta && (
+      {sel.camioneta && (() => {
+        const cam = sel.camioneta;
+        // el total es de TODAS las camionetas contra la bolsa: así se ve si sobra o falta
+        const totales = totalesCamionetas(cam.tandas, cam.todas, items, tecleado);
+        return (
           <article className="bolillo__tarjeta">
             <header className="bolillo__cabecera"><h3>CAMIONETAS</h3></header>
-            <table className="hoja-tabla bolillo__tabla" aria-label="Bolillo camionetas">
-              <Encabezado items={items} primera="TANDA" />
-              <tbody>
-                {sel.camioneta.tandas.map(t => (
-                  <tr key={t.tanda} className="bolillo__fila-bolsa">
-                    <td className="bolillo__tanda">{t.tipo || '—'}<small>{t.horario}</small></td>
-                    {items.map(it => (
-                      <td key={it.item_code} className="hoja-celda--num bolillo__pedido">
-                        {numero(t.celdas[it.item_code]?.pedido ?? 0, 0)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {sel.camioneta.salen.map(c => (
-                  <tr key={c.destino}>
-                    <td className="bolillo__tanda">
-                      {c.destino}{(c.cerrada || c.cobrada) && <small>{c.cobrada ? 'cobrada' : 'ya salió'}</small>}
-                    </td>
-                    {items.map(it => {
-                      const k = claveCamioneta(c.destino, it.item_code);
-                      return (
-                        <td key={it.item_code} className="bolillo__celda">
-                          <input
-                            type="number" min={0} step="any" inputMode="decimal"
-                            aria-label={`${c.destino} ${NOMBRE[it.item_code] ?? it.item_code}`}
-                            className="bolillo__input"
-                            value={k in tecleado ? tecleado[k] : String(llevaCamioneta({}, c, it.item_code))}
-                            disabled={c.cerrada || c.cobrada || ocupado}
-                            onChange={e => teclear(k, e.target.value)}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {/* el total es de TODAS las camionetas contra la bolsa: así se ve si sobra o falta */}
-                <Totales items={items} etiqueta="SE LLEVAN (TODAS)"
-                  totales={totalesCamionetas(sel.camioneta.tandas, sel.camioneta.todas, items, tecleado)} />
-              </tbody>
-            </table>
+            <div className="bolillo__par">
+              <TablaPedido nombre="camionetas" tandas={cam.tandas} items={items} totales={totales} />
+              {cam.salen.map(c => (
+                <table key={c.destino} className="hoja-tabla bolillo__tabla bolillo__tabla--enviado" aria-label={`Enviado ${c.destino}`}>
+                  <caption>ENVIADO · {c.destino}{(c.cerrada || c.cobrada) && <small> ({c.cobrada ? 'cobrada' : 'ya salió'})</small>}</caption>
+                  <Encabezado items={items} />
+                  <tbody>
+                    <tr>
+                      {items.map(it => {
+                        const k = claveCamioneta(c.destino, it.item_code);
+                        return (
+                          <td key={it.item_code} className="bolillo__celda">
+                            <input
+                              type="number" min={0} step="any" inputMode="decimal"
+                              aria-label={`${c.destino} ${NOMBRE[it.item_code] ?? it.item_code}`}
+                              className="bolillo__input"
+                              value={k in tecleado ? tecleado[k] : String(llevaCamioneta({}, c, it.item_code))}
+                              disabled={c.cerrada || c.cobrada || ocupado}
+                              onChange={e => teclear(k, e.target.value)}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                  <Totales items={items} totales={totales} enviado />
+                </table>
+              ))}
+            </div>
+            <p className="bolillo__nota">TOTALES de ENVIADO: todas las camionetas juntas contra la bolsa.</p>
           </article>
-        )}
-      </div>
+        );
+      })()}
       {modalError}
     </section>
   );

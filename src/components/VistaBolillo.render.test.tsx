@@ -4,7 +4,7 @@ import VistaBolillo from './VistaBolillo';
 import { hojaService, type BolilloDia, type Tanda } from '../services/frappeHoja';
 
 vi.mock('../services/frappeHoja', () => ({
-  hojaService: { vistaBolillo: vi.fn(), guardarBolillo: vi.fn(), agregarTanda: vi.fn() },
+  hojaService: { vistaBolillo: vi.fn(), guardarBolillo: vi.fn() },
 }));
 const almacen = vi.hoisted(() => new Map<string, any>());
 vi.mock('../db/borradorLocal', () => ({
@@ -35,32 +35,49 @@ const DIA = (): BolilloDia => ({
             { destino: 'MARTIN', cerrada: true, cobrada: false, cantidades: { '3001': 6 } }],
   },
 });
+// TOTALES = la fila del pie; sin columna de etiqueta: 0 = Bolillo
 const totalSalio = (tabla: HTMLElement, col: number) =>
-  within(tabla).getAllByRole('row').at(-1)!.querySelectorAll('td')[col];
+  tabla.querySelector('tfoot tr')!.querySelectorAll('td')[col];
 const ver = (destino: string) => render(<VistaBolillo fecha="2026-10-06" destino={destino} />);
 
-describe('VistaBolillo (08-oct)', () => {
+describe('VistaBolillo (08-oct; 09-oct PEDIDO | ENVIADO)', () => {
   beforeEach(() => { vi.resetAllMocks(); almacen.clear(); s.vistaBolillo.mockResolvedValue(DIA()); });
 
   it('🔴 solo sale el bolillo del destino elegido', async () => {
     ver('P.REAL');
-    expect(await screen.findByRole('table', { name: 'Bolillo P.REAL' })).toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'Bolillo DEli' })).toBeNull();
-    expect(screen.queryByRole('table', { name: 'Bolillo camionetas' })).toBeNull();
+    expect(await screen.findByRole('table', { name: 'Enviado P.REAL' })).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Enviado DEli' })).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Pedido camionetas' })).toBeNull();
+  });
+
+  it('🔴 09-oct: PEDIDO fijo al lado de ENVIADO, sin hora ni tipo, TOTALES en piezas, sin «+ tanda»', async () => {
+    ver('P.REAL');
+    const pedido = await screen.findByRole('table', { name: 'Pedido P.REAL' });
+    expect(within(pedido).queryAllByRole('spinbutton')).toHaveLength(0);           // no se teclea
+    expect(within(pedido).getByText('24')).toBeInTheDocument();                    // la tanda 2 tal cual
+    expect(totalSalio(pedido, 0).textContent).toBe('448');                         // 4 + 24 = 28 ch × 16
+    expect(totalSalio(pedido, 2).textContent).toBe('0');
+    const enviado = screen.getByRole('table', { name: 'Enviado P.REAL' });
+    expect(within(enviado).getAllByRole('spinbutton')).toHaveLength(8);            // 2 tandas × 4 panes
+    expect(totalSalio(enviado, 0).textContent).toBe('64');                         // 4 ch × 16
+    for (const t of ['Bolillo', 'Telera', 'Mini Bolillo', 'Baguets']) expect(within(enviado).getByText(t)).toBeInTheDocument();
+    expect(screen.queryByText('HORNEADO')).toBeNull();
+    expect(screen.queryByText('07:00')).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ tanda' })).toBeNull();
   });
 
   it('🔴 teclear recalcula total, piezas y color', async () => {
     ver('P.REAL');
-    const tabla = await screen.findByRole('table', { name: 'Bolillo P.REAL' });
+    const tabla = await screen.findByRole('table', { name: 'Enviado P.REAL' });
     const t2 = screen.getByLabelText('P.REAL tanda 2 BOLILLO');
     expect(t2).toHaveValue(0);
     expect(t2).toHaveClass('hoja-input--falta');                      // pedido 24, salió 0
     expect(screen.getByLabelText('P.REAL tanda 1 BOLILLO')).toHaveClass('hoja-input--exacto');
     fireEvent.change(t2, { target: { value: '20' } });
-    expect(totalSalio(tabla, 1).textContent).toBe('24= 384 pz');      // 4 + 20 charolas × 16
-    expect(totalSalio(tabla, 1).querySelector('.bolillo__total--falta')).not.toBeNull();   // pedido 28
+    expect(totalSalio(tabla, 0).textContent).toBe('384');             // 4 + 20 charolas × 16
+    expect(totalSalio(tabla, 0).querySelector('.bolillo__total--falta')).not.toBeNull();   // pedido 448
     fireEvent.change(t2, { target: { value: '26' } });
-    expect(totalSalio(tabla, 1).querySelector('.bolillo__total--demas')).not.toBeNull();
+    expect(totalSalio(tabla, 0).querySelector('.bolillo__total--demas')).not.toBeNull();
   });
 
   it('🔴 Guardar manda SOLO lo que cambió de ESE destino; lo tecleado en otro se queda', async () => {
@@ -82,30 +99,24 @@ describe('VistaBolillo (08-oct)', () => {
   it('🔴 camioneta: la bolsa y SOLO su renglón; el total es de todas contra la bolsa', async () => {
     s.guardarBolillo.mockResolvedValue(DIA());
     ver('ISMA');
-    const tabla = await screen.findByRole('table', { name: 'Bolillo camionetas' });
+    const tabla = await screen.findByRole('table', { name: 'Enviado ISMA' });
     expect(screen.queryByLabelText('MARTIN BOLILLO')).toBeNull();
-    expect(totalSalio(tabla, 1).textContent).toBe('14= 224 pz');      // ISMA 8 + MARTIN 6 = bolsa 14
-    expect(totalSalio(tabla, 1).querySelector('.bolillo__total--exacto')).not.toBeNull();
+    expect(totalSalio(tabla, 0).textContent).toBe('224');             // ISMA 8 + MARTIN 6 = bolsa 14 ch
+    expect(totalSalio(tabla, 0).querySelector('.bolillo__total--exacto')).not.toBeNull();
+    expect(totalSalio(screen.getByRole('table', { name: 'Pedido camionetas' }), 0).textContent).toBe('224');
     fireEvent.change(screen.getByLabelText('ISMA BOLILLO'), { target: { value: '9' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar (1)' }));
     await waitFor(() => expect(s.guardarBolillo).toHaveBeenCalledWith('2026-10-06', [],
       [{ destino: 'ISMA', item_code: '3001', cantidad: 9 }]));
   });
 
-  it('🔴 destino cobrado y camioneta que ya salió no se teclean; el cobrado no agrega tandas', async () => {
+  it('🔴 destino cobrado y camioneta que ya salió no se teclean', async () => {
     const { unmount } = ver('DEli');
     expect(await screen.findByLabelText('DEli tanda 1 BOLILLO')).toBeDisabled();
     expect(screen.queryByRole('button', { name: '+ tanda' })).toBeNull();
     unmount();
     ver('MARTIN');
     expect(await screen.findByLabelText('MARTIN BOLILLO')).toBeDisabled();
-  });
-
-  it('+ tanda la pide al servidor para ESE destino', async () => {
-    s.agregarTanda.mockResolvedValue(DIA());
-    ver('P.REAL');
-    fireEvent.click(await screen.findByRole('button', { name: '+ tanda' }));
-    await waitFor(() => expect(s.agregarTanda).toHaveBeenCalledWith('2026-10-06', 'P.REAL'));
   });
 
   it('sin destino lo pide; destino sin tandas (ZAKIA) dice dónde se captura; sin pestaña lo dice', async () => {

@@ -52,10 +52,14 @@ export interface DiaCuenta {
   fecha: string; factura: string; estado: 'liquidado' | 'abono' | 'pendiente';
   venta: number; comision: number; ayudante: number; sueldo: number; recibir: number; pagado: number; debe: number;
   a_favor: number;
+  /** 09-oct: lo que Eva le entregó a Luis (null = sin liquidar) y pagado − liquidado (null igual). */
+  liquidado: number | null; eva_debe: number | null;
 }
 export interface EstadoCuenta {
   destino: string; cliente: string; camioneta: boolean; desde: string; hasta: string; dias: DiaCuenta[];
-  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado'>;
+  /** solo Administrator y luis.th: lo decide el servidor */
+  puede_liquidar: boolean;
+  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe'> & { liquidado: number; eva_debe: number };
 }
 
 class HojaService extends FrappeBase {
@@ -91,11 +95,14 @@ class HojaService extends FrappeBase {
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }
   reabrirEnvio(fecha: string, destino: string) { return this._post<Hoja>('reabrir_envio', { fecha, destino }); }
   corregir(fecha: string, destino: string) { return this._post<Hoja>('corregir', { fecha, destino }); }
+  /** 09-oct: lo que Eva le entregó a Luis de esa factura (solo Administrator y luis.th). */
+  liquidar(factura: string, monto: number) {
+    return this._post<{ factura: string; liquidado: number; eva_debe: number }>('liquidar', { factura, monto });
+  }
   vistaBolillo(fecha: string) { return this._get<BolilloDia>('vista_bolillo', { fecha }); }
   guardarBolillo(fecha: string, tandas: CeldaPorGuardar[], camionetas: CamionetaPorGuardar[]) {
     return this._post<BolilloDia>('guardar_bolillo', { fecha, tandas, camionetas });
   }
-  agregarTanda(fecha: string, destino: string) { return this._post<BolilloDia>('agregar_tanda', { fecha, destino }); }
   guardarMerma(fecha: string, destino: string, renglones: { item_code: string; merma: number }[]) {
     return this._post<Hoja>('guardar_merma', { fecha, destino, renglones });
   }
