@@ -456,7 +456,7 @@ describe('HojaDelDia — cableado', () => {
       s.confirmar.mockResolvedValue({ factura: 'ACC-SINV-2026-00200', total: 1025, comision: 302, se_debe: 718 });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
-      expect(await screen.findByLabelText('Enviado CHINOS')).toBeDisabled();
+      expect(await screen.findByLabelText('Enviado CHINOS')).not.toBeDisabled();   // 12-oct: se cuadra aquí
       expect(screen.getByLabelText('Merma CHINOS')).toHaveValue(3);     // lo que capturó el repartidor
       fireEvent.change(screen.getByLabelText('Merma CHINOS'), { target: { value: '5' } });
       // al teclear: vendido 20 − 5 = 15 e importe 15 × $12 = $180 (no 20 × $12 = $240)
@@ -465,13 +465,42 @@ describe('HojaDelDia — cableado', () => {
       expect(within(fila).getByText('$180.00')).toBeInTheDocument();
       expect(within(fila).queryByText('$240.00')).toBeNull();
       expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar merma' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
       expect(screen.queryByLabelText('Merma PANQUECITOS')).toBeNull();   // no se lo llevó: no hay merma que poner
       await waitFor(() => expect(s.guardarMerma).toHaveBeenCalledWith(expect.any(String), 'ISMA', [{ item_code: '1003', merma: 5 }]));
       await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).not.toBeDisabled());
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
       // se debe (718) del servidor, no lo enviado × precio (240)
       expect(await screen.findByText(/¿Cobrar \$718\.00 a ISMA\?/)).toBeInTheDocument();
+    });
+
+    // 12-oct (Diemar): las piezas bailan; Héctor cuadra ENVIADO contra el dinero que regresó
+    it('🔴 regresó: corregir el ENVIADO manda solo lo que cambió, sin borrar la merma; no se cobra sin guardar', async () => {
+      s.destinos.mockResolvedValue([{ ...destinoIsma[0], estado: 'regreso' as const }]);
+      s.hoja.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, merma: 3 }));
+      s.guardarMerma.mockResolvedValue(hojaIsma('liquidado', { enviado: 22, merma: 3 }));
+      render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+      await elegir('ISMA');
+      fireEvent.change(await screen.findByLabelText('Enviado CHINOS'), { target: { value: '22' } });
+      expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).toBeDisabled();
+      expect(screen.getByText('Guarda los cambios antes de cobrar.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Confirmar envío' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+      await waitFor(() => expect(s.guardarMerma).toHaveBeenCalledWith(expect.any(String), 'ISMA', [{ item_code: '1003', enviado: 22 }]));
+      expect(s.guardar).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar y cobrar' })).not.toBeDisabled());
+    });
+
+    it('🔴 regresó: ENVIADO y MERMA del mismo pan van en UN renglón', async () => {
+      s.destinos.mockResolvedValue([{ ...destinoIsma[0], estado: 'regreso' as const }]);
+      s.hoja.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, merma: 3 }));
+      s.guardarMerma.mockResolvedValue(hojaIsma('liquidado', { enviado: 22, merma: 4 }));
+      render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+      await elegir('ISMA');
+      fireEvent.change(await screen.findByLabelText('Enviado CHINOS'), { target: { value: '22' } });
+      fireEvent.change(screen.getByLabelText('Merma CHINOS'), { target: { value: '4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+      await waitFor(() => expect(s.guardarMerma).toHaveBeenCalledWith(expect.any(String), 'ISMA', [{ item_code: '1003', enviado: 22, merma: 4 }]));
     });
   });
 
@@ -536,6 +565,24 @@ describe('HojaDelDia — lo tecleado sin guardar (25-sep)', () => {
     render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
     await elegir('DELI');
     await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(30));
+  });
+
+  // 12-oct: en el paso 3 el ENVIADO se teclea; abrir la camioneta no debe tirar el cuadre a medias
+  it('🔴 camioneta que regresó: volver a abrirla conserva el ENVIADO tecleado', async () => {
+    const camion = { ...dia('MARTIN'), grupo: 'CAMIONETAS', camioneta: true, estado: 'regreso' as const };
+    s.destinos.mockResolvedValue([camion, dia('DELI')]);
+    s.hoja.mockImplementation(async (_f: string, destino: string) => (destino === 'MARTIN'
+      ? { ...hoja(), destino, camioneta: true, etapa: 'liquidado', renglones: [{ ...R, enviado: 20, merma: 2 }] }
+      : { ...hoja(), destino }));
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('MARTIN');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '22' } });
+    await waitFor(() => expect(guardadoEnDisco()).toContain('"1047":"22"'), { timeout: 2000 });
+    await elegir('DELI');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'DELI' })).toBeInTheDocument());
+    await elegir('MARTIN');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'MARTIN' })).toBeInTheDocument());
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(22);
   });
 
   it('🔴 Guardar vacía el borrador de ese destino (ya está en el servidor)', async () => {

@@ -78,6 +78,17 @@ export function cambiosEnviado(renglones: RenglonHoja[], captura: Record<string,
 }
 
 /**
+ * Camioneta, paso 3 (12-oct): Héctor corrige ENVIADO y MERMA con un solo «Guardar». Un renglón
+ * por pan cambiado, con solo los campos que cambió: el que no va, el servidor lo deja como estaba.
+ */
+export function cambiosPaso3(renglones: RenglonHoja[], enviado: Record<string, string>, merma: Record<string, string>) {
+  const porItem = new Map<string, { item_code: string; enviado?: number; merma?: number }>();
+  for (const c of cambiosEnviado(renglones, enviado)) porItem.set(c.item_code, c);
+  for (const c of cambiosMerma(renglones, merma)) porItem.set(c.item_code, { ...porItem.get(c.item_code), ...c });
+  return [...porItem.values()];
+}
+
+/**
  * Lo tecleado sin guardar (25-sep): fecha → destino → campo → item_code → texto.
  * Vive en IndexedDB (`useBorradorLocal`): cambiar de destino o recargar ya no lo tira,
  * y «Guardar» queda para el final de la ronda. Solo cantidades, nunca precio.
@@ -118,6 +129,7 @@ export function rondaPorGuardar(dia: BorradorHoja[string] | undefined, destinos:
   for (const [destino, t] of Object.entries(dia ?? {})) {
     const e = estado.get(destino);
     if (!t.enviado || !e) continue;
+    if (e === 'regreso') continue; // 12-oct: su ENVIADO se guarda en el paso 3, no aquí; no se tira
     if (!SE_CAPTURA.has(e)) { fijos.push(destino); continue; }
     capturas[destino] = Object.entries(t.enviado).map(([item_code, v]) => ({ item_code, enviado: cantidad(v) }));
   }

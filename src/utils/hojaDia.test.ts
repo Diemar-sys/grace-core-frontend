@@ -107,6 +107,10 @@ describe('rondaPorGuardar (Guardar todo)', () => {
     expect(r.capturas).toEqual({ DELI: [{ item_code: '1016', enviado: 0 }, { item_code: '1047', enviado: 30 }] });
     expect(r.fijos.sort()).toEqual(['ISMA', 'MARTIN']);
   });
+  it('12-oct: lo tecleado de una camioneta que ya regresó no se manda NI se tira (va en su paso 3)', () => {
+    const r = rondaPorGuardar({ MARTIN: { enviado: { 1001: '20' } } }, [d('MARTIN', 'regreso')]);
+    expect(r).toEqual({ capturas: {}, fijos: [] });
+  });
   it('sin borrador del día no hay ronda', () => {
     expect(rondaPorGuardar(undefined, [])).toEqual({ capturas: {}, fijos: [] });
   });

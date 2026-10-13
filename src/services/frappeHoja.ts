@@ -103,7 +103,7 @@ class HojaService extends FrappeBase {
   guardarBolillo(fecha: string, tandas: CeldaPorGuardar[], camionetas: CamionetaPorGuardar[]) {
     return this._post<BolilloDia>('guardar_bolillo', { fecha, tandas, camionetas });
   }
-  guardarMerma(fecha: string, destino: string, renglones: { item_code: string; merma: number }[]) {
+  guardarMerma(fecha: string, destino: string, renglones: { item_code: string; enviado?: number; merma?: number }[]) {
     return this._post<Hoja>('guardar_merma', { fecha, destino, renglones });
   }
   confirmar(fecha: string, destino: string) {

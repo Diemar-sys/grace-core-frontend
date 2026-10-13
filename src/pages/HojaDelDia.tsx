@@ -14,7 +14,7 @@ import { hoyISO } from '../utils/hora';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosMerma, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado, totalesPorDepartamento,
+  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -78,7 +78,7 @@ export default function HojaDelDia() {
       setHoja(h);
       // lo que ya no se teclea no se trae del borrador: enseñaría un número que no es el guardado
       const fijos: CampoHoja[] = [];
-      if (h.factura || (h.camioneta && h.etapa)) fijos.push('enviado');
+      if (h.factura || (h.camioneta && h.etapa && h.etapa !== 'liquidado')) fijos.push('enviado');
       if (h.factura || h.etapa !== 'liquidado') fijos.push('merma');
       olvidar(destino, fijos);
     } catch (e: any) {
@@ -122,11 +122,12 @@ export default function HojaDelDia() {
 
   const cobrado = Boolean(hoja?.factura);
   // Camioneta en tres pasos (23-sep): '' captura enviado · 'enviado' en ruta ·
-  // 'liquidado': el repartidor ya capturó su merma; Héctor la confirma o corrige y cobra
+  // 'liquidado': el repartidor ya capturó su merma; Héctor la confirma o corrige y cobra.
+  // 12-oct: en 'liquidado' también corrige el ENVIADO (las piezas bailan; cuadra con el dinero)
   const etapa = hoja?.camioneta ? hoja.etapa ?? '' : '';
-  const enviadoFijo = cobrado || etapa !== '';
+  const enviadoFijo = cobrado || (etapa !== '' && etapa !== 'liquidado');
   const mermaAbierta = !cobrado && etapa === 'liquidado';
-  const mermaPendiente = hoja ? cambiosMerma(hoja.renglones, capturaMerma) : [];
+  const paso3Pendiente = hoja ? cambiosPaso3(hoja.renglones, captura, capturaMerma) : [];
   const estadoElegido = destinos.find(d => d.destino === hoja?.destino)?.estado;
   const bloques = useMemo(() => (hoja ? bloquesDeHoja(hoja.renglones) : []), [hoja]);
   const columnas = useMemo(() => columnasDeHoja(bloques, Boolean(hoja?.camioneta)), [bloques, hoja?.camioneta]);
@@ -226,7 +227,7 @@ export default function HojaDelDia() {
     return hojaService.confirmarEnvio(fecha, h.destino);
   }, 'No se confirmó el envío');
   const reabrirEnvio = () => ejecutar(h => hojaService.reabrirEnvio(fecha, h.destino), 'No se reabrió el envío');
-  const guardarMerma = () => ejecutar(h => hojaService.guardarMerma(fecha, h.destino, mermaPendiente), 'No se guardó la merma');
+  const guardarPaso3 = () => ejecutar(h => hojaService.guardarMerma(fecha, h.destino, paso3Pendiente), 'No se guardaron los cambios');
   // 06-oct: suma las charolas tecleadas a lo ENVIADO de ese pan y vacía la casilla. La llaman
   // tres disparadores (salir de la casilla, Enter, «+»); como la casilla queda vacía, el
   // segundo en llegar no suma otra vez. Lee lo tecleado del borrador VIGENTE (no del render)
@@ -480,7 +481,7 @@ export default function HojaDelDia() {
               <strong>{pesos(total)}</strong>
             </div>
 
-            {!cobrado && !enviadoFijo && (
+            {!cobrado && etapa === '' && (
               <div className="hoja-dia__acciones">
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardar} disabled={ocupado}>
                   Guardar
@@ -502,11 +503,11 @@ export default function HojaDelDia() {
 
             {mermaAbierta && (
               <div className="hoja-dia__acciones">
-                {mermaPendiente.length > 0 && <p className="hoja-dia__aviso">Guarda la merma antes de cobrar.</p>}
-                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardarMerma} disabled={ocupado || !mermaPendiente.length}>
-                  Guardar merma
+                {paso3Pendiente.length > 0 && <p className="hoja-dia__aviso">Guarda los cambios antes de cobrar.</p>}
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardarPaso3} disabled={ocupado || !paso3Pendiente.length}>
+                  Guardar
                 </button>
-                <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion('cobrar')} disabled={ocupado || mermaPendiente.length > 0}>
+                <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion('cobrar')} disabled={ocupado || paso3Pendiente.length > 0}>
                   Confirmar y cobrar
                 </button>
               </div>
