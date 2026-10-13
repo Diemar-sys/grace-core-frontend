@@ -126,6 +126,7 @@
   background: rgba(200,80,60,0.20); border-radius: var(--radius-pill);
   padding: 3px 10px; font-size: 12px; color: #eaa595;
   font-weight: 600; letter-spacing: 0.02em; margin-left: 4px;
+  white-space: nowrap;   /* 13-oct: «Grace POS» se partía en dos renglones en el celular */
 }
 /*--- BOTÓN SALIR ---*/
 .panel-logout-btn {

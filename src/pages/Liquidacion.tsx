@@ -19,6 +19,10 @@
 // 12-oct (Diemar): pensada para el celular — un renglón es una tarjeta, no una fila de
 // tabla — y los sabores que cuestan igual (polvorón, muerto) van en UN renglón: se teclea
 // el total del grupo y `repartirMerma` lo reparte por pan (`utils/mermaAgrupada`).
+//
+// 13-oct (Diemar): la merma se manda UNA vez. Ya enviada (`etapa` «liquidado») es de Héctor:
+// queda de solo lectura, igual que cobrada (el servidor también la rechaza). La casilla va
+// verde con merma 0 (desde que abre) y roja en cuanto lleva algo.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import { hoyISO } from '../utils/hora';
@@ -76,6 +80,8 @@ function Liquidacion() {
   const malos = useMemo(() => excesos(resumen.salidas, captura), [resumen, captura]);
 
   const cobrado = Boolean(hoja?.factura);
+  const enviada = hoja?.etapa === 'liquidado';
+  const soloLectura = cobrado || enviada;
   const renglones = hoja?.renglones ?? [];
 
   // Se guarda el TEXTO, no el número: "1." a medio teclear tiene que poder
@@ -124,6 +130,9 @@ function Liquidacion() {
             <span className="liq-badge liq-badge--aviso">
               Cobrado{hoja?.factura ? ` · ${hoja.factura.name} · saldo ${pesos(hoja.factura.outstanding_amount)}` : ''}
             </span>
+          )}
+          {enviada && !cobrado && (
+            <span className="liq-badge liq-badge--aviso">Enviada a matriz · si hay error, avisarle al responsable del área</span>
           )}
         </header>
 
@@ -195,21 +204,22 @@ function Liquidacion() {
                     </div>
                     <div className="liq-renglon-dato">
                       <span className="liq-dato-label">Enviado</span>
-                      <span className="liq-num">{numero(g.enviado)}</span>
+                      <span className="liq-num">{numero(g.enviado, 0)}</span>
                     </div>
                     <label className="liq-renglon-dato">
                       <span className="liq-dato-label">Merma</span>
                       <input
-                        className="liq-input" type="text" inputMode="decimal"
+                        className={`liq-input ${cantidad(porGrupo[g.clave]) > 0 ? 'liq-input--con-merma' : 'liq-input--sin-merma'}`}
+                        type="text" inputMode="decimal"
                         aria-label={`Merma ${g.nombre}`}
                         placeholder="0" value={porGrupo[g.clave] ?? ''}
-                        disabled={cobrado}
+                        disabled={soloLectura}
                         onChange={e => teclear(g.clave, e.target.value)}
                       />
                     </label>
                     <div className="liq-renglon-dato">
                       <span className="liq-dato-label">Vendido</span>
-                      <span className="liq-num liq-vendido">{numero(vendido)}</span>
+                      <span className="liq-num liq-vendido">{numero(vendido, 0)}</span>
                     </div>
                     <div className="liq-renglon-dato">
                       <span className="liq-dato-label">Importe</span>
@@ -222,7 +232,7 @@ function Liquidacion() {
           )}
         </section>
 
-        {renglones.length > 0 && !cobrado && (
+        {renglones.length > 0 && !soloLectura && (
           <footer className="liq-pie">
             <button
               type="button" className="liq-btn" onClick={enviar}

@@ -229,6 +229,22 @@ describe('HojaDelDia — cableado', () => {
     expect(s.confirmar).not.toHaveBeenCalled();
   });
 
+  // 13-oct: con el modal abierto se pintaba la hoja ya sin factura mientras se releían los
+  // destinos: «Se cancela la factura undefined por $0.00». El modal se cierra antes.
+  it('🔴 Corregir: el modal se cierra en cuanto cancela, sin «undefined»', async () => {
+    const f = { name: 'ACC-SINV-2026-00099', grand_total: 420, outstanding_amount: 420 };
+    s.hoja.mockResolvedValue({ ...hoja(f), corregible: true });
+    s.corregir.mockResolvedValue({ ...hoja(null), corregible: false });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.click(await screen.findByRole('button', { name: 'Corregir' }));
+    s.destinos.mockReturnValue(new Promise(() => {}));     // releer destinos se queda colgado
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar factura' }));
+    await waitFor(() => expect(s.corregir).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText(/Se cancela la factura/)).toBeNull());
+    expect(screen.queryByText(/undefined/)).toBeNull();
+  });
+
   // C1 (fix round 1, controller): el modal enseña totalCapturado (lo
   // tecleado, sin guardar); `confirmar` en el servidor cobra lo último
   // GUARDADO. Si hay cambios sin guardar, cobrar podía facturar un monto

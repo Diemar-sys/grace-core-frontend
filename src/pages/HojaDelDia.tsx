@@ -213,6 +213,9 @@ export default function HojaDelDia() {
     try {
       const folio = ++peticionRef.current;
       const nueva = await paso(hoja);
+      // 13-oct: el modal se cierra ANTES de pintar la hoja nueva; si no, mientras se
+      // releen los destinos enseñaba «Se cancela la factura undefined por $0.00».
+      setAccion(null);
       olvidar(hoja.destino, ['enviado', 'merma']);
       if (peticionRef.current === folio) setHoja(nueva);
       await cargarDestinos();

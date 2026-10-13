@@ -79,7 +79,7 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     expect(screen.queryByLabelText('Merma POLVORON NARJ')).toBeNull();
     fireEvent.change(grupo, { target: { value: '4' } });
     const tarjeta = grupo.closest('li')!;
-    expect(within(tarjeta).getByText('3.00')).toBeInTheDocument();     // vendido 7 − 4
+    expect(within(tarjeta).getByText('3')).toBeInTheDocument();        // vendido 7 − 4, piezas sin decimales
     expect(within(tarjeta).getByText('$36.00')).toBeInTheDocument();   // 3 × $12
     fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
     await waitFor(() => expect(s.guardarRegreso).toHaveBeenCalledWith(expect.any(String), [
@@ -110,6 +110,38 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
     await waitFor(() => expect(s.guardarRegreso).toHaveBeenCalledWith('2026-09-25', expect.any(Array)));
+  });
+
+  // 13-oct (Diemar): «todo verde; cuando se ponga en la casilla y altere, cambia de color»
+  it('🔴 merma 0 en verde desde que abre; con merma, rojo', async () => {
+    s.miHoja.mockResolvedValue(mia());
+    render(<Liquidacion />);
+    const casilla = await screen.findByLabelText('Merma CONCHAS');
+    expect(casilla).toHaveClass('liq-input--sin-merma');
+    fireEvent.change(casilla, { target: { value: '4' } });
+    expect(casilla).toHaveClass('liq-input--con-merma');
+    expect(casilla).not.toHaveClass('liq-input--sin-merma');
+    fireEvent.change(casilla, { target: { value: '0' } });
+    expect(casilla).toHaveClass('liq-input--sin-merma');
+  });
+
+  // 13-oct (Diemar, opción A): la merma se manda UNA vez; después la corrige Héctor
+  it('🔴 merma ya enviada: solo lectura, sin «Enviar», con aviso', async () => {
+    s.miHoja.mockResolvedValue({ ...mia(null, 3), etapa: 'liquidado' as const });
+    render(<Liquidacion />);
+    expect(await screen.findByLabelText('Merma CONCHAS')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Enviar/ })).toBeNull();
+    expect(screen.getByText(/avisarle al responsable del área/)).toBeInTheDocument();
+  });
+
+  it('🔴 al enviar se cierra sola: la hoja que regresa ya viene «liquidado»', async () => {
+    s.miHoja.mockResolvedValue(mia());
+    s.guardarRegreso.mockResolvedValue({ ...mia(null, 5), etapa: 'liquidado' as const });
+    render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
+    await waitFor(() => expect(screen.getByLabelText('Merma CONCHAS')).toBeDisabled());
+    expect(screen.queryByRole('button', { name: /Enviar/ })).toBeNull();
   });
 
   it('cobrada: solo lectura', async () => {
