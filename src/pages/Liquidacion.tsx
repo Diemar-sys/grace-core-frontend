@@ -15,11 +15,16 @@
 // renglón (no suma), así que siempre se mandan TODOS los renglones de la
 // hoja, no solo los tecleados. Una vez que matriz confirma y factura el
 // destino (`hoja.factura`), la hoja queda de solo lectura.
+//
+// 12-oct (Diemar): pensada para el celular — un renglón es una tarjeta, no una fila de
+// tabla — y los sabores que cuestan igual (polvorón, muerto) van en UN renglón: se teclea
+// el total del grupo y `repartirMerma` lo reparte por pan (`utils/mermaAgrupada`).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import { hoyISO } from '../utils/hora';
 import { hojaService, type Hoja } from '../services/frappeHoja';
-import { cantidad, excesos, previsualizar, type Captura, type ResumenRuta } from '../utils/cierreRuta';
+import { cantidad, excesos, previsualizar, type ResumenRuta } from '../utils/cierreRuta';
+import { agruparRenglones, mermaPorGrupo, repartirMerma } from '../utils/mermaAgrupada';
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
 import '../styles/global.css';
@@ -27,7 +32,8 @@ import '../styles/Liquidacion.css';
 
 function Liquidacion() {
   const [hoja, setHoja] = useState<Hoja | null>(null);
-  const [captura, setCaptura] = useState<Captura>({});
+  // Lo tecleado, por GRUPO (un pan suelto es un grupo de uno). Texto, no número.
+  const [porGrupo, setPorGrupo] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -42,12 +48,7 @@ function Liquidacion() {
     try {
       const h = await hojaService.miHoja(fecha);
       setHoja(h);
-      setCaptura(Object.fromEntries(
-        h.renglones.map(r => [
-          r.item_code,
-          { regresa: '', tiro: r.merma ? String(r.merma) : '' },
-        ]),
-      ));
+      setPorGrupo(mermaPorGrupo(agruparRenglones(h.renglones), h.renglones));
     } catch (e: any) {
       setError(e?.message || 'No se pudo cargar tu hoja');
     } finally {
@@ -67,19 +68,19 @@ function Liquidacion() {
     mermas: [],
   }), [hoja]);
 
+  const grupos = useMemo(() => agruparRenglones(hoja?.renglones ?? []), [hoja]);
+  const captura = useMemo(() => repartirMerma(grupos, porGrupo), [grupos, porGrupo]);
   const liq = useMemo(() => previsualizar(resumen, captura), [resumen, captura]);
+  // vendido e importe del grupo = suma de sus panes (O(n) con un Map)
+  const porItem = useMemo(() => new Map(liq.renglones.map(r => [r.item_code, r])), [liq]);
   const malos = useMemo(() => excesos(resumen.salidas, captura), [resumen, captura]);
 
   const cobrado = Boolean(hoja?.factura);
   const renglones = hoja?.renglones ?? [];
 
-  const teclear = (item_code: string, campo: 'tiro', valor: string) =>
-    setCaptura(prev => {
-      // Se guarda el TEXTO, no el número: "1." a medio teclear tiene que poder
-      // seguir escribiéndose, y un campo vacío no es un cero.
-      const actual = prev[item_code] ?? { regresa: '', tiro: '' };
-      return { ...prev, [item_code]: { ...actual, [campo]: valor } };
-    });
+  // Se guarda el TEXTO, no el número: "1." a medio teclear tiene que poder
+  // seguir escribiéndose, y un campo vacío no es un cero.
+  const teclear = (clave: string, valor: string) => setPorGrupo(prev => ({ ...prev, [clave]: valor }));
 
   const enviar = async () => {
     if (!hoja) return;
@@ -180,41 +181,44 @@ function Liquidacion() {
           )}
 
           {renglones.length > 0 && (
-            <div className="liq-tabla-scroll">
-              <table className="liq-tabla">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th className="liq-num">Enviado</th>
-                    <th className="liq-num">Merma</th>
-                    <th className="liq-num">Vendido</th>
-                    <th className="liq-num">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liq.renglones.map(r => (
-                    <tr key={r.item_code} className={malos.includes(r.item_code) ? 'liq-fila--mala' : ''}>
-                      <td>
-                        <span className="liq-producto">{r.item_name}</span>
-                        <span className="liq-clave">{r.item_code}</span>
-                      </td>
-                      <td className="liq-num">{numero(r.salio)} {r.uom}</td>
-                      <td className="liq-num">
-                        <input
-                          className="liq-input" type="text" inputMode="decimal"
-                          aria-label={`Merma ${r.item_name}`}
-                          placeholder="0" value={captura[r.item_code]?.tiro ?? ''}
-                          disabled={cobrado}
-                          onChange={e => teclear(r.item_code, 'tiro', e.target.value)}
-                        />
-                      </td>
-                      <td className="liq-num liq-vendido">{numero(r.vendido)} {r.uom}</td>
-                      <td className="liq-num">{pesos(r.importe)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="liq-lista">
+              {grupos.map(g => {
+                const filas = g.items.map(i => porItem.get(i.item_code)).filter(r => r !== undefined);
+                const vendido = filas.reduce((t, r) => t + r.vendido, 0);
+                const importe = filas.reduce((t, r) => t + r.importe, 0);
+                const malo = g.items.some(i => malos.includes(i.item_code));
+                return (
+                  <li key={g.clave} className={`liq-renglon${malo ? ' liq-renglon--malo' : ''}`}>
+                    <div className="liq-renglon-nombre">
+                      <span className="liq-producto">{g.nombre}</span>
+                      <span className="liq-clave">{g.detalle}</span>
+                    </div>
+                    <div className="liq-renglon-dato">
+                      <span className="liq-dato-label">Enviado</span>
+                      <span className="liq-num">{numero(g.enviado)}</span>
+                    </div>
+                    <label className="liq-renglon-dato">
+                      <span className="liq-dato-label">Merma</span>
+                      <input
+                        className="liq-input" type="text" inputMode="decimal"
+                        aria-label={`Merma ${g.nombre}`}
+                        placeholder="0" value={porGrupo[g.clave] ?? ''}
+                        disabled={cobrado}
+                        onChange={e => teclear(g.clave, e.target.value)}
+                      />
+                    </label>
+                    <div className="liq-renglon-dato">
+                      <span className="liq-dato-label">Vendido</span>
+                      <span className="liq-num liq-vendido">{numero(vendido)}</span>
+                    </div>
+                    <div className="liq-renglon-dato">
+                      <span className="liq-dato-label">Importe</span>
+                      <span className="liq-num">{pesos(importe)}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
 

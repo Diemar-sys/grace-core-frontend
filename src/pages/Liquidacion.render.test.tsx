@@ -67,6 +67,38 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     ]));
   });
 
+  // 12-oct (Diemar): los sabores que cuestan igual se capturan juntos; solo importa el total
+  it('🔴 polvorones en UN renglón: se teclea el total y viaja repartido por pan', async () => {
+    const P = (item_code: string, producto: string, enviado: number, merma = 0) =>
+      ({ ...R, item_code, producto, categoria: 'PAN POLVORON', impuesto: 'tasa0', enviado, merma });
+    s.miHoja.mockResolvedValue({ ...mia(), renglones: [R, P('1016', 'POLVORON NARJ', 2, 1), P('1017', 'POLVORON CHOCO', 5)] });
+    s.guardarRegreso.mockResolvedValue(mia());
+    render(<Liquidacion />);
+    const grupo = await screen.findByLabelText('Merma POLVORON');
+    expect(grupo).toHaveValue('1');                           // la merma guardada, sumada
+    expect(screen.queryByLabelText('Merma POLVORON NARJ')).toBeNull();
+    fireEvent.change(grupo, { target: { value: '4' } });
+    const tarjeta = grupo.closest('li')!;
+    expect(within(tarjeta).getByText('3.00')).toBeInTheDocument();     // vendido 7 − 4
+    expect(within(tarjeta).getByText('$36.00')).toBeInTheDocument();   // 3 × $12
+    fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
+    await waitFor(() => expect(s.guardarRegreso).toHaveBeenCalledWith(expect.any(String), [
+      { item_code: '1047', merma: 0 },
+      { item_code: '1016', merma: 2 },
+      { item_code: '1017', merma: 2 },
+    ]));
+  });
+
+  it('🔴 un grupo con más merma de lo enviado no se deja enviar', async () => {
+    const P = (item_code: string, enviado: number) =>
+      ({ ...R, item_code, producto: `POLVORON ${item_code}`, categoria: 'PAN POLVORON', impuesto: 'tasa0', enviado });
+    s.miHoja.mockResolvedValue({ ...mia(), renglones: [P('1016', 2), P('1017', 5)] });
+    render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma POLVORON'), { target: { value: '8' } });
+    expect(screen.getByRole('button', { name: /Enviar/ })).toBeDisabled();
+    expect(screen.getByLabelText('Merma POLVORON').closest('li')).toHaveClass('liq-renglon--malo');
+  });
+
   it('🔴 el repartidor elige el día: carga y guarda ESE día, no hoy', async () => {
     // 28-sep: MARTIN no pudo liquidar el viernes porque la pantalla solo abría hoy.
     s.miHoja.mockResolvedValue(mia());

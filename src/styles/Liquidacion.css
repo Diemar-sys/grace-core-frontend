@@ -131,50 +131,60 @@
   color: var(--color-text-muted);
 }
 
-/* La tabla scrollea DENTRO de su tarjeta: la pagina nunca se mueve de lado. */
-.liq-tabla-scroll { overflow-x: auto; }
-
-.liq-tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
+/* 12-oct: primero el CELULAR. Cada renglón es una tarjeta: el nombre arriba y abajo
+   Enviado | Merma | Vendido | Importe en una sola línea, con su etiqueta encima. En PC
+   (≥ 721px) todo cabe en una línea. Sin tabla: la página nunca se mueve de lado. */
+.liq-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.liq-tabla th {
-  text-align: left;
-  padding: 0.75rem 0.6rem;
-  font-size: 0.78rem;
+.liq-renglon {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem 0.75rem;
+  align-items: end;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-input);
+  background: var(--color-brand-bg);
+}
+
+.liq-renglon-nombre { grid-column: 1 / -1; min-width: 0; }
+
+.liq-renglon-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.liq-dato-label {
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-hairline);
-  white-space: nowrap;
 }
-
-.liq-tabla td {
-  padding: 0.7rem 0.6rem;
-  border-bottom: 1px solid var(--color-hairline);
-  vertical-align: middle;
-}
-
-.liq-tabla tbody tr:last-child td { border-bottom: none; }
 
 .liq-num {
-  text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  font-size: 1.05rem;
 }
 
-.liq-producto { display: block; font-weight: 600; color: var(--color-text); }
-.liq-clave { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
+.liq-producto { display: block; font-weight: 700; font-size: 1.05rem; color: var(--color-text); }
+.liq-clave { display: block; font-size: 0.78rem; color: var(--color-text-muted); overflow-wrap: anywhere; }
 .liq-vendido { font-weight: 700; }
 
-.liq-fila--mala { background: var(--color-danger-bg); }
+.liq-renglon--malo { background: var(--color-danger-bg); }
 
 /* ── Campos ─────────────────────────────────────────────────────────── */
 .liq-input {
-  width: 5.5rem;
+  width: 100%;
   min-height: 48px;            /* dedo, no cursor */
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--color-border-input);
@@ -259,9 +269,14 @@
 }
 
 /* ── Responsive: por clase, NUNCA por nth-child ─────────────────────── */
+@media (min-width: 721px) {
+  .liq-renglon { grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)); align-items: center; }
+  .liq-renglon-nombre { grid-column: auto; }
+}
+
 @media (max-width: 720px) {
   .liq { padding: 1rem; gap: 1rem; }
-  .liq-totales { grid-template-columns: 1fr; }
+  .liq-totales { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* 12-oct: 2×2, no 4 pisos */
   .liq-tarjeta, .liq-pie, .liq-stat { padding: 1.15rem; }
   .liq-stat-valor { font-size: 1.5rem; }
   .liq-btn { width: 100%; }
