@@ -584,7 +584,7 @@
 .hoja-tabla.bolillo__tabla { table-layout: fixed; font-size: 1rem; }
 .hoja-tabla.bolillo__tabla th,
 .hoja-tabla.bolillo__tabla td { width: 25%; text-align: center; vertical-align: middle; }
-.hoja-tabla.bolillo__tabla tbody td { height: 3.25rem; padding: 0.25rem; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
+.hoja-tabla.bolillo__tabla tbody td { height: 5.5rem; padding: 0.25rem; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
 .hoja-tabla.bolillo__tabla input.bolillo__input {
   width: 100%; max-width: 5.5rem; min-height: 40px; text-align: center; font-size: 1rem;
 }
@@ -599,11 +599,19 @@
 .bolillo__total--falta  { background: var(--tv-warn-bg); color: var(--tv-warn); }
 .bolillo__total--exacto { background: var(--tv-ok-bg);   color: var(--tv-ok); }
 .bolillo__total--demas  { background: #dbeafe;           color: #1e40af; }
+/* 14-oct: bolillo/telera en CHAROLAS + SUELTAS y el total en piezas abajo (lo que se cobra) */
+.bolillo__partes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.35rem; align-items: center; }
+.bolillo__parte { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; min-width: 0; }
+.bolillo__parte span { font-family: var(--tv-mono); font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase; }
+.bolillo__suma { grid-column: 1 / -1; justify-self: center; padding: 0.1rem 0.6rem; border-radius: var(--radius-pill);
+  font-family: var(--tv-mono); font-weight: 700; font-size: 0.95rem; }
 .bolillo__nota { margin: 0.75rem 0 0; color: var(--color-text-muted); font-size: 0.85rem; }
 
 @media (pointer: coarse) {
   .hoja-tabla.bolillo__tabla input.bolillo__input { min-height: 48px; }
-  .hoja-tabla.bolillo__tabla tbody td { height: 3.6rem; }
+  .hoja-tabla.bolillo__tabla tbody td { height: 7.5rem; }  /* ch/pz de 48 + total: PEDIDO a la misma altura */
+  .bolillo__parte span { font-size: 0.8rem; }
+  .bolillo__suma { font-size: 1.1rem; }   /* tablet de Héctor: el total se lee de lejos */
 }
 @media (max-width: 600px) {
   .bolillo__par { grid-template-columns: 1fr; gap: 1.25rem; }

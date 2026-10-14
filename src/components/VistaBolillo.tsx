@@ -3,15 +3,15 @@
 // Solo el destino elegido en el selector (Diemar 08-oct). 09-oct, como su hoja en papel: dos
 // tablas, PEDIDO (fijo, del Excel) y ENVIADO (lo único que se teclea), sin hora ni tipo de
 // tanda, sin «+ tanda», y TOTALES en piezas. Camioneta: la bolsa común y lo que se lleva. El ENVIADO de esos 4 panes
-// lo calcula el servidor (Σ salió × charola); aquí solo se teclean cantidades.
+// lo calcula el servidor (Σ salió; 14-oct: todo en piezas); aquí solo se teclean cantidades.
 // Spec: gestion_panaderia/docs/superpowers/specs/2026-10-08-bolillo-tandas-design.md
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ModalError from './modals/ModalError';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import { hojaService, type BolilloDia, type ItemBolillo, type Tanda } from '../services/frappeHoja';
 import {
-  bolilloDe, cambiosBolillo, claveCamioneta, claveTanda, llevaCamioneta, salioDe, sinDestino, totalesCamionetas, totalesDestino,
-  type BorradorBolillo, type TecleadoBolillo, type TotalBolillo,
+  bolilloDe, cambiosBolillo, claveCamioneta, claveTanda, llevaCamioneta, partesDe, salioDe, sinDestino, teclearParte, totalesCamionetas, totalesDestino,
+  type BorradorBolillo, type Partes, type TecleadoBolillo, type TotalBolillo,
 } from '../utils/bolilloDia';
 import { estadoEnviado } from '../utils/hojaDia';
 import { numero } from '../utils/formato';
@@ -21,11 +21,6 @@ const NOMBRE: Record<string, string> = { '3001': 'BOLILLO', '3002': 'TELERA', '3
 const TITULO: Record<string, string> = { '3001': 'Bolillo', '3002': 'Telera', '3003': 'Mini Bolillo', '3004': 'Baguets' };
 const SIN_CAMBIOS = { tandas: [], camionetas: [] };
 
-const colorDe = (pedido: number, salio: number) => {
-  const c = estadoEnviado(pedido, salio);
-  return c ? ` hoja-input--${c}` : '';
-};
-
 function Encabezado({ items }: { items: ItemBolillo[] }) {
   return (
     <thead>
@@ -34,7 +29,7 @@ function Encabezado({ items }: { items: ItemBolillo[] }) {
   );
 }
 
-/** TOTALES en piezas (charolas × 16/12; mini y baguet ya son piezas). En ENVIADO, con el color contra el pedido. */
+/** TOTALES en piezas (14-oct: el servidor ya lo manda todo en piezas). En ENVIADO, con el color contra el pedido. */
 function Totales({ items, totales, enviado }: { items: ItemBolillo[]; totales: Record<string, TotalBolillo>; enviado?: boolean }) {
   return (
     <tfoot>
@@ -75,6 +70,39 @@ function TablaPedido({ nombre, tandas, items, totales }: { nombre: string; tanda
   );
 }
 
+interface PropsCasilla {
+  label: string; valor: string; total: number; partes: Partes | null; estado: string; disabled: boolean;
+  onTeclear: (v: string) => void; onParte: (parte: keyof Partes, v: string) => void;
+}
+
+/** 14-oct (Diemar: «tienen una hueva que ni sumar»): bolillo y telera en dos casillas,
+ *  CHAROLAS y SUELTAS, y abajo el total en piezas que saca el sistema (lo que se cobra),
+ *  pintado contra el pedido. Mini y baguet no van por charola: una casilla de piezas. */
+function Casilla({ label, valor, total, partes, estado, disabled, onTeclear, onParte }: PropsCasilla) {
+  const num = { type: 'number', min: 0, step: 'any', inputMode: 'decimal', disabled } as const;
+  if (!partes) {
+    return <input {...num} aria-label={label} className={`bolillo__input${estado ? ` hoja-input--${estado}` : ''}`}
+      value={valor} onChange={e => onTeclear(e.target.value)} />;
+  }
+  return (
+    <div className="bolillo__partes">
+      <label className="bolillo__parte">
+        <span>ch</span>
+        <input {...num} aria-label={`${label} charolas`} className="bolillo__input" value={partes.charolas}
+          onChange={e => onParte('charolas', e.target.value)} />
+      </label>
+      <label className="bolillo__parte">
+        <span>pz</span>
+        <input {...num} aria-label={`${label} sueltas`} className="bolillo__input" value={partes.sueltas}
+          onChange={e => onParte('sueltas', e.target.value)} />
+      </label>
+      <output aria-label={label} className={`bolillo__suma${estado ? ` bolillo__total--${estado}` : ''}`}>
+        = {numero(total, 0)} pz
+      </output>
+    </div>
+  );
+}
+
 export default function VistaBolillo({ fecha, destino }: { fecha: string; destino: string }) {
   const [dia, setDia] = useState<BolilloDia | null>(null);
   const [error, setError] = useState('');
@@ -95,6 +123,11 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
   }, [fecha]);
 
   const teclear = (k: string, v: string) => setBorrador(b => ({ ...b, [fecha]: { ...(b[fecha] ?? {}), [k]: v } }));
+  // una parte (charolas o sueltas) sobre lo VIGENTE del borrador: el total lo saca teclearParte
+  const teclearDe = (k: string, guardado: number, porCharola: number) => (parte: keyof Partes, v: string) =>
+    setBorrador(b => ({ ...b, [fecha]: teclearParte(b[fecha] ?? {}, k, parte, v, guardado, porCharola) }));
+  const partes = (k: string, guardado: number, porCharola: number) =>
+    porCharola > 1 ? partesDe(tecleado, k, guardado, porCharola) : null;
   const sel = useMemo(() => (dia && destino ? bolilloDe(dia, destino) : null), [dia, destino]);
   // «Guardar» manda solo lo del destino elegido; lo tecleado de otros espera a que lo elijan
   const cambios = useMemo(() => (dia && sel ? cambiosBolillo({
@@ -136,7 +169,7 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
   return (
     <section className="bolillo">
       <div className="bolillo__barra">
-        <p>Se teclea solo lo <strong>ENVIADO</strong>. Tandas: bolillo y telera en charolas; mini y baguet en piezas. TOTALES en piezas.</p>
+        <p>Se teclea solo lo <strong>ENVIADO</strong>. Bolillo y telera: charolas (<strong>CH</strong>) + sueltas (<strong>PZ</strong>); el sistema saca el total en piezas.</p>
         <button type="button" className="hoja-btn hoja-btn--primario" onClick={guardar} disabled={!pendientes || ocupado}>
           Guardar{pendientes ? ` (${pendientes})` : ''}
         </button>
@@ -162,15 +195,17 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
                       {items.map(it => {
                         const k = claveTanda(d.destino, t.tanda, it.item_code);
                         const pedido = t.celdas[it.item_code]?.pedido ?? 0;
+                        const guardado = t.celdas[it.item_code]?.salio ?? 0;
                         return (
                           <td key={it.item_code} className="bolillo__celda">
-                            <input
-                              type="number" min={0} step="any" inputMode="decimal"
-                              aria-label={`${d.destino} tanda ${t.tanda} ${NOMBRE[it.item_code] ?? it.item_code}`}
-                              className={`bolillo__input${colorDe(pedido, salioDe(tecleado, d.destino, t, it.item_code))}`}
-                              value={k in tecleado ? tecleado[k] : String(t.celdas[it.item_code]?.salio ?? 0)}
+                            <Casilla
+                              label={`${d.destino} tanda ${t.tanda} ${NOMBRE[it.item_code] ?? it.item_code}`}
+                              valor={k in tecleado ? tecleado[k] : String(guardado)}
+                              total={salioDe(tecleado, d.destino, t, it.item_code)}
+                              partes={partes(k, guardado, it.por_charola)}
+                              estado={estadoEnviado(pedido, salioDe(tecleado, d.destino, t, it.item_code)) ?? ''}
                               disabled={d.cobrado || ocupado}
-                              onChange={e => teclear(k, e.target.value)}
+                              onTeclear={v => teclear(k, v)} onParte={teclearDe(k, guardado, it.por_charola)}
                             />
                           </td>
                         );
@@ -202,15 +237,16 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
                     <tr>
                       {items.map(it => {
                         const k = claveCamioneta(c.destino, it.item_code);
+                        const guardado = llevaCamioneta({}, c, it.item_code);
                         return (
                           <td key={it.item_code} className="bolillo__celda">
-                            <input
-                              type="number" min={0} step="any" inputMode="decimal"
-                              aria-label={`${c.destino} ${NOMBRE[it.item_code] ?? it.item_code}`}
-                              className="bolillo__input"
-                              value={k in tecleado ? tecleado[k] : String(llevaCamioneta({}, c, it.item_code))}
+                            <Casilla
+                              label={`${c.destino} ${NOMBRE[it.item_code] ?? it.item_code}`}
+                              valor={k in tecleado ? tecleado[k] : String(guardado)}
+                              total={llevaCamioneta(tecleado, c, it.item_code)}
+                              partes={partes(k, guardado, it.por_charola)} estado=""
                               disabled={c.cerrada || c.cobrada || ocupado}
-                              onChange={e => teclear(k, e.target.value)}
+                              onTeclear={v => teclear(k, v)} onParte={teclearDe(k, guardado, it.por_charola)}
                             />
                           </td>
                         );

@@ -105,3 +105,28 @@ export function bolilloDe(dia: BolilloDia, destino: string) {
 export function sinDestino(tecleado: TecleadoBolillo, destino: string): TecleadoBolillo {
   return Object.fromEntries(Object.entries(tecleado).filter(([k]) => k.split('|')[1] !== destino));
 }
+
+/** 14-oct (Diemar): bolillo y telera se teclean en DOS casillas, CHAROLAS y SUELTAS, y el
+ *  sistema saca el total en piezas (lo que se cobra). Nadie suma y cada casilla tiene UNA
+ *  unidad. El borrador guarda el TOTAL en la clave de siempre (`k`, lo que leen totales y
+ *  «Guardar») y lo tecleado de cada parte en `k|ch` / `k|pz` para pintarlo tal cual. */
+export interface Partes { charolas: string; sueltas: string }
+
+/** Lo que se ve en las dos casillas: lo tecleado, o el total partido (67 telera = 5 ch + 7). */
+export function partesDe(tecleado: TecleadoBolillo, k: string, guardado: number, porCharola: number): Partes {
+  if (`${k}|ch` in tecleado || `${k}|pz` in tecleado) {
+    return { charolas: tecleado[`${k}|ch`] ?? '', sueltas: tecleado[`${k}|pz`] ?? '' };
+  }
+  const total = k in tecleado ? cantidad(tecleado[k]) : guardado;
+  const charolas = Math.floor(total / porCharola);
+  return { charolas: String(charolas), sueltas: String(total - charolas * porCharola) };
+}
+
+/** Teclear UNA parte: guarda lo tecleado de las dos y el total = charolas × charola + sueltas. */
+export function teclearParte(
+  tecleado: TecleadoBolillo, k: string, parte: keyof Partes, valor: string, guardado: number, porCharola: number,
+): TecleadoBolillo {
+  const p = { ...partesDe(tecleado, k, guardado, porCharola), [parte]: valor };
+  const total = cantidad(p.charolas) * porCharola + cantidad(p.sueltas);
+  return { ...tecleado, [k]: String(total), [`${k}|ch`]: p.charolas, [`${k}|pz`]: p.sueltas };
+}

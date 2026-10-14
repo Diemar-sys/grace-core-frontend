@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BolilloDia, Tanda } from '../services/frappeHoja';
-import { cambiosBolillo, claveCamioneta, claveTanda, totalesCamionetas, totalesDestino } from './bolilloDia';
+import { cambiosBolillo, claveCamioneta, claveTanda, sinDestino, totalesCamionetas, totalesDestino } from './bolilloDia';
 
 const ITEMS: BolilloDia['items'] = [
   { item_code: '3001', unidad: 'charolas', por_charola: 16 },
@@ -84,5 +84,30 @@ describe('bolilloDe — solo el destino elegido (08-oct)', () => {
   it('sin bolillo por tandas (ZAKIA, un pueblo, una camioneta sin pedido): null', () => {
     expect(bolilloDe(DIA, 'ZAKIA')).toBeNull();
     expect(bolilloDe({ ...DIA, camionetas: null }, 'ISMA')).toBeNull();
+  });
+});
+
+import { partesDe, teclearParte } from './bolilloDia';
+describe('charolas + sueltas = piezas (14-oct)', () => {
+  const k = claveTanda('P.REAL', 2, '3002');
+  it('🔴 5 charolas de telera + 7 sueltas = 67 piezas, y eso es lo que se cobra', () => {
+    let tec = teclearParte({}, k, 'charolas', '5', 0, 12);
+    expect(tec[k]).toBe('60');
+    tec = teclearParte(tec, k, 'sueltas', '7', 0, 12);
+    expect(tec[k]).toBe('67');
+    expect(partesDe(tec, k, 0, 12)).toEqual({ charolas: '5', sueltas: '7' });
+  });
+  it('🔴 lo guardado se parte para pintarlo (67 → 5 + 7) y teclear una parte conserva la otra', () => {
+    expect(partesDe({}, k, 67, 12)).toEqual({ charolas: '5', sueltas: '7' });
+    expect(teclearParte({}, k, 'charolas', '6', 67, 12)[k]).toBe('79');     // 6 × 12 + 7
+    expect(teclearParte({}, k, 'sueltas', '', 67, 12)[k]).toBe('60');       // borrar sueltas = 0
+  });
+  it('sueltas de más que una charola valen igual (15 sueltas = 15 piezas)', () => {
+    expect(teclearParte({}, k, 'sueltas', '15', 0, 12)[k]).toBe('15');
+  });
+  it('lo tecleado viaja en «Guardar» por el total; las partes no estorban', () => {
+    const tec = teclearParte({}, claveTanda('P.REAL', 1, '3001'), 'charolas', '2', 4, 16);
+    expect(cambiosBolillo(DIA, tec).tandas).toEqual([{ destino: 'P.REAL', tanda: 1, item_code: '3001', salio: 36 }]);   // 2 ch + las 4 guardadas
+    expect(sinDestino(tec, 'P.REAL')).toEqual({});
   });
 });
