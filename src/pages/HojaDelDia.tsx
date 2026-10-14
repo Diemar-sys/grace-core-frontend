@@ -10,11 +10,12 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
 import VistaBolillo from '../components/VistaBolillo';
-import { hoyISO } from '../utils/hora';
+import { hoyISO, horaLocal } from '../utils/hora';
+import { imprimirCamionetaTermico } from '../services/printService';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, totalCapturado, totalesPorDepartamento,
+  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketCamioneta, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -230,6 +231,24 @@ export default function HojaDelDia() {
     return hojaService.confirmarEnvio(fecha, h.destino);
   }, 'No se confirmó el envío');
   const reabrirEnvio = () => ejecutar(h => hojaService.reabrirEnvio(fecha, h.destino), 'No se reabrió el envío');
+  // 14-oct: ticket de lo que se lleva la camioneta (ENVIADO ya fijo); el repartidor lo firma.
+  const imprimirTicket = async () => {
+    if (!hoja) return;
+    setOcupado(true);
+    try {
+      await imprimirCamionetaTermico({ camioneta: hoja.destino, fecha, hora: horaLocal(), ...ticketCamioneta(hoja.renglones) });
+    } catch (e: any) { setError(e?.message || 'No se imprimió el ticket'); }
+    finally { setOcupado(false); }
+  };
+  // 14-oct (Diemar): siempre visible en camioneta. Imprime lo GUARDADO: con cambios sin
+  // guardar se bloquea, si no el ticket no cuadraría con lo que se cobra.
+  const sinGuardar = hoja ? (etapa === '' ? cambiosPendientes(hoja).length : paso3Pendiente.length) : 0;
+  const botonTicket = hoja?.camioneta ? (
+    <button type="button" className="hoja-btn hoja-btn--secundario" onClick={imprimirTicket} disabled={ocupado || sinGuardar > 0}
+      title={sinGuardar ? 'Guarda antes de imprimir' : undefined}>
+      Ticket
+    </button>
+  ) : null;
   const guardarPaso3 = () => ejecutar(h => hojaService.guardarMerma(fecha, h.destino, paso3Pendiente), 'No se guardaron los cambios');
   // 06-oct: suma las charolas tecleadas a lo ENVIADO de ese pan y vacía la casilla. La llaman
   // tres disparadores (salir de la casilla, Enter, «+»); como la casilla queda vacía, el
@@ -489,6 +508,7 @@ export default function HojaDelDia() {
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardar} disabled={ocupado}>
                   Guardar
                 </button>
+                {botonTicket}
                 <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion(hoja.camioneta ? 'envio' : 'cobrar')} disabled={ocupado}>
                   {hoja.camioneta ? 'Confirmar envío' : 'Confirmar y cobrar'}
                 </button>
@@ -501,8 +521,11 @@ export default function HojaDelDia() {
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={reabrirEnvio} disabled={ocupado}>
                   Reabrir envío
                 </button>
+                {botonTicket}
               </div>
             )}
+
+            {cobrado && botonTicket && <div className="hoja-dia__acciones">{botonTicket}</div>}
 
             {mermaAbierta && (
               <div className="hoja-dia__acciones">
@@ -510,6 +533,7 @@ export default function HojaDelDia() {
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardarPaso3} disabled={ocupado || !paso3Pendiente.length}>
                   Guardar
                 </button>
+                {botonTicket}
                 <button type="button" className="hoja-btn hoja-btn--primario" onClick={() => setAccion('cobrar')} disabled={ocupado || paso3Pendiente.length > 0}>
                   Confirmar y cobrar
                 </button>

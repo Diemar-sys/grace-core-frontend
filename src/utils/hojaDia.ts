@@ -64,6 +64,19 @@ export function totalCapturado(renglones: RenglonHoja[], captura: Record<string,
   return centavos(renglones.reduce((s, r) => s + enviadoDe(r, captura) * r.precio, 0));
 }
 
+export interface FilaTicket { producto: string; piezas: number; precio: number; importe: number }
+
+/** 14-oct: lo que se LLEVA la camioneta (ENVIADO guardado × $ del servidor), para el ticket
+ *  que firma el repartidor al salir. Lo tecleado sin guardar no cuenta: el ticket dice lo
+ *  mismo que se va a cobrar. Total = redondear la suma (como `totalCapturado`), O(n). */
+export function ticketCamioneta(renglones: RenglonHoja[]) {
+  const llevados = renglones.filter(r => r.enviado > 0);
+  const filas: FilaTicket[] = llevados.map(r => ({
+    producto: r.producto, piezas: r.enviado, precio: r.precio, importe: centavos(r.enviado * r.precio),
+  }));
+  return { filas, piezas: llevados.reduce((s, r) => s + r.enviado, 0), total: totalCapturado(llevados, {}) };
+}
+
 /** Lo tecleado en MERMA que difiere de lo guardado (camioneta ya liquidada, 23-sep). */
 export function cambiosMerma(renglones: RenglonHoja[], captura: Record<string, string>) {
   return renglones

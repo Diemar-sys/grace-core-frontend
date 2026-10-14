@@ -301,6 +301,39 @@ def render_consolidado_image(data):
     return render_lines_image(rows)
 
 
+def render_camioneta_image(data):
+    """14-oct: lo que se lleva la camioneta: pan, piezas, $, importe, total y firmas.
+    Los importes y el total llegan calculados del front (mismo $ del servidor que se
+    cobra); aqui solo se pintan."""
+    body = 20
+    cols = _cols(body)
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': 18, 'align': 'c'},
+        {'rule': True},
+        {'text': 'TICKET CAMIONETA', 'size': 22, 'align': 'c'},
+        {'rule': True},
+        {'text': f"Camioneta: {str(data.get('camioneta') or '-')[:cols - 11]}", 'size': body},
+        {'text': f"Fecha:     {data.get('fecha', '')}", 'size': body},
+        {'text': f"Hora:      {data.get('hora', '')}", 'size': body},
+        {'rule': True},
+        {'lr': ('PAN  piezas x $', 'IMPORTE'), 'size': body},
+        {'rule': True},
+    ]
+    for it in data.get('filas', []):
+        rows.append({'text': str(it.get('producto') or '')[:cols], 'size': body})
+        rows.append({'lr': (f"  {_qty(it.get('piezas'))} x {fmt(_num(it.get('precio')))}", fmt(_num(it.get('importe')))), 'size': body})
+    rows.append({'rule': True})
+    rows.append({'lr': ('Piezas', _qty(data.get('piezas'))), 'size': body})
+    rows.append({'lr': ('TOTAL', fmt(_num(data.get('total')))), 'size': 26})
+    for etiqueta in ('Firma de quien entrega', 'Firma del repartidor'):
+        rows.append({'text': '', 'size': body})
+        rows.append({'text': '', 'size': body})
+        rows.append({'rule': True})
+        rows.append({'text': etiqueta, 'size': body})
+    return render_lines_image(rows)
+
+
 def render_traspaso_image(data):
     """Ticket de traspaso a sucursal (productos + cantidad, firmas, Nota.), imagen."""
     body = 22
@@ -831,6 +864,28 @@ def imprimir_traspaso():
         finally:
             p.close()
 
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
+
+
+@app.route('/imprimir-camioneta', methods=['POST', 'OPTIONS'])
+def imprimir_camioneta():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+        img = render_camioneta_image(data)
+        p = get_printer()
+        try:
+            p.image(img)
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
         return cors(jsonify({'ok': True}))
     except Exception as e:
         traceback.print_exc()

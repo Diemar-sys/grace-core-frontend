@@ -179,3 +179,20 @@ describe('totalesPorDepartamento (08-oct)', () => {
     expect(suma).toBe(totalCapturado(conCentavos, {}));
   });
 });
+
+import { ticketCamioneta } from './hojaDia';
+describe('ticketCamioneta (14-oct: lo que se lleva la camioneta)', () => {
+  it('🔴 solo lo enviado, importe = enviado × $ y total = redondear la suma', () => {
+    const t = ticketCamioneta([
+      { ...r('1003', 'PAN MANTECA', 20, 12), merma: 5 },   // la merma NO resta: es lo que SALIÓ
+      { ...r('1004', 'PAN MANTECA', 0, 12), pedido: 30 }, // pedido sin enviar: no va
+      r('1005', 'PAN MANTECA', 3, 8.335),                 // 25.005 → 25.01 (half-up)
+    ]);
+    expect(t.filas).toEqual([
+      { producto: '1003', piezas: 20, precio: 12, importe: 240 },
+      { producto: '1005', piezas: 3, precio: 8.335, importe: 25.01 },
+    ]);
+    expect(t.piezas).toBe(23);
+    expect(t.total).toBe(265.01);
+  });
+});
