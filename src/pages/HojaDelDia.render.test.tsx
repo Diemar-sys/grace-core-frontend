@@ -267,6 +267,29 @@ describe('HojaDelDia — cableado', () => {
     expect(s.guardar.mock.invocationCallOrder[0]).toBeLessThan(s.confirmar.mock.invocationCallOrder[0]);
   });
 
+  it('🔴 15-oct: DELI con 40% — se ve el descuento y el aviso de cobro dice lo que se cobra', async () => {
+    s.hoja.mockResolvedValue({ ...hoja(), descuento_pct: 0.4 });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '363' } });   // 363 × $14 = $5,082
+    const resumen = screen.getByLabelText('Descuento');
+    expect(within(resumen).getByText('Descuento 40%')).toBeInTheDocument();
+    expect(within(resumen).getByText('−$2,032.80')).toBeInTheDocument();
+    expect(within(resumen).getByText('$3,049.20')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
+    expect(await screen.findByText(/¿Cobrar \$3,049\.20 a DELI\? Total \$5,082\.00 menos 40% de descuento \(\$2,032\.80\)/)).toBeInTheDocument();
+  });
+
+  it('🔴 15-oct: sin descuento (otro cliente o antes del 12-oct) no hay renglón y se cobra el total', async () => {
+    s.hoja.mockResolvedValue(hoja());
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    expect(screen.queryByLabelText('Descuento')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
+    expect(await screen.findByText('¿Cobrar $420.00 a DELI? Se genera la factura.')).toBeInTheDocument();
+  });
+
   it('🔴 C1: si el guardado falla, no cobra y enseña el error', async () => {
     s.hoja.mockResolvedValue(hoja());
     s.guardar.mockRejectedValue(new Error('el servidor rechazó el guardado'));

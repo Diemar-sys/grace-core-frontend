@@ -64,6 +64,14 @@ export function totalCapturado(renglones: RenglonHoja[], captura: Record<string,
   return centavos(renglones.reduce((s, r) => s + enviadoDe(r, captura) * r.precio, 0));
 }
 
+/** 15-oct: lo que se le cobraría a un cliente con descuento (DELI 40%, ZAKIA 20%) sobre lo
+ *  TECLEADO, para el aviso de «Cobrar». Solo vista previa: la factura la arma el servidor
+ *  con la misma regla (`hoja_calculo.armar_factura`): total × %, a centavos. */
+export function conDescuento(total: number, pct: number) {
+  const descuento = centavos(total * pct);
+  return { descuento, seDebe: centavos(total - descuento) };
+}
+
 export interface FilaTicket { producto: string; piezas: number; precio: number; importe: number }
 
 /** 14-oct: lo que se LLEVA la camioneta (ENVIADO guardado × $ del servidor), para el ticket

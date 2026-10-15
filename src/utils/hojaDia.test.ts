@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sumarCharolas, bloquesDeHoja, cambiosEnviado, columnasDeHoja, totalCapturado } from './hojaDia';
+import { sumarCharolas, bloquesDeHoja, cambiosEnviado, columnasDeHoja, conDescuento, totalCapturado } from './hojaDia';
 import type { RenglonHoja } from '../services/frappeHoja';
 
 const r = (item_code: string, categoria: string, enviado: number, precio: number): RenglonHoja => ({
@@ -194,5 +194,17 @@ describe('ticketCamioneta (14-oct: lo que se lleva la camioneta)', () => {
     ]);
     expect(t.piezas).toBe(23);
     expect(t.total).toBe(265.01);
+  });
+});
+
+describe('conDescuento (15-oct, DELI 40% / ZAKIA 20%)', () => {
+  it('🔴 el ejemplo de Diemar: $5,082 con 40% → −$2,032.80, se deben $3,049.20', () => {
+    expect(conDescuento(5082, 0.4)).toEqual({ descuento: 2032.8, seDebe: 3049.2 });
+  });
+  it('🔴 redondea al centavo (20% de $1.03 = 0.206 → 0.21), igual que el servidor', () => {
+    expect(conDescuento(1.03, 0.2)).toEqual({ descuento: 0.21, seDebe: 0.82 });
+  });
+  it('sin descuento cobra el total', () => {
+    expect(conDescuento(420, 0)).toEqual({ descuento: 0, seDebe: 420 });
   });
 });

@@ -72,6 +72,30 @@ describe('EstadoCuentaHoja', () => {
     expect(screen.queryByText('SUELDO TOTAL')).toBeNull();
     expect(screen.getByText('RECIBIR')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();   // no debe nada
+    expect(screen.queryByText('DESCUENTO')).toBeNull();                      // sin descuento en la semana
+  });
+
+  it('🔴 15-oct: cliente con descuento — columna DESCUENTO entre la venta y lo que se recibe', async () => {
+    h.estadoCuenta.mockResolvedValue({ ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false,
+      dias: [dia('2026-10-12', 'SI-D', { venta: 5082, descuento: 2032.8, recibir: 3049.2, debe: 3049.2 }),
+             dia('2026-10-13', 'SI-E', { venta: 100, descuento: 0, recibir: 100, debe: 100 })],
+      total: { ...ISMA.total, venta: 5182, descuento: 2032.8, recibir: 3149.2, debe: 3149.2, comision: 0 } } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    const fila = (await screen.findByText('12/10/2026')).closest('tr')!;
+    for (const t of ['$5,082.00', '−$2,032.80', '$3,049.20']) expect(within(fila).getByText(t)).toBeInTheDocument();
+    const celdas = within(fila).getAllByRole('cell').map(c => c.textContent);
+    expect(celdas.indexOf('−$2,032.80')).toBe(celdas.indexOf('$5,082.00') + 1);
+    expect(within(screen.getByText('13/10/2026').closest('tr')!).getAllByRole('cell')[2].textContent).toBe('—');
+    expect(screen.getByText('DESCUENTO')).toBeInTheDocument();
+    expect(within(screen.getByText('TOTAL').closest('tr')!).getByText('−$2,032.80')).toBeInTheDocument();
+  });
+
+  it('🔴 15-oct: la camioneta no lleva columna DESCUENTO (su descuento es la comisión)', async () => {
+    render(<EstadoCuentaHoja />);
+    await elegir('ISMA');
+    await screen.findByText('22/09/2026');
+    expect(screen.queryByText('DESCUENTO')).toBeNull();
   });
 
   it('🔴 elegir un día en el calendario pide SU semana lunes-domingo', async () => {

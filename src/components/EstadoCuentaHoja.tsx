@@ -109,6 +109,8 @@ export default function EstadoCuentaHoja() {
   };
 
   const camioneta = Boolean(estado?.camioneta);
+  // 15-oct: DELI/ZAKIA llevan descuento; la columna solo sale si en la semana hubo (camioneta: 0)
+  const conDescuento = (estado?.total.descuento ?? 0) > 0;
   const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
 
   return (
@@ -183,6 +185,7 @@ export default function EstadoCuentaHoja() {
                   <tr>
                     <th>FECHA</th><th className="cell-right">VENTA TOTAL</th>
                     {camioneta && (<><th className="cell-right">COMISIÓN 10%</th><th className="cell-right">AYUDANTE (FIJO)</th><th className="cell-right">SUELDO TOTAL</th></>)}
+                    {conDescuento && <th className="cell-right">DESCUENTO</th>}
                     <th className="cell-right">{camioneta ? 'RECIBIR/PAGAR' : 'RECIBIR'}</th><th className="hoja-estado__col-pago">PAGADO/ABONO</th>
                     <th className="hoja-estado__col-liq">LIQUIDADO</th>
                   </tr>
@@ -197,6 +200,7 @@ export default function EstadoCuentaHoja() {
                         <td className="cell-right">{pesos(d.ayudante)}</td>
                         <td className="cell-right">{pesos(d.sueldo)}</td>
                       </>)}
+                      {conDescuento && <td className="cell-right">{(d.descuento ?? 0) > 0 ? `−${pesos(d.descuento ?? 0)}` : '—'}</td>}
                       <td className="cell-right hoja-estado__recibir">{pesos(d.recibir)}</td>
                       <td className="hoja-estado__col-pago"><PagadoAbono d={d} /></td>
                       <td className="hoja-estado__col-liq">
@@ -233,6 +237,7 @@ export default function EstadoCuentaHoja() {
                       <td className="cell-right">{pesos(estado.total.ayudante)}</td>
                       <td className="cell-right">{pesos(estado.total.sueldo)}</td>
                     </>)}
+                    {conDescuento && <td className="cell-right">−{pesos(estado.total.descuento ?? 0)}</td>}
                     <td className="cell-right">{pesos(estado.total.recibir)}</td>
                     <td className="hoja-estado__col-pago">
                       {estado.total.debe > 0 ? `Debe ${pesos(estado.total.debe)}` : 'PAGADO'}

@@ -26,9 +26,13 @@ export interface Hoja {
   /** Cobrada, dentro de la ventana y sin abono: «Corregir» cancela la factura (06-oct).
    *  La regla vive en el servidor; aquí solo se lee. */
   corregible?: boolean;
+  /** 15-oct: descuento a cliente (DELI 40%, ZAKIA 20%) sobre el total ya con impuesto, del
+   *  servidor. 0 para quien no lleva o para pedidos antes del 12-oct. */
+  descuento?: number; descuento_pct?: number;
 }
 export interface DestinoDia {
   destino: string; grupo: string; camioneta: boolean; total: number; comision: number; se_debe: number;
+  descuento?: number;
   estado: 'sin_capturar' | 'sin_confirmar' | 'en_ruta' | 'regreso' | 'confirmado'; factura: Factura | null;
 }
 
@@ -52,6 +56,8 @@ export interface DiaCuenta {
   fecha: string; factura: string; estado: 'liquidado' | 'abono' | 'pendiente';
   venta: number; comision: number; ayudante: number; sueldo: number; recibir: number; pagado: number; debe: number;
   a_favor: number;
+  /** 15-oct: descuento a cliente (renglón de la factura). La venta lo incluye; recibir no. */
+  descuento?: number;
   /** 09-oct: lo que Eva le entregó a Luis (null = sin liquidar) y pagado − liquidado (null igual). */
   liquidado: number | null; eva_debe: number | null;
 }

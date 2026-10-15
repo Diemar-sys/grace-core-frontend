@@ -15,7 +15,7 @@ import { imprimirCamionetaTermico } from '../services/printService';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketCamioneta, totalCapturado, totalesPorDepartamento,
+  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketCamioneta, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -135,6 +135,9 @@ export default function HojaDelDia() {
   // camioneta: dos hojas de 2 columnas (Diemar 23-sep); los demás: una de 4
   const hojasDeColumnas = hoja?.camioneta ? [columnas.slice(0, 2), columnas.slice(2)] : [columnas];
   const total = useMemo(() => (hoja ? totalCapturado(hoja.renglones, captura) : 0), [hoja, captura]);
+  // 15-oct: DELI 40% / ZAKIA 20% (el % lo manda el servidor; 0 si no lleva, camioneta incluida)
+  const pctDescuento = hoja?.descuento_pct ?? 0;
+  const cobro = useMemo(() => conDescuento(total, pctDescuento), [total, pctDescuento]);
   // 08-oct: piezas e importe por departamento; el total final sigue siendo `total`
   const porDepartamento = useMemo(() => (hoja ? totalesPorDepartamento(hoja.renglones, captura) : []), [hoja, captura]);
 
@@ -299,7 +302,7 @@ export default function HojaDelDia() {
                 <optgroup key={grupo} label={grupo}>
                   {lista.map(d => (
                     <option key={d.destino} value={d.destino}>
-                      {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.camioneta ? d.se_debe : d.total)}${borrador[fecha]?.[d.destino] ? ' · sin guardar' : ''}`}
+                      {`${d.destino} · ${ESTADO[d.estado]} · ${pesos(d.se_debe)}${borrador[fecha]?.[d.destino] ? ' · sin guardar' : ''}`}
                     </option>
                   ))}
                 </optgroup>
@@ -503,6 +506,13 @@ export default function HojaDelDia() {
               <strong>{pesos(total)}</strong>
             </div>
 
+            {pctDescuento > 0 && (
+              <div className="hoja-resumen-camioneta" aria-label="Descuento">
+                <div><span>Descuento {numero(pctDescuento * 100, 0)}%</span><strong>−{pesos(cobro.descuento)}</strong></div>
+                <div><span>Se debe</span><strong>{pesos(cobro.seDebe)}</strong></div>
+              </div>
+            )}
+
             {!cobrado && etapa === '' && (
               <div className="hoja-dia__acciones">
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={guardar} disabled={ocupado}>
@@ -550,6 +560,8 @@ export default function HojaDelDia() {
               : accion === 'corregir'
               ? `Se cancela la factura ${hoja.factura?.name} por ${pesos(hoja.factura?.grand_total ?? 0)}. ${hoja.destino} vuelve a captura y hay que cobrar otra vez.`
               // camioneta: lo que se debe (vendido − comisión) del servidor, con la merma ya guardada
+              : pctDescuento > 0
+              ? `¿Cobrar ${pesos(cobro.seDebe)} a ${hoja.destino}? Total ${pesos(total)} menos ${numero(pctDescuento * 100, 0)}% de descuento (${pesos(cobro.descuento)}). Se genera la factura.`
               : `¿Cobrar ${pesos(hoja.camioneta ? hoja.se_debe : total)} a ${hoja.destino}? Se genera la factura.`
                 + ((hoja.a_favor ?? 0) > 0 ? ` La panadería le debe ${pesos(hoja.a_favor)} a ${hoja.destino} (por nómina).` : '')}
             subdescription={undefined}
