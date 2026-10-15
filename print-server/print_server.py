@@ -48,7 +48,11 @@ def _round(n, places='0.01'):
 
 
 def fmt(n):
-    return f"${_round(n):,.2f}"
+    # El signo va ANTES del peso: "-$493.36", no "$-493.36". Aparece en el
+    # subsidio al empleo y en los ajustes al neto, que son justo los renglones
+    # que el contador revisa con lupa.
+    v = _round(n)
+    return f"-${abs(v):,.2f}" if v < 0 else f"${v:,.2f}"
 
 
 def _num(v, default=0.0):
@@ -470,8 +474,12 @@ def render_egreso_image(data):
         rows.append({'text': 'COMBUSTIBLE', 'size': body})
         rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(pre)}", money(base_comb)), 'size': body})
         if ieps > 0:
-            rows.append({'text': 'IEPS (cuota por litro)', 'size': body})
-            rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(cuota)}", money(ieps)), 'size': body})
+            # cuota solo viene en gastos viejos; hoy el IEPS se deriva del total del CFDI.
+            if cuota:
+                rows.append({'text': 'IEPS (cuota por litro)', 'size': body})
+                rows.append({'lr': (f"  {lit:.3f} L x {fmt_unit(cuota)}", money(ieps)), 'size': body})
+            else:
+                rows.append({'lr': ('IEPS', money(ieps)), 'size': body})
         rows.append({'rule': True})
         rows.append({'lr': ('Base gravable', money(base)), 'size': body})
         rows.append({'lr': ('IVA 16%', money(iva)), 'size': body})
@@ -549,6 +557,111 @@ def render_regalo_image(data):
     rows.append({'text': 'Entra a costo de mercado', 'size': small, 'align': 'c'})
     rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
     return render_lines_image(rows)
+
+
+def render_nomina_image(data):
+    """Comprobante de una corrida de nomina: SOLO TOTALES.
+
+    A proposito no lleva nombres ni el neto de cada quien. Un ticket termico se
+    queda en el mostrador y ahi no puede estar lo que gana cada empleado; el
+    desglose por persona ya vive en la pantalla, con permisos.
+    """
+    body = 22
+    small = 18
+    cols = _cols(body)
+    money = fmt
+
+    def concepto(etiqueta, valor):
+        """Sumatoria dispersa: un concepto en cero no se imprime. Un renglon de
+        $0.00 hace dudar de si se capturo mal o de verdad no hubo."""
+        v = _num(valor)
+        if v:
+            rows.append({'lr': (etiqueta, money(v)), 'size': body})
+
+    rows = [
+        {'text': 'GRACE', 'size': 34, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': small, 'align': 'c'},
+        {'rule': True},
+        {'text': 'CORRIDA DE NOMINA', 'size': 22, 'align': 'c'},
+        {'rule': True},
+        {'text': f"Folio:      {str(data.get('folio') or '-')[:cols - 12]}", 'size': body},
+        {'text': f"Pago:       {data.get('fecha_pago', '')}  {data.get('hora', '')}", 'size': body},
+        {'text': f"Nomina de:  {str(data.get('nomina_de') or '-')[:cols - 12]}", 'size': body},
+    ]
+    if data.get('semana_del') and data.get('semana_al'):
+        rows.append({'text': f"Semana:     {data['semana_del']} al {data['semana_al']}", 'size': body})
+    rows.append({'rule': True})
+
+    # El orden, los codigos y los nombres son los de la Lista de Raya de
+    # CONTPAQi (Total General). Se copian tal cual a proposito: el contador
+    # coteja ticket contra lista renglon por renglon, y un concepto renombrado
+    # "para que se lea mejor" lo obliga a traducir.
+    rows.append({'text': 'PERCEPCIONES', 'size': body})
+    concepto('  1 Sueldo',                       data.get('total_sueldo'))
+    concepto('  3 Septimo dia',                  data.get('total_septimo_dia'))
+    concepto(' 10 Prima dominical',              data.get('total_prima_dominical'))
+    concepto(' 12 Gratificacion',                data.get('total_gratificacion'))
+    concepto(' 19 Vacaciones a tiempo',          data.get('total_vacaciones'))
+    concepto(' 20 Prima de vacaciones a tiempo', data.get('total_prima_vacacional'))
+    rows.append({'rule': True})
+    rows.append({'lr': ('Total Percepciones', money(_num(data.get('total_declarado')))), 'size': body})
+
+    rows.append({'rule': True})
+    rows.append({'text': 'DEDUCCIONES', 'size': body})
+    # Los tres primeros NO deducen: van en la lista porque CONTPAQi los imprime
+    # (el prestamo es saldo, el subsidio ya viene dentro del ISR (mes), y el ISR
+    # antes de subsidio es el paso previo del calculo). Suman cero al total.
+    concepto(' 15 Prestamo infonavit (FD)',      data.get('total_prestamo_infonavit'))
+    concepto(' 32 Subs al Empleo acreditado',    data.get('total_subsidio_empleo'))
+    concepto(' 41 I.S.R. antes de Subs',         data.get('total_isr_antes_subsidio'))
+    concepto(' 43 I.S.R. Art. 174',              data.get('total_isr_art174'))
+    concepto(' 45 I.S.R. (mes)',                 data.get('total_isr'))
+    concepto(' 52 I.M.S.S.',                     data.get('total_imss'))
+    concepto(' 99 Ajuste al neto',               data.get('total_ajuste'))
+    concepto('180 Infonavit FD correspondiente', data.get('total_infonavit'))
+    rows.append({'rule': True})
+    rows.append({'lr': ('Total Deducciones', money(_num(data.get('total_retenciones')))), 'size': body})
+
+    rows.append({'rule': True})
+    # "Neto general" es el MISMO numero que el de la Lista de Raya. Lo pagado por
+    # fuera no entra: se captura como Egreso NOMINA/EFECTIVO y por eso ya no vive
+    # en la corrida. Cuando estaba aqui, este renglon decia 61,907.80 mientras
+    # CONTPAQi decia 41,907.80 con el mismo nombre.
+    rows.append({'lr': ('NETO GENERAL:', money(_num(data.get('total_neto')))), 'size': 30})
+    rows.append({'rule': True})
+
+    empleados = int(_num(data.get('empleados')))
+    if empleados:
+        rows.append({'text': f"Total de empleados general: {empleados}",
+                     'size': small, 'align': 'c'})
+    rows.append({'text': 'www.panaderiasgrace.mx', 'size': small, 'align': 'c'})
+    return render_lines_image(rows)
+
+
+@app.route('/imprimir-nomina', methods=['POST', 'OPTIONS'])
+def imprimir_nomina():
+    if request.method == 'OPTIONS':
+        return cors(make_response('', 200))
+    try:
+        data = request.get_json(force=False, silent=True)
+        if not data:
+            return cors(jsonify({'ok': False, 'error': 'Se requiere Content-Type: application/json y un cuerpo JSON válido'}), 400)
+
+        data = dict(data)
+        data['hora'] = datetime.now().strftime('%H:%M')
+        img = render_nomina_image(data)
+        p = get_printer()
+        try:
+            p.image(img)
+            p.text("\n\n")
+            p.cut()
+        finally:
+            p.close()
+
+        return cors(jsonify({'ok': True}))
+    except Exception as e:
+        traceback.print_exc()
+        return cors(jsonify({'ok': False, 'error': str(e)}), 500)
 
 
 @app.route('/imprimir', methods=['POST', 'OPTIONS'])
@@ -925,7 +1038,14 @@ def cors(response, status=None):
     return response
 
 if __name__ == '__main__':
-    # 0.0.0.0: el nginx del frontend (en contenedor) llega vía host-gateway.
-    # En LAN confiable; el acceso real se controla en nginx (location /print).
-    print("Servidor de impresion corriendo en http://0.0.0.0:6789")
-    app.run(host='0.0.0.0', port=6789, debug=False, use_reloader=False)
+    # Solo docker0 (172.17.0.1), NO 0.0.0.0: el único cliente legítimo es el
+    # nginx del frontend, que llega por host.docker.internal — y eso resuelve
+    # justo a 172.17.0.1, comprobado con getent dentro del contenedor. Atado a
+    # 0.0.0.0 el puerto quedaba abierto a toda la LAN sin autenticación, con el
+    # servidor de desarrollo de Flask: cualquiera en el wifi podía imprimir.
+    # Ninguna sucursal le pegaba directo (el log solo tiene IPs 172.18.0.x).
+    #
+    # Si algún día deja de arrancar con "Cannot assign requested address", es
+    # que docker0 no existía todavía: el servicio arrancó antes que Docker.
+    print("Servidor de impresion corriendo en http://172.17.0.1:6789")
+    app.run(host='172.17.0.1', port=6789, debug=False, use_reloader=False)
