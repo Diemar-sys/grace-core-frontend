@@ -96,7 +96,8 @@ function Layout({ children }) {
           <div className="panel-user-chip">
             <User size={18} />
             {user?.fullName || user?.email || "Usuario"}
-            {user?.posProfile && (
+            {/* 16-oct: el Cliente no tiene POS aunque su cuenta conserve el perfil */}
+            {user?.posProfile && user?.role !== 'Cliente' && (
               <span className="user-branch-badge">
                 {typeof user.posProfile === 'string' ? user.posProfile : user.posProfile?.name}
               </span>

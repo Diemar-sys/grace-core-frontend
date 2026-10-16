@@ -1,0 +1,158 @@
+/* MiCuenta.css — la cuenta del cliente (16-oct). Tablero: UN panel flotante con lado
+ * carbón (identidad y menú) y lado harina con tarjetas Bento; la cifra principal en
+ * coral sólido. Gráficas en CSS/SVG. Responsive por CLASE, nunca por nth-child. */
+/* Pantalla completa (Diemar): el tablero llena todo lo que queda bajo la barra; el
+ * relleno de .main-content se quita SOLO en esta pantalla. */
+.main-content:has(> .mc) { padding: 0; }
+.mc { flex: 1; display: flex; width: 100%; }
+.mc-panel {
+  flex: 1; display: grid; grid-template-columns: 260px 1fr; width: 100%;
+  background: var(--color-brand-bg);
+}
+
+/* ── lado: identidad + menú ── */
+.mc-lado {
+  background: var(--tv-carbon); color: #fff; padding: 2rem 1.25rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center;
+}
+.mc-avatar {
+  width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 32px/1 var(--font-display); color: #fff; margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--color-brand-mid), var(--color-brand));
+  box-shadow: 0 0 0 6px rgba(255,255,255,.08);
+}
+.mc-nombre { font: 700 18px/1.2 var(--font-display); }
+.mc-correo { font-size: 12.5px; opacity: .7; word-break: break-all; }
+.mc-menu { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; margin-top: 1.75rem; }
+.mc-menu-btn {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.7rem 1rem;
+  background: none; border: none; border-radius: var(--radius-pill); color: rgba(255,255,255,.75);
+  font-family: inherit; font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; text-align: left; transition: background .2s ease, color .2s ease;
+}
+.mc-menu-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.mc-menu-btn--activo { background: var(--color-brand); color: #fff; }
+.mc-menu-btn--activo:hover { background: var(--color-brand); }
+
+/* ── lado principal ── */
+.mc-main { padding: 2rem 2.5rem; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.mc-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.mc-cabecera h2 { margin: 0; font: 700 1.6rem/1.1 var(--font-display); color: var(--tv-ink); }
+.mc-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--color-text-soft); }
+.mc-filtros label { display: flex; align-items: center; gap: 0.4rem; }
+
+.mc-tarjeta, .mc-cifra {
+  background: var(--color-surface); border-radius: 18px; box-shadow: var(--shadow-bento);
+  padding: 1.5rem; transition: box-shadow .2s ease; min-width: 0;
+}
+.mc-tarjeta:hover, .mc-cifra:hover { box-shadow: var(--shadow-bento-hover); }
+.mc-tarjeta h3 { margin: 0; font: 700 1rem/1.2 var(--font-display); color: var(--tv-ink); }
+.mc-tarjeta-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+/* ── cifras ── */
+.mc-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.mc-cifra { display: flex; flex-direction: column; gap: 0.3rem; padding: 1.25rem; }
+.mc-cifra span { font-size: 0.85rem; color: var(--color-text-soft); font-weight: 600; }
+.mc-cifra strong { font: 700 1.55rem/1.1 var(--tv-mono); color: var(--tv-ink); overflow-wrap: anywhere; }
+.mc-cifra small { font-size: 0.75rem; color: var(--color-text-soft); }
+.mc-cifra--marca { background: var(--color-brand); }
+.mc-cifra--marca span, .mc-cifra--marca small { color: rgba(255,255,255,.85); }
+.mc-cifra--marca strong { color: #fff; }
+
+/* ── filas de tarjetas ── */
+.mc-fila { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; }
+.mc-fila + .mc-fila { grid-template-columns: 1fr 1fr; }
+.mc-leyenda { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--color-text-soft); }
+.mc-punto { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 0.4rem 0 0.5rem; }
+.mc-punto--pagado, .mc-seg--pagado { background: var(--tv-carbon); }
+.mc-punto--debe, .mc-seg--debe { background: var(--color-brand-light); }
+
+/* facturado por día: columnas apiladas (pendiente arriba, pagado abajo) con eje en pesos */
+.mc-grafica { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; height: 260px; }
+.mc-eje {
+  display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 1.4rem;
+  font: 0.7rem/1 var(--tv-mono); color: var(--color-text-soft); text-align: right;
+}
+.mc-columnas {
+  display: flex; gap: 0.5rem; overflow-x: auto; position: relative;
+  background: repeating-linear-gradient(to top, var(--color-surface-sunk) 0 1px, transparent 1px 25%) 0 0 / 100% calc(100% - 1.4rem) no-repeat;
+}
+.mc-columna { flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+.mc-columna-pila { flex: 1; width: 60%; max-width: 34px; display: flex; flex-direction: column; justify-content: flex-end; }
+.mc-seg { display: block; width: 100%; transition: opacity .2s ease; }
+.mc-seg--debe { border-radius: 6px 6px 0 0; }
+.mc-seg--pagado:first-child { border-radius: 6px 6px 0 0; }
+.mc-columna:hover .mc-seg { opacity: .8; }
+.mc-columna-fecha { font-size: 0.7rem; color: var(--color-text-soft); white-space: nowrap; height: 1rem; }
+
+/* pagado del periodo: dona + lista con montos */
+.mc-pagado { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.mc-pagado h3 { align-self: flex-start; }
+.mc-dona { width: 160px; height: 160px; }
+.mc-dona circle { fill: none; stroke-width: 4.2; }
+.mc-dona-fondo { stroke: var(--color-brand-light); }
+.mc-dona-pagado { stroke: var(--tv-carbon); }
+.mc-dona-txt { font: 700 7px/1 var(--font-display); fill: var(--tv-ink); }
+.mc-dona-sub { font: 3px/1 var(--font-display); fill: var(--color-text-soft); }
+.mc-lista { list-style: none; margin: 0; padding: 0; width: 100%; }
+.mc-lista li {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0;
+  border-bottom: 1px solid var(--color-surface-sunk); font-size: 0.85rem; color: var(--color-text-soft);
+}
+.mc-lista strong { font-family: var(--tv-mono); color: var(--tv-ink); }
+
+/* barras de avance (surtido) y antigüedad: una pista gris con su relleno */
+.mc-surtido, .mc-tramos { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.mc-surtido { max-height: 300px; overflow-y: auto; padding-right: 0.25rem; }
+.mc-surtido li { display: grid; grid-template-columns: 90px 1fr 48px 110px; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
+.mc-tramos li { display: grid; grid-template-columns: 110px 1fr 120px; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
+.mc-surtido-dia, .mc-tramo-nombre { color: var(--color-text-soft); white-space: nowrap; }
+.mc-surtido strong, .mc-tramos strong { font-family: var(--tv-mono); text-align: right; color: var(--tv-ink); }
+.mc-surtido small { color: var(--color-text-soft); font-family: var(--tv-mono); text-align: right; }
+.mc-pista { height: 10px; border-radius: var(--radius-pill); background: var(--color-surface-sunk); overflow: hidden; }
+.mc-avance, .mc-tramo { display: block; height: 100%; border-radius: var(--radius-pill); transition: width .3s ease; }
+.mc-avance { background: var(--tv-ok); }
+.mc-tramo--0 { background: var(--tv-carbon); }
+.mc-tramo--1 { background: var(--tv-warn); }
+.mc-tramo--2 { background: var(--color-brand-light); }
+.mc-tramo--3 { background: var(--color-brand-mid); }
+
+/* ── tablas ── */
+.mc-scroll { overflow-x: auto; }
+.mc-tabla { width: 100%; border-collapse: collapse; }
+.mc-tabla th { text-align: left; font-size: 0.8rem; color: var(--color-text-soft); padding: 0.6rem; background: var(--color-surface-sunk); }
+.mc-tabla th:first-child { border-radius: 10px 0 0 10px; }
+.mc-tabla th:last-child { border-radius: 0 10px 10px 0; }
+.mc-tabla td { padding: 0.6rem; border-top: 1px solid var(--color-surface-sunk); }
+.mc-num { text-align: right; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
+.mc-debe { color: var(--tv-warn) !important; font-weight: 700; }
+.mc-detalle { margin-top: 1.25rem; }
+.mc-detalle h4 { margin: 0 0 0.5rem; }
+
+.mc-btn {
+  border: none; border-radius: var(--radius-pill); padding: 0.4rem 1rem; background: var(--color-surface-sunk);
+  font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease;
+}
+.mc-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.mc-btn--marca { background: var(--color-brand); color: #fff; }
+.mc-nota { color: var(--color-text-soft); font-size: 0.85rem; margin: 0; }
+.mc-pie { margin-top: auto; }
+.mc-error { color: #991b1b; background: #fee2e2; border-radius: var(--radius-card); padding: 0.75rem 1rem; margin: 0; }
+
+@media (max-width: 1100px) {
+  .mc-cifras { grid-template-columns: repeat(2, 1fr); }
+  .mc-fila, .mc-fila + .mc-fila { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .mc-surtido li { grid-template-columns: 76px 1fr 44px; }
+  .mc-surtido small { display: none; }
+  .mc-tramos li { grid-template-columns: 90px 1fr 96px; }
+}
+@media (max-width: 760px) {
+  .mc-panel { grid-template-columns: 1fr; }
+  .mc-lado { padding: 1.25rem; flex-direction: row; flex-wrap: wrap; justify-content: center; text-align: left; }
+  .mc-avatar { width: 56px; height: 56px; font-size: 20px; margin: 0; }
+  .mc-menu { flex-direction: row; overflow-x: auto; margin-top: 0.5rem; }
+  .mc-menu-btn { width: auto; flex: none; }
+  .mc-main { padding: 1rem; }
+}
+@media (max-width: 480px) { .mc-cifras { grid-template-columns: 1fr; } }

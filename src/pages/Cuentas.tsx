@@ -17,6 +17,8 @@ const NIVEL_COLOR: Record<string, { fg: string; bg: string }> = {
   Operaciones: { fg: 'var(--nivel-operaciones)', bg: 'var(--nivel-operaciones-bg)' },
   Gerente:     { fg: 'var(--nivel-gerente)',     bg: 'var(--nivel-gerente-bg)' },
   'System Manager': { fg: 'var(--nivel-gerente)', bg: 'var(--nivel-gerente-bg)' },
+  Repartidor:  { fg: 'var(--nivel-repartidor)',  bg: 'var(--nivel-repartidor-bg)' },
+  Cliente:     { fg: 'var(--nivel-cliente)',     bg: 'var(--nivel-cliente-bg)' },
 };
 const colorNivel = (n: string) => NIVEL_COLOR[n] || { fg: 'var(--color-text-soft)', bg: '#f1e7d6' };
 
@@ -38,6 +40,14 @@ function AccesoRestringido() {
 
 interface AdminGate { titulo: string; run: (pwd: string) => Promise<any>; }
 
+/** «16-oct 09:41» o «Nunca». El servidor manda 'AAAA-MM-DD HH:MM:SS.ffffff'. */
+export function ultimoAcceso(fecha?: string | null) {
+  if (!fecha) return 'Nunca';
+  const [d, h] = fecha.split(' ');
+  const [a, m, dia] = d.split('-');
+  return `${dia}/${m}/${a} ${(h || '').slice(0, 5)}`.trim();
+}
+
 export default function Cuentas() {
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [niveles, setNiveles]   = useState<string[]>([]);
@@ -56,6 +66,10 @@ export default function Cuentas() {
   const [gateBusy, setGateBusy]   = useState(false);
   const [gateError, setGateError] = useState('');
   const [verGatePwd, setVerGatePwd] = useState(false);
+  // 16-oct: ficha del usuario (modal). Se guarda el correo y el usuario se lee de la lista,
+  // así un cambio de nivel/estado desde la ficha se ve en cuanto recarga.
+  const [fichaEmail, setFichaEmail] = useState<string | null>(null);
+  const ficha = usuarios.find((u: any) => u.name === fichaEmail) || null;
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -182,13 +196,14 @@ export default function Cuentas() {
                     return (
                       <tr key={u.name} className={esSM ? 'cuentas-row-sysmgr' : undefined}>
                         <td>
-                          <div className="persona">
+                          <button type="button" className="persona persona-btn" onClick={() => setFichaEmail(u.name)}
+                            aria-label={`Ver ficha de ${u.name}`}>
                             <span className="avatar">{iniciales(u.full_name, u.name)}</span>
                             <span className="persona-datos">
                               <span className="persona-nombre">{u.full_name || '—'}</span>
                               <span className="persona-correo">{u.name}</span>
                             </span>
-                          </div>
+                          </button>
                         </td>
                         <td>
                           <select className="nivel-select" value={u.nivel || ''}
@@ -290,6 +305,77 @@ export default function Cuentas() {
                 </button>
               </div>
             </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+
+        {/* 16-oct: ficha del usuario — lado oscuro con su identidad, tarjetas con sus datos y sus acciones */}
+        <Dialog.Root open={!!ficha} onOpenChange={(o) => { if (!o) setFichaEmail(null); }}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="cuentas-overlay" />
+            {ficha && (() => {
+              const c = colorNivel(ficha.nivel);
+              const esSM = ficha.es_system_manager;
+              return (
+                <Dialog.Content className="cuentas-modal ficha">
+                  <aside className="ficha-lado">
+                    <span className="avatar ficha-avatar">{iniciales(ficha.full_name, ficha.name)}</span>
+                    <strong className="ficha-nombre">{ficha.full_name || '—'}</strong>
+                    <span className="ficha-correo">{ficha.name}</span>
+                    <span className="ficha-pill" style={{ color: c.fg, background: c.bg }}>{ficha.nivel || 'Sin nivel'}</span>
+                    <span className={'estado ficha-estado ' + (ficha.enabled ? 'on' : 'off')}>
+                      <span className="dot" />{ficha.enabled ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </aside>
+                  <section className="ficha-main">
+                    <div className="ficha-cabeza">
+                      <Dialog.Title className="cuentas-modal-title">Ficha del usuario</Dialog.Title>
+                      <Dialog.Close className="icon-btn" aria-label="Cerrar"><X size={15} /></Dialog.Close>
+                    </div>
+                    <Dialog.Description className="cuentas-modal-sub">Lo que puede hacer esta cuenta en el sistema.</Dialog.Description>
+                    <div className="ficha-kpis">
+                      <div className="ficha-kpi ficha-kpi--marca"><span>Nivel</span><strong>{ficha.nivel || '—'}</strong></div>
+                      <div className="ficha-kpi"><span>Estado</span><strong>{ficha.enabled ? 'Activo' : 'Inactivo'}</strong></div>
+                      <div className="ficha-kpi"><span>Punto de venta</span><strong>{ficha.pos_profile || '—'}</strong></div>
+                      <div className="ficha-kpi"><span>Último acceso</span><strong>{ultimoAcceso(ficha.last_login)}</strong></div>
+                    </div>
+                    {ficha.nivel === 'Cliente' && (
+                      <div className="ficha-cliente" aria-label="Cuenta de cliente">
+                        <div><span>Ve la cuenta de</span><strong>{ficha.custom_cliente || 'Sin cliente asignado'}</strong></div>
+                        <div><span>Envíos a</span><strong>{ficha.custom_cliente_almacen || '—'}</strong></div>
+                      </div>
+                    )}
+                    <div className="ficha-acciones">
+                      <label className="cuentas-field">NIVEL
+                        <select className="nivel-select" value={ficha.nivel || ''} style={{ color: c.fg, background: c.bg }}
+                          onChange={(e: ChangeEvent<HTMLSelectElement>) => handleNivel(ficha.name, e.target.value, esSM)}>
+                          {!ficha.nivel && <option value="">— Sin nivel —</option>}
+                          {niveles.map(n => <option key={n}>{n}</option>)}
+                        </select>
+                      </label>
+                      {!esSM && (
+                        <label className="cuentas-field">PUNTO DE VENTA
+                          <select className="pos-select" value={ficha.pos_profile || ''}
+                            onChange={(e: ChangeEvent<HTMLSelectElement>) => handlePos(ficha.name, e.target.value)}>
+                            <option value="">— Sin perfil —</option>
+                            {perfiles.map((p: any) => <option key={p}>{p}</option>)}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+                    <div className="cuentas-form-actions">
+                      {!esSM && (
+                        <button className="btn-ghost" onClick={() => handleToggle(ficha.name, !ficha.enabled)}>
+                          {ficha.enabled ? 'DESHABILITAR' : 'HABILITAR'}
+                        </button>
+                      )}
+                      <button className="btn-primary" onClick={() => { setFichaEmail(null); abrirEditar(ficha); }}>
+                        <Pencil size={15} /> Editar
+                      </button>
+                    </div>
+                  </section>
+                </Dialog.Content>
+              );
+            })()}
           </Dialog.Portal>
         </Dialog.Root>
 

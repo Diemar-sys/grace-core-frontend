@@ -55,3 +55,27 @@ export function haceCuanto(datetime?: string | null, ahora: Date = new Date()): 
 /** `"alma@panaderiasgrace.com"` → `"alma"`. Para etiquetar de quién es algo. */
 export const nombreCorto = (email?: string | null): string =>
   (email || '').split('@')[0] || '';
+
+// 16-oct: fechas bonitas para «Mi cuenta». Se parte el texto 'AAAA-MM-DD' (sin `new Date(iso)`,
+// que lo lee en UTC y en México da el día anterior).
+const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const partes = (iso: string) => iso.slice(0, 10).split('-').map(Number) as [number, number, number];
+
+/** '2026-10-02' → 'vie 2 oct'. */
+export function fechaCorta(iso: string): string {
+  const [a, m, d] = partes(iso);
+  return `${DIAS[new Date(a, m - 1, d).getDay()]} ${d} ${MESES[m - 1]}`;
+}
+
+/** '2026-10-02' → 'vie 2 oct 2026'. */
+export const fechaLarga = (iso: string) => `${fechaCorta(iso)} ${iso.slice(0, 4)}`;
+
+/** '2026-10-01','2026-10-16' → '1 – 16 oct 2026'; otro mes u otro año se escribe completo. */
+export function rangoFechas(desde: string, hasta: string): string {
+  const [a1, m1, d1] = partes(desde);
+  const [a2, m2, d2] = partes(hasta);
+  if (a1 !== a2) return `${d1} ${MESES[m1 - 1]} ${a1} – ${d2} ${MESES[m2 - 1]} ${a2}`;
+  if (m1 !== m2) return `${d1} ${MESES[m1 - 1]} – ${d2} ${MESES[m2 - 1]} ${a2}`;
+  return d1 === d2 ? `${d1} ${MESES[m1 - 1]} ${a1}` : `${d1} – ${d2} ${MESES[m1 - 1]} ${a1}`;
+}

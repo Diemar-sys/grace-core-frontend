@@ -65,6 +65,14 @@ export const ROLES: Record<string, RoleConfig> = {
     rutas: ['/liquidacion'],
     inicio: '/liquidacion',
   },
+  // 16-oct: un cliente (Alejandro, Puerta Real) ve SOLO su cuenta, de lectura. Como el
+  // repartidor: sin panel, y cualquier otra ruta lo regresa a lo suyo.
+  Cliente: {
+    modulosPanel: [],
+    reportes: false,
+    rutas: ['/mi-cuenta'],
+    inicio: '/mi-cuenta',
+  },
   Gerente: {
     modulosPanel: MOD_GERENTE,
     reportes: true,

@@ -27,6 +27,7 @@ const ConsultaTablero = lazy(() => import('./pages/ConsultaTablero'));
 const ConsultasPOS = lazy(() => import('./pages/ConsultasPOS'));
 const Kardex = lazy(() => import('./pages/Kardex'));
 const Liquidacion = lazy(() => import('./pages/Liquidacion'));
+const MiCuenta = lazy(() => import('./pages/MiCuenta'));
 const ReportesVentasCategoria = lazy(() => import('./pages/ReportesVentasCategoria'));
 const ReporteGastos = lazy(() => import('./pages/ReporteGastos'));
 const ReporteGastosAnual = lazy(() => import('./pages/ReporteGastosAnual'));
@@ -279,6 +280,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Liquidacion />
+              </ProtectedRoute>
+            }
+          />
+          {/* 16-oct: la UNICA pantalla del nivel Cliente (Alejandro): ve solo lo suyo. */}
+          <Route
+            path="/mi-cuenta"
+            element={
+              <ProtectedRoute>
+                <MiCuenta />
               </ProtectedRoute>
             }
           />

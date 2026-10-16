@@ -170,3 +170,46 @@
   .cuentas-new-btn, .btn-primary, .icon-btn { transition: none; }
   .cuentas-spinner, .cuentas-overlay, .cuentas-modal { animation: none; }
 }
+
+/* ── 16-oct: ficha del usuario (modal) ───────────────────────────────────
+ * Lado oscuro (carbón) con la identidad y el lado claro con tarjetas Bento:
+ * la primera en coral sólido como cifra principal. Responsive por clase. */
+.persona-btn { background: none; border: none; padding: 0; font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+.persona-btn:hover .persona-nombre { color: var(--color-brand); }
+.persona-btn:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 4px; }
+.cuentas-modal.ficha {
+  width: min(860px, calc(100vw - 32px)); padding: 0; display: grid; grid-template-columns: 240px 1fr;
+  overflow: hidden; border: none; border-radius: var(--radius-bento); background: var(--color-brand-bg);
+}
+.ficha-lado {
+  background: var(--tv-carbon); color: #fff; padding: 2rem 1.25rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center;
+}
+.ficha-avatar { width: 96px; height: 96px; font-size: 32px; margin-bottom: 0.5rem; box-shadow: 0 0 0 6px rgba(255,255,255,.08); }
+.ficha-nombre { font: 700 18px/1.2 var(--font-display); }
+.ficha-correo { font-size: 12.5px; opacity: .75; word-break: break-all; }
+.ficha-pill { font-weight: 700; font-size: 12.5px; padding: 4px 12px; border-radius: var(--radius-pill); margin-top: 0.5rem; }
+.ficha-estado.off { color: #c9cdd1; }
+.ficha-main { padding: 1.5rem; overflow-y: auto; max-height: var(--modal-max-h); }
+.ficha-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.ficha-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; margin-bottom: 1rem; }
+.ficha-kpi, .ficha-cliente > div {
+  background: var(--color-surface); border-radius: 16px; box-shadow: var(--shadow-bento);
+  padding: 1rem; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; transition: box-shadow .2s ease;
+}
+.ficha-kpi:hover, .ficha-cliente > div:hover { box-shadow: var(--shadow-bento-hover); }
+.ficha-kpi span, .ficha-cliente span { font-size: 12px; color: var(--color-text-soft); }
+.ficha-kpi strong, .ficha-cliente strong { font: 700 15px/1.25 var(--font-display); color: var(--tv-ink); overflow-wrap: anywhere; }
+.ficha-kpi--marca { background: var(--color-brand); }
+.ficha-kpi--marca span { color: rgba(255,255,255,.8); }
+.ficha-kpi--marca strong { color: #fff; font-size: 18px; }
+.ficha-cliente { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 1rem; }
+.ficha-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4); }
+@media (max-width: 720px) {
+  .cuentas-modal.ficha { grid-template-columns: 1fr; overflow-y: auto; }
+  .ficha-lado { padding: 1.25rem; }
+  .ficha-avatar { width: 64px; height: 64px; font-size: 22px; }
+  .ficha-main { max-height: none; }
+  .ficha-kpis { grid-template-columns: 1fr 1fr; }
+  .ficha-cliente, .ficha-acciones { grid-template-columns: 1fr; }
+}

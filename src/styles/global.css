@@ -59,6 +59,8 @@
   --nivel-almacen:      #2e7d32; --nivel-almacen-bg:     #e8f5e9;
   --nivel-operaciones:  #1565c0; --nivel-operaciones-bg: #e3f0ff;
   --nivel-gerente:      #6a1b9a; --nivel-gerente-bg:     #f3e5f5;
+  --nivel-repartidor:   #00695c; --nivel-repartidor-bg:  #e0f2f1;
+  --nivel-cliente:      #9a3412; --nivel-cliente-bg:     #ffedd5;  /* 16-oct: cuenta de cliente (Mi cuenta) */
 
   /* ── Dirección "Talavera/Grace" (rediseño UI; paleta del logo:
         carbón insignia + rojo coral listón + harina). Tokens --tv-*
