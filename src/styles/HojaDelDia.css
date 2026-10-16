@@ -586,7 +586,7 @@
 .hoja-tabla.bolillo__tabla td { width: 25%; text-align: center; vertical-align: middle; }
 .hoja-tabla.bolillo__tabla tbody td { height: 5.5rem; padding: 0.25rem; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
 .hoja-tabla.bolillo__tabla input.bolillo__input {
-  width: 100%; max-width: 5.5rem; min-height: 40px; text-align: center; font-size: 1rem;
+  width: 100%; max-width: 4rem; min-height: 32px; padding: 0.15rem 0.25rem; text-align: center; font-size: 1rem;
 }
 .bolillo__tabla caption {
   caption-side: top; padding-bottom: 0.5rem;
