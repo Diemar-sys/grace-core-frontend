@@ -190,6 +190,7 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
             <header className="bolillo__cabecera">
               <h3>{d.destino}</h3>
               {d.cobrado && <span className="hoja-badge hoja-badge--verde">Cobrado</span>}
+              {d.cerrado && !d.cobrado && <span className="hoja-badge">Ya salió · «Reabrir envío» en la Captura para corregir</span>}
             </header>
             <div className="bolillo__par">
               <TablaPedido nombre={d.destino} tandas={d.tandas} items={items} totales={totales} />
@@ -211,7 +212,7 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
                               total={salioDe(tecleado, d.destino, t, it.item_code)}
                               partes={partes(k, guardado, it.por_charola)}
                               estado={estadoEnviado(pedido, salioDe(tecleado, d.destino, t, it.item_code)) ?? ''}
-                              disabled={d.cobrado || ocupado}
+                              disabled={d.cobrado || d.cerrado || ocupado}
                               onTeclear={v => teclear(k, v)} onParte={teclearDe(k, guardado, it.por_charola)}
                             />
                           </td>

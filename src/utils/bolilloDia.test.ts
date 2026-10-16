@@ -66,6 +66,9 @@ describe('cambiosBolillo (08-oct)', () => {
   });
   it('sin bolsa de camionetas no truena', () => {
     expect(cambiosBolillo({ ...DIA, camionetas: null }, {}).camionetas).toEqual([]);
+    // 17-oct: una camioneta con tandas propias ya salida no manda lo tecleado
+    const salida = { ...DIA, camionetas: null, destinos: [{ destino: 'MARTIN', cobrado: false, cerrado: true, tandas: DIA.destinos[0].tandas }] };
+    expect(cambiosBolillo(salida, { [claveTanda('MARTIN', 1, '3001')]: '5' }).tandas).toEqual([]);
   });
 });
 

@@ -174,6 +174,23 @@ describe('VistaBolillo (08-oct; 09-oct PEDIDO | ENVIADO; 14-oct charolas + suelt
     expect(ch('MARTIN BOLILLO')).toBeDisabled();
   });
 
+  // 17-oct: el Excel trae un bloque por camioneta; con su envío confirmado sus tandas quedan fijas
+  it('🔴 camioneta con tandas propias: se teclea como sucursal y, ya salida, no', async () => {
+    const dia = { ...DIA(), camionetas: null, destinos: [
+      { destino: 'ISMA', cobrado: false, cerrado: false, tandas: [T(1, 'TABLA', [32, 0])] },
+      { destino: 'MARTIN', cobrado: false, cerrado: true, tandas: [T(1, 'TABLA', [32, 32])] },
+    ] };
+    s.vistaBolillo.mockResolvedValue(dia);
+    const { unmount } = ver('ISMA');
+    await screen.findByRole('table', { name: 'Enviado ISMA' });
+    expect(ch('ISMA tanda 1 BOLILLO')).toBeEnabled();
+    unmount();
+    ver('MARTIN');
+    await screen.findByRole('table', { name: 'Enviado MARTIN' });
+    expect(ch('MARTIN tanda 1 BOLILLO')).toBeDisabled();
+    expect(screen.getByText(/Ya salió/)).toBeInTheDocument();
+  });
+
   it('sin destino lo pide; destino sin tandas (ZAKIA) dice dónde se captura; sin pestaña lo dice', async () => {
     const a = ver('');
     expect(await screen.findByText(/Elige un destino/)).toBeInTheDocument();

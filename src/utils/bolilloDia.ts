@@ -83,7 +83,7 @@ export function cambiosBolillo(dia: BolilloDia, tecleado: TecleadoBolillo) {
   const tandas: CeldaPorGuardar[] = [];
   const camionetas: CamionetaPorGuardar[] = [];
   for (const d of dia.destinos) {
-    if (d.cobrado) continue;
+    if (d.cobrado || d.cerrado) continue;
     for (const t of d.tandas) {
       for (const it of dia.items) {
         const k = claveTanda(d.destino, t.tanda, it.item_code);

@@ -40,7 +40,8 @@ export interface DestinoDia {
 export interface CeldaTanda { pedido: number; salio: number }
 export interface Tanda { tanda: number; tipo: string; segundo: string; horario: string; celdas: Record<string, CeldaTanda> }
 export interface ItemBolillo { item_code: string; unidad: 'charolas' | 'piezas'; por_charola: number }
-export interface DestinoBolillo { destino: string; cobrado: boolean; tandas: Tanda[] }
+/** 17-oct: `cerrado` = camioneta con su bloque propio y el envío ya confirmado (tandas fijas). */
+export interface DestinoBolillo { destino: string; cobrado: boolean; cerrado?: boolean; tandas: Tanda[] }
 export interface CamionetaBolillo { destino: string; cerrada: boolean; cobrada: boolean; cantidades: Record<string, number> }
 export interface BolilloDia {
   items: ItemBolillo[];
