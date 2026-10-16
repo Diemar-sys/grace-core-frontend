@@ -10,7 +10,8 @@ import ModalError from './modals/ModalError';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import { hojaService, type BolilloDia, type ItemBolillo, type Tanda } from '../services/frappeHoja';
 import {
-  bolilloDe, cambiosBolillo, claveCamioneta, claveTanda, llevaCamioneta, partesDe, salioDe, sinDestino, teclearParte, totalesCamionetas, totalesDestino,
+  bolilloDe, cambiosBolillo, claveCamioneta, claveTanda, llevaCamioneta, mananaYTarde, partesDe, salioDe, sinDestino, teclearParte, TIPO_TARDE,
+  totalesCamionetas, totalesDestino,
   type BorradorBolillo, type Partes, type TecleadoBolillo, type TotalBolillo,
 } from '../utils/bolilloDia';
 import { estadoEnviado } from '../utils/hojaDia';
@@ -57,12 +58,15 @@ function TablaPedido({ nombre, tandas, items, totales }: { nombre: string; tanda
       <Encabezado items={items} />
       <tbody>
         {tandas.map(t => (
-          <tr key={t.tanda}>
-            {items.map(it => {
-              const n = t.celdas[it.item_code]?.pedido ?? 0;
-              return <td key={it.item_code} className="hoja-celda--num">{n ? numero(n, 0) : ''}</td>;
-            })}
-          </tr>
+          // 16-oct: la TARDE no trae pedido; se rotula aquí para que se vea cuál fila es
+          t.tipo === TIPO_TARDE
+            ? <tr key={t.tanda} className="bolillo__fila--tarde"><td colSpan={items.length} className="bolillo__tarde">TARDE</td></tr>
+            : <tr key={t.tanda}>
+              {items.map(it => {
+                const n = t.celdas[it.item_code]?.pedido ?? 0;
+                return <td key={it.item_code} className="hoja-celda--num">{n ? numero(n, 0) : ''}</td>;
+              })}
+            </tr>
         ))}
       </tbody>
       <Totales items={items} totales={totales} />
@@ -178,6 +182,9 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
       {sel.destino && (() => {
         const d = sel.destino;
         const totales = totalesDestino(d.destino, d.tandas, items, tecleado);
+        // 16-oct: mañana + tarde = total, solo los panes que llevan algo en la tarde
+        const mt = mananaYTarde(d.destino, d.tandas, items, tecleado);
+        const conTarde = items.filter(it => mt[it.item_code].tarde > 0);
         return (
           <article className="bolillo__tarjeta">
             <header className="bolillo__cabecera">
@@ -191,7 +198,7 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
                 <Encabezado items={items} />
                 <tbody>
                   {d.tandas.map(t => (
-                    <tr key={t.tanda}>
+                    <tr key={t.tanda} className={t.tipo === TIPO_TARDE ? 'bolillo__fila--tarde' : undefined}>
                       {items.map(it => {
                         const k = claveTanda(d.destino, t.tanda, it.item_code);
                         const pedido = t.celdas[it.item_code]?.pedido ?? 0;
@@ -216,6 +223,16 @@ export default function VistaBolillo({ fecha, destino }: { fecha: string; destin
                 <Totales items={items} totales={totales} enviado />
               </table>
             </div>
+            {conTarde.length > 0 && (
+              <p className="bolillo__nota" aria-label="Mañana y tarde">
+                {conTarde.map(it => {
+                  const { manana, tarde } = mt[it.item_code];
+                  return <span key={it.item_code} className="bolillo__mt">
+                    {TITULO[it.item_code]}: mañana {numero(manana, 0)} + tarde {numero(tarde, 0)} = <strong>{numero(manana + tarde, 0)} pz</strong>
+                  </span>;
+                })}
+              </p>
+            )}
           </article>
         );
       })()}

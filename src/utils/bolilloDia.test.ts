@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BolilloDia, Tanda } from '../services/frappeHoja';
-import { cambiosBolillo, claveCamioneta, claveTanda, sinDestino, totalesCamionetas, totalesDestino } from './bolilloDia';
+import { cambiosBolillo, claveCamioneta, claveTanda, mananaYTarde, sinDestino, totalesCamionetas, totalesDestino } from './bolilloDia';
 
 const ITEMS: BolilloDia['items'] = [
   { item_code: '3001', unidad: 'charolas', por_charola: 16 },
@@ -109,5 +109,21 @@ describe('charolas + sueltas = piezas (14-oct)', () => {
     const tec = teclearParte({}, claveTanda('P.REAL', 1, '3001'), 'charolas', '2', 4, 16);
     expect(cambiosBolillo(DIA, tec).tandas).toEqual([{ destino: 'P.REAL', tanda: 1, item_code: '3001', salio: 36 }]);   // 2 ch + las 4 guardadas
     expect(sinDestino(tec, 'P.REAL')).toEqual({});
+  });
+});
+
+describe('mananaYTarde (16-oct)', () => {
+  const PZ: BolilloDia['items'] = ITEMS.map(it => ({ ...it, unidad: 'piezas' }));
+  const tarde = { ...tanda(3, [0, 544]), tipo: 'TARDE' };
+  const ts = [tanda(1, [64, 64]), tanda(2, [672, 128], [30, 30]), tarde];
+  it('🔴 la TARDE va aparte y la suma es el total que se cobra (SANTUARIO 15-oct: 192 + 544 = 736)', () => {
+    const r = mananaYTarde('SANTUARIO', ts, PZ, {});
+    expect(r['3001']).toEqual({ manana: 192, tarde: 544 });
+    expect(r['3001'].manana + r['3001'].tarde).toBe(totalesDestino('SANTUARIO', ts, PZ, {})['3001'].piezas);
+    expect(r['3003']).toEqual({ manana: 30, tarde: 0 });
+  });
+  it('🔴 con lo tecleado sin guardar', () => {
+    const r = mananaYTarde('SANTUARIO', ts, PZ, { [claveTanda('SANTUARIO', 3, '3001')]: '100' });
+    expect(r['3001']).toEqual({ manana: 192, tarde: 100 });
   });
 });

@@ -46,6 +46,25 @@ export function totalesDestino(destino: string, tandas: Tanda[], items: ItemBoli
   return tot;
 }
 
+/** 16-oct: la tanda que el servidor agrega al final de cada destino para lo que se manda en
+ *  la tarde (los días de mucha venta). Espejo de `bolillo.TARDE` del backend. */
+export const TIPO_TARDE = 'TARDE';
+
+/** Lo que salió en la mañana (todas las tandas menos la TARDE) y en la tarde, por pan, en
+ *  piezas, con lo tecleado. La suma es el total que se cobra. Una pasada, O(n). */
+export function mananaYTarde(destino: string, tandas: Tanda[], items: ItemBolillo[], tecleado: TecleadoBolillo) {
+  const res: Record<string, { manana: number; tarde: number }> = {};
+  for (const it of items) {
+    let manana = 0; let tarde = 0;
+    for (const t of tandas) {
+      const s = piezasDe(it, salioDe(tecleado, destino, t, it.item_code));
+      if (t.tipo === TIPO_TARDE) tarde += s; else manana += s;
+    }
+    res[it.item_code] = { manana, tarde };
+  }
+  return res;
+}
+
 /** Camionetas: el pedido es el de la BOLSA (tandas del bloque CAMIONETA) y lo que salió es
  *  la suma de lo que se lleva cada camioneta (Diemar 08-oct: totales, no por tanda). */
 export function totalesCamionetas(bolsa: Tanda[], salen: CamionetaBolillo[], items: ItemBolillo[], tecleado: TecleadoBolillo) {

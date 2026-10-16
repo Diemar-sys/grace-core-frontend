@@ -92,6 +92,23 @@ describe('VistaBolillo (08-oct; 09-oct PEDIDO | ENVIADO; 14-oct charolas + suelt
     expect(totalSalio(tabla, 0).querySelector('.bolillo__total--demas')).not.toBeNull();   // 64 + 416
   });
 
+  it('🔴 16-oct TARDE: rotulada, se teclea como otra tanda y se ve mañana + tarde = total', async () => {
+    // SANTUARIO 15-oct: 4 + 8 charolas en la mañana, 34 en la tarde = 46 ch = 736 piezas
+    s.vistaBolillo.mockResolvedValue({ ...DIA(), destinos: [{ destino: 'SANTUARIO', cobrado: false, tandas: [
+      T(1, 'HORNEADO', [64, 64]), T(2, 'TABLA', [672, 128]), T(3, 'TARDE', [0, 0])] }] });
+    ver('SANTUARIO');
+    const pedido = await screen.findByRole('table', { name: 'Pedido SANTUARIO' });
+    expect(within(pedido).getByText('TARDE')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Mañana y tarde')).toBeNull();          // sin tarde, no estorba
+    fireEvent.change(ch('SANTUARIO tanda 3 BOLILLO'), { target: { value: '34' } });
+    expect(screen.getByLabelText('Mañana y tarde')).toHaveTextContent('Bolillo: mañana 192 + tarde 544 = 736 pz');
+    expect(screen.getByLabelText('Mañana y tarde')).not.toHaveTextContent('Telera');   // solo lo que lleva tarde
+    expect(totalSalio(screen.getByRole('table', { name: 'Enviado SANTUARIO' }), 0).textContent).toBe('736');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar (1)' }));
+    await waitFor(() => expect(s.guardarBolillo).toHaveBeenCalledWith('2026-10-06',
+      [{ destino: 'SANTUARIO', tanda: 3, item_code: '3001', salio: 544 }], []));
+  });
+
   it('🔴 telera: 5 charolas + 7 sueltas = 67 piezas, y eso es lo que se guarda', async () => {
     ver('P.REAL');
     await screen.findByRole('table', { name: 'Enviado P.REAL' });

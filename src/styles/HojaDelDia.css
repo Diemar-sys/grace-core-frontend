@@ -606,6 +606,13 @@
 .bolillo__suma { grid-column: 1 / -1; justify-self: center; padding: 0.1rem 0.6rem; border-radius: var(--radius-pill);
   font-family: var(--tv-mono); font-weight: 700; font-size: 0.95rem; }
 .bolillo__nota { margin: 0.75rem 0 0; color: var(--color-text-muted); font-size: 0.85rem; }
+/* 16-oct: la tanda TARDE (lo que se manda en la tarde), en azul cielo como «de más» */
+.bolillo__fila--tarde td { background: #eff6ff; }
+.hoja-tabla.bolillo__tabla td.bolillo__tarde {
+  color: #1e40af; font-family: var(--tv-mono); font-weight: 700; letter-spacing: 0.12em;
+}
+.bolillo__mt { display: inline-block; margin-right: 1.25rem; font-family: var(--tv-mono); }
+.bolillo__mt strong { color: var(--tv-ink); }
 
 @media (pointer: coarse) {
   .hoja-tabla.bolillo__tabla input.bolillo__input { min-height: 48px; }
