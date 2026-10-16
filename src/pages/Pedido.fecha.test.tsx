@@ -6,7 +6,7 @@ import { pedidoService } from '../services/frappePedido';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../services/frappePedido', () => ({
-  pedidoService: { previsualizar: vi.fn(), importar: vi.fn(), hayPedido: vi.fn(), destinatarios: vi.fn() },
+  pedidoService: { previsualizar: vi.fn(), importar: vi.fn(), hayPedido: vi.fn(), destinatarios: vi.fn(), quitar: vi.fn() },
   leerBase64: vi.fn().mockResolvedValue('YmFzZTY0'),
   urlPdfPedido: () => '#',
 }));
@@ -51,5 +51,45 @@ describe('Pedido — la fecha la dice el archivo', () => {
     expect(screen.getByLabelText(/Fecha del pedido/)).toHaveValue(antes);
     // el estado tampoco se vacía: con fecha null se importaría «sin día»
     expect(s.hayPedido).not.toHaveBeenCalledWith(null);
+  });
+});
+
+// 16-oct (Diemar): un Excel por día. Con pedido guardado no se importa otro encima;
+// primero se quita el que está (se confirma: borra lo capturado).
+describe('Pedido — un Excel por día', () => {
+  const hoja = { pestana: 'P', sugerida: true, es_resumen: false, duplica_a: [], renglones: [], destinos: [], problemas: [], total_piezas: 0 };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    s.destinatarios.mockResolvedValue([]);
+    s.previsualizar.mockResolvedValue({ ...previa('2026-10-16'), hojas: [hoja] });
+  });
+
+  it('🔴 con pedido guardado, «Importar al sistema» no se prende', async () => {
+    s.hayPedido.mockResolvedValue(true);
+    render(<MemoryRouter><Pedido /></MemoryRouter>);
+    subir();
+    const btn = await screen.findByRole('button', { name: 'Importar al sistema' });
+    await screen.findByRole('button', { name: 'Quitar el pedido guardado' });
+    expect(btn).toBeDisabled();
+  });
+
+  it('sin pedido guardado sí se importa', async () => {
+    s.hayPedido.mockResolvedValue(false);
+    render(<MemoryRouter><Pedido /></MemoryRouter>);
+    subir();
+    const btn = await screen.findByRole('button', { name: 'Importar al sistema' });
+    await waitFor(() => expect(btn).toBeEnabled());
+  });
+
+  it('quitar pide confirmación y luego deja importar', async () => {
+    s.hayPedido.mockResolvedValue(true);
+    s.quitar.mockResolvedValue({ quitado: 'PED-2026-10-16' });
+    render(<MemoryRouter><Pedido /></MemoryRouter>);
+    subir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Quitar el pedido guardado' }));
+    expect(s.quitar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, quitar y borrar todo' }));
+    await waitFor(() => expect(s.quitar).toHaveBeenCalledWith('2026-10-16'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Importar al sistema' })).toBeEnabled());
   });
 });

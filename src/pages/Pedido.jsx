@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import { pedidoService, leerBase64, urlPdfPedido } from '../services/frappePedido';
 import { hojaDelDia } from '../utils/pedidoDia';
 import { agruparDestinos, enOrden } from '../utils/gruposDestino';
@@ -37,6 +38,9 @@ export default function Pedido() {
   // Lo guardado de ESA fecha, que es sobre lo que trabajan el PDF y Telegram.
   // null mientras no se sabe: los botones arrancan apagados, no prendidos.
   const [guardado, setGuardado] = useState(null);
+  // 16-oct: un Excel por día; quitar el guardado borra lo capturado y se confirma
+  const [confirmaQuitar, setConfirmaQuitar] = useState(false);
+  const [errorQuitar, setErrorQuitar] = useState('');
 
   useEffect(() => {
     pedidoService.destinatarios()
@@ -206,6 +210,11 @@ export default function Pedido() {
             {aQuienes.length ? `Enviar a ${aQuien}` : 'Telegram sin configurar'}
           </button>
           {enviado && <span className="ped-badge ok">{enviado}</span>}
+          {guardado && (
+            <button className="ped-btn secundario" disabled={cargando} onClick={() => setConfirmaQuitar(true)}>
+              Quitar el pedido guardado
+            </button>
+          )}
           {guardado === false && (
             <span className="ped-hint">
               No hay pedido guardado del {fecha}: impórtalo abajo y estos dos se prenden.
@@ -213,6 +222,12 @@ export default function Pedido() {
           )}
         </div>
 
+        {guardado && (
+          <p className="ped-nota">
+            🔒 Ya hay un pedido guardado del <strong>{fecha}</strong>. Para subir otro Excel,
+            primero quita el que está.
+          </p>
+        )}
         <p className="ped-nota">
           Los dos botones mandan el pedido <strong>ya guardado</strong> de esa fecha,
           no lo que estés viendo abajo.
@@ -313,7 +328,7 @@ export default function Pedido() {
               <button
                 className="ped-btn primario"
                 onClick={confirmar}
-                disabled={cargando || !elegidas.length}
+                disabled={cargando || !elegidas.length || guardado !== false}
               >
                 Importar al sistema
               </button>
@@ -508,6 +523,31 @@ export default function Pedido() {
         message={error}
         onClose={() => setError('')}
       />
+      {confirmaQuitar && (
+        <ConfirmModal
+          title={`¿Quitar el pedido del ${fecha}?`}
+          description={<>Se borra <strong>TODO</strong> lo capturado de ese día: enviado, bolillo por tandas, merma y camionetas. No se puede deshacer.</>}
+          subdescription="Lo ya cobrado no se puede quitar: primero se cancela con «Corregir» en la Hoja del día."
+          confirmLabel="Sí, quitar y borrar todo"
+          loadingLabel="Quitando…"
+          loading={cargando}
+          error={errorQuitar}
+          onCancel={() => { setConfirmaQuitar(false); setErrorQuitar(''); }}
+          onConfirm={async () => {
+            setCargando(true);
+            try {
+              await pedidoService.quitar(fecha);
+              setGuardado(false);
+              setResultado(null);
+              setConfirmaQuitar(false);
+            } catch (err) {
+              setErrorQuitar(err.message);
+            } finally {
+              setCargando(false);
+            }
+          }}
+        />
+      )}
     </Layout>
   );
 }

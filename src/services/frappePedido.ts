@@ -309,6 +309,16 @@ class FrappePedidoService extends FrappeBase {
     return r.message as { enviado_a: string; archivo: string; bytes: number };
   }
 
+  /** 16-oct: borra el pedido guardado de esa fecha (y TODO lo capturado) para poder subir otro Excel. */
+  async quitar(fecha: string) {
+    const r = await this._fetch(`${RUTA}.quitar`, {
+      method: 'POST',
+      body: JSON.stringify({ fecha }),
+    });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return r.message as { quitado: string };
+  }
+
   /** Guarda el pedido del día con las pestañas elegidas. */
   async importar(archivo: string, nombreArchivo: string, fecha: string, pestanas: string[]) {
     const r = await this._fetch(`${RUTA}.importar`, {
