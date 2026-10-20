@@ -123,10 +123,12 @@
 .mc-tabla th:first-child { border-radius: 10px 0 0 10px; }
 .mc-tabla th:last-child { border-radius: 0 10px 10px 0; }
 .mc-tabla td { padding: 0.6rem; border-top: 1px solid var(--color-surface-sunk); }
+/* 19-oct: el encabezado de una columna de números va a la derecha, sobre sus números */
+.mc-tabla th.mc-num { text-align: right; }
 .mc-num { text-align: right; font-family: var(--tv-mono); font-variant-numeric: tabular-nums; }
 .mc-debe { color: var(--tv-warn) !important; font-weight: 700; }
-.mc-detalle { margin-top: 1.25rem; }
-.mc-detalle h4 { margin: 0 0 0.5rem; }
+.mc-fila-detalle > td { background: var(--color-surface-sunk); padding: 0.75rem 1rem 1rem; }
+.mc-detalle { border-radius: var(--radius-bento); background: var(--color-surface, #fff); padding: 0.5rem 0.75rem; }
 
 .mc-btn {
   border: none; border-radius: var(--radius-pill); padding: 0.4rem 1rem; background: var(--color-surface-sunk);

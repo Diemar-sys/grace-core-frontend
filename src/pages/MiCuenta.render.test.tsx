@@ -76,4 +76,31 @@ describe('Mi cuenta (cliente)', () => {
     await waitFor(() => expect(s.miPedido).toHaveBeenCalledWith('2026-10-15'));
     expect(await screen.findByText('MANTECADA GDE')).toBeInTheDocument();
   });
+
+  // 19-oct (Diemar): «si el producto no tiene decimales, que no salgan»
+  it('Envíos: cantidad entera sin decimales, fraccionaria con dos', async () => {
+    s.miCuenta.mockResolvedValue({ ...CUENTA, envios: [
+      { envio: 'MAT-1', fecha: '2026-10-15', item_code: 'A', producto: 'AZUCAR REFINADA', cantidad: 25, unidad: 'Kg', almacen: 'T' },
+      { envio: 'MAT-1', fecha: '2026-10-15', item_code: 'B', producto: 'POLIPAPEL', cantidad: 2.5, unidad: 'Kg', almacen: 'T' }] });
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Envíos$/ }));
+    const t = screen.getByRole('table', { name: 'Envíos' });
+    expect(within(t).getByText('25 Kg')).toBeInTheDocument();     // con el código viejo: «25.00 Kg»
+    expect(within(t).getByText('2.50 Kg')).toBeInTheDocument();
+  });
+
+  // 19-oct (Diemar): «el de ver pan no se ve el pan» — se pintaba debajo de TODA la tabla
+  it('el pan del día se abre justo debajo de ESE día, no al final de la tabla', async () => {
+    s.miCuenta.mockResolvedValue({ ...CUENTA, pedidos: [
+      { fecha: '2026-10-01', piezas: 967, enviado: 1921 }, { fecha: '2026-10-02', piezas: 1215, enviado: 2338 }] });
+    s.miPedido.mockResolvedValue([{ item_code: '3001', producto: 'BOLILLO', piezas: 0, enviado: 896, precio: 5 }]);
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Ver pan' }))[0]);
+    const fila = (await screen.findByText('BOLILLO')).closest('.mc-fila-detalle')!;
+    expect(fila.previousElementSibling).toHaveTextContent('jue 1 oct 2026');
+    expect(fila.nextElementSibling).toHaveTextContent('vie 2 oct 2026');
+  });
 });

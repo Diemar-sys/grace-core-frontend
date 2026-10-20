@@ -5,7 +5,7 @@
 // Quién es lo dice la sesión en el servidor: aquí no se elige cliente.
 // Tablero (Diemar, misma tarde): lado carbón con su nombre y menú, tarjetas de cifras,
 // barras de pedido contra lo que llegó y dona de lo pagado. Gráficas en SVG/CSS, sin librería.
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Receipt, ShoppingBasket, Truck } from 'lucide-react';
 import Layout from '../components/Layout';
 import { auth } from '../services/frappeAuth';
@@ -233,7 +233,7 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.facturas.length === 0 ? <p className="mc-nota">Sin facturas en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Facturas">
-                    <thead><tr><th>Fecha</th><th>Factura</th><th>Qué</th><th>Total</th><th>Pagado</th><th>Debe</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Factura</th><th>Qué</th><th className="mc-num">Total</th><th className="mc-num">Pagado</th><th className="mc-num">Debe</th></tr></thead>
                     <tbody>{cuenta.facturas.map(f => (
                       <tr key={f.factura}>
                         <td>{fechaLarga(f.fecha)}</td><td>{f.factura}</td><td>{f.tipo === 'pan' ? 'Pan' : 'Abarrotes'}</td>
@@ -250,30 +250,32 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.pedidos.length === 0 ? <p className="mc-nota">Sin pedidos en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Pedidos">
-                    <thead><tr><th>Día</th><th>Pediste (pz)</th><th>Te llegó (pz)</th><th /></tr></thead>
+                    <thead><tr><th>Día</th><th className="mc-num">Pediste (pz)</th><th className="mc-num">Te llegó (pz)</th><th /></tr></thead>
                     <tbody>{cuenta.pedidos.map(p => (
-                      <tr key={p.fecha}>
-                        <td>{fechaLarga(p.fecha)}</td><td className="mc-num">{numero(p.piezas, 0)}</td><td className="mc-num">{numero(p.enviado, 0)}</td>
-                        <td><button className="mc-btn" onClick={() => abrirDia(p.fecha)}>{dia === p.fecha ? 'Cerrar' : 'Ver pan'}</button></td>
-                      </tr>))}
+                      <Fragment key={p.fecha}>
+                        <tr>
+                          <td>{fechaLarga(p.fecha)}</td><td className="mc-num">{numero(p.piezas, 0)}</td><td className="mc-num">{numero(p.enviado, 0)}</td>
+                          <td><button className="mc-btn" onClick={() => abrirDia(p.fecha)}>{dia === p.fecha ? 'Cerrar' : 'Ver pan'}</button></td>
+                        </tr>
+                        {/* 19-oct: el pan se abre debajo de SU día; al final de la tabla no se veía */}
+                        {dia === p.fecha && (
+                          <tr className="mc-fila-detalle"><td colSpan={4}><div className="mc-detalle">
+                            {!detalle ? <p className="mc-nota">Cargando…</p> : (
+                              <table className="mc-tabla" aria-label={`Pedido del ${dia}`}>
+                                <thead><tr><th>Pan</th><th className="mc-num">Pediste</th><th className="mc-num">Te llegó</th><th className="mc-num">Precio</th></tr></thead>
+                                <tbody>{detalle.map(r => (
+                                  <tr key={r.item_code}>
+                                    <td>{r.producto}</td><td className="mc-num">{numero(r.piezas, 0)}</td>
+                                    <td className="mc-num">{numero(r.enviado, 0)}</td><td className="mc-num">{pesos(r.precio)}</td>
+                                  </tr>))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div></td></tr>
+                        )}
+                      </Fragment>))}
                     </tbody>
                   </table></div>
-                )}
-                {dia && (
-                  <div className="mc-detalle">
-                    <h4>Pedido del {fechaLarga(dia)}</h4>
-                    {!detalle ? <p className="mc-nota">Cargando…</p> : (
-                      <div className="mc-scroll"><table className="mc-tabla" aria-label={`Pedido del ${dia}`}>
-                        <thead><tr><th>Pan</th><th>Pediste</th><th>Te llegó</th><th>Precio</th></tr></thead>
-                        <tbody>{detalle.map(r => (
-                          <tr key={r.item_code}>
-                            <td>{r.producto}</td><td className="mc-num">{numero(r.piezas, 0)}</td>
-                            <td className="mc-num">{numero(r.enviado, 0)}</td><td className="mc-num">{pesos(r.precio)}</td>
-                          </tr>))}
-                        </tbody>
-                      </table></div>
-                    )}
-                  </div>
                 )}
               </section>
             )}
@@ -282,11 +284,11 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.envios.length === 0 ? <p className="mc-nota">Sin envíos en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Envíos">
-                    <thead><tr><th>Fecha</th><th>Envío</th><th>Producto</th><th>Cantidad</th><th>A</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Envío</th><th>Producto</th><th className="mc-num">Cantidad</th><th>A</th></tr></thead>
                     <tbody>{cuenta.envios.map((e, i) => (
                       <tr key={`${e.envio}-${i}`}>
                         <td>{fechaLarga(e.fecha)}</td><td>{e.envio}</td><td>{e.producto}</td>
-                        <td className="mc-num">{numero(e.cantidad, 2)} {e.unidad}</td><td>{e.almacen}</td>
+                        <td className="mc-num">{numero(e.cantidad, Number.isInteger(e.cantidad) ? 0 : 2)} {e.unidad}</td><td>{e.almacen}</td>
                       </tr>))}
                     </tbody>
                   </table></div>
