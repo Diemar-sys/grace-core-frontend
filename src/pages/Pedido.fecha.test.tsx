@@ -86,7 +86,13 @@ describe('Pedido — un Excel por día', () => {
     s.quitar.mockResolvedValue({ quitado: 'PED-2026-10-16' });
     render(<MemoryRouter><Pedido /></MemoryRouter>);
     subir();
-    fireEvent.click(await screen.findByRole('button', { name: 'Quitar el pedido guardado' }));
+    // 20-oct: el botón sale primero con la fecha de HOY y se vuelve a montar cuando llega la
+    // del Excel (hayPedido pregunta otra vez). Con 8 workers el clic caía en el de antes y el
+    // modal no salía: se espera a que se pregunte por la fecha del Excel y a ESE botón prendido.
+    await waitFor(() => expect(s.hayPedido).toHaveBeenCalledWith('2026-10-16'));
+    const quitar = () => screen.getByRole('button', { name: 'Quitar el pedido guardado' });
+    await waitFor(() => expect(quitar()).toBeEnabled());
+    fireEvent.click(quitar());
     expect(s.quitar).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Sí, quitar y borrar todo' }));
     await waitFor(() => expect(s.quitar).toHaveBeenCalledWith('2026-10-16'));
