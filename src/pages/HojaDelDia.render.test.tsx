@@ -143,7 +143,9 @@ describe('HojaDelDia — cableado', () => {
     const input = await screen.findByLabelText('Enviado BOLILLO');
     expect(input).toBeDisabled();
     expect(input).toHaveValue(576);
-    expect(within(input.closest('tr')!).getByText('de Bolillo')).toBeInTheDocument();
+    // 21-oct: sin etiqueta «de Bolillo» (empujaba IMPORTE fuera de la tabla); el importe se ve en el renglón
+    expect(within(input.closest('tr')!).queryByText('de Bolillo')).toBeNull();
+    expect(within(input.closest('tr')!).getByText('$2,880.00')).toBeInTheDocument();
     expect(screen.queryByLabelText('Charolas BOLILLO')).toBeNull();
     expect(screen.getByText('$2,880.00', { selector: '.hoja-dia__total strong' })).toBeInTheDocument();   // 576 × $5, no 999
     fireEvent.change(screen.getByLabelText('Enviado CONCHAS'), { target: { value: '30' } });

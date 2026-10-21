@@ -398,7 +398,6 @@ export default function HojaDelDia() {
                                     />
                                     {/* 06-oct: pan por charola — las charolas tecleadas se SUMAN en piezas al salir
                                         de la casilla (la tecla →| de la tablet), con Enter o con «+» */}
-                                    {r.de_bolillo && <span className="hoja-de-bolillo">de Bolillo</span>}
                                     {!!r.por_charola && !enviadoFijo && !r.de_bolillo && (
                                       <span className="hoja-charolas">
                                         <input

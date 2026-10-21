@@ -1,5 +1,5 @@
 // src/components/NuevoEnvioSucursal.jsx
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { stockService } from '../services/frappeStock';
 import { pedidoService } from '../services/frappePedido';
 import { inventory } from '../services/frappeInventory';
@@ -16,6 +16,7 @@ import { horaLocal } from '../utils/hora';
 import '../styles/NuevaCompra.css';
 import SelectorTipoItem from './SelectorTipoItem';
 import { hoyISO } from '../utils/hora';
+import { gruposDestinoEnvio } from '../utils/destinosEnvio';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -40,7 +41,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
   const { sucursales_destino: sucursales } = useSucursales();
   const [warehouseDestino, setWarehouseDestino] = useState(sucursalDefault || '');
   const [origenes, setOrigenes] = useState([]);
-  const [camionetas, setCamionetas] = useState([]);
+  const [almacenes, setAlmacenes] = useState([]);
   const [warehouseOrigen, setWarehouseOrigen] = useState(BODEGA_CENTRAL);
 
   // Orígenes reales: Bodega Central + almacenes de producción (tipo Departamento).
@@ -48,13 +49,14 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     stockService.fetchAllWarehouses()
       .then(setOrigenes)
       .catch(err => console.error('cargar orígenes envío:', err));
-    // Las camionetas también reciben pan, pero no son sucursales: salen por
-    // warehouse_type. Su envío se valúa a precio de pueblos (ver
-    // stockService._tipoPrecioDestino).
-    stockService.fetchCamionetas()
-      .then(setCamionetas)
-      .catch(err => console.error('cargar camionetas:', err));
+    // El tipo de cada almacén: agrupa el Destino (sucursal / camioneta / pueblo) y
+    // da las camionetas del origen (regreso de ruta).
+    stockService.fetchAlmacenes()
+      .then(setAlmacenes)
+      .catch(err => console.error('cargar almacenes:', err));
   }, []);
+  const camionetas = useMemo(() => almacenes.filter(a => a.warehouse_type === 'CAMIONETA'), [almacenes]);
+  const gruposDestino = useMemo(() => gruposDestinoEnvio(sucursales, almacenes), [sucursales, almacenes]);
 
   // Inicializar warehouse cuando cargue config (si no vino sucursalDefault)
   useEffect(() => {
@@ -80,7 +82,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
     sucursales.find(s => s.warehouse === warehouseDestino)?.label ||
     camionetas.find(c => c.name === warehouseDestino)?.label ||
     warehouseDestino;
-  const esCamioneta = camionetas.some(c => c.name === warehouseDestino);
+  const tipoDestino = almacenes.find(a => a.name === warehouseDestino)?.warehouse_type;
   const origenEsCamioneta = camionetas.some(c => c.name === warehouseOrigen);
 
   // ── Borrador local ──────────────────────────────────────────────────────
@@ -357,20 +359,18 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
             <label>Destino *</label>
             <select className="nc-input" value={warehouseDestino}
               onChange={e => setWarehouseDestino(e.target.value)}>
-              <optgroup label="Sucursales">
-                {sucursales.map(s => (
-                  <option key={s.warehouse} value={s.warehouse}>{s.label}</option>
-                ))}
-              </optgroup>
-              {camionetas.length > 0 && (
-                <optgroup label="Camionetas (precio de pueblos)">
-                  {camionetas.map(c => (
-                    <option key={c.name} value={c.name}>{c.label}</option>
+              {gruposDestino.map(g => (
+                <optgroup key={g.titulo} label={g.titulo}>
+                  {g.destinos.map(s => (
+                    <option key={s.warehouse} value={s.warehouse}>{s.label}</option>
                   ))}
                 </optgroup>
-              )}
+              ))}
             </select>
-            {esCamioneta && (
+            {tipoDestino === 'CAMIONETA' && (
+              <small className="nc-th-hint">Se valúa a precio de camioneta</small>
+            )}
+            {tipoDestino === 'PUNTO DE VENTA' && (
               <small className="nc-th-hint">Se valúa a precio de pueblos</small>
             )}
           </div>

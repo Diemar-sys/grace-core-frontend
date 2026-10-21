@@ -543,17 +543,6 @@
 .hoja-modo__btn--activo { background: #ffffff; color: var(--color-brand); box-shadow: var(--shadow-bento); }
 .hoja-modo__btn:disabled { cursor: default; opacity: 0.6; }
 
-/* En la Captura, el pan que sale de «Bolillo» se ve pero no se teclea */
-.hoja-de-bolillo {
-  font-family: var(--tv-mono);
-  font-size: 0.7rem;
-  color: var(--color-text-muted);
-  background: var(--tv-sunk);
-  border-radius: var(--radius-pill);
-  padding: 0.15rem 0.5rem;
-  white-space: nowrap;
-}
-
 /* ── Vista Bolillo ──────────────────────────────────────────────────────── */
 .bolillo { width: 100%; }
 .bolillo__vacio { color: var(--color-text-muted); padding: 2rem 0; }

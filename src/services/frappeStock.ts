@@ -84,17 +84,6 @@ class FrappeStockService extends FrappeBase {
   }
 
   /**
-   * Camionetas de reparto. Son almacenes de verdad: el pan vive en la camioneta
-   * hasta que se liquida la ruta, por eso salen por tipo y NO por la allowlist
-   * de sucursales extendidas — estar en esa lista haría que el hook backend
-   * `validate_stock_entry_sucursal` pisara el precio de pueblos con el normal.
-   */
-  async fetchCamionetas(): Promise<Almacen[]> {
-    const todos = await this.fetchAlmacenes();
-    return todos.filter(w => w.warehouse_type === TIPO_CAMIONETA);
-  }
-
-  /**
    * Devuelve warehouses agrupados por warehouse_type, con orden estable
    * (Departamento → Sucursal → Camioneta → Punto de Venta → otros).
    */
