@@ -6,14 +6,22 @@
 // 09-oct: LIQUIDADO, última columna — lo que Eva le entregó a Luis de lo cobrado ese día
 // (un segundo cobro: no cambia lo que debe el destino). Solo lo teclean Administrator y
 // luis.th: lo dice el servidor (`puede_liquidar`), y la diferencia (`eva_debe`) también.
+// 20-oct (Diemar): rango libre Desde/Hasta en vez de «la semana del día elegido». Arranca
+// en la semana de hoy; el tope es el del servidor (MAX_DIAS_ESTADO + 1 = 32 días).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import ModalError from './modals/ModalError';
-import { hoyISO } from '../utils/hora';
+import { hoyISO, rangoFechas } from '../utils/hora';
 import { hojaService, type DeudorHoja, type DiaCuenta, type EstadoCuenta } from '../services/frappeHoja';
 import { grupoCobro, ventasService } from '../services/frappeSales';
 import { semanaDe } from '../utils/hojaDia';
 import { pesos } from '../utils/formato';
+
+/** Lo que acepta `hoja_api.estado_cuenta` (MAX_DIAS_ESTADO + 1). */
+export const MAX_DIAS_RANGO = 32;
+
+/** Días del rango contando los dos extremos (fechas ISO, sin hora: sin brinco de UTC). */
+export const diasDelRango = (desde: string, hasta: string) => (Date.parse(hasta) - Date.parse(desde)) / 86_400_000 + 1;
 
 const ESTADO_DIA: Record<DiaCuenta['estado'], [string, string]> = {
   // «PAGADO» (antes «LIQUIDADO»): LIQUIDADO es ahora la columna de lo que Eva entregó
@@ -46,10 +54,11 @@ function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_deb
 export default function EstadoCuentaHoja() {
   const [deudores, setDeudores] = useState<DeudorHoja[]>([]);
   const [destino, setDestino] = useState('');
-  // 24-sep: la semana se elige con el calendario, como el día de la captura: cualquier
-  // día → su semana lunes-domingo. (`type="week"` no existe en Firefox.)
-  const [dia, setDia] = useState(hoyISO);
-  const semana = useMemo(() => semanaDe(dia), [dia]);
+  const [rango, setRango] = useState(() => semanaDe(hoyISO()));
+  const { desde, hasta } = rango;
+  const dias = diasDelRango(desde, hasta);
+  const rangoMal = dias < 1 ? '«Hasta» va después de «Desde».'
+    : dias > MAX_DIAS_RANGO ? `Máximo ${MAX_DIAS_RANGO} días por consulta.` : '';
   const [estado, setEstado] = useState<EstadoCuenta | null>(null);
   const [pagoModal, setPagoModal] = useState<ReturnType<typeof grupoCobro>>(null);
   const [error, setError] = useState('');
@@ -64,17 +73,17 @@ export default function EstadoCuentaHoja() {
 
   const cargar = useCallback(async () => {
     const folio = ++peticionRef.current;
-    if (!destino) { setEstado(null); return; }
+    if (!destino || rangoMal) { setEstado(null); return; }
     try {
-      const e = await hojaService.estadoCuenta(destino, semana.desde, semana.hasta);
+      const e = await hojaService.estadoCuenta(destino, desde, hasta);
       if (peticionRef.current === folio) setEstado(e);   // una respuesta vieja no pisa la nueva
     } catch (e: any) {
       if (peticionRef.current === folio) setError(e?.message || 'No se pudo leer el estado de cuenta');
     }
-  }, [destino, semana]);
+  }, [destino, desde, hasta, rangoMal]);
 
   useEffect(() => { cargar(); }, [cargar]);
-  useEffect(() => { setTecleoLiq({}); }, [destino, semana]);
+  useEffect(() => { setTecleoLiq({}); }, [destino, desde, hasta]);
 
   const liquidar = async (factura: string) => {
     const texto = tecleoLiq[factura];
@@ -109,7 +118,7 @@ export default function EstadoCuentaHoja() {
   };
 
   const camioneta = Boolean(estado?.camioneta);
-  // 15-oct: DELI/ZAKIA llevan descuento; la columna solo sale si en la semana hubo (camioneta: 0)
+  // 15-oct: DELI/ZAKIA llevan descuento; la columna solo sale si en el rango hubo (camioneta: 0)
   const conDescuento = (estado?.total.descuento ?? 0) > 0;
   const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
 
@@ -128,10 +137,14 @@ export default function EstadoCuentaHoja() {
           </select>
         </label>
         <label className="hoja-dia__campo">
-          Semana
-          <input type="date" value={dia} onChange={e => e.target.value && setDia(e.target.value)} />
+          Desde
+          <input type="date" value={desde} max={hasta} onChange={e => { const v = e.target.value; if (v) setRango(x => ({ ...x, desde: v })); }} />
         </label>
-        <strong className="hoja-estado__rango">Lunes {fechaCorta(semana.desde)} al domingo {fechaCorta(semana.hasta)}</strong>
+        <label className="hoja-dia__campo">
+          Hasta
+          <input type="date" value={hasta} min={desde} onChange={e => { const v = e.target.value; if (v) setRango(x => ({ ...x, hasta: v })); }} />
+        </label>
+        <strong className="hoja-estado__rango">{rangoMal || `${rangoFechas(desde, hasta)} · ${dias} ${dias === 1 ? 'día' : 'días'}`}</strong>
       </div>
 
       {estado && (
@@ -146,10 +159,10 @@ export default function EstadoCuentaHoja() {
             )}
           </header>
 
-          {/* resumen de la semana: los totales vienen del servidor, aquí no se suma dinero */}
+          {/* resumen del rango: los totales vienen del servidor, aquí no se suma dinero */}
           <div className="hoja-estado__resumen">
             <div className="hoja-estado__stat">
-              <span className="hoja-estado__stat-label">Venta de la semana</span>
+              <span className="hoja-estado__stat-label">Venta del periodo</span>
               <span className="hoja-estado__stat-valor">{pesos(estado.total.venta)}</span>
             </div>
             {camioneta && (
@@ -177,7 +190,7 @@ export default function EstadoCuentaHoja() {
           </div>
 
           {!estado.dias.length ? (
-            <p className="hoja-dia__vacio">No hay días cobrados esta semana.</p>
+            <p className="hoja-dia__vacio">No hay días cobrados en estas fechas.</p>
           ) : (
             <div className="hoja-estado__tabla-wrap">
               <table className="sys-table hoja-estado__tabla">

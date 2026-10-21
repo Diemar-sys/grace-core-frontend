@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import EstadoCuentaHoja from './EstadoCuentaHoja';
+import EstadoCuentaHoja, { diasDelRango } from './EstadoCuentaHoja';
 import { hojaService } from '../services/frappeHoja';
 import { ventasService } from '../services/frappeSales';
 
@@ -98,18 +98,34 @@ describe('EstadoCuentaHoja', () => {
     expect(screen.queryByText('DESCUENTO')).toBeNull();
   });
 
-  it('🔴 elegir un día en el calendario pide SU semana lunes-domingo', async () => {
+  // 20-oct (Diemar): rango libre en vez de semanas; arranca en la semana de hoy
+  it('🔴 arranca en la semana de hoy y pide el rango Desde/Hasta que se elija', async () => {
     render(<EstadoCuentaHoja />);
     await elegir('ISMA');
     await screen.findByText('22/09/2026');
-    // un jueves → de su lunes a su domingo
-    fireEvent.change(screen.getByLabelText('Semana'), { target: { value: '2026-09-17' } });
-    await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-09-14', '2026-09-20'));
-    // un domingo es el ÚLTIMO día de su semana, no el primero de la siguiente
-    fireEvent.change(screen.getByLabelText('Semana'), { target: { value: '2026-10-04' } });
-    await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-09-28', '2026-10-04'));
-    expect(screen.getByText('Lunes 28/09/2026 al domingo 04/10/2026')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Semana/ })).toBeNull();
+    expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-09-21', '2026-09-27');   // mié 23 → lun 21..dom 27
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-03' } });
+    await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-09-03', '2026-09-27'));
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-10' } });
+    await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-09-03', '2026-09-10'));
+    expect(screen.getByText('3 – 10 sep 2026 · 8 días')).toBeInTheDocument();
+  });
+
+  it('🔴 rango al revés o de más de 32 días: avisa y no pregunta al servidor', async () => {
+    expect([diasDelRango('2026-09-01', '2026-09-01'), diasDelRango('2026-09-01', '2026-10-02'), diasDelRango('2026-03-01', '2026-03-31')])
+      .toEqual([1, 32, 31]);   // 31 de marzo: el cambio de horario no mueve el conteo
+    render(<EstadoCuentaHoja />);
+    await elegir('ISMA');
+    await screen.findByText('22/09/2026');
+    const llamadas = h.estadoCuenta.mock.calls.length;
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-26' } });   // 33 días
+    expect(await screen.findByText('Máximo 32 días por consulta.')).toBeInTheDocument();
+    expect(screen.queryByText('22/09/2026')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-30' } });   // después de «Hasta»
+    expect(await screen.findByText('«Hasta» va después de «Desde».')).toBeInTheDocument();
+    expect(h.estadoCuenta.mock.calls.length).toBe(llamadas);
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-27' } });   // 32 justos sí
+    await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-08-27', '2026-09-27'));
   });
 
   it('🔴 «Cobrar» abre el modal de siempre con las facturas de PAN con saldo de ese deudor', async () => {
