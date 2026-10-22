@@ -8,6 +8,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import BannerConexion from './components/BannerConexion';
 import { useSesionCompartida } from './hooks/useSesionCompartida';
 import AvisoSesion from './components/AvisoSesion';
+import AvisoMantenimiento from './components/AvisoMantenimiento';
+import { useAvisoMantenimiento } from './hooks/useAvisoMantenimiento';
 
 // Carga inmediata: vistas operativas principales
 import Catalogo from './pages/Catalogo';
@@ -58,6 +60,8 @@ function PageLoader() {
 function App() {
   // una sola sesión por navegador: si otra pestaña sale o cambia de usuario, esta se bloquea con un aviso
   const cambioSesion = useSesionCompartida();
+  // aviso de mantenimiento (mantenimiento.sh aviso/on): para todas las pantallas, Login incluido
+  const mantenimiento = useAvisoMantenimiento();
   return (
     <BrowserRouter>
       <ErrorBoundary>
@@ -65,6 +69,7 @@ function App() {
           incluido el Panel, que no pasa por Layout. */}
       <BannerConexion />
       <AvisoSesion cambio={cambioSesion} />
+      <AvisoMantenimiento estado={mantenimiento} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Ruta pública */}

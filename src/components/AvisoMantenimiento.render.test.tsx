@@ -1,0 +1,97 @@
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
+import AvisoMantenimiento from './AvisoMantenimiento';
+import { leerAviso, cuentaRegresiva } from '../utils/mantenimiento';
+import { useAvisoMantenimiento } from '../hooks/useAvisoMantenimiento';
+
+describe('leerAviso', () => {
+  const FECHA = 'Thu, 22 Oct 2026 21:40:00 GMT';
+  const inicio = Date.parse(FECHA) / 1000 + 300;
+
+  it('la cuenta sale del reloj de la TORRE, no del navegador', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse(FECHA) + 4 * 60_000);   // tablet 4 min adelantada
+    const a = leerAviso(200, JSON.stringify({ inicio }), FECHA);
+    vi.useRealTimers();
+    expect(a).toEqual({ tipo: 'aviso', inicio, faltaMs: 300_000 });
+  });
+
+  it('503 = ya está en mantenimiento', () => {
+    expect(leerAviso(503, null, FECHA)).toEqual({ tipo: 'activo' });
+  });
+
+  it('404, 502 (contenedor recreándose), html de Vite o inicio raro = nada', () => {
+    expect(leerAviso(404, null, FECHA).tipo).toBe('nada');
+    expect(leerAviso(502, null, FECHA).tipo).toBe('nada');
+    expect(leerAviso(200, '<!doctype html><html>', FECHA).tipo).toBe('nada');
+    expect(leerAviso(200, '{"inicio":"mañana"}', FECHA).tipo).toBe('nada');
+  });
+
+  it('cuentaRegresiva', () => {
+    expect(cuentaRegresiva(300_000)).toBe('5:00');
+    expect(cuentaRegresiva(9_200)).toBe('0:10');   // redondea hacia arriba: no dice 0:00 antes de tiempo
+    expect(cuentaRegresiva(-5_000)).toBe('0:00');
+  });
+});
+
+describe('AvisoMantenimiento', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('sin aviso no pinta nada', () => {
+    const { container } = render(<AvisoMantenimiento estado={{ tipo: 'nada' }} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('aviso: modal con cuenta regresiva y hora; corre cada segundo', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 22, 15, 40, 0));
+    render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() }} />);
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText('Mantenimiento en 5:00')).toBeInTheDocument();
+    expect(screen.getByText(/A las 3:45 p\.m\./)).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(61_000); });
+    expect(screen.getByText('Mantenimiento en 3:59')).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(300_000); });
+    expect(screen.getByText('Mantenimiento en cualquier momento')).toBeInTheDocument();
+  });
+
+  it('«Entendido» quita el modal (para poder guardar) y deja la franja con la cuenta', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 22, 15, 40, 0));
+    render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Mantenimiento en 5:00');
+  });
+
+  it('cerrar el aviso no tapa el de «ya en mantenimiento»: ese vuelve a abrir', () => {
+    const { rerender } = render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: Date.now() + 60_000 }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    rerender(<AvisoMantenimiento estado={{ tipo: 'activo' }} />);
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/No recargues ni cierres esta pestaña/);
+  });
+});
+
+describe('useAvisoMantenimiento', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function Muestra() {
+    const e = useAvisoMantenimiento();
+    return <span>{e.tipo}</span>;
+  }
+
+  it('pregunta a /mantenimiento/aviso sin caché y pinta lo que contesta', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal('fetch', fetch);
+    render(<Muestra />);
+    await waitFor(() => expect(screen.getByText('activo')).toBeInTheDocument());
+    expect(fetch).toHaveBeenCalledWith('/mantenimiento/aviso', { cache: 'no-store' });
+  });
+
+  it('sin red se queda en nada (no inventa mantenimiento)', async () => {
+    const fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetch);
+    render(<Muestra />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(screen.getByText('nada')).toBeInTheDocument();
+  });
+});

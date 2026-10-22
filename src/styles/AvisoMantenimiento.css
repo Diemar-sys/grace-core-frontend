@@ -1,0 +1,61 @@
+/* src/styles/AvisoMantenimiento.css — aviso de mantenimiento (Light Bento Grid) */
+.aviso-mant {
+  position: fixed;
+  inset: 0;
+  z-index: 10001; /* encima de AvisoSesion (10000) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 41, 55, 0.45);
+}
+
+.aviso-mant__tarjeta {
+  max-width: 440px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  padding: 1.75rem;
+  text-align: center;
+}
+
+.aviso-mant__tarjeta h2 { margin: 0.75rem 0 0.5rem; color: #1f2937; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.aviso-mant__tarjeta p { margin: 0 0 1.25rem; color: #4b5563; font-size: 0.95rem; line-height: 1.45; }
+
+.aviso-mant__insignia {
+  display: inline-block;
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.aviso-mant__insignia--aviso  { background: #ffedd5; color: #9a3412; }
+.aviso-mant__insignia--activo { background: #fee2e2; color: #991b1b; }
+
+.aviso-mant__btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.7rem 1.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.aviso-mant__btn:hover { transform: translateY(-2px); }
+
+.aviso-mant__franja {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aviso-mant__franja--aviso  { background: #ffedd5; color: #9a3412; }
+.aviso-mant__franja--activo { background: #fee2e2; color: #991b1b; }
