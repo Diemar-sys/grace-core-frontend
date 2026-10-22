@@ -50,8 +50,19 @@ describe('AvisoMantenimiento', () => {
     expect(screen.getByText(/A las 3:45 p\.m\./)).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(61_000); });
     expect(screen.getByText('Mantenimiento en 3:59')).toBeInTheDocument();
-    act(() => { vi.advanceTimersByTime(300_000); });
-    expect(screen.getByText('Mantenimiento en cualquier momento')).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(238_000); });
+    expect(screen.getByText('Mantenimiento en 0:01')).toBeInTheDocument();
+  });
+
+  it('en 0 pasa SOLA a «en mantenimiento», aunque hayan cerrado el aviso y sin esperar a la torre', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 22, 15, 44, 58));
+    render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Mantenimiento en 0:02');
+    act(() => { vi.advanceTimersByTime(2_000); });
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Sistema en mantenimiento');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/No recargues ni cierres esta pestaña/);
   });
 
   it('«Entendido» quita el modal (para poder guardar) y deja la franja con la cuenta', () => {

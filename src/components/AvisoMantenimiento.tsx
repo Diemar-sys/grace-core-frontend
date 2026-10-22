@@ -23,26 +23,29 @@ export default function AvisoMantenimiento({ estado }: { estado: EstadoMantenimi
 
   if (estado.tipo === 'nada') return null;
 
-  const clave = estado.tipo === 'aviso' ? `aviso-${estado.inicio}` : 'activo';
   const falta = estado.tipo === 'aviso' ? estado.hasta - ahora : 0;
-  const cuando = falta > 0 ? `en ${cuentaRegresiva(falta)}` : 'en cualquier momento';
+  // En 0 la pantalla pasa SOLA a «en mantenimiento»: mantenimiento.sh prende el
+  // candado en ese mismo segundo y no se espera la siguiente pregunta (≤30 s).
+  // Si Diemar canceló, esa pregunta trae «nada» y el aviso se quita.
+  const tipo = estado.tipo === 'aviso' && falta <= 0 ? 'activo' : estado.tipo;
+  const clave = estado.tipo === 'aviso' && tipo === 'aviso' ? `aviso-${estado.inicio}` : 'activo';
 
-  const titulo = estado.tipo === 'aviso' ? `Mantenimiento ${cuando}` : 'Sistema en mantenimiento';
-  const texto = estado.tipo === 'aviso'
+  const titulo = tipo === 'aviso' ? `Mantenimiento en ${cuentaRegresiva(falta)}` : 'Sistema en mantenimiento';
+  const texto = estado.tipo === 'aviso' && tipo === 'aviso'
     ? `A las ${textoReloj(new Date(estado.hasta)).hora} el sistema se apaga unos minutos para actualizarlo. Guarda ahora lo que estés capturando.`
     : 'No recargues ni cierres esta pestaña: lo que tecleaste sigue aquí. Cuando el sistema regrese este aviso se quita solo y puedes volver a darle Guardar.';
-  const franja = estado.tipo === 'aviso'
-    ? `Mantenimiento ${cuando} · guarda lo que estés capturando`
+  const franja = tipo === 'aviso'
+    ? `Mantenimiento en ${cuentaRegresiva(falta)} · guarda lo que estés capturando`
     : 'Sistema en mantenimiento · no recargues esta pestaña';
 
   if (cerrado === clave) {
-    return <div className={`aviso-mant__franja aviso-mant__franja--${estado.tipo}`} role="status">{franja}</div>;
+    return <div className={`aviso-mant__franja aviso-mant__franja--${tipo}`} role="status">{franja}</div>;
   }
   return (
     <div className="aviso-mant" role="alertdialog" aria-modal="true" aria-labelledby="aviso-mant-titulo">
       <div className="aviso-mant__tarjeta">
-        <span className={`aviso-mant__insignia aviso-mant__insignia--${estado.tipo}`}>
-          {estado.tipo === 'aviso' ? 'Aviso' : 'En mantenimiento'}
+        <span className={`aviso-mant__insignia aviso-mant__insignia--${tipo}`}>
+          {tipo === 'aviso' ? 'Aviso' : 'En mantenimiento'}
         </span>
         <h2 id="aviso-mant-titulo">{titulo}</h2>
         <p>{texto}</p>
