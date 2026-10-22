@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Se recarga sola: cuando Diemar quita el mantenimiento, cada pantalla vuelve al sistema sin que nadie toque nada. -->
+<meta http-equiv="refresh" content="60">
+<title>Sistema en mantenimiento</title>
+<!-- Todo en línea: mientras dura el mantenimiento, cualquier otro archivo (logo, CSS, fuentes) también responde 503. -->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+    background: #faf8f3; color: #2c2a27;
+    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .tarjeta {
+    width: 100%; max-width: 560px; background: #fff; border-radius: 22px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.04); padding: 2.5rem 2rem; text-align: center;
+  }
+  svg { width: 100%; max-width: 320px; height: auto; }
+  h1 { font-size: 1.6rem; margin: 1.25rem 0 .5rem; }
+  p { color: #6f675d; line-height: 1.5; margin: .25rem 0; }
+  .estado {
+    display: inline-block; margin-top: 1.25rem; padding: .4rem 1rem; border-radius: 999px;
+    background: #ffedd5; color: #9a3412; font-size: .9rem; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<main class="tarjeta">
+  <svg viewBox="0 0 320 200" role="img" aria-label="Pantalla del sistema en obra, con una grúa">
+    <!-- andamio -->
+    <g stroke="#d6d0c4" stroke-width="3" fill="none">
+      <path d="M40 120 V190 M140 120 V190 M40 135 L140 190 M140 135 L40 190"/>
+    </g>
+    <rect x="28" y="116" width="124" height="7" rx="3" fill="#a39b8f"/>
+    <!-- pantalla -->
+    <rect x="44" y="40" width="96" height="76" rx="6" fill="#e9e4da"/>
+    <rect x="52" y="48" width="80" height="60" rx="3" fill="#fff"/>
+    <rect x="58" y="54" width="30" height="8" rx="2" fill="#c8503c"/>
+    <rect x="58" y="68" width="30" height="4" rx="2" fill="#d6d0c4"/>
+    <rect x="58" y="76" width="30" height="4" rx="2" fill="#d6d0c4"/>
+    <rect x="58" y="84" width="30" height="4" rx="2" fill="#d6d0c4"/>
+    <g fill="#ece7dd"><rect x="96" y="54" width="10" height="10"/><rect x="110" y="54" width="10" height="10"/><rect x="96" y="68" width="10" height="10"/><rect x="110" y="68" width="10" height="10"/><rect x="96" y="82" width="10" height="10"/></g>
+    <rect x="110" y="82" width="10" height="10" fill="#f59e0b"/>
+    <!-- grúa -->
+    <path d="M250 150 L120 18" stroke="#a39b8f" stroke-width="7" stroke-linecap="round"/>
+    <line x1="120" y1="18" x2="120" y2="26" stroke="#6f675d" stroke-width="2"/>
+    <rect x="98" y="24" width="44" height="5" rx="2" fill="#c8503c"/>
+    <!-- camión -->
+    <rect x="200" y="150" width="104" height="26" rx="4" fill="#ece7dd"/>
+    <rect x="270" y="130" width="34" height="22" rx="4" fill="#e9e4da"/>
+    <rect x="276" y="135" width="14" height="10" rx="2" fill="#f59e0b"/>
+    <circle cx="222" cy="180" r="10" fill="#6f675d"/><circle cx="222" cy="180" r="4" fill="#d6d0c4"/>
+    <circle cx="286" cy="180" r="10" fill="#6f675d"/><circle cx="286" cy="180" r="4" fill="#d6d0c4"/>
+    <rect x="20" y="190" width="290" height="4" rx="2" fill="#d6d0c4"/>
+  </svg>
+  <h1>Sistema en mantenimiento</h1>
+  <p>Estamos actualizando el sistema de Panaderías Grace.</p>
+  <p>Regresa solo en unos minutos; esta página se revisa sola cada minuto.</p>
+  <span class="estado">Las ventas del punto de venta se guardan y se envían al regresar</span>
+</main>
+</body>
+</html>

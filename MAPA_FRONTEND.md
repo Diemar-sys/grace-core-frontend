@@ -1,7 +1,7 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
 > Mapa de archivos, rutas y carpetas del repositorio frontend.
-> Generado 2026-09-08 · actualizado 2026-10-21. Si el árbol cambia, este documento miente: regenéralo.
+> Generado 2026-09-08 · actualizado 2026-10-22. Si el árbol cambia, este documento miente: regenéralo.
 
 | | |
 |---|---|
@@ -37,7 +37,7 @@
 | `tsconfig.json` | `strict: true`, `allowJs: true`, `checkJs: false`. | 🔴 `checkJs:false` es la trampa documentada en `preflight.sh`: `tsc` NO revisa `.jsx`, por eso `eslint` es obligatorio (incidente `LIMITE_COSTEO_PAN` en prod, 27-ago). `types: ["vitest/globals"]`. |
 | `eslint.config.js` | Flat config ESLint 9. | Reglas React + hooks + refresh. `react/prop-types: off` (proyecto sin PropTypes, TS es el camino si algún día se tipa). |
 | `Dockerfile` | Build multi-stage: node 22-alpine build → nginx 1.27-alpine serve. | `corepack enable` en vez de clavar versión de pnpm (para no divergir de `packageManager`). `pnpm-workspace.yaml` se copia junto a package.json/lockfile porque trae los `overrides` que el lockfile ya resolvió. `.env` se hornea en el bundle en build time. |
-| `nginx.conf` | nginx de prod: sirve el SPA + proxy a ERPNext + proxy a print-server. | Proxea `/(api\|files\|private\|assets\|socket.io)/` → `bakedata.local:8080` con `proxy_cookie_domain`. `/print/` → `host.docker.internal:6789`. Cabeceras de seguridad repetidas por location porque `add_header` en un location reemplaza las heredadas. `/static/` cache 1 año inmutable; `index.html` con `Cache-Control: no-cache` 🔴 (sin esto el deploy queda invisible — lección de sesión pasada). |
+| `nginx.conf` | nginx de prod: sirve el SPA + proxy a ERPNext + proxy a print-server. | Proxea `/(api\|files\|private\|assets\|socket.io)/` → `bakedata.local:8080` con `proxy_cookie_domain`. `/print/` → `host.docker.internal:6789`. Cabeceras de seguridad repetidas por location porque `add_header` en un location reemplaza las heredadas. `/static/` cache 1 año inmutable; `index.html` con `Cache-Control: no-cache` 🔴 (sin esto el deploy queda invisible — lección de sesión pasada). **22-oct: interruptor de mantenimiento** — si existe `/etc/nginx/mantenimiento/ON` (carpeta montada de `~/erp-grace-infra/mantenimiento`, la prende/apaga `~/mantenimiento.sh`) todo responde **503** con `public/mantenimiento.html`. Va aquí y no en Caddy porque el túnel de Cloudflare entra directo a este nginx. 503 y no 4xx: el outbox del POS (`db/sync.ts`) lo toma como transitorio y reintenta. Pasan el healthcheck (`127.0.0.1`, si no autoheal lo reinicia en bucle) y quien traiga la cookie de `/__paso` (Diemar probando antes de abrir; no es seguridad). Probado en nginx real: 10 casos + 2 mutantes muertos. |
 | `preflight.sh` | Gate de calidad: extrae HEAD limpio a un tmpdir (`git archive`) y corre `pnpm install --frozen-lockfile`, `typecheck`, `lint`, `test`, `build` ahí. | 🔴 Existe por el incidente `hora.ts` (05-ago): un archivo sin `git add` compilaba local pero rompía HEAD en origin. 🔴 Comentario explícito: `lint` NO es cosmético — cubre el hueco de `checkJs:false`. Copia `.env` al tmpdir porque no está en git pero el build lo necesita. Se corre `bash preflight.sh` ANTES de cada push de deploy. |
 | `verificar_css_global.sh` | Guardia: falla si el CSS de `dist/` trae un `body`, `html` o `*` sin acotar. Lo llama `preflight.sh` después del build. | 🔴 Nace el 08-sep, después de que `Login.css` dejara toda la app en `position:fixed`. Verifica el CSS minificado, no las fuentes. |
 | `.githooks/pre-push` | Hook que corre `preflight.sh` automáticamente al hacer push a `main`. | Detalle en su propia sección. |
@@ -256,6 +256,7 @@
 |---|---|---|
 | `public/logo_GRACE.png` | Logo de la panadería. | Usado en `src/pages/Login.jsx` y como default en `src/config/tenant.ts`. |
 | `public/nuevologobkd.png` | Favicon. | Referenciado en `index.html` (raíz) como `<link rel="icon">`. |
+| `public/mantenimiento.html` | Página «Sistema en mantenimiento» (22-oct) que sirve `nginx.conf` con 503 mientras exista el interruptor `ON`. | Todo en línea (SVG + CSS): durante el mantenimiento cualquier otro archivo también da 503. Se recarga sola cada 60 s, así que al quitar el candado cada pantalla regresa sola. |
 | `public/ticket_preview.html` | Mockup estático (HTML+CSS embebido) de un ticket térmico de venta. | No se referencia desde `src/` ni desde `index.html` — es una herramienta de preview manual para diseño, no se sirve en runtime de la app. |
 | `docs/screenshots/panel.png` | Captura del Panel. | Referenciada en `README.md`. |
 | `docs/screenshots/catalogo.png` | Captura del Catálogo. | Referenciada en `README.md`. |
