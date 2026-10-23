@@ -74,15 +74,19 @@ export function conDescuento(total: number, pct: number) {
 
 export interface FilaTicket { producto: string; piezas: number; precio: number; importe: number }
 
-/** 14-oct: lo que se LLEVA la camioneta (ENVIADO guardado × $ del servidor), para el ticket
- *  que firma el repartidor al salir. Lo tecleado sin guardar no cuenta: el ticket dice lo
- *  mismo que se va a cobrar. Total = redondear la suma (como `totalCapturado`), O(n). */
-export function ticketCamioneta(renglones: RenglonHoja[]) {
+/** 14-oct: lo que se LLEVA el destino (ENVIADO guardado × $ del servidor), para el ticket
+ *  que se firma al salir (23-oct: cualquier destino, no solo camioneta). Lo tecleado sin
+ *  guardar no cuenta: el ticket dice lo mismo que se va a cobrar. Subtotal = redondear la
+ *  suma (como `totalCapturado`); con descuento (DELI/ZAKIA) la misma regla que el aviso de
+ *  «Cobrar» (`conDescuento`). O(n). */
+export function ticketDeHoja(renglones: RenglonHoja[], pctDescuento = 0) {
   const llevados = renglones.filter(r => r.enviado > 0);
   const filas: FilaTicket[] = llevados.map(r => ({
     producto: r.producto, piezas: r.enviado, precio: r.precio, importe: centavos(r.enviado * r.precio),
   }));
-  return { filas, piezas: llevados.reduce((s, r) => s + r.enviado, 0), total: totalCapturado(llevados, {}) };
+  const subtotal = totalCapturado(llevados, {});
+  const { descuento, seDebe } = conDescuento(subtotal, pctDescuento);
+  return { filas, piezas: llevados.reduce((s, r) => s + r.enviado, 0), subtotal, descuento_pct: pctDescuento, descuento, total: seDebe };
 }
 
 /** Lo tecleado en MERMA que difiere de lo guardado (camioneta ya liquidada, 23-sep). */

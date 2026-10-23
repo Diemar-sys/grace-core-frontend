@@ -122,7 +122,7 @@ def _qty(q):
     return str(int(q)) if q == int(q) else f"{q:.3f}".rstrip('0').rstrip('.')
 
 
-def render_lines_image(rows, width=PRINTER_DOTS, margin=8):
+def render_lines_image(rows, width=PRINTER_DOTS, margin=8, gap=4):
     """rows: [{'text','size','align'} | {'rule':True}] -> PIL Image B/N para térmica."""
     heights = []
     for r in rows:
@@ -130,7 +130,7 @@ def render_lines_image(rows, width=PRINTER_DOTS, margin=8):
             heights.append(8)
         else:
             asc, desc = _font(r['size']).getmetrics()
-            heights.append(asc + desc + 4)
+            heights.append(asc + desc + gap)
     img = Image.new('L', (width, sum(heights) + 2 * margin), 255)
     d = ImageDraw.Draw(img)
     y = margin
@@ -306,36 +306,51 @@ def render_consolidado_image(data):
 
 
 def render_camioneta_image(data):
-    """14-oct: lo que se lleva la camioneta: pan, piezas, $, importe, total y firmas.
-    Los importes y el total llegan calculados del front (mismo $ del servidor que se
-    cobra); aqui solo se pintan."""
+    """Ticket de la Hoja del día (14-oct camioneta; 23-oct cualquier destino): lo que se
+    lleva, UN renglón por pan con PZS / $ / IMPORTE en columnas, descuento si lleva y
+    firmas lado a lado. Importes, descuento y total llegan calculados del front (mismo $
+    del servidor que se cobra); aquí solo se pintan."""
     body = 20
     cols = _cols(body)
+    pesos = lambda n: f"{_round(n):,.2f}"   # sin «$»: el encabezado lo dice
+    # PZS 4 · $ 7 · IMPORTE 10 (hasta 99,999.99); el nombre se lleva lo que sobra
+    ancho_nombre = cols - 21
+
+    def renglon(nombre, pzs, precio, importe):
+        return f"{nombre:<{ancho_nombre}.{ancho_nombre}}{pzs:>4}{precio:>7}{importe:>10}"
+
+    destino = str(data.get('destino') or data.get('camioneta') or '-')
+    camioneta = data.get('es_camioneta', 'destino' not in data)   # payload viejo = camioneta
     rows = [
-        {'text': 'GRACE', 'size': 34, 'align': 'c'},
-        {'text': 'Panaderia & Reposteria', 'size': 18, 'align': 'c'},
+        {'text': 'GRACE', 'size': 30, 'align': 'c'},
+        {'text': 'Panaderia & Reposteria', 'size': 16, 'align': 'c'},
         {'rule': True},
-        {'text': 'TICKET CAMIONETA', 'size': 22, 'align': 'c'},
+        {'lr': (destino[:cols - 17], f"{data.get('fecha', '')} {data.get('hora', '')}"[:16]), 'size': body},
         {'rule': True},
-        {'text': f"Camioneta: {str(data.get('camioneta') or '-')[:cols - 11]}", 'size': body},
-        {'text': f"Fecha:     {data.get('fecha', '')}", 'size': body},
-        {'text': f"Hora:      {data.get('hora', '')}", 'size': body},
-        {'rule': True},
-        {'lr': ('PAN  piezas x $', 'IMPORTE'), 'size': body},
-        {'rule': True},
+        {'text': renglon('PAN', 'PZS', '$', 'IMPORTE'), 'size': body, 'align': 'r'},
     ]
     for it in data.get('filas', []):
-        rows.append({'text': str(it.get('producto') or '')[:cols], 'size': body})
-        rows.append({'lr': (f"  {_qty(it.get('piezas'))} x {fmt(_num(it.get('precio')))}", fmt(_num(it.get('importe')))), 'size': body})
+        nombre = str(it.get('producto') or '')
+        rows.append({'text': renglon(nombre, _qty(it.get('piezas')), pesos(_num(it.get('precio'))), pesos(_num(it.get('importe')))), 'size': body, 'align': 'r'})
+        # nombre más largo que su columna: el resto abajo, sin perderlo
+        for i in range(ancho_nombre, len(nombre), ancho_nombre):
+            rows.append({'text': '  ' + nombre[i:i + ancho_nombre - 2], 'size': body})
     rows.append({'rule': True})
-    rows.append({'lr': ('Piezas', _qty(data.get('piezas'))), 'size': body})
-    rows.append({'lr': ('TOTAL', fmt(_num(data.get('total')))), 'size': 26})
-    for etiqueta in ('Firma de quien entrega', 'Firma del repartidor'):
-        rows.append({'text': '', 'size': body})
-        rows.append({'text': '', 'size': body})
-        rows.append({'rule': True})
-        rows.append({'text': etiqueta, 'size': body})
-    return render_lines_image(rows)
+    descuento = _num(data.get('descuento'))
+    if descuento:
+        rows.append({'lr': (f"Subtotal ({_qty(data.get('piezas'))} pz)", fmt(_num(data.get('subtotal')))), 'size': body})
+        rows.append({'lr': (f"Descuento {_qty(_num(data.get('descuento_pct')) * 100)}%", fmt(-descuento)), 'size': body})
+        rows.append({'lr': ('TOTAL', fmt(_num(data.get('total')))), 'size': 26})
+    else:
+        rows.append({'lr': (f"TOTAL ({_qty(data.get('piezas'))} pz)", fmt(_num(data.get('total')))), 'size': 26})
+    mitad = (cols - 2) // 2
+    recibe = 'Repartidor' if camioneta else 'Recibe'
+    rows += [
+        {'text': '', 'size': body}, {'text': '', 'size': body},
+        {'text': '_' * mitad + '  ' + '_' * mitad, 'size': body},
+        {'text': f"{'Entrega':^{mitad}}  {recibe:^{mitad}}", 'size': body},
+    ]
+    return render_lines_image(rows, gap=1)
 
 
 def render_traspaso_image(data):

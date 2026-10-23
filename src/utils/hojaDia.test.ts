@@ -180,10 +180,10 @@ describe('totalesPorDepartamento (08-oct)', () => {
   });
 });
 
-import { ticketCamioneta } from './hojaDia';
-describe('ticketCamioneta (14-oct: lo que se lleva la camioneta)', () => {
+import { ticketDeHoja } from './hojaDia';
+describe('ticketDeHoja (14-oct: lo que se lleva el destino)', () => {
   it('🔴 solo lo enviado, importe = enviado × $ y total = redondear la suma', () => {
-    const t = ticketCamioneta([
+    const t = ticketDeHoja([
       { ...r('1003', 'PAN MANTECA', 20, 12), merma: 5 },   // la merma NO resta: es lo que SALIÓ
       { ...r('1004', 'PAN MANTECA', 0, 12), pedido: 30 }, // pedido sin enviar: no va
       r('1005', 'PAN MANTECA', 3, 8.335),                 // 25.005 → 25.01 (half-up)
@@ -194,6 +194,14 @@ describe('ticketCamioneta (14-oct: lo que se lleva la camioneta)', () => {
     ]);
     expect(t.piezas).toBe(23);
     expect(t.total).toBe(265.01);
+    expect(t.descuento).toBe(0);
+  });
+  it('🔴 23-oct: con descuento (DELI 40%) el total es lo que se cobra, como el aviso de «Cobrar»', () => {
+    const t = ticketDeHoja([r('1003', 'CONCHA', 363, 14)], 0.4);   // 363 × $14 = $5,082
+    expect(t.subtotal).toBe(5082);
+    expect(t.descuento).toBe(2032.8);
+    expect(t.total).toBe(3049.2);
+    expect(t.descuento_pct).toBe(0.4);
   });
 });
 

@@ -64,21 +64,21 @@ export async function imprimirTraspasoTermico({ sucursalLabel, warehouseDestino,
   return data;
 }
 
-interface CamionetaData {
-  camioneta: string; fecha: string; hora: string;
+interface TicketHojaData {
+  destino: string; es_camioneta: boolean; fecha: string; hora: string;
   filas: { producto: string; piezas: number; precio: number; importe: number }[];
-  piezas: number; total: number;
+  piezas: number; subtotal: number; descuento_pct: number; descuento: number; total: number;
 }
 
-/** 14-oct: ticket de lo que se lleva la camioneta (piezas, $, importe, total y firmas). */
-export async function imprimirCamionetaTermico(data: CamionetaData) {
+/** 14-oct: ticket de lo que se lleva el destino (23-oct: cualquiera, con descuento si lleva). */
+export async function imprimirTicketHoja(data: TicketHojaData) {
   const res = await fetch(`${PRINT_SERVER}/imprimir-camioneta`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   const r = await res.json();
-  if (!r.ok) throw new Error(r.error || 'Error al imprimir ticket de camioneta');
+  if (!r.ok) throw new Error(r.error || 'Error al imprimir el ticket');
   return r;
 }
 

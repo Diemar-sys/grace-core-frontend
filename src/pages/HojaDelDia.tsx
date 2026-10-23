@@ -11,11 +11,11 @@ import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
 import VistaBolillo from '../components/VistaBolillo';
 import { hoyISO, horaLocal } from '../utils/hora';
-import { imprimirCamionetaTermico } from '../services/printService';
+import { imprimirTicketHoja } from '../services/printService';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketCamioneta, totalCapturado, totalesPorDepartamento,
+  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -234,19 +234,19 @@ export default function HojaDelDia() {
     return hojaService.confirmarEnvio(fecha, h.destino);
   }, 'No se confirmó el envío');
   const reabrirEnvio = () => ejecutar(h => hojaService.reabrirEnvio(fecha, h.destino), 'No se reabrió el envío');
-  // 14-oct: ticket de lo que se lleva la camioneta (ENVIADO ya fijo); el repartidor lo firma.
+  // 14-oct: ticket de lo que se lleva el destino (ENVIADO ya fijo); se firma al salir.
   const imprimirTicket = async () => {
     if (!hoja) return;
     setOcupado(true);
     try {
-      await imprimirCamionetaTermico({ camioneta: hoja.destino, fecha, hora: horaLocal(), ...ticketCamioneta(hoja.renglones) });
+      await imprimirTicketHoja({ destino: hoja.destino, es_camioneta: hoja.camioneta, fecha, hora: horaLocal(), ...ticketDeHoja(hoja.renglones, pctDescuento) });
     } catch (e: any) { setError(e?.message || 'No se imprimió el ticket'); }
     finally { setOcupado(false); }
   };
-  // 14-oct (Diemar): siempre visible en camioneta. Imprime lo GUARDADO: con cambios sin
-  // guardar se bloquea, si no el ticket no cuadraría con lo que se cobra.
+  // 14-oct (Diemar): siempre visible; 23-oct: en todos los destinos, no solo camioneta. Imprime
+  // lo GUARDADO: con cambios sin guardar se bloquea, si no el ticket no cuadraría con lo que se cobra.
   const sinGuardar = hoja ? (etapa === '' ? cambiosPendientes(hoja).length : paso3Pendiente.length) : 0;
-  const botonTicket = hoja?.camioneta ? (
+  const botonTicket = hoja ? (
     <button type="button" className="hoja-btn hoja-btn--secundario" onClick={imprimirTicket} disabled={ocupado || sinGuardar > 0}
       title={sinGuardar ? 'Guarda antes de imprimir' : undefined}>
       Ticket
@@ -534,7 +534,7 @@ export default function HojaDelDia() {
               </div>
             )}
 
-            {cobrado && botonTicket && <div className="hoja-dia__acciones">{botonTicket}</div>}
+            {cobrado && <div className="hoja-dia__acciones">{botonTicket}</div>}
 
             {mermaAbierta && (
               <div className="hoja-dia__acciones">

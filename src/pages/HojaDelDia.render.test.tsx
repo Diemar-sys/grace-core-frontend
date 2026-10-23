@@ -4,12 +4,12 @@ import { MemoryRouter } from 'react-router-dom';
 import HojaDelDia from './HojaDelDia';
 import { hojaService } from '../services/frappeHoja';
 import { hoyISO } from '../utils/hora';
-import { imprimirCamionetaTermico } from '../services/printService';
+import { imprimirTicketHoja } from '../services/printService';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../components/EstadoCuentaHoja', () => ({ default: () => <div>VISTA ESTADO DE CUENTA</div> }));
 vi.mock('../components/VistaBolillo', () => ({ default: ({ fecha, destino }: any) => <div>VISTA BOLILLO {fecha} {destino}</div> }));
-vi.mock('../services/printService', () => ({ imprimirCamionetaTermico: vi.fn() }));
+vi.mock('../services/printService', () => ({ imprimirTicketHoja: vi.fn() }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
     confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn() },
@@ -480,7 +480,7 @@ describe('HojaDelDia — cableado', () => {
     it('🔴 14-oct: capturando también hay ticket (siempre visible), bloqueado con ENVIADO sin guardar', async () => {
       s.destinos.mockResolvedValue(destinoIsma);
       s.hoja.mockResolvedValue(hojaIsma('', { enviado: 20 }));
-      vi.mocked(imprimirCamionetaTermico).mockResolvedValue({ ok: true });
+      vi.mocked(imprimirTicketHoja).mockResolvedValue({ ok: true });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
       const ticket = await screen.findByRole('button', { name: 'Ticket' });
@@ -488,7 +488,7 @@ describe('HojaDelDia — cableado', () => {
       expect(ticket).toBeDisabled();
       fireEvent.change(screen.getByLabelText('Enviado CHINOS'), { target: { value: '20' } });
       fireEvent.click(ticket);
-      await waitFor(() => expect(imprimirCamionetaTermico).toHaveBeenCalledWith(expect.objectContaining({ total: 240 })));
+      await waitFor(() => expect(imprimirTicketHoja).toHaveBeenCalledWith(expect.objectContaining({ total: 240 })));
     });
 
     it('🔴 14-oct: cobrada también reimprime', async () => {
@@ -499,23 +499,33 @@ describe('HojaDelDia — cableado', () => {
       expect(await screen.findByRole('button', { name: 'Ticket' })).toBeInTheDocument();
     });
 
-    it('un cliente (no camioneta) no tiene ticket', async () => {
-      s.hoja.mockResolvedValue(hoja());
+    it('🔴 23-oct: un cliente también tiene ticket, con su descuento y «Recibe»', async () => {
+      s.hoja.mockResolvedValue({ ...hoja(), renglones: [{ ...R, enviado: 363 }], descuento_pct: 0.4 });
+      vi.mocked(imprimirTicketHoja).mockResolvedValue({ ok: true });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('DELI');
-      await screen.findByLabelText('Enviado CONCHAS');
-      expect(screen.queryByRole('button', { name: 'Ticket' })).toBeNull();
+      fireEvent.click(await screen.findByRole('button', { name: 'Ticket' }));
+      await waitFor(() => expect(imprimirTicketHoja).toHaveBeenCalledWith(expect.objectContaining({
+        destino: 'DELI', es_camioneta: false, descuento_pct: 0.4, subtotal: 5082, descuento: 2032.8, total: 3049.2,
+      })));
+    });
+
+    it('🔴 23-oct: un cliente ya cobrado también reimprime', async () => {
+      s.hoja.mockResolvedValue(hoja({ name: 'ACC-SINV-1', grand_total: 1, outstanding_amount: 1 }));
+      render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+      await elegir('DELI');
+      expect(await screen.findByRole('button', { name: 'Ticket' })).toBeInTheDocument();
     });
 
     it('🔴 14-oct: en ruta, «Ticket» imprime lo que se lleva (sin lo que no salió)', async () => {
       s.destinos.mockResolvedValue(destinoIsma);
       s.hoja.mockResolvedValue(hojaIsma('enviado', { enviado: 20 }));
-      vi.mocked(imprimirCamionetaTermico).mockResolvedValue({ ok: true });
+      vi.mocked(imprimirTicketHoja).mockResolvedValue({ ok: true });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
       fireEvent.click(await screen.findByRole('button', { name: 'Ticket' }));
-      await waitFor(() => expect(imprimirCamionetaTermico).toHaveBeenCalledWith(expect.objectContaining({
-        camioneta: 'ISMA', fecha: expect.any(String), hora: expect.any(String),
+      await waitFor(() => expect(imprimirTicketHoja).toHaveBeenCalledWith(expect.objectContaining({
+        destino: 'ISMA', es_camioneta: true, fecha: expect.any(String), hora: expect.any(String),
         filas: [{ producto: 'CHINOS', piezas: 20, precio: 12, importe: 240 }], piezas: 20, total: 240,
       })));
     });
@@ -523,7 +533,7 @@ describe('HojaDelDia — cableado', () => {
     it('🔴 14-oct: ya regresó (paso 3) también hay ticket, con lo GUARDADO; con cambios sin guardar se bloquea', async () => {
       s.destinos.mockResolvedValue(destinoIsma);
       s.hoja.mockResolvedValue(hojaIsma('liquidado', { enviado: 20, merma: 3 }));
-      vi.mocked(imprimirCamionetaTermico).mockResolvedValue({ ok: true });
+      vi.mocked(imprimirTicketHoja).mockResolvedValue({ ok: true });
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
       const ticket = await screen.findByRole('button', { name: 'Ticket' });
@@ -531,7 +541,7 @@ describe('HojaDelDia — cableado', () => {
       expect(ticket).toBeDisabled();
       fireEvent.change(screen.getByLabelText('Enviado CHINOS'), { target: { value: '20' } });
       fireEvent.click(ticket);
-      await waitFor(() => expect(imprimirCamionetaTermico).toHaveBeenCalledWith(expect.objectContaining({
+      await waitFor(() => expect(imprimirTicketHoja).toHaveBeenCalledWith(expect.objectContaining({
         filas: [{ producto: 'CHINOS', piezas: 20, precio: 12, importe: 240 }], piezas: 20, total: 240,
       })));
     });
@@ -539,7 +549,7 @@ describe('HojaDelDia — cableado', () => {
     it('🔴 14-oct: si la impresora falla se ve el error', async () => {
       s.destinos.mockResolvedValue(destinoIsma);
       s.hoja.mockResolvedValue(hojaIsma('enviado', { enviado: 20 }));
-      vi.mocked(imprimirCamionetaTermico).mockRejectedValue(new Error('Impresora apagada'));
+      vi.mocked(imprimirTicketHoja).mockRejectedValue(new Error('Impresora apagada'));
       render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
       await elegir('ISMA');
       fireEvent.click(await screen.findByRole('button', { name: 'Ticket' }));
