@@ -45,17 +45,30 @@
 }
 .aviso-mant__btn:hover { transform: translateY(-2px); }
 
-.aviso-mant__franja {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10001;
-  padding: 0.5rem 1rem;
-  text-align: center;
-  font-size: 0.9rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+/* Píldora junto al reloj de la barra carbón (PildoraMantenimiento, dentro de Reloj) */
+/* Mismas medidas que .panel-reloj (global.css) para que se vean parejos: 15/20 px, 6px 16px. */
+.mant-pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
-.aviso-mant__franja--aviso  { background: #ffedd5; color: #9a3412; }
-.aviso-mant__franja--activo { background: #fee2e2; color: #991b1b; }
+.mant-pildora__cuenta { font-family: var(--tv-mono); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+@media (max-width: 1024px) {
+  .mant-pildora { padding: 5px 12px; font-size: 13px; }
+  .mant-pildora__cuenta { font-size: 17px; }
+}
+/* Celular: solo el icono y la cuenta, como el reloj solo deja la hora */
+@media (max-width: 600px) {
+  .mant-pildora { padding: 4px 10px; gap: 4px; }
+  .mant-pildora__texto { display: none; }
+  .mant-pildora__cuenta { font-size: 15px; }
+}

@@ -1,7 +1,8 @@
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
 import AvisoMantenimiento from './AvisoMantenimiento';
 import { leerAviso, cuentaRegresiva } from '../utils/mantenimiento';
-import { useAvisoMantenimiento } from '../hooks/useAvisoMantenimiento';
+import { useAvisoMantenimiento, MantenimientoContext } from '../hooks/useAvisoMantenimiento';
+import Reloj from './Reloj';
 
 describe('leerAviso', () => {
   const FECHA = 'Thu, 22 Oct 2026 21:40:00 GMT';
@@ -59,19 +60,35 @@ describe('AvisoMantenimiento', () => {
     vi.setSystemTime(new Date(2026, 9, 22, 15, 44, 58));
     render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Mantenimiento en 0:02');
     act(() => { vi.advanceTimersByTime(2_000); });
     expect(screen.getByRole('alertdialog')).toHaveTextContent('Sistema en mantenimiento');
+    expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument();
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/No recargues ni cierres esta pestaña/);
   });
 
-  it('«Entendido» quita el modal (para poder guardar) y deja la franja con la cuenta', () => {
+  it('«Entendido» quita el modal (para poder guardar); la cuenta sigue en la píldora del reloj', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 22, 15, 40, 0));
-    render(<AvisoMantenimiento estado={{ tipo: 'aviso', inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() }} />);
+    const estado = { tipo: 'aviso' as const, inicio: 1, hasta: new Date(2026, 9, 22, 15, 45, 0).getTime() };
+    render(
+      <MantenimientoContext.Provider value={estado}>
+        <AvisoMantenimiento estado={estado} />
+        <Reloj />
+      </MantenimientoContext.Provider>,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Mantenimiento en 5:00');
+    expect(screen.getByRole('status', { name: 'Mantenimiento en 5:00' })).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(3_000); });
+    expect(screen.getByRole('status', { name: 'Mantenimiento en 4:57' })).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(297_000); });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();   // en 0 se va: manda el modal
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Sistema en mantenimiento');
+  });
+
+  it('sin aviso el reloj va solo, sin píldora', () => {
+    render(<Reloj />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('cerrar el aviso no tapa el de «ya en mantenimiento»: ese vuelve a abrir', () => {
@@ -79,6 +96,15 @@ describe('AvisoMantenimiento', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
     rerender(<AvisoMantenimiento estado={{ tipo: 'activo' }} />);
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/No recargues ni cierres esta pestaña/);
+  });
+
+  it('ya EN mantenimiento no se puede cerrar: sin botón, ni con Escape, y nada que deje usar la pantalla', () => {
+    render(<AvisoMantenimiento estado={{ tipo: 'activo' }} />);
+    const modal = screen.getByRole('alertdialog');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    fireEvent.keyDown(modal, { key: 'Escape' });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
 

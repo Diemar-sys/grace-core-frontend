@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 import { leerAviso } from '../utils/mantenimiento';
 
 /**
@@ -15,6 +15,21 @@ export type EstadoMantenimiento =
   | { tipo: 'activo' };
 
 const CADA = 30 * 1000;
+
+/** Una sola consulta para toda la app (App.jsx la provee): el modal y la píldora del reloj la leen. */
+export const MantenimientoContext = createContext<EstadoMantenimiento>({ tipo: 'nada' });
+
+/** `Date.now()` que se refresca cada segundo mientras `activo`; para la cuenta regresiva. */
+export function useAhoraCadaSegundo(activo: boolean): number {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activo) return;
+    setAhora(Date.now());
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activo]);
+  return ahora;
+}
 
 export function useAvisoMantenimiento(): EstadoMantenimiento {
   const [estado, setEstado] = useState<EstadoMantenimiento>({ tipo: 'nada' });

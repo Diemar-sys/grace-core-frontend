@@ -9,7 +9,7 @@ import BannerConexion from './components/BannerConexion';
 import { useSesionCompartida } from './hooks/useSesionCompartida';
 import AvisoSesion from './components/AvisoSesion';
 import AvisoMantenimiento from './components/AvisoMantenimiento';
-import { useAvisoMantenimiento } from './hooks/useAvisoMantenimiento';
+import { useAvisoMantenimiento, MantenimientoContext } from './hooks/useAvisoMantenimiento';
 
 // Carga inmediata: vistas operativas principales
 import Catalogo from './pages/Catalogo';
@@ -63,13 +63,16 @@ function App() {
   // aviso de mantenimiento (mantenimiento.sh aviso/on): para todas las pantallas, Login incluido
   const mantenimiento = useAvisoMantenimiento();
   return (
+    <MantenimientoContext.Provider value={mantenimiento}>
+    {/* Fuera del ErrorBoundary: en mantenimiento una pantalla perezosa da 503, el boundary
+        cambia todo por «Algo salió mal» y se llevaba el aviso con él (22-oct). */}
+    <AvisoMantenimiento estado={mantenimiento} />
     <BrowserRouter>
       <ErrorBoundary>
       {/* Fuera de <Routes>: el aviso de red sale en cualquier pantalla,
           incluido el Panel, que no pasa por Layout. */}
       <BannerConexion />
       <AvisoSesion cambio={cambioSesion} />
-      <AvisoMantenimiento estado={mantenimiento} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Ruta pública */}
@@ -309,6 +312,7 @@ function App() {
       </Suspense>
       </ErrorBoundary>
     </BrowserRouter>
+    </MantenimientoContext.Provider>
   );
 }
 
