@@ -103,7 +103,7 @@ function Layout({ children }) {
               </span>
             )}
           </div>
-          <button className="panel-logout-btn" onClick={handleLogout}>
+          <button className="panel-logout-btn" onClick={handleLogout} data-sale>
             <LogOut size={16} /> Salir
           </button>
         </div>

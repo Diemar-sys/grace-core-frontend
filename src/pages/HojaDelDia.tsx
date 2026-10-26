@@ -14,6 +14,7 @@ import { hoyISO, horaLocal } from '../utils/hora';
 import { imprimirTicketHoja } from '../services/printService';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
 import useBorradorLocal from '../hooks/useBorradorLocal';
+import useAvisoSinGuardar, { haySinGuardar } from '../hooks/useAvisoSinGuardar';
 import {
   bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
@@ -50,6 +51,8 @@ export default function HojaDelDia() {
   // tira. «Guardar» queda para el final de la ronda; confirmar guarda antes de todos modos.
   const [borrador, setBorrador] = useState<BorradorHoja>({});
   useBorradorLocal('hoja-dia', Object.keys(borrador).length ? borrador : null, setBorrador);
+  // 26-oct: lo de arriba NO es guardar en el sistema; salir con algo pendiente pregunta
+  useAvisoSinGuardar(haySinGuardar(borrador, fecha));
   const olvidar = (destino: string, campos: CampoHoja[]) => setBorrador(b => sinTecleado(b, fecha, destino, campos));
   // qué confirma el modal: el cobro, (camioneta) el envío, o cancelar un cobro para corregirlo
   const [accion, setAccion] = useState<null | 'cobrar' | 'envio' | 'corregir'>(null);
