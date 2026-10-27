@@ -43,9 +43,29 @@ function PagadoAbono({ d }: { d: Pick<DiaCuenta, 'estado' | 'pagado' | 'debe' | 
   );
 }
 
-function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_debe'> }) {
+// 27-oct: egresos que Eva pagó con lo cobrado (la pipa con lo de GUSTAVO), con folio y quién lo
+// capturó: es lo que Luis revisa. El monto del día es la parte que cayó aquí (un egreso grande se
+// reparte entre los días de su cobro); el folio enseña el egreso completo.
+function Egresos({ d }: { d: Pick<DiaCuenta, 'egreso' | 'egresos'> }) {
+  if (!d.egreso) return <span className="text-muted">—</span>;
+  return (
+    <span className="hoja-estado__egreso">
+      <strong>−{pesos(d.egreso)}</strong>
+      {d.egresos?.map(e => (
+        <small key={e.egreso} title={`${e.concepto ?? ''} · cobro ${e.cobro}`}>
+          {e.egreso} · {e.subcategoria ?? e.concepto} {pesos(e.monto)} · {e.capturo.split('@')[0]} {e.cuando.slice(5)}
+        </small>
+      ))}
+    </span>
+  );
+}
+
+function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_debe' | 'por_entregar'> }) {
   if (d.pagado <= 0) return <span className="hoja-estado__sin">—</span>;
-  if (d.liquidado == null || d.eva_debe == null) return <span className="hoja-badge hoja-badge--ambar">SIN LIQUIDAR</span>;
+  // 27-oct: sin liquidar dice cuánto esperar (cobrado − egresos que Eva pagó con eso; del servidor)
+  if (d.liquidado == null || d.eva_debe == null) {
+    return <span className="hoja-badge hoja-badge--ambar">POR ENTREGAR {pesos(d.por_entregar ?? d.pagado)}</span>;
+  }
   if (d.eva_debe > 0) return <span className="hoja-badge hoja-badge--rojo">EVA DEBE {pesos(d.eva_debe)}</span>;
   if (d.eva_debe < 0) return <span className="hoja-badge hoja-badge--azul">SOBRA {pesos(-d.eva_debe)}</span>;
   return <span className="hoja-badge hoja-badge--verde">ENTREGÓ TODO</span>;
@@ -120,6 +140,10 @@ export default function EstadoCuentaHoja() {
   const camioneta = Boolean(estado?.camioneta);
   // 15-oct: DELI/ZAKIA llevan descuento; la columna solo sale si en el rango hubo (camioneta: 0)
   const conDescuento = (estado?.total.descuento ?? 0) > 0;
+  const conEgreso = (estado?.total.egreso ?? 0) > 0;   // 27-oct: solo si Eva pagó algo con lo cobrado
+  // 27-oct: lo que Eva cobró y no ha entregado: lo de días sin liquidar + lo que quedó a deber al liquidar
+  const faltaEntregar = (estado?.total.por_entregar ?? 0) + (estado?.total.eva_debe ?? 0);
+  const conCaja = conEgreso || (estado?.total.liquidado ?? 0) > 0;
   const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
 
   return (
@@ -181,6 +205,27 @@ export default function EstadoCuentaHoja() {
                 {pesos(estado.total.debe)}
               </span>
             </div>
+            {conCaja && conEgreso && (
+              <div className="hoja-estado__stat">
+                <span className="hoja-estado__stat-label">Pagado en egresos</span>
+                <span className="hoja-estado__stat-valor hoja-estado__stat-valor--favor">−{pesos(estado.total.egreso ?? 0)}</span>
+              </div>
+            )}
+            {conCaja && (
+              <div className="hoja-estado__stat">
+                <span className="hoja-estado__stat-label">Entregado a Luis</span>
+                <span className="hoja-estado__stat-valor">{pesos(estado.total.liquidado)}</span>
+              </div>
+            )}
+            {conCaja && (
+              <div className="hoja-estado__stat">
+                <span className="hoja-estado__stat-label">{faltaEntregar < 0 ? 'Sobra' : 'Falta entregar'}</span>
+                <span className={`hoja-estado__stat-valor${faltaEntregar > 0 ? ' hoja-estado__stat-valor--debe'
+                  : faltaEntregar < 0 ? ' hoja-estado__stat-valor--favor' : ' hoja-estado__stat-valor--ok'}`}>
+                  {pesos(Math.abs(faltaEntregar))}
+                </span>
+              </div>
+            )}
             {estado.total.a_favor > 0 && (
               <div className="hoja-estado__stat">
                 <span className="hoja-estado__stat-label">Se le debe al repartidor</span>
@@ -200,6 +245,7 @@ export default function EstadoCuentaHoja() {
                     {camioneta && (<><th className="cell-right">COMISIÓN 10%</th><th className="cell-right">AYUDANTE (FIJO)</th><th className="cell-right">SUELDO TOTAL</th></>)}
                     {conDescuento && <th className="cell-right">DESCUENTO</th>}
                     <th className="cell-right">{camioneta ? 'RECIBIR/PAGAR' : 'RECIBIR'}</th><th className="hoja-estado__col-pago">PAGADO/ABONO</th>
+                    {conEgreso && <th className="hoja-estado__col-egreso">EGRESO</th>}
                     <th className="hoja-estado__col-liq">LIQUIDADO</th>
                   </tr>
                 </thead>
@@ -216,6 +262,7 @@ export default function EstadoCuentaHoja() {
                       {conDescuento && <td className="cell-right">{(d.descuento ?? 0) > 0 ? `−${pesos(d.descuento ?? 0)}` : '—'}</td>}
                       <td className="cell-right hoja-estado__recibir">{pesos(d.recibir)}</td>
                       <td className="hoja-estado__col-pago"><PagadoAbono d={d} /></td>
+                      {conEgreso && <td className="hoja-estado__col-egreso"><Egresos d={d} /></td>}
                       <td className="hoja-estado__col-liq">
                         <span className="hoja-estado__liq">
                           {estado.puede_liquidar && d.pagado > 0 && (
@@ -225,6 +272,7 @@ export default function EstadoCuentaHoja() {
                                 aria-label={`Liquidado ${fechaCorta(d.fecha)}`}
                                 className="hoja-input hoja-estado__liq-input"
                                 value={tecleoLiq[d.factura] ?? (d.liquidado == null ? '' : String(d.liquidado))}
+                                placeholder={d.por_entregar != null ? String(d.por_entregar) : undefined}
                                 disabled={guardando === d.factura}
                                 onChange={e => setTecleoLiq(t => ({ ...t, [d.factura]: e.target.value }))}
                                 onKeyDown={e => { if (e.key === 'Enter') liquidar(d.factura); }}
@@ -256,10 +304,12 @@ export default function EstadoCuentaHoja() {
                       {estado.total.debe > 0 ? `Debe ${pesos(estado.total.debe)}` : 'PAGADO'}
                       {estado.total.a_favor > 0 && ` · a favor del repartidor ${pesos(estado.total.a_favor)}`}
                     </td>
+                    {conEgreso && <td className="hoja-estado__col-egreso">−{pesos(estado.total.egreso ?? 0)}</td>}
                     <td className="hoja-estado__col-liq">
                       {pesos(estado.total.liquidado)}
                       {estado.total.eva_debe > 0 && ` · Eva debe ${pesos(estado.total.eva_debe)}`}
                       {estado.total.eva_debe < 0 && ` · sobra ${pesos(-estado.total.eva_debe)}`}
+                      {(estado.total.por_entregar ?? 0) > 0 && ` · por entregar ${pesos(estado.total.por_entregar ?? 0)}`}
                     </td>
                   </tr>
                 </tfoot>

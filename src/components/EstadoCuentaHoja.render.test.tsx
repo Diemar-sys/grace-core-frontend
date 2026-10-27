@@ -187,7 +187,7 @@ describe('EstadoCuentaHoja', () => {
     expect(screen.getByText('LIQUIDADO')).toBeInTheDocument();
     expect(within(filaDe('22/09/2026')).getByText('$900.00')).toBeInTheDocument();
     expect(within(filaDe('22/09/2026')).getByText('EVA DEBE $100.00')).toBeInTheDocument();
-    expect(within(filaDe('23/09/2026')).getByText('SIN LIQUIDAR')).toBeInTheDocument();
+    expect(within(filaDe('23/09/2026')).getByText('POR ENTREGAR $500.00')).toBeInTheDocument();   // sin por_entregar: lo cobrado
     expect(within(filaDe('24/09/2026')).getByText('—')).toBeInTheDocument();
     expect(within(filaDe('25/09/2026')).getByText('ENTREGÓ TODO')).toBeInTheDocument();
     expect(within(filaDe('26/09/2026')).getByText('SOBRA $20.00')).toBeInTheDocument();
@@ -223,5 +223,57 @@ describe('EstadoCuentaHoja', () => {
     fireEvent.keyDown(screen.getByLabelText('Liquidado 23/09/2026'), { key: 'Enter' });
     expect(await screen.findByText(/no puede pasar de lo cobrado/)).toBeInTheDocument();
     expect(screen.getByLabelText('Liquidado 23/09/2026')).toHaveValue(600);
+  });
+
+  // 27-oct: EGRESO después de LIQUIDADO, solo si Eva pagó algo con lo cobrado (lo dice el servidor).
+  it('🔴 EGRESO: monto del día, folio y quién; sin egresos no hay columna', async () => {
+    const pipa = { egreso: 'EGR-2026-0552', cobro: 'ACC-PAY-70', subcategoria: 'AGUA', concepto: 'PIPA', monto: 1276,
+                   capturo: 'eva.rh@grace.mx', cuando: '2026-10-22 12:13' };
+    const base = DELI_LIQ(false);
+    h.estadoCuenta.mockResolvedValue({ ...base,
+      dias: [{ ...base.dias[0], egreso: 100, eva_debe: 0, egresos: [pipa] }, ...base.dias.slice(1)],
+      total: { ...base.total, egreso: 100 } } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('22/09/2026');
+    expect(screen.getByText('EGRESO')).toBeInTheDocument();
+    const fila = filaDe('22/09/2026');
+    expect(within(fila).getByText('−$100.00')).toBeInTheDocument();
+    expect(within(fila).getByText(/EGR-2026-0552 · AGUA \$1,276\.00 · eva\.rh 10-22 12:13/)).toBeInTheDocument();
+    expect(within(fila).getByText('ENTREGÓ TODO')).toBeInTheDocument();      // eva_debe del servidor ya restó el egreso
+    expect(screen.getAllByText('−$100.00')).toHaveLength(3);                 // fila, pie y tarjeta
+    // EGRESO va entre PAGADO/ABONO y LIQUIDADO (Diemar 27-oct)
+    const cabeza = screen.getAllByRole('columnheader').map(th => th.textContent);
+    expect(cabeza.slice(-3)).toEqual(['PAGADO/ABONO', 'EGRESO', 'LIQUIDADO']);
+    // tarjetas de la caja de Eva: egresos, entregado y lo que falta (por entregar + Eva debe)
+    expect(screen.getByText('Pagado en egresos').nextSibling).toHaveTextContent('−$100.00');
+    expect(screen.getByText('Entregado a Luis').nextSibling).toHaveTextContent('$1,220.00');
+    expect(screen.getByText('Falta entregar').nextSibling).toHaveTextContent('$80.00');
+  });
+
+  // 27-oct: sin liquidar, cuánto debe esperar Luis = cobrado − egresos (lo manda el servidor)
+  it('🔴 POR ENTREGAR: lo del servidor (con egreso restado), en la insignia, la casilla y el pie', async () => {
+    const base = DELI_LIQ(true);
+    h.estadoCuenta.mockResolvedValue({ ...base,
+      dias: [base.dias[0], { ...base.dias[1], egreso: 276, por_entregar: 224 }, ...base.dias.slice(2)],
+      total: { ...base.total, egreso: 276, por_entregar: 224 } } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('23/09/2026');
+    expect(within(filaDe('23/09/2026')).getByText('POR ENTREGAR $224.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('Liquidado 23/09/2026')).toHaveAttribute('placeholder', '224');
+    expect(screen.getByLabelText('Liquidado 23/09/2026')).toHaveValue(null);    // sugerido, no tecleado
+    expect(screen.getByText(/por entregar \$224\.00/)).toBeInTheDocument();
+    expect(screen.getByText('Falta entregar').nextSibling).toHaveTextContent('$304.00');   // 224 sin liquidar + 80 que Eva debe
+  });
+
+  it('sin egresos en el rango no sale la columna EGRESO', async () => {
+    h.estadoCuenta.mockResolvedValue(DELI_LIQ(false) as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('22/09/2026');
+    expect(screen.queryByText('EGRESO')).toBeNull();
+    expect(screen.queryByText('Pagado en egresos')).toBeNull();
+    expect(screen.getByText('Falta entregar').nextSibling).toHaveTextContent('$80.00');   // sí liquidó: la caja sale
   });
 });

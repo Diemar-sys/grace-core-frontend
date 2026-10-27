@@ -18,6 +18,7 @@ import { LuzForm } from '../components/egresos/LuzForm';
 import { calcLuz } from '../components/egresos/luzCalc';
 import { calcSimple } from '../components/egresos/simpleCalc';
 import { EgresosTabla } from '../components/egresos/EgresosTabla';
+import ModalPagarEgreso from '../components/egresos/ModalPagarEgreso';
 
 import '../styles/NuevaCompra.css';
 import '../styles/Panel.css';
@@ -41,6 +42,7 @@ export default function Egresos() {
   const [form, setForm]                 = useState(FORM_INIT);
   const [guardando, setGuardando]       = useState(false);
   const [confirmDel, setConfirmDel]     = useState(null);
+  const [pagando, setPagando]           = useState(null);   // egreso al que se le elige con qué se pagó
   const [busqueda, setBusqueda]         = useState('');
   const [okMsg, setOkMsg]               = useState('');
   const [subcatFiltro, setSubcatFiltro]       = useState('todas');
@@ -287,11 +289,23 @@ export default function Egresos() {
     catch (err) { setError(err?.message || 'Error al imprimir'); }
   };
 
+  // 27-oct: marcar pagado pregunta con qué (pago normal o el efectivo de un cobro de la hoja).
+  // Revertir uno pagado con cobro lo decide el servidor (solo Luis/Administrator): su mensaje se ve.
   const handlePagado = async (e) => {
-    const nuevo = e.pagado ? 0 : 1;
-    setEgresos(prev => prev.map(x => x.name === e.name ? { ...x, pagado: nuevo } : x));
-    try { await egresosService.marcarPagado(e.name, nuevo); }
-    catch { setError('Error al marcar pagado'); cargar(categoriaKey); }
+    if (!e.pagado) { setPagando(e); return; }
+    setEgresos(prev => prev.map(x => x.name === e.name ? { ...x, pagado: 0, pagado_con: null } : x));
+    try { await egresosService.marcarPagado(e.name, 0); }
+    catch (err) {
+      // se regresa el renglón tal cual (recargar borraría el aviso del servidor)
+      setEgresos(prev => prev.map(x => x.name === e.name ? e : x));
+      setError(err?.message || 'Error al marcar pagado');
+    }
+  };
+
+  const pagarCon = async (cobro) => {
+    const r = await egresosService.marcarPagado(pagando.name, 1, cobro);
+    setEgresos(prev => prev.map(x => x.name === pagando.name ? { ...x, pagado: 1, pagado_con: r?.pagado_con || null } : x));
+    setPagando(null);
   };
 
   const subcats = cat?.subcategorias || [];
@@ -420,6 +434,7 @@ export default function Egresos() {
         onEliminar={handleEliminar}
       />
       {showForm && formModal}
+      {pagando && <ModalPagarEgreso egreso={pagando} onPagar={pagarCon} onCerrar={() => setPagando(null)} />}
     </Layout>
   );
 }

@@ -67,12 +67,20 @@ export interface DiaCuenta {
   descuento?: number;
   /** 09-oct: lo que Eva le entregó a Luis (null = sin liquidar) y pagado − liquidado (null igual). */
   liquidado: number | null; eva_debe: number | null;
+  /** 27-oct: lo que Eva pagó de egresos con lo cobrado, acomodado a este día (eva_debe ya lo resta). */
+  egreso?: number; egresos?: EgresoDeCobro[];
+  /** 27-oct: sin liquidar, lo que Luis debe esperar (cobrado − egresos del día); null si ya liquidó o sin cobro. */
+  por_entregar?: number | null;
+}
+export interface EgresoDeCobro {
+  egreso: string; cobro: string; subcategoria: string | null; concepto: string | null;
+  monto: number; capturo: string; cuando: string;
 }
 export interface EstadoCuenta {
   destino: string; cliente: string; camioneta: boolean; desde: string; hasta: string; dias: DiaCuenta[];
   /** solo Administrator y luis.th: lo decide el servidor */
   puede_liquidar: boolean;
-  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe'> & { liquidado: number; eva_debe: number };
+  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe'> & { liquidado: number; eva_debe: number; egreso?: number; por_entregar?: number };
 }
 
 class HojaService extends FrappeBase {

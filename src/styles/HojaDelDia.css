@@ -202,6 +202,10 @@
 .hoja-estado__tabla input.hoja-estado__liq-input { width: 7.5rem; min-height: 40px; text-align: right; font-family: var(--tv-mono); }
 .hoja-estado__liq-btn { min-height: 40px; padding: 0 1rem; }
 .hoja-estado__liq-monto { font-weight: 700; }
+.hoja-estado__tabla .hoja-estado__col-egreso { padding-left: 1.5rem; border-left: 1px dashed var(--tv-hairline); }
+.hoja-estado__egreso { display: inline-flex; flex-direction: column; gap: 2px; }
+.hoja-estado__egreso strong { color: #1e40af; font-family: var(--tv-mono); }
+.hoja-estado__egreso small { color: var(--tv-ink-soft); font-size: 12px; white-space: nowrap; }
 .hoja-estado__sin { color: var(--tv-ink-soft); }
 @media (pointer: coarse) {
   .hoja-estado__tabla input.hoja-estado__liq-input, .hoja-estado__liq-btn { min-height: 48px; }

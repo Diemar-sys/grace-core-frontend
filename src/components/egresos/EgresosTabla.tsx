@@ -16,7 +16,8 @@ export interface EgresoItem {
   monto: number | string;
   impuesto_tipo?: string;
   monto_impuesto?: number | string;
-  pagado?: boolean;
+  pagado?: boolean | number;
+  pagado_con?: string | null;   // 27-oct: cobro de la hoja con cuyo efectivo se pagó
 }
 
 interface EgresosTablaProps {
@@ -263,13 +264,15 @@ export const EgresosTabla: React.FC<EgresosTablaProps> = ({
                     </td>
                     <td>
                       <button
-                        className={'egresos-pago-toggle' + (e.pagado ? ' pagado' : '')}
+                        className={'egresos-pago-toggle' + (e.pagado ? ' pagado' : '')
+                          + (e.pagado_con ? ' egresos-pago-toggle--cobro' : '')}
                         onClick={() => onPagado(e)}
                         title={
-                          e.pagado ? 'Pagado — clic para revertir' : 'Marcar como pagado'
+                          e.pagado_con ? `Pagado con el cobro ${e.pagado_con} — solo Luis o Administrator lo quitan`
+                            : e.pagado ? 'Pagado — clic para revertir' : 'Marcar como pagado'
                         }
                       >
-                        {e.pagado ? '✓ Pagado' : 'Por pagar'}
+                        {e.pagado_con ? '✓ Con cobro' : e.pagado ? '✓ Pagado' : 'Por pagar'}
                       </button>
                     </td>
                     <td className="comp-td-acciones">

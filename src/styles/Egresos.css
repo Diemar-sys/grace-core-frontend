@@ -408,3 +408,47 @@
   color: var(--tv-marca);
 }
 .egresos-total-row.final > span:last-child { font-family: var(--tv-mono); }
+
+/* ── 27-oct: ¿con qué se pagó? (pago normal o efectivo de un cobro de la hoja) ── */
+.egresos-pago-toggle--cobro { background: #dbeafe; color: #1e40af; }
+.egresos-modal-card--chico { max-width: 600px; }
+.egresos-pagar__egreso { margin: 0 0 18px; font-size: 16px; color: var(--tv-ink); }
+.egresos-pagar__normal,
+.egresos-pagar__cancelar,
+.egresos-pagar__confirmar {
+  border-radius: var(--radius-pill); padding: 10px 22px; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: transform .2s ease, box-shadow .2s ease;
+}
+.egresos-pagar__normal,
+.egresos-pagar__cancelar { background: var(--tv-masa); color: var(--tv-ink); border: 1px solid var(--tv-hairline); }
+.egresos-pagar__confirmar { background: var(--color-brand); color: #fff; border: none; }
+.egresos-pagar__normal:hover:not(:disabled),
+.egresos-pagar__confirmar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-bento-hover); }
+.egresos-pagar__normal:disabled,
+.egresos-pagar__cancelar:disabled,
+.egresos-pagar__confirmar:disabled { opacity: .5; cursor: not-allowed; }
+.egresos-pagar__titulo {
+  margin: 24px 0 10px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--tv-ink-soft);
+}
+.egresos-pagar__cobros { display: flex; flex-direction: column; gap: 10px; }
+.egresos-pagar__cobro {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer;
+  background: #fff; border-radius: var(--radius-card); box-shadow: var(--shadow-bento);
+  border: 2px solid transparent; transition: box-shadow .2s ease, border-color .2s ease;
+}
+.egresos-pagar__cobro:hover { box-shadow: var(--shadow-bento-hover); }
+.egresos-pagar__cobro--elegido { border-color: var(--color-brand); }
+.egresos-pagar__cobro--no-alcanza { opacity: .55; cursor: not-allowed; }
+.egresos-pagar__cobro > span:first-of-type { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.egresos-pagar__cobro small { color: var(--tv-ink-soft); font-size: 12px; }
+.egresos-pagar__disp {
+  border-radius: var(--radius-pill); padding: 4px 12px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  background: #dcfce7; color: #166534;
+}
+.egresos-pagar__cobro--no-alcanza .egresos-pagar__disp { background: #fee2e2; color: #991b1b; }
+.egresos-pagar__pie { display: flex; justify-content: flex-end; gap: 10px; padding: 20px 32px 24px; }
+@media (max-width: 600px) {
+  .egresos-pagar__cobro { flex-wrap: wrap; }
+  .egresos-pagar__pie { padding: 16px; }
+}

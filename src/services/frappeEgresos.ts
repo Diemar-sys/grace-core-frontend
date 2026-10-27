@@ -2,6 +2,16 @@ import FrappeBase from './FrappeBase';
 
 const METHOD = (name: string) => `/api/method/gestion_panaderia.api.egresos_api.${name}`;
 
+/** Cobro de la hoja con efectivo todavía en la mano de Eva (27-oct). */
+export interface CobroParaEgreso {
+  cobro: string;
+  cliente: string;
+  fecha: string;
+  facturas: string[];
+  recibido: number;
+  disponible: number;
+}
+
 interface EgresoFiltros {
   categoria?: string;
   facturado_a?: string;
@@ -50,12 +60,20 @@ class FrappeEgresosService extends FrappeBase {
     return json.message || [];
   }
 
-  async marcarPagado(name: string, pagado: boolean | number): Promise<any> {
+  /** `cobro`: pagado con el efectivo de ese cobro de la hoja (27-oct; el tope lo pone el servidor). */
+  async marcarPagado(name: string, pagado: boolean | number, cobro: string | null = null): Promise<any> {
     const json = await this._fetch(METHOD('marcar_pagado'), {
       method: 'POST',
-      body: JSON.stringify({ name, pagado: pagado ? 1 : 0 }),
+      body: JSON.stringify({ name, pagado: pagado ? 1 : 0, ...(cobro ? { cobro } : {}) }),
     });
-    return json?.message;
+    if (!json) throw new Error('Sin conexión: no se marcó pagado');
+    return json.message;
+  }
+
+  async cobrosParaEgreso(): Promise<CobroParaEgreso[]> {
+    const json = await this._fetch(METHOD('cobros_para_egreso'));
+    if (!json) throw new Error('Sin conexión: no se pudieron leer los cobros');
+    return json.message || [];
   }
 
   async eliminarEgreso(name: string): Promise<any> {
