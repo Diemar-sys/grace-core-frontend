@@ -376,6 +376,10 @@
 .hoja-tabla input.hoja-input--falta  { background: var(--tv-warn-bg); border-color: var(--tv-warn); color: var(--tv-warn); }
 .hoja-tabla input.hoja-input--exacto { background: var(--tv-ok-bg);   border-color: var(--tv-ok);   color: var(--tv-ok); }
 .hoja-tabla input.hoja-input--demas  { background: #dbeafe;           border-color: #1e40af;        color: #1e40af; }
+/* 20-oct: LLEGÓ (solo lectura) contra lo enviado: falta en ámbar, de más en azul; supuesto en gris */
+.hoja-tabla .hoja-llego--falta { background: var(--tv-warn-bg); color: var(--tv-warn); font-weight: 700; }
+.hoja-tabla .hoja-llego--demas { background: #dbeafe; color: #1e40af; font-weight: 700; }
+.hoja-tabla .hoja-llego--supuesto { color: #9aa1ab; }
 
 .hoja-tabla input[disabled] {
   background: var(--tv-sunk);

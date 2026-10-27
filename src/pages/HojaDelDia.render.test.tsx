@@ -651,6 +651,30 @@ describe('HojaDelDia — cableado', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y cobrar' }));
     expect(await screen.findByText(/le debe \$189\.20 a MARTIN \(por nómina\)/)).toBeInTheDocument();
   });
+  // 20-oct (Diemar): LLEGÓ lo anota el destino; la Hoja lo ve contra lo ENVIADO guardado y no lo toca
+  it('🔴 LLEGÓ: solo lectura, ámbar si llegó menos, * si se supuso; sin cuenta no hay columna', async () => {
+    const OJOS = { ...R, item_code: '1005', producto: 'OJOS', enviado: 36 };
+    const PAY = { ...R, item_code: '1006', producto: 'PAY', enviado: 12 };
+    s.hoja.mockResolvedValue({ ...hoja(), con_llegada: true, renglones: [
+      { ...R, enviado: 60, llego: 58 }, { ...OJOS, llego: 36 }, { ...PAY, llego: 12, llego_supuesto: true }] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    expect(screen.getByRole('columnheader', { name: 'LLEGÓ' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Llegó/i)).toBeNull();                        // ninguna casilla
+    const fila = (n: string) => screen.getByLabelText(`Enviado ${n}`).closest('tr')!;
+    expect(within(fila('CONCHAS')).getByText('58')).toHaveClass('hoja-llego--falta');
+    expect(within(fila('OJOS')).getByText('36', { selector: '.hoja-llego' })).not.toHaveClass('hoja-llego--falta');
+    expect(within(fila('PAY')).getByText('12 *')).toHaveClass('hoja-llego--supuesto');
+  });
+
+  it('LLEGÓ: sin con_llegada no sale la columna', async () => {
+    s.hoja.mockResolvedValue(hoja());
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    expect(screen.queryByRole('columnheader', { name: 'LLEGÓ' })).toBeNull();
+  });
 });
 
 describe('HojaDelDia — lo tecleado sin guardar (25-sep)', () => {
@@ -793,4 +817,5 @@ describe('HojaDelDia — Guardar todo (25-sep)', () => {
     await act(async () => { responder(['DELI']); });
     await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).not.toBeDisabled());
   });
+
 });

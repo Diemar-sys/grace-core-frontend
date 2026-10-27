@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import MiCuenta, { facturadoPorDia, pctPagado, surtido, techo, totalesFacturas } from './MiCuenta';
+import MiCuenta, { facturadoPorDia, llegadasCambiadas, pctPagado, surtido, techo, totalesFacturas } from './MiCuenta';
 import { fechaCorta, fechaLarga, rangoFechas } from '../utils/hora';
 import { clienteService } from '../services/frappeCliente';
 import { getRoleConfig } from '../config/roles';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
-vi.mock('../services/frappeCliente', () => ({ clienteService: { miCuenta: vi.fn(), miPedido: vi.fn() } }));
+vi.mock('../services/frappeCliente', () => ({ clienteService: { miCuenta: vi.fn(), miPedido: vi.fn(), confirmarLlegada: vi.fn() } }));
 const s = vi.mocked(clienteService);
+
+const dia = (renglones: any[], abierta = false) => ({ renglones, abierta, cierre: 19 });
+const pan = (item_code: string, producto: string, piezas: number, enviado: number, llego: number | null = null, llego_supuesto = false) =>
+  ({ item_code, producto, piezas, enviado, precio: 14, llego, llego_supuesto });
 
 const CUENTA = {
   cliente: 'ALEJANDRO TORRES', desde: '2026-10-01', hasta: '2026-10-16', saldo: 329439.68,
@@ -68,7 +72,7 @@ describe('Mi cuenta (cliente)', () => {
   });
 
   it('«Ver pan» trae el pedido de ESE día', async () => {
-    s.miPedido.mockResolvedValue([{ item_code: '1001', producto: 'MANTECADA GDE', piezas: 48, enviado: 40, precio: 14 }]);
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'MANTECADA GDE', 48, 40)]));
     render(<MiCuenta />);
     await screen.findByLabelText('Saldo');
     fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
@@ -94,7 +98,7 @@ describe('Mi cuenta (cliente)', () => {
   it('el pan del día se abre justo debajo de ESE día, no al final de la tabla', async () => {
     s.miCuenta.mockResolvedValue({ ...CUENTA, pedidos: [
       { fecha: '2026-10-01', piezas: 967, enviado: 1921 }, { fecha: '2026-10-02', piezas: 1215, enviado: 2338 }] });
-    s.miPedido.mockResolvedValue([{ item_code: '3001', producto: 'BOLILLO', piezas: 0, enviado: 896, precio: 5 }]);
+    s.miPedido.mockResolvedValue(dia([pan('3001', 'BOLILLO', 0, 896)]));
     render(<MiCuenta />);
     await screen.findByLabelText('Saldo');
     fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
@@ -102,5 +106,44 @@ describe('Mi cuenta (cliente)', () => {
     const fila = (await screen.findByText('BOLILLO')).closest('.mc-fila-detalle')!;
     expect(fila.previousElementSibling).toHaveTextContent('jue 1 oct 2026');
     expect(fila.nextElementSibling).toHaveTextContent('vie 2 oct 2026');
+  });
+
+  // 20-oct (Diemar): ve lo que se mandó (no lo toca) y anota lo que le LLEGÓ, pan por pan
+  it('llegadasCambiadas: solo lo que cambia, entero y ≥ 0; vacío no va', () => {
+    const rs = [pan('A', 'A', 1, 1, 5), pan('B', 'B', 1, 1), pan('C', 'C', 1, 1), pan('D', 'D', 1, 1), pan('E', 'E', 1, 1)];
+    expect(llegadasCambiadas(rs, { A: '5', B: '0', C: '', D: '2.5', E: '-1' })).toEqual([{ item_code: 'B', llego: 0 }]);
+    expect(llegadasCambiadas(rs, { A: '7' })).toEqual([{ item_code: 'A', llego: 7 }]);
+  });
+
+  async function abrirPan() {
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver pan' }));
+  }
+
+  it('hoy: «Se mandó» de lectura, «Te llegó» se teclea y manda SOLO lo cambiado, con el total', async () => {
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 40), pan('1002', 'OJOS', 36, 30)], true));
+    s.confirmarLlegada.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58), pan('1002', 'OJOS', 36, 30)], true));
+    await abrirPan();
+    const t = await screen.findByRole('table', { name: 'Pedido del 2026-10-15' });
+    expect(within(t).getAllByRole('spinbutton')).toHaveLength(2);           // solo «Te llegó» se teclea
+    const guardar = screen.getByRole('button', { name: 'Guardar lo que llegó' });
+    expect(guardar).toBeDisabled();                                          // sin cambios no manda nada
+    fireEvent.change(screen.getByLabelText('Te llegó CONCHA'), { target: { value: '58' } });
+    fireEvent.click(guardar);
+    await waitFor(() => expect(s.confirmarLlegada).toHaveBeenCalledWith('2026-10-15', [{ item_code: '1001', llego: 58 }]));
+    await waitFor(() => expect(screen.getByLabelText('Te llegó CONCHA')).toHaveValue(58));
+  });
+
+  it('cerrado: sin casillas; lo no anotado sale como lo mandado con *', async () => {
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58), pan('1002', 'OJOS', 36, 30, 30, true)]));
+    await abrirPan();
+    const t = await screen.findByRole('table', { name: 'Pedido del 2026-10-15' });
+    expect(within(t).queryAllByRole('spinbutton')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Guardar lo que llegó' })).not.toBeInTheDocument();
+    expect(within(t).getByText('58')).toBeInTheDocument();
+    expect(within(t).getByText('30 *')).toBeInTheDocument();
+    expect(screen.getByText(/No lo anotaste a tiempo/)).toBeInTheDocument();
   });
 });

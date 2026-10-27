@@ -367,6 +367,7 @@ export default function HojaDelDia() {
                           <thead>
                             <tr>
                               <th>CLAVE</th><th>PRODUCTO</th><th>$</th><th>PEDIDO</th><th>ENVIADO</th>
+                              {hoja.con_llegada && <th>LLEGÓ</th>}
                               {hoja.camioneta && (<><th>MERMA</th><th>VENDIDO</th></>)}
                               <th>IMPORTE</th>
                             </tr>
@@ -430,6 +431,18 @@ export default function HojaDelDia() {
                                     )}
                                     </div>
                                   </td>
+                                  {/* 20-oct: LLEGÓ lo anota el destino en Mi cuenta; aquí solo se ve. Contra lo
+                                      GUARDADO (no lo tecleado): es lo que el destino vio. Solo auditoría. */}
+                                  {hoja.con_llegada && (() => {
+                                    if (r.llego == null) return <td className="hoja-celda--num hoja-llego">—</td>;
+                                    const dif = estadoEnviado(r.enviado, r.llego);
+                                    return (
+                                      <td className={`hoja-celda--num hoja-llego${r.llego_supuesto ? ' hoja-llego--supuesto' : dif && dif !== 'exacto' ? ` hoja-llego--${dif}` : ''}`}
+                                        title={r.llego_supuesto ? 'No lo anotó: se tomó lo enviado' : r.llego !== r.enviado ? `Enviado ${r.enviado}, le llegó ${r.llego}` : undefined}>
+                                        {numero(r.llego, 0)}{r.llego_supuesto && ' *'}
+                                      </td>
+                                    );
+                                  })()}
                                   {hoja.camioneta && (
                                     <>
                                       <td>

@@ -4,14 +4,17 @@
 // facturó y lo que debe. Solo lectura; los $ son los que se le cobran (nunca costos).
 // Quién es lo dice la sesión en el servidor: aquí no se elige cliente.
 // Tablero (Diemar, misma tarde): lado carbón con su nombre y menú, tarjetas de cifras,
-// barras de pedido contra lo que llegó y dona de lo pagado. Gráficas en SVG/CSS, sin librería.
+// barras de pedido contra lo que se mandó y dona de lo pagado. Gráficas en SVG/CSS, sin librería.
+// 20-oct (Diemar): LO ÚNICO que escribe: en «Ver pan» de HOY anota, pan por pan, cuánto le
+// LLEGÓ (acumulado del día; el pan llega en varias entregas) hasta el cierre (19:00 de la
+// torre). Lo que no anote se toma como lo que se mandó. Solo auditoría: se cobra lo mandado.
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Receipt, ShoppingBasket, Truck } from 'lucide-react';
 import Layout from '../components/Layout';
 import { auth } from '../services/frappeAuth';
 import { fechaCorta, fechaLarga, hoyISO, rangoFechas } from '../utils/hora';
 import { numero, pesos } from '../utils/formato';
-import { clienteService, type MiCuenta as Cuenta, type RenglonPedido } from '../services/frappeCliente';
+import { clienteService, type DetallePedido, type MiCuenta as Cuenta, type RenglonPedido } from '../services/frappeCliente';
 import '../styles/global.css';
 import '../styles/MiCuenta.css';
 
@@ -49,6 +52,21 @@ export function techo(max: number) {
 export const surtido = (piezas: number, enviado: number) =>
   piezas > 0 ? Math.round(Math.min(enviado / piezas, 1) * 100) : null;
 
+/** Lo tecleado que cambia lo guardado, listo para mandar. Vacío o no entero ≥ 0 = no va. O(n). */
+export function llegadasCambiadas(renglones: RenglonPedido[], tecleado: Record<string, string>) {
+  const cambios: { item_code: string; llego: number }[] = [];
+  for (const r of renglones) {
+    const t = tecleado[r.item_code];
+    if (t === undefined || t.trim() === '') continue;
+    const n = Number(t);
+    if (Number.isInteger(n) && n >= 0 && n !== r.llego) cambios.push({ item_code: r.item_code, llego: n });
+  }
+  return cambios;
+}
+
+/** Cada minuto se relee el día abierto: Héctor va subiendo lo que se mandó. */
+const RELEER_MS = 60_000;
+
 const pesosCorto = (n: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 
@@ -85,7 +103,9 @@ export default function MiCuenta() {
   const [cuenta, setCuenta] = useState<Cuenta | null>(null);
   const [error, setError] = useState('');
   const [dia, setDia] = useState('');
-  const [detalle, setDetalle] = useState<RenglonPedido[] | null>(null);
+  const [detalle, setDetalle] = useState<DetallePedido | null>(null);
+  const [tecleado, setTecleado] = useState<Record<string, string>>({});
+  const [guardando, setGuardando] = useState(false);
   const usuario = auth.getUser();
 
   const cargar = useCallback(async () => {
@@ -96,10 +116,30 @@ export default function MiCuenta() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const abrirDia = async (fecha: string) => {
+    setTecleado({});
     if (dia === fecha) { setDia(''); setDetalle(null); return; }
     setDia(fecha); setDetalle(null);
     try { setDetalle(await clienteService.miPedido(fecha)); }
     catch (e: any) { setError(e?.message || 'No se pudo cargar el pedido'); }
+  };
+
+  // Releer solo mientras se pueda anotar; lo tecleado vive aparte y no se pisa.
+  const abierta = !!detalle?.abierta;
+  useEffect(() => {
+    if (!dia || !abierta) return;
+    const id = setInterval(() => {
+      clienteService.miPedido(dia).then(setDetalle).catch(() => { /* ponytail: el siguiente minuto reintenta */ });
+    }, RELEER_MS);
+    return () => clearInterval(id);
+  }, [dia, abierta]);
+
+  const cambios = detalle ? llegadasCambiadas(detalle.renglones, tecleado) : [];
+  const guardarLlegada = async () => {
+    if (!cambios.length) return;
+    setGuardando(true); setError('');
+    try { setDetalle(await clienteService.confirmarLlegada(dia, cambios)); setTecleado({}); }
+    catch (e: any) { setError(e?.message || 'No se pudo guardar lo que llegó'); }
+    finally { setGuardando(false); }
   };
 
   const t = totalesFacturas(cuenta?.facturas ?? []);
@@ -191,7 +231,7 @@ export default function MiCuenta() {
                   <section className="mc-fila">
                     <div className="mc-tarjeta">
                       <div className="mc-tarjeta-cabeza">
-                        <h3>¿Te llegó lo que pediste?</h3>
+                        <h3>¿Se te mandó lo que pediste?</h3>
                         <button type="button" className="mc-btn" onClick={() => setSeccion('pedidos')}>Ver pedidos</button>
                       </div>
                       {cuenta.pedidos.length === 0 ? <p className="mc-nota">Sin pedidos en el periodo.</p> : (
@@ -250,7 +290,7 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.pedidos.length === 0 ? <p className="mc-nota">Sin pedidos en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Pedidos">
-                    <thead><tr><th>Día</th><th className="mc-num">Pediste (pz)</th><th className="mc-num">Te llegó (pz)</th><th /></tr></thead>
+                    <thead><tr><th>Día</th><th className="mc-num">Pediste (pz)</th><th className="mc-num">Se mandó (pz)</th><th /></tr></thead>
                     <tbody>{cuenta.pedidos.map(p => (
                       <Fragment key={p.fecha}>
                         <tr>
@@ -260,17 +300,41 @@ export default function MiCuenta() {
                         {/* 19-oct: el pan se abre debajo de SU día; al final de la tabla no se veía */}
                         {dia === p.fecha && (
                           <tr className="mc-fila-detalle"><td colSpan={4}><div className="mc-detalle">
-                            {!detalle ? <p className="mc-nota">Cargando…</p> : (
+                            {!detalle ? <p className="mc-nota">Cargando…</p> : (<>
+                              {detalle.abierta && (
+                                <p className="mc-nota">Anota cuánto te ha llegado de cada pan en todo el día (no solo esta entrega), hasta las {detalle.cierre}:00. Lo que no anotes se toma como lo que se mandó.</p>
+                              )}
                               <table className="mc-tabla" aria-label={`Pedido del ${dia}`}>
-                                <thead><tr><th>Pan</th><th className="mc-num">Pediste</th><th className="mc-num">Te llegó</th><th className="mc-num">Precio</th></tr></thead>
-                                <tbody>{detalle.map(r => (
+                                <thead><tr><th>Pan</th><th className="mc-num">Pediste</th><th className="mc-num">Se mandó</th><th className="mc-num">Te llegó</th><th className="mc-num">Precio</th></tr></thead>
+                                <tbody>{detalle.renglones.map(r => (
                                   <tr key={r.item_code}>
                                     <td>{r.producto}</td><td className="mc-num">{numero(r.piezas, 0)}</td>
-                                    <td className="mc-num">{numero(r.enviado, 0)}</td><td className="mc-num">{pesos(r.precio)}</td>
+                                    <td className="mc-num">{numero(r.enviado, 0)}</td>
+                                    <td className="mc-num">
+                                      {detalle.abierta ? (
+                                        <input type="number" min={0} step={1} inputMode="numeric" className="mc-llego"
+                                          aria-label={`Te llegó ${r.producto}`} disabled={guardando}
+                                          value={tecleado[r.item_code] ?? (r.llego === null ? '' : String(r.llego))}
+                                          onChange={e => { const v = e.target.value; setTecleado(t => ({ ...t, [r.item_code]: v })); }} />
+                                      ) : r.llego === null ? '—' : (
+                                        <span title={r.llego_supuesto ? 'No lo anotaste: se tomó lo que se mandó' : undefined}>
+                                          {numero(r.llego, 0)}{r.llego_supuesto && ' *'}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="mc-num">{pesos(r.precio)}</td>
                                   </tr>))}
                                 </tbody>
                               </table>
-                            )}
+                              {detalle.abierta && (
+                                <button type="button" className="mc-btn mc-btn--marca" disabled={guardando || !cambios.length} onClick={guardarLlegada}>
+                                  {guardando ? 'Guardando…' : 'Guardar lo que llegó'}
+                                </button>
+                              )}
+                              {!detalle.abierta && detalle.renglones.some(r => r.llego_supuesto) && (
+                                <p className="mc-nota">* No lo anotaste a tiempo: se tomó lo que se mandó.</p>
+                              )}
+                            </>)}
                           </div></td></tr>
                         )}
                       </Fragment>))}

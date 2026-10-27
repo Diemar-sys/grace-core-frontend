@@ -13,6 +13,10 @@ export interface RenglonHoja {
   por_charola?: number;
   /** 08-oct: su ENVIADO sale de las tandas de «Bolillo»; en la Captura se ve, no se teclea */
   de_bolillo?: boolean;
+  /** 20-oct: lo que el destino anotó que le LLEGÓ (Mi cuenta). null = todavía no dice. Solo lectura aquí */
+  llego?: number | null;
+  /** Pasó el cierre sin que lo anotara: es lo enviado, no una confirmación */
+  llego_supuesto?: boolean;
 }
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
 /** '' = capturando lo enviado · 'enviado' = en ruta · 'liquidado' = ya entregó su regreso */
@@ -29,6 +33,8 @@ export interface Hoja {
   /** 15-oct: descuento a cliente (DELI 40%, ZAKIA 20%) sobre el total ya con impuesto, del
    *  servidor. 0 para quien no lleva o para pedidos antes del 12-oct. */
   descuento?: number; descuento_pct?: number;
+  /** 20-oct: el destino anota lo que le llegó (hoy: cuenta de cliente, Puerta Real) → columna LLEGÓ */
+  con_llegada?: boolean;
 }
 export interface DestinoDia {
   destino: string; grupo: string; camioneta: boolean; total: number; comision: number; se_debe: number;
