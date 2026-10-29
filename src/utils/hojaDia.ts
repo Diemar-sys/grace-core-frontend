@@ -1,6 +1,6 @@
 // Lógica PURA de la Hoja del día. Lo tecleado son cadenas (lección del 04-sep):
 // se convierten aquí, no en el input.
-import type { DestinoDia, RenglonHoja } from '../services/frappeHoja';
+import type { DestinoDia, Hoja, RenglonHoja } from '../services/frappeHoja';
 import { cantidad } from './cierreRuta';
 
 export { cantidad };
@@ -219,4 +219,17 @@ export function totalesPorDepartamento(renglones: RenglonHoja[], captura: Record
   return [...porDepto.values()]
     .sort((a, b) => lugar(a.departamento) - lugar(b.departamento) || a.departamento.localeCompare(b.departamento))
     .map(({ bruto, ...t }) => ({ ...t, importe: centavos(bruto) }));
+}
+
+/** 29-oct: de una hoja releída copia SOLO lo que el destino anotó (LLEGÓ); ENVIADO, merma y
+ *  totales se quedan como estaban en pantalla. O(n) con un Map por item_code. */
+export function conLlegadas(actual: Hoja, fresca: Hoja): Hoja {
+  const porItem = new Map(fresca.renglones.map(r => [r.item_code, r]));
+  return {
+    ...actual,
+    renglones: actual.renglones.map(r => {
+      const f = porItem.get(r.item_code);
+      return f ? { ...r, llego: f.llego, llego_supuesto: f.llego_supuesto } : r;
+    }),
+  };
 }

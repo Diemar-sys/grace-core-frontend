@@ -133,6 +133,28 @@
 .mc-llego { width: 5.5rem; text-align: right; font-family: var(--tv-mono); padding: 0.3rem 0.5rem;
   border: 1px solid var(--color-border-input); border-radius: 0.5rem; background: var(--color-surface, #fff); color: inherit; }
 .mc-detalle > .mc-btn { margin-top: 0.75rem; }
+/* 29-oct: detalle de «Ver pan» parejo: columnas de número del mismo ancho, renglones de la
+   misma altura con o sin casilla, la casilla del ancho de su columna, el 0 y el precio apagados */
+.mc-detalle { padding: 1rem 1.25rem 1.25rem; }
+.mc-detalle-cabeza { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin: 0.25rem 0 0.75rem; }
+.mc-detalle-cabeza strong { font-size: 1rem; }
+.mc-detalle > .mc-nota { margin-bottom: 0.5rem; }
+.mc-tabla--pan { table-layout: fixed; min-width: 560px; }
+.mc-tabla--pan th:not(:first-child) { width: 7.5rem; }
+.mc-tabla--pan td { height: 2.75rem; padding: 0.35rem 0.75rem; vertical-align: middle; }
+.mc-tabla--pan td:first-child { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-tabla--pan tbody tr:hover td { background: var(--color-surface-sunk); }
+.mc-tabla--pan .mc-llego { width: 100%; box-sizing: border-box; height: 2rem; font-size: inherit;
+  border-color: transparent; background: var(--color-surface-sunk); border-radius: var(--radius-pill); padding: 0 0.75rem; }
+.mc-tabla--pan .mc-llego:focus { outline: 2px solid var(--color-brand-light); background: var(--color-surface, #fff); }
+.mc-precio { color: var(--color-text-soft); }
+/* 29-oct: colores de la Hoja (HojaDelDia.css 08/20-oct): ámbar falta, verde cuadra, azul de más.
+   Se mandó y Te llegó son píldoras del mismo ancho que la casilla, para que la columna no brinque. */
+.mc-cifra-pan { display: inline-block; min-width: 3.5rem; padding: 0.2rem 0.75rem; border-radius: var(--radius-pill); }
+.mc-tabla--pan .mc-dif--falta  { background: var(--tv-warn-bg); color: var(--tv-warn); font-weight: 700; }
+.mc-tabla--pan .mc-dif--exacto { background: var(--tv-ok-bg);   color: var(--tv-ok);   font-weight: 700; }
+.mc-tabla--pan .mc-dif--demas  { background: #dbeafe;           color: #1e40af;        font-weight: 700; }
+.mc-dif--nada, .mc-dif--supuesto { color: var(--color-text-soft); }
 .mc-btn:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
 
 .mc-btn {

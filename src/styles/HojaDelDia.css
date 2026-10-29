@@ -258,6 +258,8 @@
 
 /* camioneta trae REGRESO/MERMA/VENDIDO: 3 columnas más por tabla */
 .hoja-bloques--camioneta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* 29-oct: LLEGÓ es una columna más; en 4 tarjetas IMPORTE se cortaba */
+.hoja-bloques--llegada { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* camioneta = dos hojas (columnas 1-2, luego 3-4): la segunda se separa con una línea */
 .hoja-bloques--camioneta + .hoja-bloques--camioneta {

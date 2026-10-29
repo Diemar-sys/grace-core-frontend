@@ -16,13 +16,17 @@ import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja'
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import useAvisoSinGuardar, { haySinGuardar } from '../hooks/useAvisoSinGuardar';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
+  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conLlegadas, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
+import { coincidePan, normalizarBusqueda } from '../utils/buscarPan';
 import '../styles/global.css';
 import '../styles/HojaDelDia.css';
+
+// 29-oct: cada cuánto se relee lo que el destino anotó en Mi cuenta (LLEGÓ)
+const RELEER_LLEGO_MS = 60_000;
 
 const ESTADO: Record<DestinoDia['estado'], string> = {
   sin_capturar: 'Sin capturar', sin_confirmar: 'Sin confirmar', en_ruta: 'En ruta', regreso: 'Regresó',
@@ -47,6 +51,9 @@ export default function HojaDelDia() {
   const [modo, setModo] = useState<'captura' | 'bolillo'>('captura');
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  // 29-oct: buscador de pan; solo filtra lo que se pinta (guardar/cobrar usan todo)
+  const [busqueda, setBusqueda] = useState('');
+  const buscado = normalizarBusqueda(busqueda);
   // Lo tecleado sin guardar vive en IndexedDB (25-sep): cambiar de destino o recargar no lo
   // tira. «Guardar» queda para el final de la ronda; confirmar guarda antes de todos modos.
   const [borrador, setBorrador] = useState<BorradorHoja>({});
@@ -93,6 +100,24 @@ export default function HojaDelDia() {
 
   // 09-oct: lo guardado en «Bolillo» cambia el ENVIADO y el total en el servidor; al volver a
   // la Captura se relee (la hoja y los montos del selector), si no se veía la hoja de antes.
+  // 29-oct: lo que el destino anota en Mi cuenta (LLEGÓ) aparece sin recargar: cada minuto se
+  // relee la hoja y SOLO se copian los campos llego*. Si en medio salió otra petición (abrir,
+  // guardar, cobrar), la relectura se tira: el folio ya no es el suyo.
+  const destinoConLlegada = hoja?.con_llegada ? hoja.destino : '';
+  useEffect(() => {
+    if (!destinoConLlegada) return;
+    const id = setInterval(async () => {
+      if (document.hidden) return; // 29-oct: pestaña escondida o tablet bloqueada: no pregunta
+      const folio = peticionRef.current;
+      try {
+        const fresca = await hojaService.hoja(fecha, destinoConLlegada);
+        if (peticionRef.current !== folio) return;
+        setHoja(h => (h && h.destino === destinoConLlegada ? conLlegadas(h, fresca) : h));
+      } catch { /* sin red: lo intenta el siguiente minuto; no es un error del usuario */ }
+    }, RELEER_LLEGO_MS);
+    return () => clearInterval(id);
+  }, [destinoConLlegada, fecha]);
+
   const cambiarModo = (m: 'captura' | 'bolillo') => {
     setModo(m);
     if (m !== 'captura' || modo === 'captura') return;
@@ -353,14 +378,19 @@ export default function HojaDelDia() {
                   Corregir
                 </button>
               )}
+              <input type="search" className="buscador-pan" placeholder="Buscar pan o clave" aria-label="Buscar pan"
+                value={busqueda} onChange={e => setBusqueda(e.target.value)} />
             </div>
 
             {/* 4 columnas con el acomodo del Excel (COLUMNAS_HOJA, 23-sep) */}
             {hojasDeColumnas.map((cols, h) => (
-              <div key={h} className={`hoja-bloques${hoja.camioneta ? ' hoja-bloques--camioneta' : ''}`}>
+              <div key={h} className={`hoja-bloques${hoja.camioneta ? ' hoja-bloques--camioneta' : ''}${hoja.con_llegada ? ' hoja-bloques--llegada' : ''}`}>
                 {cols.map((col, i) => (
                   <div key={i} className="hoja-columna">
-                    {col.map(b => (
+                    {col.map(b => {
+                      const visibles = b.renglones.filter(r => coincidePan(buscado, r.producto, r.item_code));
+                      if (!visibles.length) return null;
+                      return (
                       <div key={b.categoria} className="hoja-bloque">
                         <h3>{b.categoria}</h3>
                         <table className="hoja-tabla">
@@ -373,7 +403,7 @@ export default function HojaDelDia() {
                             </tr>
                           </thead>
                           <tbody>
-                            {b.renglones.map(r => {
+                            {visibles.map(r => {
                               const enviadoActual = r.item_code in captura ? cantidad(captura[r.item_code]) : r.enviado;
                               const mermaActual = r.item_code in capturaMerma ? cantidad(capturaMerma[r.item_code]) : r.merma;
                               // se cobra lo VENDIDO (23-sep: en camioneta IMPORTE enseñaba enviado × $), y se
@@ -466,7 +496,8 @@ export default function HojaDelDia() {
                           </tbody>
                         </table>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ))}
               </div>

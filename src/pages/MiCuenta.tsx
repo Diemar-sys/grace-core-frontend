@@ -14,6 +14,8 @@ import Layout from '../components/Layout';
 import { auth } from '../services/frappeAuth';
 import { fechaCorta, fechaLarga, hoyISO, rangoFechas } from '../utils/hora';
 import { numero, pesos } from '../utils/formato';
+import { coincidePan, normalizarBusqueda } from '../utils/buscarPan';
+import { estadoEnviado } from '../utils/hojaDia';
 import { clienteService, type DetallePedido, type MiCuenta as Cuenta, type RenglonPedido } from '../services/frappeCliente';
 import '../styles/global.css';
 import '../styles/MiCuenta.css';
@@ -70,6 +72,14 @@ const RELEER_MS = 60_000;
 const pesosCorto = (n: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 
+/** Color de «Te llegó» contra lo mandado (29-oct, como la Hoja): solo falta o de más; vacío, sin color. */
+export function claseLlego(enviado: number, llego: string): 'falta' | 'demas' | 'nada' {
+  if (llego.trim() === '') return 'nada';
+  const n = Number(llego);
+  if (!Number.isFinite(n) || n === enviado) return 'nada';
+  return n < enviado ? 'falta' : 'demas';
+}
+
 const SECCIONES = [
   { id: 'resumen', titulo: 'Resumen', Icono: LayoutDashboard },
   { id: 'facturas', titulo: 'Facturas', Icono: Receipt },
@@ -106,6 +116,9 @@ export default function MiCuenta() {
   const [detalle, setDetalle] = useState<DetallePedido | null>(null);
   const [tecleado, setTecleado] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  // 29-oct: buscador del pan del día; solo filtra lo que se pinta
+  const [busqueda, setBusqueda] = useState('');
+  const buscado = normalizarBusqueda(busqueda);
   const usuario = auth.getUser();
 
   const cargar = useCallback(async () => {
@@ -128,6 +141,7 @@ export default function MiCuenta() {
   useEffect(() => {
     if (!dia || !abierta) return;
     const id = setInterval(() => {
+      if (document.hidden) return; // 29-oct: pestaña escondida o celular bloqueado: no pregunta
       clienteService.miPedido(dia).then(setDetalle).catch(() => { /* ponytail: el siguiente minuto reintenta */ });
     }, RELEER_MS);
     return () => clearInterval(id);
@@ -291,7 +305,8 @@ export default function MiCuenta() {
                 {cuenta.pedidos.length === 0 ? <p className="mc-nota">Sin pedidos en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Pedidos">
                     <thead><tr><th>Día</th><th className="mc-num">Pediste (pz)</th><th className="mc-num">Se mandó (pz)</th><th /></tr></thead>
-                    <tbody>{cuenta.pedidos.map(p => (
+                    {/* 29-oct: el más reciente arriba (el servidor los manda de viejo a nuevo) */}
+                    <tbody>{[...cuenta.pedidos].reverse().map(p => (
                       <Fragment key={p.fecha}>
                         <tr>
                           <td>{fechaLarga(p.fecha)}</td><td className="mc-num">{numero(p.piezas, 0)}</td><td className="mc-num">{numero(p.enviado, 0)}</td>
@@ -304,25 +319,34 @@ export default function MiCuenta() {
                               {detalle.abierta && (
                                 <p className="mc-nota">Anota cuánto te ha llegado de cada pan en todo el día (no solo esta entrega), hasta las {detalle.cierre}:00. Lo que no anotes se toma como lo que se mandó.</p>
                               )}
-                              <table className="mc-tabla" aria-label={`Pedido del ${dia}`}>
+                              <div className="mc-detalle-cabeza">
+                                <strong>Pan del {fechaLarga(p.fecha)}</strong>
+                                <input type="search" className="buscador-pan" placeholder="Buscar pan" aria-label="Buscar pan"
+                                  value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+                              </div>
+                              <table className="mc-tabla mc-tabla--pan" aria-label={`Pedido del ${dia}`}>
                                 <thead><tr><th>Pan</th><th className="mc-num">Pediste</th><th className="mc-num">Se mandó</th><th className="mc-num">Te llegó</th><th className="mc-num">Precio</th></tr></thead>
-                                <tbody>{detalle.renglones.map(r => (
+                                <tbody>{detalle.renglones.filter(r => coincidePan(buscado, r.producto, r.item_code)).map(r => (
                                   <tr key={r.item_code}>
                                     <td>{r.producto}</td><td className="mc-num">{numero(r.piezas, 0)}</td>
-                                    <td className="mc-num">{numero(r.enviado, 0)}</td>
+                                    {/* 29-oct: mismos colores que la Hoja: se mandó contra lo pedido (ámbar falta,
+                                        verde cuadra, azul de más) y te llegó contra lo mandado (ámbar / azul) */}
+                                    <td className="mc-num"><span className={`mc-cifra-pan mc-dif--${estadoEnviado(r.piezas, r.enviado) ?? 'nada'}`}>{numero(r.enviado, 0)}</span></td>
                                     <td className="mc-num">
                                       {detalle.abierta ? (
-                                        <input type="number" min={0} step={1} inputMode="numeric" className="mc-llego"
+                                        <input type="number" min={0} step={1} inputMode="numeric"
+                                          className={`mc-llego mc-dif--${claseLlego(r.enviado, tecleado[r.item_code] ?? (r.llego === null ? '' : String(r.llego)))}`}
                                           aria-label={`Te llegó ${r.producto}`} disabled={guardando}
                                           value={tecleado[r.item_code] ?? (r.llego === null ? '' : String(r.llego))}
                                           onChange={e => { const v = e.target.value; setTecleado(t => ({ ...t, [r.item_code]: v })); }} />
                                       ) : r.llego === null ? '—' : (
-                                        <span title={r.llego_supuesto ? 'No lo anotaste: se tomó lo que se mandó' : undefined}>
+                                        <span className={`mc-cifra-pan mc-dif--${r.llego_supuesto ? 'supuesto' : claseLlego(r.enviado, String(r.llego))}`}
+                                          title={r.llego_supuesto ? 'No lo anotaste: se tomó lo que se mandó' : undefined}>
                                           {numero(r.llego, 0)}{r.llego_supuesto && ' *'}
                                         </span>
                                       )}
                                     </td>
-                                    <td className="mc-num">{pesos(r.precio)}</td>
+                                    <td className="mc-num mc-precio">{pesos(r.precio)}</td>
                                   </tr>))}
                                 </tbody>
                               </table>

@@ -675,6 +675,52 @@ describe('HojaDelDia — cableado', () => {
     await screen.findByLabelText('Enviado CONCHAS');
     expect(screen.queryByRole('columnheader', { name: 'LLEGÓ' })).toBeNull();
   });
+
+  // 29-oct: buscador — filtra lo que se ve, pero Guardar manda también lo que quedó escondido
+  it('🔴 buscador: esconde lo que no coincide y Guardar manda también lo escondido', async () => {
+    const OJOS = { ...R, item_code: '1005', producto: 'OJOS' };
+    s.hoja.mockResolvedValue({ ...hoja(), renglones: [R, OJOS] });
+    s.guardar.mockResolvedValue({ ...hoja(), renglones: [R, OJOS] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado OJOS'), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText('Buscar pan'), { target: { value: 'cónch' } });
+    expect(screen.queryByLabelText('Enviado OJOS')).toBeNull();
+    expect(screen.getByLabelText('Enviado CONCHAS')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Buscar pan'), { target: { value: '1005' } });
+    expect(screen.getByLabelText('Enviado OJOS')).toHaveValue(30);
+    fireEvent.change(screen.getByLabelText('Buscar pan'), { target: { value: 'zzz' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(s.guardar).toHaveBeenCalled());
+    expect(s.guardar.mock.calls[0][2]).toEqual([expect.objectContaining({ item_code: '1005', enviado: 30 })]);
+  });
+
+  // 29-oct: lo que el destino anota en Mi cuenta aparece sin recargar; ENVIADO no se pisa
+  it('🔴 LLEGÓ se relee cada minuto y solo copia LLEGÓ', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      s.hoja.mockResolvedValue({ ...hoja(), con_llegada: true, renglones: [{ ...R, enviado: 60, llego: null }] });
+      render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+      await elegir('DELI');
+      await screen.findByLabelText('Enviado CONCHAS');
+      s.hoja.mockResolvedValue({ ...hoja(), con_llegada: true, renglones: [{ ...R, enviado: 999, llego: 58 }] });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      const fila = screen.getByLabelText('Enviado CONCHAS').closest('tr')!;
+      await waitFor(() => expect(within(fila).getByText('58')).toBeInTheDocument());
+      expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(60);   // ENVIADO no se pisa
+      // 29-oct: escondida (otra pestaña, tablet bloqueada) no pregunta; al volver, sí
+      const pedidas = s.hoja.mock.calls.length;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
+      expect(s.hoja.mock.calls.length).toBe(pedidas);
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(s.hoja.mock.calls.length).toBe(pedidas + 1);
+    } finally {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('HojaDelDia — lo tecleado sin guardar (25-sep)', () => {

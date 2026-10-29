@@ -31,6 +31,7 @@ import { cantidad, excesos, previsualizar, type ResumenRuta } from '../utils/cie
 import { agruparRenglones, mermaPorGrupo, repartirMerma } from '../utils/mermaAgrupada';
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
+import { coincidePan, normalizarBusqueda } from '../utils/buscarPan';
 import '../styles/global.css';
 import '../styles/Liquidacion.css';
 
@@ -40,6 +41,9 @@ function Liquidacion() {
   const [porGrupo, setPorGrupo] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  // 29-oct: buscador; solo filtra lo que se pinta (enviar manda todos los renglones)
+  const [busqueda, setBusqueda] = useState('');
+  const buscado = normalizarBusqueda(busqueda);
   const [error, setError] = useState('');
   const [exito, setExito] = useState(false);
   // El repartidor elige el día (28-sep: MARTIN no pudo liquidar el viernes el
@@ -190,8 +194,12 @@ function Liquidacion() {
           )}
 
           {renglones.length > 0 && (
+            <input type="search" className="buscador-pan" placeholder="Buscar pan o clave" aria-label="Buscar pan"
+              value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          )}
+          {renglones.length > 0 && (
             <ul className="liq-lista">
-              {grupos.map(g => {
+              {grupos.filter(g => coincidePan(buscado, g.nombre, g.detalle)).map(g => {
                 const filas = g.items.map(i => porItem.get(i.item_code)).filter(r => r !== undefined);
                 const vendido = filas.reduce((t, r) => t + r.vendido, 0);
                 const importe = filas.reduce((t, r) => t + r.importe, 0);

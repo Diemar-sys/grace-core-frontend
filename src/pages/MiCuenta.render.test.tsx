@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import MiCuenta, { facturadoPorDia, llegadasCambiadas, pctPagado, surtido, techo, totalesFacturas } from './MiCuenta';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import MiCuenta, { claseLlego, facturadoPorDia, llegadasCambiadas, pctPagado, surtido, techo, totalesFacturas } from './MiCuenta';
 import { fechaCorta, fechaLarga, rangoFechas } from '../utils/hora';
 import { clienteService } from '../services/frappeCliente';
 import { getRoleConfig } from '../config/roles';
@@ -95,7 +95,7 @@ describe('Mi cuenta (cliente)', () => {
   });
 
   // 19-oct (Diemar): «el de ver pan no se ve el pan» — se pintaba debajo de TODA la tabla
-  it('el pan del día se abre justo debajo de ESE día, no al final de la tabla', async () => {
+  it('el más reciente arriba; el pan del día se abre justo debajo de ESE día', async () => {
     s.miCuenta.mockResolvedValue({ ...CUENTA, pedidos: [
       { fecha: '2026-10-01', piezas: 967, enviado: 1921 }, { fecha: '2026-10-02', piezas: 1215, enviado: 2338 }] });
     s.miPedido.mockResolvedValue(dia([pan('3001', 'BOLILLO', 0, 896)]));
@@ -104,8 +104,8 @@ describe('Mi cuenta (cliente)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
     fireEvent.click((await screen.findAllByRole('button', { name: 'Ver pan' }))[0]);
     const fila = (await screen.findByText('BOLILLO')).closest('.mc-fila-detalle')!;
-    expect(fila.previousElementSibling).toHaveTextContent('jue 1 oct 2026');
-    expect(fila.nextElementSibling).toHaveTextContent('vie 2 oct 2026');
+    expect(fila.previousElementSibling).toHaveTextContent('vie 2 oct 2026');
+    expect(fila.nextElementSibling).toHaveTextContent('jue 1 oct 2026');
   });
 
   // 20-oct (Diemar): ve lo que se mandó (no lo toca) y anota lo que le LLEGÓ, pan por pan
@@ -121,6 +121,14 @@ describe('Mi cuenta (cliente)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Ver pan' }));
   }
+
+  it('29-oct: «Te llegó» se pinta contra lo mandado, como la Hoja', () => {
+    expect(claseLlego(24, '22')).toBe('falta');
+    expect(claseLlego(24, '30')).toBe('demas');
+    expect(claseLlego(24, '24')).toBe('nada');
+    expect(claseLlego(24, '')).toBe('nada');
+    expect(claseLlego(0, '0')).toBe('nada');
+  });
 
   it('hoy: «Se mandó» de lectura, «Te llegó» se teclea y manda SOLO lo cambiado, con el total', async () => {
     s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 40), pan('1002', 'OJOS', 36, 30)], true));
@@ -145,5 +153,37 @@ describe('Mi cuenta (cliente)', () => {
     expect(within(t).getByText('58')).toBeInTheDocument();
     expect(within(t).getByText('30 *')).toBeInTheDocument();
     expect(screen.getByText(/No lo anotaste a tiempo/)).toBeInTheDocument();
+  });
+
+  // 29-oct: buscador del pan del día; Guardar manda también lo que quedó escondido
+  it('🔴 buscador: filtra el pan y Guardar manda también lo escondido', async () => {
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60), pan('1002', 'OJOS', 36, 30)], true));
+    s.confirmarLlegada.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58), pan('1002', 'OJOS', 36, 30)], true));
+    await abrirPan();
+    fireEvent.change(await screen.findByLabelText('Te llegó CONCHA'), { target: { value: '58' } });
+    fireEvent.change(screen.getByLabelText('Buscar pan'), { target: { value: 'ojo' } });
+    expect(screen.queryByLabelText('Te llegó CONCHA')).toBeNull();
+    expect(screen.getByLabelText('Te llegó OJOS')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar lo que llegó' }));
+    await waitFor(() => expect(s.confirmarLlegada).toHaveBeenCalledWith('2026-10-15', [{ item_code: '1001', llego: 58 }]));
+  });
+
+  // 29-oct: la relectura de cada minuto se pausa con la pestaña escondida o el celular bloqueado
+  it('🔴 relee cada minuto solo si la pantalla se ve', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60)], true));
+      await abrirPan();
+      await screen.findByLabelText('Te llegó CONCHA');
+      const pedidas = s.miPedido.mock.calls.length;
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(s.miPedido.mock.calls.length).toBe(pedidas + 1);
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
+      expect(s.miPedido.mock.calls.length).toBe(pedidas + 1);
+    } finally {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      vi.useRealTimers();
+    }
   });
 });

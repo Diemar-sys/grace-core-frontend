@@ -1095,3 +1095,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* 29-oct: buscador de pan (Hoja del día, Liquidación, Mi cuenta). Píldora, como los filtros */
+.buscador-pan {
+  margin-left: auto;
+  min-width: 220px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+}
+.buscador-pan:focus { outline: 2px solid var(--color-brand-light); outline-offset: 1px; }
+@media (max-width: 600px) {
+  .buscador-pan { margin-left: 0; min-width: 0; width: 100%; }
+}

@@ -175,4 +175,20 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
     expect(totales.getByText('Se debe').nextSibling).toHaveTextContent('$0.00');
     expect(totales.getByText('A tu favor').nextSibling).toHaveTextContent('$189.20');   // 1.20 + 200 − 12
   });
+
+  // 29-oct: buscador — esconde, pero «Enviar» manda TODOS los panes con su merma
+  it('🔴 buscador: filtra lo que se ve y Enviar manda también lo escondido', async () => {
+    s.miHoja.mockResolvedValue({ ...mia(), renglones: [R, R2] });
+    s.guardarRegreso.mockResolvedValue(mia());
+    render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Buscar pan'), { target: { value: 'bolí' } });
+    expect(screen.queryByLabelText('Merma CONCHAS')).toBeNull();
+    expect(screen.getByLabelText('Merma BOLILLO')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
+    await waitFor(() => expect(s.guardarRegreso).toHaveBeenCalledWith(expect.any(String), [
+      { item_code: '1047', merma: 10 },
+      { item_code: '2000', merma: 0 },
+    ]));
+  });
 });
