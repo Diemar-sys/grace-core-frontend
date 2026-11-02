@@ -6,7 +6,7 @@ import { clienteService } from '../services/frappeCliente';
 import { getRoleConfig } from '../config/roles';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
-vi.mock('../services/frappeCliente', () => ({ clienteService: { miCuenta: vi.fn(), miPedido: vi.fn(), confirmarLlegada: vi.fn() } }));
+vi.mock('../services/frappeCliente', () => ({ clienteService: { miCuenta: vi.fn(), miPedido: vi.fn(), confirmarLlegada: vi.fn(), miFactura: vi.fn() } }));
 const s = vi.mocked(clienteService);
 
 const dia = (renglones: any[], abierta = false) => ({ renglones, abierta, cierre: 19 });
@@ -185,5 +185,40 @@ describe('Mi cuenta (cliente)', () => {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       vi.useRealTimers();
     }
+  });
+
+  it('29-oct: Facturas, la más reciente arriba, «Ver» abre lo cobrado y hay total del periodo', async () => {
+    s.miCuenta.mockResolvedValue({ ...CUENTA, facturas: [
+      { factura: 'ACC-SINV-1', fecha: '2026-10-14', tipo: 'pan' as const, total: 336, pagado: 0, debe: 336 },
+      { factura: 'ACC-SINV-2', fecha: '2026-10-15', tipo: 'abarrote' as const, total: 500, pagado: 200, debe: 300 }] });
+    s.miFactura.mockResolvedValue([{ item_code: '1001', item_name: 'MANTECADA GDE', qty: 24, uom: 'PZA', precio: 14, importe: 336 } as any]);
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Facturas$/ }));
+    const filas = within(await screen.findByLabelText('Facturas')).getAllByRole('row');
+    expect(filas[1]).toHaveTextContent('ACC-SINV-2');
+    expect(filas[filas.length - 1]).toHaveTextContent(/Total del periodo.*\$836\.00.*\$200\.00.*\$636\.00/);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver' })[1]);
+    expect(s.miFactura).toHaveBeenCalledWith('ACC-SINV-1');
+    const det = await screen.findByLabelText('Factura ACC-SINV-1');
+    expect(det).toHaveTextContent('MANTECADA GDE');
+    expect(det).toHaveTextContent(/24 PZA.*\$14\.00.*\$336\.00/);
+    expect(det).toHaveTextContent(/Total de la factura.*\$336\.00/);
+  });
+
+  it('29-oct: dos clics rápidos — la respuesta vieja que llega tarde no pinta la otra factura', async () => {
+    let soltarVieja: (v: any) => void = () => {};
+    s.miFactura.mockImplementation((f: string) => (f === 'ACC-SINV-1'
+      ? new Promise(r => { soltarVieja = r; })
+      : Promise.resolve([{ item_code: 'A1', item_name: 'NESCAFÉ', qty: 1, uom: 'PZA', precio: 14, importe: 14 } as any])));
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Facturas$/ }));
+    await screen.findByLabelText('Facturas');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver' })[1]);   // ACC-SINV-1 (lenta)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver' })[0]);   // ACC-SINV-2
+    expect(await screen.findByLabelText('Factura ACC-SINV-2')).toHaveTextContent('NESCAFÉ');
+    await act(async () => { soltarVieja([{ item_code: '1001', item_name: 'MANTECADA GDE', qty: 1, uom: 'PZA', precio: 14, importe: 14 }]); });
+    expect(screen.getByLabelText('Factura ACC-SINV-2')).not.toHaveTextContent('MANTECADA');
   });
 });

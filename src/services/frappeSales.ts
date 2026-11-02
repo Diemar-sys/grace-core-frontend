@@ -136,6 +136,31 @@ export function factorImpuestoRenglon(itemTaxRate: unknown): number {
     .reduce<number>((f, t) => f * (1 + (parseFloat(String(t)) || 0) / 100), 1);
 }
 
+/** Un renglón de factura como lo ve quien paga (29-oct: lo comparten el cobro de B2B y Mi cuenta).
+ *  `it` = renglón de Sales Invoice; `m` = su Item (stock_uom, custom_impuesto, presentación). */
+export function renglonDeFactura(it: any, m: any, esDeHoja: boolean) {
+  const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
+  const factor = esDeHoja && m.custom_impuesto != null
+    ? 1 + getTasa(m.custom_impuesto || 'tasa0')
+    : factorImpuestoRenglon(it.item_tax_rate);
+  return {
+    item_code: it.item_code,
+    item_name: it.item_name,
+    qty: parseFloat(it.qty || 0),   // ya en unidad base
+    uom: m.stock_uom || it.stock_uom || it.uom || '',
+    rate: parseFloat(it.rate || 0), // ya por unidad base
+    amount: parseFloat(it.amount || 0), // total preservado
+    // Lo que paga el cliente (23-sep): `rate` es la base SIN impuesto y en
+    // pantalla hacía ver la MANTECADA de $14 en $12.07.
+    precio: parseFloat(it.rate || 0) * factor,
+    importe: parseFloat(it.amount || 0) * factor,
+    description: it.description || '',
+    cantidad_por_presentacion: cantPres,
+    presentacion: m.custom_presentación || '',
+    qty_presentacion: cantPres > 0 ? (parseFloat(it.qty || 0) / cantPres) : parseFloat(it.qty || 0), // equiv. en presentación, ej. "2 Bulto"
+  };
+}
+
 class FrappeSalesService extends FrappeBase {
   #cuentasCache: Cuentas | null = null;
   _abortCliente?: AbortController;
@@ -536,29 +561,7 @@ class FrappeSalesService extends FrappeBase {
     // ponytail: si un pan cambia de impuesto DESPUÉS de cobrado, su factura vieja se pinta
     // con la tasa nueva; si llega a pasar, que el backend devuelva el $ de la hoja.
     const esDeHoja = !!data?.data?.custom_pedido_diario;
-    return itemsRaw.map((it: any) => {
-      const m = dict[it.item_code] || {};
-      const cantPres = parseFloat(m.custom_cantidad_por_presentación) || 1;
-      const factor = esDeHoja && m.custom_impuesto != null
-        ? 1 + getTasa(m.custom_impuesto || 'tasa0')
-        : factorImpuestoRenglon(it.item_tax_rate);
-      return {
-        item_code: it.item_code,
-        item_name: it.item_name,
-        qty: parseFloat(it.qty || 0),   // ya en unidad base
-        uom: m.stock_uom || it.stock_uom || it.uom || '',
-        rate: parseFloat(it.rate || 0), // ya por unidad base
-        amount: parseFloat(it.amount || 0), // total preservado
-        // Lo que paga el cliente (23-sep): `rate` es la base SIN impuesto y en
-        // pantalla hacía ver la MANTECADA de $14 en $12.07.
-        precio: parseFloat(it.rate || 0) * factor,
-        importe: parseFloat(it.amount || 0) * factor,
-        description: it.description || '',
-        cantidad_por_presentacion: cantPres,
-        presentacion: m.custom_presentación || '',
-        qty_presentacion: cantPres > 0 ? (parseFloat(it.qty || 0) / cantPres) : parseFloat(it.qty || 0), // equiv. en presentación, ej. "2 Bulto"
-      };
-    });
+    return itemsRaw.map((it: any) => renglonDeFactura(it, dict[it.item_code] || {}, esDeHoja));
   }
 
   /**

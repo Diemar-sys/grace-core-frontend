@@ -185,3 +185,6 @@
   .mc-main { padding: 1rem; }
 }
 @media (max-width: 480px) { .mc-cifras { grid-template-columns: 1fr; } }
+/* 29-oct: renglón de total (del periodo en Facturas; de la factura en su detalle) */
+.mc-total td { font-weight: 700; border-top: 2px solid var(--color-surface-sunk); background: var(--color-surface-sunk); }
+.mc-tabla--pan .mc-total td { height: auto; }

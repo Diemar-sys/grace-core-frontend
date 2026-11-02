@@ -3,6 +3,7 @@
 // cliente de la SESIÓN; aquí no viaja ningún cliente ni almacén.
 // 20-oct: lo único que escribe es cuánto le LLEGÓ de cada pan (confirmarLlegada).
 import FrappeBase from './FrappeBase';
+import { renglonDeFactura } from './frappeSales';
 
 const RUTA = '/api/method/gestion_panaderia.api.cliente_api';
 
@@ -25,6 +26,8 @@ export interface RenglonPedido {
   /** Pasó el cierre sin que lo anotara: se tomó lo que se mandó */
   llego_supuesto: boolean;
 }
+/** Un renglón de factura ya con impuesto (29-oct): el mismo cálculo que el cobro de B2B */
+export type RenglonFactura = ReturnType<typeof renglonDeFactura>;
 /** `abierta`: hoy y antes de `cierre` (hora de la torre) todavía puede anotar lo que llegó */
 export interface DetallePedido { renglones: RenglonPedido[]; abierta: boolean; cierre: number }
 
@@ -39,6 +42,15 @@ class FrappeClienteService extends FrappeBase {
     const r = await this._fetch(`${RUTA}.mi_pedido`, { method: 'POST', body: JSON.stringify({ fecha }) });
     if (!r) throw new Error('Sin conexión con el servidor.');
     return { renglones: [], abierta: false, cierre: 19, ...(r.message ?? {}) };
+  }
+
+  /** Qué se le cobró en UNA factura suya (29-oct). El servidor manda los renglones crudos y aquí
+   *  se les pone el impuesto con `renglonDeFactura`, igual que en el cobro de B2B. */
+  async miFactura(factura: string): Promise<RenglonFactura[]> {
+    const r = await this._fetch(`${RUTA}.mi_factura`, { method: 'POST', body: JSON.stringify({ factura }) });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    const { de_hoja = false, renglones = [] } = r.message ?? {};
+    return renglones.map((it: any) => renglonDeFactura(it, it, de_hoja));
   }
 
   /** Manda el TOTAL que llegó de cada pan (no lo de esta entrega): un reintento escribe lo mismo. */

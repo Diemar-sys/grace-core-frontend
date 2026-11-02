@@ -8,7 +8,7 @@
 // 20-oct (Diemar): LO ÚNICO que escribe: en «Ver pan» de HOY anota, pan por pan, cuánto le
 // LLEGÓ (acumulado del día; el pan llega en varias entregas) hasta el cierre (19:00 de la
 // torre). Lo que no anote se toma como lo que se mandó. Solo auditoría: se cobra lo mandado.
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutDashboard, Receipt, ShoppingBasket, Truck } from 'lucide-react';
 import Layout from '../components/Layout';
 import { auth } from '../services/frappeAuth';
@@ -16,7 +16,7 @@ import { fechaCorta, fechaLarga, hoyISO, rangoFechas } from '../utils/hora';
 import { numero, pesos } from '../utils/formato';
 import { coincidePan, normalizarBusqueda } from '../utils/buscarPan';
 import { estadoEnviado } from '../utils/hojaDia';
-import { clienteService, type DetallePedido, type MiCuenta as Cuenta, type RenglonPedido } from '../services/frappeCliente';
+import { clienteService, type DetallePedido, type MiCuenta as Cuenta, type RenglonFactura, type RenglonPedido } from '../services/frappeCliente';
 import '../styles/global.css';
 import '../styles/MiCuenta.css';
 
@@ -118,6 +118,10 @@ export default function MiCuenta() {
   const [guardando, setGuardando] = useState(false);
   // 29-oct: buscador del pan del día; solo filtra lo que se pinta
   const [busqueda, setBusqueda] = useState('');
+  // 29-oct: qué se cobró en una factura (como el cobro de B2B); `facturaPedida` descarta la respuesta vieja
+  const [factura, setFactura] = useState('');
+  const [productos, setProductos] = useState<RenglonFactura[] | null>(null);
+  const facturaPedida = useRef('');
   const buscado = normalizarBusqueda(busqueda);
   const usuario = auth.getUser();
 
@@ -134,6 +138,16 @@ export default function MiCuenta() {
     setDia(fecha); setDetalle(null);
     try { setDetalle(await clienteService.miPedido(fecha)); }
     catch (e: any) { setError(e?.message || 'No se pudo cargar el pedido'); }
+  };
+
+  const abrirFactura = async (nombre: string) => {
+    const nueva = factura === nombre ? '' : nombre;
+    facturaPedida.current = nueva; setFactura(nueva); setProductos(null);
+    if (!nueva) return;
+    try {
+      const r = await clienteService.miFactura(nueva);
+      if (facturaPedida.current === nueva) setProductos(r);
+    } catch (e: any) { setError(e?.message || 'No se pudo cargar la factura'); }
   };
 
   // Releer solo mientras se pueda anotar; lo tecleado vive aparte y no se pisa.
@@ -287,14 +301,40 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.facturas.length === 0 ? <p className="mc-nota">Sin facturas en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Facturas">
-                    <thead><tr><th>Fecha</th><th>Factura</th><th>Qué</th><th className="mc-num">Total</th><th className="mc-num">Pagado</th><th className="mc-num">Debe</th></tr></thead>
-                    <tbody>{cuenta.facturas.map(f => (
-                      <tr key={f.factura}>
-                        <td>{fechaLarga(f.fecha)}</td><td>{f.factura}</td><td>{f.tipo === 'pan' ? 'Pan' : 'Abarrotes'}</td>
-                        <td className="mc-num">{pesos(f.total)}</td><td className="mc-num">{pesos(f.pagado)}</td>
-                        <td className={`mc-num${f.debe > 0 ? ' mc-debe' : ''}`}>{pesos(f.debe)}</td>
-                      </tr>))}
+                    <thead><tr><th>Fecha</th><th>Factura</th><th>Qué</th><th className="mc-num">Total</th><th className="mc-num">Pagado</th><th className="mc-num">Debe</th><th /></tr></thead>
+                    {/* 29-oct: la más reciente arriba; «Ver» abre qué se cobró justo debajo, como Pedidos */}
+                    <tbody>{[...cuenta.facturas].reverse().map(f => (
+                      <Fragment key={f.factura}>
+                        <tr>
+                          <td>{fechaLarga(f.fecha)}</td><td>{f.factura}</td><td>{f.tipo === 'pan' ? 'Pan' : 'Abarrotes'}</td>
+                          <td className="mc-num">{pesos(f.total)}</td><td className="mc-num">{pesos(f.pagado)}</td>
+                          <td className={`mc-num${f.debe > 0 ? ' mc-debe' : ''}`}>{pesos(f.debe)}</td>
+                          <td><button className="mc-btn" onClick={() => abrirFactura(f.factura)}>{factura === f.factura ? 'Cerrar' : 'Ver'}</button></td>
+                        </tr>
+                        {factura === f.factura && (
+                          <tr className="mc-fila-detalle"><td colSpan={7}><div className="mc-detalle">
+                            {!productos ? <p className="mc-nota">Cargando…</p> : (<>
+                              <div className="mc-detalle-cabeza"><strong>{f.factura} · {fechaLarga(f.fecha)}</strong></div>
+                              <table className="mc-tabla mc-tabla--pan" aria-label={`Factura ${f.factura}`}>
+                                <thead><tr><th>Producto</th><th className="mc-num">Cantidad</th><th className="mc-num">Precio</th><th className="mc-num">Importe</th></tr></thead>
+                                <tbody>{productos.map((r, i) => (
+                                  <tr key={`${r.item_code}-${i}`}>
+                                    <td>{r.item_name}</td>
+                                    <td className="mc-num">{numero(r.qty, Number.isInteger(r.qty) ? 0 : 2)} {r.uom}</td>
+                                    <td className="mc-num mc-precio">{pesos(r.precio)}</td>
+                                    <td className="mc-num">{pesos(r.importe)}</td>
+                                  </tr>))}
+                                </tbody>
+                                {/* el total es el de la FACTURA (grand_total), no la suma de lo pintado */}
+                                <tfoot><tr className="mc-total"><td colSpan={3}>Total de la factura</td><td className="mc-num">{pesos(f.total)}</td></tr></tfoot>
+                              </table>
+                            </>)}
+                          </div></td></tr>
+                        )}
+                      </Fragment>))}
                     </tbody>
+                    <tfoot><tr className="mc-total"><td colSpan={3}>Total del periodo</td><td className="mc-num">{pesos(t.total)}</td>
+                      <td className="mc-num">{pesos(t.pagado)}</td><td className={`mc-num${t.debe > 0 ? ' mc-debe' : ''}`}>{pesos(t.debe)}</td><td /></tr></tfoot>
                   </table></div>
                 )}
               </section>
