@@ -623,3 +623,6 @@
   .bolillo__par { grid-template-columns: 1fr; gap: 1.25rem; }
   .bolillo__tarjeta { padding: 0.9rem; overflow-x: auto; }
 }
+
+/* 02-nov: «+ Agregar pan» en una hoja corregida (Luis y Administrator) */
+.hoja-agregar-pan { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }

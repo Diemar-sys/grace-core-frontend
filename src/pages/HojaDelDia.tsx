@@ -10,6 +10,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
 import EstadoCuentaHoja from '../components/EstadoCuentaHoja';
 import VistaBolillo from '../components/VistaBolillo';
+import AgregarPan from '../components/AgregarPan';
 import { hoyISO, horaLocal } from '../utils/hora';
 import { imprimirTicketHoja } from '../services/printService';
 import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja';
@@ -299,6 +300,20 @@ export default function HojaDelDia() {
   // 06-oct: cancela la factura y la hoja vuelve a capturarse (camioneta: a la merma)
   const corregir = () => ejecutar(h => hojaService.corregir(fecha, h.destino), 'No se pudo corregir');
 
+  // 02-nov: pan nuevo en una hoja corregida. No va por `ejecutar`: ese tira lo tecleado sin
+  // guardar, y agregar un pan no lo toca (misma guarda de folio).
+  const agregarPan = async (itemCode: string) => {
+    if (!hoja) return false;
+    setOcupado(true);
+    try {
+      const folio = ++peticionRef.current;
+      const nueva = await hojaService.agregarPan(fecha, hoja.destino, itemCode);
+      if (peticionRef.current === folio) setHoja(nueva);
+      return true;
+    } catch (e: any) { setError(e?.message || 'No se agregó el pan'); return false; }
+    finally { setOcupado(false); }
+  };
+
   return (
     <Layout>
       <div className="hoja-dia">
@@ -378,6 +393,7 @@ export default function HojaDelDia() {
                   Corregir
                 </button>
               )}
+              {!cobrado && hoja.puede_agregar && <AgregarPan onAgregar={agregarPan} disabled={ocupado} />}
               <input type="search" className="buscador-pan" placeholder="Buscar pan o clave" aria-label="Buscar pan"
                 value={busqueda} onChange={e => setBusqueda(e.target.value)} />
             </div>

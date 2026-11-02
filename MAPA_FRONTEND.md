@@ -50,7 +50,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 
 | Archivo | Ruta / qué hace | Roles |
 |---|---|---|
-| `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
+| `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
 | `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). | Repartidor |
 | `MiCuenta.tsx` | `/mi-cuenta` — portal del cliente: Resumen (debes, facturado, pagado, surtido, antigüedad), Facturas con «Ver» detalle, Pedidos con «Ver pan», Envíos agrupados por folio con «Ver» (`enviosAgrupados`). Lo único que escribe: «Te llegó» del día hasta el cierre (19:00). | Cliente |
 | `Pedido.jsx` | Importa el Excel del pedido (fecha la dice el Excel), PDF/Telegram. Un Excel por día; «Quitar» borra el guardado. | Almacén, Operaciones, Gerente |
@@ -81,7 +81,8 @@ Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.re
 | Archivo | Qué es |
 |---|---|
 | `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar». Números del servidor. |
-| `VistaBolillo.tsx` | Vista Bolillo de la Hoja: PEDIDO vs SALIÓ por tanda; guarda solo lo cambiado. |
+| `VistaBolillo.tsx` | Vista Bolillo de la Hoja: PEDIDO vs SALIÓ por tanda; guarda solo lo cambiado. Camioneta: solo se congela en ruta (en el paso 3 se corrige). |
+| `AgregarPan.tsx` | «+ Agregar pan» de la Hoja: solo con `puede_agregar` (hoja corregida, Luis/Administrator). Manda solo la clave; el precio lo pone el servidor. |
 | `AvisoMantenimiento.tsx` / `PildoraMantenimiento.tsx` | Aviso de 5 min + píldora junto al reloj; en mantenimiento (503) tapa la pantalla sin recargar. Lógica en `utils/mantenimiento.ts`. |
 | `AvisoSesion.tsx` | Bloquea la pantalla si otra pestaña cambió la sesión. |
 | `Reloj.tsx` | Fecha/hora local de la barra, un tic por minuto. |
@@ -110,7 +111,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 
 | Archivo | Pega a |
 |---|---|
-| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
+| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
 | `frappeCliente.ts` | `cliente_api`: miCuenta, miPedido, miFactura, confirmarLlegada. |
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
 | `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío. |

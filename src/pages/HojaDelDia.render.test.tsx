@@ -12,7 +12,8 @@ vi.mock('../components/VistaBolillo', () => ({ default: ({ fecha, destino }: any
 vi.mock('../services/printService', () => ({ imprimirTicketHoja: vi.fn() }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
-    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn() },
+    confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn(),
+    panesParaAgregar: vi.fn(), agregarPan: vi.fn() },
 }));
 
 // IndexedDB en memoria: sobrevive al desmontar (la «recarga» de los tests del borrador)
@@ -231,6 +232,33 @@ describe('HojaDelDia — cableado', () => {
     await waitFor(() => expect(s.corregir).toHaveBeenCalledWith(expect.any(String), 'DELI'));
     await waitFor(() => expect(screen.getByLabelText('Enviado CONCHAS')).not.toBeDisabled());
     expect(s.confirmar).not.toHaveBeenCalled();
+  });
+
+  // 02-nov (Diemar): hoja corregida → Luis/Administrator agregan cualquier pan habilitado.
+  // Solo con `puede_agregar` del servidor; manda solo la clave (el precio lo pone el servidor);
+  // pinta la hoja que regresa y NO tira lo tecleado sin guardar.
+  it('🔴 Agregar pan: solo con puede_agregar, manda la clave y conserva lo tecleado', async () => {
+    s.panesParaAgregar.mockResolvedValue([{ item_code: '1099', item_name: 'ROSCA' }]);
+    s.hoja.mockResolvedValue({ ...hoja(), puede_agregar: false });
+    const { unmount } = render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    expect(screen.queryByLabelText('Pan a agregar')).toBeNull();
+    unmount();
+
+    const ROSCA = { ...R, item_code: '1099', producto: 'ROSCA', pedido: 0, enviado: 0, precio: 20, importe: 0 };
+    s.hoja.mockResolvedValue({ ...hoja(), puede_agregar: true });
+    s.agregarPan.mockResolvedValue({ ...hoja(), renglones: [R, ROSCA], puede_agregar: true });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '33' } });
+    fireEvent.change(screen.getByLabelText('Pan a agregar'), { target: { value: ' 1099 ' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar pan' }));
+    await waitFor(() => expect(s.agregarPan).toHaveBeenCalledWith(expect.any(String), 'DELI', '1099'));
+    expect(await screen.findByLabelText('Enviado ROSCA')).toBeInTheDocument();
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(33);
+    expect(screen.getByLabelText('Pan a agregar')).toHaveValue('');
+    expect(s.guardar).not.toHaveBeenCalled();
   });
 
   // 13-oct: con el modal abierto se pintaba la hoja ya sin factura mientras se releían los

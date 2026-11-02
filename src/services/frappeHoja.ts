@@ -21,6 +21,8 @@ export interface RenglonHoja {
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
 /** '' = capturando lo enviado · 'enviado' = en ruta · 'liquidado' = ya entregó su regreso */
 export type EtapaCamioneta = '' | 'enviado' | 'liquidado';
+export interface PanParaAgregar { item_code: string; item_name: string }
+
 export interface Hoja {
   destino: string; camioneta: boolean; renglones: RenglonHoja[]; etapa: EtapaCamioneta;
   total: number; comision: number; se_debe: number; factura: Factura | null;
@@ -30,6 +32,8 @@ export interface Hoja {
   /** Cobrada, dentro de la ventana y sin abono: «Corregir» cancela la factura (06-oct).
    *  La regla vive en el servidor; aquí solo se lee. */
   corregible?: boolean;
+  /** 02-nov: hoja corregida y sesión de Luis/Administrator → «+ Agregar pan». Regla del servidor. */
+  puede_agregar?: boolean;
   /** 15-oct: descuento a cliente (DELI 40%, ZAKIA 20%) sobre el total ya con impuesto, del
    *  servidor. 0 para quien no lleva o para pedidos antes del 12-oct. */
   descuento?: number; descuento_pct?: number;
@@ -116,6 +120,12 @@ class HojaService extends FrappeBase {
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }
   reabrirEnvio(fecha: string, destino: string) { return this._post<Hoja>('reabrir_envio', { fecha, destino }); }
   corregir(fecha: string, destino: string) { return this._post<Hoja>('corregir', { fecha, destino }); }
+  /** 02-nov: pan habilitado del catálogo, para agregar a una hoja corregida. */
+  panesParaAgregar() { return this._get<PanParaAgregar[]>('panes_para_agregar', {}); }
+  /** 02-nov: solo el pan; el precio lo pone el servidor (catálogo por canal). */
+  agregarPan(fecha: string, destino: string, item_code: string) {
+    return this._post<Hoja>('agregar_pan', { fecha, destino, item_code });
+  }
   /** 09-oct: lo que Eva le entregó a Luis de esa factura (solo Administrator y luis.th). */
   liquidar(factura: string, monto: number) {
     return this._post<{ factura: string; liquidado: number; eva_debe: number }>('liquidar', { factura, monto });
