@@ -33,7 +33,6 @@
 | `nginx.conf` | Prod: SPA + proxy a ERPNext y print-server. 🔴 `index.html` con `no-cache` (sin eso el deploy es invisible). Interruptor de mantenimiento: con `/etc/nginx/mantenimiento/ON` todo da 503 (`public/mantenimiento.html`); `/mantenimiento/aviso` sirve el aviso previo. |
 | `index.html` | Shell del SPA, entra por `src/main.jsx`. |
 | `.env.example`, `.dockerignore`, `.gitignore` | Plantilla de variables `VITE_*`; exclusiones. |
-| `global.css` (raíz) | 🔴 Huérfano del primer commit (imports de tailwind). Nadie lo importa; el bueno es `src/styles/global.css`. Candidato a borrar. |
 | `README.md`, `INSTALL.md`, `AUDITORIA_2026-08-11.md`, `AUDITORIA_BUGS.md` | Documentación e históricos. |
 | `MAPA_FRONTEND.md` | Este documento. |
 
