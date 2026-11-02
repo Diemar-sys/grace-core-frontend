@@ -89,9 +89,33 @@ describe('Mi cuenta (cliente)', () => {
     render(<MiCuenta />);
     await screen.findByLabelText('Saldo');
     fireEvent.click(screen.getByRole('button', { name: /^Envíos$/ }));
-    const t = screen.getByRole('table', { name: 'Envíos' });
+    fireEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    const t = screen.getByRole('table', { name: 'Envío MAT-1' });
     expect(within(t).getByText('25 Kg')).toBeInTheDocument();     // con el código viejo: «25.00 Kg»
     expect(within(t).getByText('2.50 Kg')).toBeInTheDocument();
+  });
+
+  // 02-nov (Diemar): «en vez de una por una, agrupar por no. de envío»; el mismo día puede haber dos
+  it('Envíos: un renglón por folio (no por fecha), el más reciente arriba, «Ver» abre SUS productos', async () => {
+    const e = (envio: string, fecha: string, producto: string, almacen: string) =>
+      ({ envio, fecha, item_code: producto, producto, cantidad: 1, unidad: 'Kg', almacen });
+    s.miCuenta.mockResolvedValue({ ...CUENTA, envios: [
+      e('MAT-98', '2026-10-13', 'NATA', 'TIENDA - PUERTA'),
+      e('MAT-100', '2026-10-15', 'AZUCAR REFINADA', 'TIENDA - PUERTA'), e('MAT-100', '2026-10-15', 'POLIPAPEL', 'TIENDA - PUERTA'),
+      e('MAT-101', '2026-10-15', 'HARINA', 'TIENDA - PANQUELERIA')] });
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Envíos$/ }));
+    const filas = within(screen.getByRole('table', { name: 'Envíos' })).getAllByRole('row').slice(1);
+    expect(filas.map(f => within(f).getAllByRole('cell')[1].textContent)).toEqual(['MAT-101', 'MAT-100', 'MAT-98']);
+    expect(within(filas[1]).getAllByRole('cell')[3].textContent).toBe('2');
+    expect(screen.queryByText('POLIPAPEL')).not.toBeInTheDocument();
+    fireEvent.click(within(filas[1]).getByRole('button', { name: 'Ver' }));
+    const det = screen.getByRole('table', { name: 'Envío MAT-100' });
+    expect(within(det).getByText('AZUCAR REFINADA')).toBeInTheDocument();
+    expect(within(det).getByText('POLIPAPEL')).toBeInTheDocument();
+    expect(within(det).queryByText('HARINA')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('table', { name: /^Envío / })).toHaveLength(1);   // solo ESE envío abierto
   });
 
   // 19-oct (Diemar): «el de ver pan no se ve el pan» — se pintaba debajo de TODA la tabla

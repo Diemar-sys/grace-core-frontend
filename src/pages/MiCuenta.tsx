@@ -67,6 +67,18 @@ export function llegadasCambiadas(renglones: RenglonPedido[], tecleado: Record<s
 }
 
 /** Cada minuto se relee el día abierto: Héctor va subiendo lo que se mandó. */
+// 02-nov (Diemar): un renglón por ENVÍO (folio), no por producto; el más reciente arriba. Por folio y no
+// por fecha: el mismo día puede haber dos (Puerta Real y Panquelería). Map, O(n).
+export function enviosAgrupados(envios: Cuenta['envios']) {
+  const porFolio = new Map<string, { envio: string; fecha: string; almacenes: Set<string>; renglones: Cuenta['envios'] }>();
+  for (const e of envios) {
+    const g = porFolio.get(e.envio);
+    if (g) { g.renglones.push(e); g.almacenes.add(e.almacen); }
+    else porFolio.set(e.envio, { envio: e.envio, fecha: e.fecha, almacenes: new Set([e.almacen]), renglones: [e] });
+  }
+  return [...porFolio.values()].reverse();
+}
+
 const RELEER_MS = 60_000;
 
 const pesosCorto = (n: number) =>
@@ -122,6 +134,7 @@ export default function MiCuenta() {
   const [factura, setFactura] = useState('');
   const [productos, setProductos] = useState<RenglonFactura[] | null>(null);
   const facturaPedida = useRef('');
+  const [envioAbierto, setEnvioAbierto] = useState('');
   const buscado = normalizarBusqueda(busqueda);
   const usuario = auth.getUser();
 
@@ -412,12 +425,30 @@ export default function MiCuenta() {
               <section className="mc-tarjeta">
                 {cuenta.envios.length === 0 ? <p className="mc-nota">Sin envíos en el periodo.</p> : (
                   <div className="mc-scroll"><table className="mc-tabla" aria-label="Envíos">
-                    <thead><tr><th>Fecha</th><th>Envío</th><th>Producto</th><th className="mc-num">Cantidad</th><th>A</th></tr></thead>
-                    <tbody>{cuenta.envios.map((e, i) => (
-                      <tr key={`${e.envio}-${i}`}>
-                        <td>{fechaLarga(e.fecha)}</td><td>{e.envio}</td><td>{e.producto}</td>
-                        <td className="mc-num">{numero(e.cantidad, Number.isInteger(e.cantidad) ? 0 : 2)} {e.unidad}</td><td>{e.almacen}</td>
-                      </tr>))}
+                    <thead><tr><th>Fecha</th><th>Envío</th><th>A</th><th className="mc-num">Productos</th><th /></tr></thead>
+                    <tbody>{enviosAgrupados(cuenta.envios).map(g => (
+                      <Fragment key={g.envio}>
+                        <tr>
+                          <td>{fechaLarga(g.fecha)}</td><td>{g.envio}</td><td>{[...g.almacenes].join(' · ')}</td>
+                          <td className="mc-num">{g.renglones.length}</td>
+                          <td><button className="mc-btn" onClick={() => setEnvioAbierto(a => a === g.envio ? '' : g.envio)}>
+                            {envioAbierto === g.envio ? 'Cerrar' : 'Ver'}</button></td>
+                        </tr>
+                        {envioAbierto === g.envio && (
+                          <tr className="mc-fila-detalle"><td colSpan={5}><div className="mc-detalle">
+                            <div className="mc-detalle-cabeza"><strong>{g.envio} · {fechaLarga(g.fecha)}</strong></div>
+                            <table className="mc-tabla mc-tabla--pan" aria-label={`Envío ${g.envio}`}>
+                              <thead><tr><th>Producto</th><th className="mc-num">Cantidad</th></tr></thead>
+                              <tbody>{g.renglones.map((e, i) => (
+                                <tr key={`${e.item_code}-${i}`}>
+                                  <td>{e.producto}</td>
+                                  <td className="mc-num">{numero(e.cantidad, Number.isInteger(e.cantidad) ? 0 : 2)} {e.unidad}</td>
+                                </tr>))}
+                              </tbody>
+                            </table>
+                          </div></td></tr>
+                        )}
+                      </Fragment>))}
                     </tbody>
                   </table></div>
                 )}
