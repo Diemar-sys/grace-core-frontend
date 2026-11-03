@@ -444,103 +444,10 @@ class FrappeComprasService extends FrappeBase {
   // ── Reporte fiscal mensual ───────────────────────────────────────────────
 
   async getReporteFiscalMensual(año: number | string): Promise<any[]> {
-    const desde = `${año}-01-01`;
-    const hasta  = `${año}-12-31`;
-
-    // Lista de receipts confirmados del año. limit 0 = SIN tope: con '500' el
-    // reporte descartaba en silencio las compras viejas del año (~768/año a
-    // ritmo real) y los meses de enero-abril reportaban IVA/IEPS de menos.
-    const lista = await this._fetch(`/api/resource/Purchase Receipt?${new URLSearchParams({
-      fields: JSON.stringify(["name","posting_date","grand_total","custom_facturado_a"]),
-      filters: JSON.stringify([["docstatus","=",1],["posting_date",">=",desde],["posting_date","<=",hasta]]),
-      limit_page_length: '0',
-    })}`);
-
-    const entries = lista?.data || [];
-    if (!entries.length) return [];
-
-    // Documentos completos en lotes de 8 — incluyen items[] y taxes[] embebidos
-    // sin necesitar permisos directos en los child doctypes. En lotes para no
-    // dispararle cientos de requests simultáneos al server.
-    const docs: any[] = [];
-    let perdidos = 0;
-    for (let i = 0; i < entries.length; i += 8) {
-      const lote = await Promise.all(
-        entries.slice(i, i + 8).map((e: any) =>
-          this._fetch(`/api/resource/Purchase Receipt/${encodeURIComponent(e.name)}`)
-            .then((r: any) => ({ ...r.data, posting_date: e.posting_date, custom_facturado_a: e.custom_facturado_a }))
-            .catch(() => null)
-        )
-      );
-      for (const d of lote) d ? docs.push(d) : perdidos++;
-    }
-    // Un reporte fiscal incompleto que no avisa es peor que uno que truena:
-    // antes los docs fallidos se tragaban con catch(() => null) y no sumaban.
-    if (perdidos > 0) {
-      throw new Error(`${perdidos} compra(s) no se pudieron leer; el reporte saldría incompleto. Reintenta.`);
-    }
-
-    // Clave de agrupación por responsable fiscal
-    const facturadoKey = (v: any) => {
-      const s = (v || 'SIN FACTURA').toUpperCase();
-      if (s === 'ALMA RODRIGUEZ') return 'alma';
-      if (s === 'LUIS TORRES')  return 'luis';
-      return 'sinFactura';
-    };
-
-    const meses: Record<string, any> = {};
-    for (const doc of docs) {
-      if (!doc) continue;
-      const mes = doc.posting_date.slice(0, 7);
-      if (!meses[mes]) meses[mes] = { compras: 0, subtotalIva16: 0, subtotalIeps: 0, subtotalTasa0: 0, iva: 0, ieps: 0, total: 0,
-        pagado: 0, pendiente: 0, porFacturado: {
-          alma:       { pagado: 0, pendiente: 0 },
-          luis:       { pagado: 0, pendiente: 0 },
-          sinFactura: { pagado: 0, pendiente: 0 },
-        } };
-      const m = meses[mes];
-      m.compras++;
-      const gt = parseFloat(doc.grand_total || 0);
-      m.total += gt;
-      // pagado vs pendiente, global y por responsable fiscal (suman al total de cada quien)
-      const fk = facturadoKey(doc.custom_facturado_a);
-      if (doc.custom_pagado) { m.pagado += gt; m.porFacturado[fk].pagado += gt; }
-      else                   { m.pendiente += gt; m.porFacturado[fk].pendiente += gt; }
-
-      // IVA e IEPS desde tax entries — son los valores ajustados manualmente para cuadrar con CFDI
-      let docIva = 0, docIeps = 0;
-      for (const t of (doc.taxes || [])) {
-        const head = t.account_head || '';
-        const desc = t.description  || '';
-        if (head.includes('IVA') || desc.includes('IVA')) docIva += parseFloat(t.tax_amount || 0);
-        else if (head.includes('IEPS') || desc.includes('IEPS')) docIeps += parseFloat(t.tax_amount || 0);
-      }
-      m.iva  += docIva;
-      m.ieps += docIeps;
-
-      // Leer custom fields guardados al momento de registrar la compra
-      // Fallback a reverse-calc para compras anteriores sin custom fields
-      const docSubIva16 = doc.custom_subtotal_iva_16  != null
-        ? parseFloat(doc.custom_subtotal_iva_16)
-        : (docIva  > 0 ? docIva  / 0.16 : 0);
-      const docSubIeps  = doc.custom_subtotal_ieps_8  != null
-        ? parseFloat(doc.custom_subtotal_ieps_8)
-        : (docIeps > 0 ? docIeps / 0.08 : 0);
-      const docSubTasa0 = doc.custom_subtotal_iva_0   != null
-        ? parseFloat(doc.custom_subtotal_iva_0)
-        : Math.max(0, (doc.total || 0) - docSubIva16 - docSubIeps);
-      m.subtotalIva16 += docSubIva16;
-      m.subtotalIeps  += docSubIeps;
-      m.subtotalTasa0 += docSubTasa0;
-    }
-
-    return Object.entries(meses)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, d]) => ({
-        mes,
-        ...d,
-        subtotal: d.subtotalIva16 + d.subtotalIeps + d.subtotalTasa0,
-      }));
+    // 03-nov: lo suma la base (reportes_api.reporte_compras_mensual). Antes se
+    // bajaba CADA compra del año (~770 peticiones) para pintar 12 renglones.
+    const res = await this._fetch(`/api/method/gestion_panaderia.api.reportes_api.reporte_compras_mensual?${new URLSearchParams({ anio: String(año) })}`);
+    return res?.message || [];
   }
 
   // ── Lista de compras ─────────────────────────────────────────────────────

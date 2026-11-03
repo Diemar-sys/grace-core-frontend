@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-02.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-03.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -51,7 +51,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | Archivo | Ruta / qué hace | Roles |
 |---|---|---|
 | `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
-| `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). | Repartidor |
+| `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. Borrador por día en IndexedDB (se ignora si ya se envió o cobró). 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). | Repartidor |
 | `MiCuenta.tsx` | `/mi-cuenta` — portal del cliente: Resumen (debes, facturado, pagado, surtido, antigüedad), Facturas con «Ver» detalle, Pedidos con «Ver pan», Envíos agrupados por folio con «Ver» (`enviosAgrupados`). Lo único que escribe: «Te llegó» del día hasta el cierre (19:00). | Cliente |
 | `Pedido.jsx` | Importa el Excel del pedido (fecha la dice el Excel), PDF/Telegram. Un Excel por día; «Quitar» borra el guardado. | Almacén, Operaciones, Gerente |
 | `ConsultaPedido.tsx` | Pedido guardado + PDF (solo lectura). | idem |
@@ -91,7 +91,7 @@ Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.re
 | `NuevaVentaB2B.jsx` | Alta de venta B2B; precio en `utils/ventaB2B.ts` (excepción DELI nata a precio de compra). |
 | `TablaCuentasPorCobrar.jsx` | CxC (reporte y venta), filtro TODO/PAN/MATERIA PRIMA. |
 | `NuevaCompra.jsx`, `NuevaReceta.jsx`, `NuevoEnvioSucursal.jsx`, `NuevoInsumo.jsx`, `NuevoPan.jsx`, `NuevoProveedor.jsx` | Modales/formularios de alta. |
-| `ConteoFisico.jsx`, `HistorialMovimientos.jsx`, `RegistroMerma.jsx`, `RegistroRegalo.jsx`, `RegistroSalida.jsx`, `ReposicionInsumos.tsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). |
+| `ConteoFisico.jsx`, `HistorialMovimientos.jsx`, `RegistroMerma.jsx`, `RegistroRegalo.jsx`, `RegistroSalida.jsx`, `ReposicionInsumos.tsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
 | `BuscadorCliente.jsx`, `SelectorTipoItem.tsx` | Buscador de clientes B2B; filtro de tipo de item. |
 | `catalogo/` | `FilaItem.tsx`, `VistaPan.tsx` (costeo/margen), `catalogoTypes.ts`. |
 | `compras/` | `BuscadorProveedor.jsx`, `ComprasModales.jsx`, `FilaProducto.jsx`, `ModalReciboPDF.jsx`, `compraUtils.ts` (impuesto, bulto↔kg). `ModalPreciosActualizados.jsx` 🔴 sin botón «Omitir» (omitir dejaba el catálogo mintiendo). |
@@ -99,7 +99,7 @@ Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.re
 | `modals/` | `ConfirmModal.jsx`, `ModalError.jsx` (🔴 recibe string, nunca objeto: React #31), `ModalEntradaPan.jsx` (precarga lo que FALTA del pedido; costo editable solo Gerente sin receta), `ModalHojaEntrega.jsx`, `ModalReciboPDF.jsx`, `ModalRegistrarPago.jsx` (cobra el SALDO; despliega productos). |
 | `pos/` | `POSCatalogo.jsx`, `POSHistorial.jsx`, `POSTicket.jsx`, `POSModalCantidad.jsx`, `POSModalCobro.jsx`, `POSModalCorte.jsx`, `POSModalEspera.jsx`, `posUtils.ts`. |
 
-Tests: `AvisoMantenimiento.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`.
+Tests: `AvisoMantenimiento.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `RegistroMovimiento.borrador.test.jsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`.
 
 ## Estilos (`src/styles/`)
 
@@ -119,7 +119,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 | `frappeStock.ts` | Movimientos: entradas, salidas, mermas, ajustes, regalos, traspasos, conteo. |
 | `frappeInventory.ts` | Catálogo: almacenes, grupos, UOM, CRUD de Item, stock. |
 | `frappeProduccion.ts` | BOM, costeo, entrada de pan, `entradoHoy`. |
-| `frappePurchase.ts` | Compras: confirmar/cancelar, consolidar, revertir pagado (con contraseña), reporte fiscal. |
+| `frappePurchase.ts` | Compras: confirmar/cancelar, consolidar, revertir pagado (con contraseña), reporte fiscal (`reportes_api.reporte_compras_mensual`, lo suma la base). |
 | `frappeEgresos.ts` | Egresos, CxP, `marcarPagado(…, cobro?)`, `cobrosParaEgreso`. |
 | `frappeAuth.ts` | Login/logout, rol, POS profile. `getUser()` valida localStorage (no escalar rol por DevTools). |
 | `frappeCuentas.ts`, `frappeAuditoria.ts`, `frappeNomina.ts`, `frappeKardex.ts`, `frappeReportes.ts`, `frappeSupplier.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
