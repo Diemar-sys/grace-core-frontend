@@ -11,6 +11,7 @@ import ConfirmModal from './modals/ConfirmModal';
 import '../styles/RegistroMovimiento.css';
 import SelectorTipoItem from './SelectorTipoItem';
 import { numero } from '../utils/formato';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -45,6 +46,16 @@ function RegistroMerma({ onSuccess, onCancel }) {
   const [almacenes, setAlmacenes] = useState([]);
   const [stockMap, setStockMap]   = useState({});
   const [stockLoaded, setStockLoaded] = useState(false);
+
+  // Cerrar el modal por accidente tiraba la captura. Con `success` la merma ya
+  // existe en ERPNext: el respaldo se apaga (si no, el debounce lo revive).
+  const hayCaptura = !success && (filas.some(f => f.item_code) || notas.trim() !== '');
+  const { restaurado, descartar } = useBorradorLocal(
+    'merma-inventario',
+    hayCaptura ? { almacenOrigen, motivo, tipoItem, notas, filas } : null,
+    b => { setAlmacenOrigen(b.almacenOrigen); setMotivo(b.motivo); setTipoItem(b.tipoItem); setNotas(b.notas); setFilas(b.filas); },
+  );
+  const descartarBorrador = () => { descartar(); setFilas([FILA_VACIA()]); setNotas(''); };
 
   useEffect(() => {
     let cancel = false;
@@ -126,6 +137,7 @@ function RegistroMerma({ onSuccess, onCancel }) {
         almacenOrigen, motivo, items: itemsLimpios, notas: sanitizar(notas),
       });
       setMermaTarget(null);
+      descartar();   // la merma ya vive en ERPNext; el borrador cumplió
       const origen = almacenes.find(a => a.name === almacenOrigen)?.label || almacenOrigen;
       setSuccess(`Merma registrada en ${origen}: ${mermaTarget.length} producto(s)`);
       setTimeout(() => onSuccess?.(), 1500);
@@ -181,6 +193,12 @@ function RegistroMerma({ onSuccess, onCancel }) {
         </div>
 
         {success && <div className="rm-alert rm-alert-success">{success}</div>}
+        {restaurado && !success && (
+          <div className="rm-alert rm-alert-borrador">
+            <span>Se retomó una merma sin terminar. Revisa las cantidades antes de confirmar.</span>
+            <button className="rm-btn-descartar" onClick={descartarBorrador}>Descartar y empezar de cero</button>
+          </div>
+        )}
         {hayFaltantes && (
           <div className="rm-alert rm-alert-error">
             ⚠ Stock insuficiente en {labelOrigen}. Revisa filas en rojo.

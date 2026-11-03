@@ -5,6 +5,13 @@ import { hojaService } from '../services/frappeHoja';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../services/frappeHoja', () => ({ hojaService: { miHoja: vi.fn(), guardarRegreso: vi.fn() } }));
+// IndexedDB en memoria: sobrevive al desmontar (la «recarga» de los tests del borrador)
+const almacen = vi.hoisted(() => new Map<string, any>());
+vi.mock('../db/borradorLocal', () => ({
+  cargarBorradorForm: async (k: string) => almacen.get(k),
+  guardarBorradorForm: async (k: string, datos: any) => { if (datos == null) almacen.delete(k); else almacen.set(k, { datos, actualizado: 'x' }); },
+  borrarBorradorForm: async (k: string) => { almacen.delete(k); },
+}));
 const s = vi.mocked(hojaService);
 const R = {
   item_code: '1047', producto: 'CONCHAS', departamento: 'PAN DULCE', categoria: 'PAN MANTECA',
@@ -15,7 +22,7 @@ const mia = (factura: any = null, merma = 0) => ({ destino: 'ISMA', camioneta: t
   renglones: [{ ...R, merma }], total: 1200, comision: 320, se_debe: 880, a_favor: 0, factura });
 
 describe('Liquidacion — sobre la hoja, sin inventario', () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => { vi.resetAllMocks(); almacen.clear(); });
 
   it('🔴 el preview cobra lo vendido menos 10% + $200', async () => {
     s.miHoja.mockResolvedValue(mia());
@@ -190,5 +197,43 @@ describe('Liquidacion — sobre la hoja, sin inventario', () => {
       { item_code: '1047', merma: 10 },
       { item_code: '2000', merma: 0 },
     ]));
+  });
+
+  // 03-nov (Diemar): cerrar el celular a media captura tiraba toda la merma tecleada
+  const enBorrador = () => waitFor(() => expect(almacen.size).toBe(1), { timeout: 2000 });
+
+  it('🔴 la merma tecleada sobrevive a cerrar y volver a abrir', async () => {
+    s.miHoja.mockResolvedValue(mia());
+    const { unmount } = render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '15' } });
+    await enBorrador();
+    unmount();
+    render(<Liquidacion />);
+    await waitFor(() => expect(screen.getByLabelText('Merma CONCHAS')).toHaveValue('15'));
+    expect(screen.getByText('$718.00')).toBeInTheDocument();
+  });
+
+  it('🔴 hoja ya enviada: manda lo del servidor, no el borrador', async () => {
+    s.miHoja.mockResolvedValue(mia());
+    const { unmount } = render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '15' } });
+    await enBorrador();
+    unmount();
+    s.miHoja.mockResolvedValue({ ...mia(null, 3), etapa: 'liquidado' as const });
+    render(<Liquidacion />);
+    const input = await screen.findByLabelText('Merma CONCHAS');
+    await new Promise(r => setTimeout(r, 50));   // deja que el borrador se cargue
+    expect(input).toHaveValue('3');
+  });
+
+  it('🔴 al enviar se borra el borrador de ese día', async () => {
+    s.miHoja.mockResolvedValue(mia());
+    s.guardarRegreso.mockResolvedValue({ ...mia(null, 15), etapa: 'liquidado' as const });
+    render(<Liquidacion />);
+    fireEvent.change(await screen.findByLabelText('Merma CONCHAS'), { target: { value: '15' } });
+    await enBorrador();
+    fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
+    await screen.findByText('Enviado a matriz');
+    await waitFor(() => expect(almacen.size).toBe(0), { timeout: 2000 });
   });
 });

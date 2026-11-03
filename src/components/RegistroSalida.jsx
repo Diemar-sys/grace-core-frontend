@@ -12,6 +12,7 @@ import ModalError from './modals/ModalError';
 import '../styles/RegistroMovimiento.css';
 import SelectorTipoItem from './SelectorTipoItem';
 import { numero } from '../utils/formato';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -38,6 +39,15 @@ function RegistroSalida({ onSuccess, onCancel }) {
   const [almacenes, setAlmacenes] = useState([]);
   const [stockMap, setStockMap] = useState({});
   const [stockLoaded, setStockLoaded] = useState(false);
+
+  // Igual que la merma: respaldo local hasta que la salida exista en ERPNext.
+  const hayCaptura = !success && (filas.some(f => f.item_code) || notas.trim() !== '');
+  const { restaurado, descartar } = useBorradorLocal(
+    'salida-inventario',
+    hayCaptura ? { almacenDestino, tipoItem, notas, filas } : null,
+    b => { setAlmacenDestino(b.almacenDestino); setTipoItem(b.tipoItem); setNotas(b.notas); setFilas(b.filas); },
+  );
+  const descartarBorrador = () => { descartar(); setFilas([FILA_VACIA()]); setNotas(''); };
 
   useEffect(() => {
     let cancel = false;
@@ -121,6 +131,7 @@ function RegistroSalida({ onSuccess, onCancel }) {
       await stockService.registrarSalida({
         almacenDestino, items: itemsLimpios, notas: sanitizar(notas),
       });
+      descartar();   // la salida ya vive en ERPNext; el borrador cumplió
       const dest = almacenes.find(a => a.name === almacenDestino)?.label || almacenDestino;
       setSuccess(`Transferencia registrada hacia ${dest}: ${itemsValidos.length} producto(s)`);
       setTimeout(() => onSuccess?.(), 1500);
@@ -159,6 +170,12 @@ function RegistroSalida({ onSuccess, onCancel }) {
         </div>
 
         {success && <div className="rm-alert rm-alert-success">{success}</div>}
+        {restaurado && !success && (
+          <div className="rm-alert rm-alert-borrador">
+            <span>Se retomó una salida sin terminar. Revisa las cantidades antes de confirmar.</span>
+            <button className="rm-btn-descartar" onClick={descartarBorrador}>Descartar y empezar de cero</button>
+          </div>
+        )}
         {hayFaltantes && (
           <div className="rm-alert rm-alert-error">
             ⚠ Stock insuficiente en Bodega Central. Revisa filas en rojo.

@@ -267,6 +267,15 @@
 }
 .rm-alert-error   { background: #feedeb; border: 1px solid #f97373; color: #b42318; }
 .rm-alert-success { background: #ecfdf3; border: 1px solid #22c55e; color: #166534; }
+.rm-alert-borrador {
+  background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.rm-btn-descartar {
+  background: #fff; border: 1px solid #fcd34d; color: #92400e;
+  border-radius: 999px; padding: 6px 14px; font-weight: 600; cursor: pointer;
+}
+.rm-btn-descartar:hover { background: #fef3c7; }
 
 /* Acciones sticky */
 .rm-actions {

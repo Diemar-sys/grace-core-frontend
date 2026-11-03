@@ -32,13 +32,19 @@ import { agruparRenglones, mermaPorGrupo, repartirMerma } from '../utils/mermaAg
 import { COMISION_FIJA } from '../utils/liquidacion';
 import { numero, pesos } from '../utils/formato';
 import { coincidePan, normalizarBusqueda } from '../utils/buscarPan';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 import '../styles/global.css';
 import '../styles/Liquidacion.css';
 
 function Liquidacion() {
   const [hoja, setHoja] = useState<Hoja | null>(null);
-  // Lo tecleado, por GRUPO (un pan suelto es un grupo de uno). Texto, no número.
-  const [porGrupo, setPorGrupo] = useState<Record<string, string>>({});
+  // Merma por GRUPO (un pan suelto es un grupo de uno). Texto, no número.
+  // Lo GUARDADO (del servidor) y lo TECLEADO (borrador por fecha, en IndexedDB) van
+  // aparte: cerrar el celular ya no tira la captura, y la carga del servidor no pisa
+  // el borrador (ni el borrador a una hoja ya enviada: ahí se ignora).
+  const [guardado, setGuardado] = useState<Record<string, string>>({});
+  const [borrador, setBorrador] = useState<Record<string, Record<string, string>>>({});
+  useBorradorLocal('liquidacion', Object.keys(borrador).length ? borrador : null, setBorrador);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   // 29-oct: buscador; solo filtra lo que se pinta (enviar manda todos los renglones)
@@ -56,7 +62,7 @@ function Liquidacion() {
     try {
       const h = await hojaService.miHoja(fecha);
       setHoja(h);
-      setPorGrupo(mermaPorGrupo(agruparRenglones(h.renglones), h.renglones));
+      setGuardado(mermaPorGrupo(agruparRenglones(h.renglones), h.renglones));
     } catch (e: any) {
       setError(e?.message || 'No se pudo cargar tu hoja');
     } finally {
@@ -76,6 +82,15 @@ function Liquidacion() {
     mermas: [],
   }), [hoja]);
 
+  const cobrado = Boolean(hoja?.factura);
+  const enviada = hoja?.etapa === 'liquidado';
+  const soloLectura = cobrado || enviada;
+  const renglones = hoja?.renglones ?? [];
+  const porGrupo = useMemo(
+    () => (soloLectura ? guardado : { ...guardado, ...borrador[fecha] }),
+    [soloLectura, guardado, borrador, fecha],
+  );
+
   const grupos = useMemo(() => agruparRenglones(hoja?.renglones ?? []), [hoja]);
   const captura = useMemo(() => repartirMerma(grupos, porGrupo), [grupos, porGrupo]);
   const liq = useMemo(() => previsualizar(resumen, captura), [resumen, captura]);
@@ -83,14 +98,10 @@ function Liquidacion() {
   const porItem = useMemo(() => new Map(liq.renglones.map(r => [r.item_code, r])), [liq]);
   const malos = useMemo(() => excesos(resumen.salidas, captura), [resumen, captura]);
 
-  const cobrado = Boolean(hoja?.factura);
-  const enviada = hoja?.etapa === 'liquidado';
-  const soloLectura = cobrado || enviada;
-  const renglones = hoja?.renglones ?? [];
-
   // Se guarda el TEXTO, no el número: "1." a medio teclear tiene que poder
   // seguir escribiéndose, y un campo vacío no es un cero.
-  const teclear = (clave: string, valor: string) => setPorGrupo(prev => ({ ...prev, [clave]: valor }));
+  const teclear = (clave: string, valor: string) =>
+    setBorrador(b => ({ ...b, [fecha]: { ...b[fecha], [clave]: valor } }));
 
   const enviar = async () => {
     if (!hoja) return;
@@ -107,6 +118,9 @@ function Liquidacion() {
       }));
       const h = await hojaService.guardarRegreso(fecha, paraGuardar);
       setHoja(h);
+      setGuardado(mermaPorGrupo(agruparRenglones(h.renglones), h.renglones));
+      // ya está en el servidor: el borrador de ese día cumplió
+      setBorrador(({ [fecha]: _enviado, ...resto }) => resto);
       setExito(true);
     } catch (e: any) {
       setError(e?.message || 'No se pudo enviar');
