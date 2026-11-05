@@ -17,7 +17,7 @@ import { hojaService, type DestinoDia, type Hoja } from '../services/frappeHoja'
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import useAvisoSinGuardar, { haySinGuardar } from '../hooks/useAvisoSinGuardar';
 import {
-  bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conLlegadas, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
+  ajustesALoQueLlego, bloquesDeHoja, cambiosEnviado, cambiosPaso3, cantidad, columnasDeHoja, conDescuento, conLlegadas, conTecleado, estadoEnviado, rondaPorGuardar, sinTecleado, sumarCharolas, ticketDeHoja, totalCapturado, totalesPorDepartamento,
   type BorradorHoja, type CampoHoja,
 } from '../utils/hojaDia';
 import { COMISION_FIJA } from '../utils/liquidacion';
@@ -135,6 +135,8 @@ export default function HojaDelDia() {
     return deBolillo.size ? Object.fromEntries(Object.entries(t).filter(([item]) => !deBolillo.has(item))) : t;
   }, [tecleado, hoja]);
   const capturaMerma = tecleado?.merma ?? {};
+  // 05-nov: lo que el destino anotó que le llegó y no cuadra con ENVIADO (botón «Ajustar a lo que llegó»)
+  const ajustesLlego = useMemo(() => (hoja?.con_llegada ? ajustesALoQueLlego(hoja.renglones, captura) : []), [hoja, captura]);
 
   // Lo que falta guardar: solo los renglones cuyo tecleado cambió.
   const cambiosPendientes = (h: Hoja) => cambiosEnviado(h.renglones, captura);
@@ -297,6 +299,13 @@ export default function HojaDelDia() {
       return conTecleado(b, fecha, destino, 'enviado', item, String(sumarCharolas(actual, charolas, porCharola)));
     });
   };
+  // 05-nov (Diemar): copia LLEGÓ a ENVIADO de un golpe. Solo llena las casillas (borrador): se
+  // cobra lo que alguien GUARDE después, con los permisos de siempre de `guardar`.
+  const ajustarALoQueLlego = () => {
+    if (!hoja) return;
+    const destino = hoja.destino;
+    setBorrador(b => ajustesLlego.reduce((acc, a) => conTecleado(acc, fecha, destino, 'enviado', a.item_code, String(a.llego)), b));
+  };
   // 06-oct: cancela la factura y la hoja vuelve a capturarse (camioneta: a la merma)
   const corregir = () => ejecutar(h => hojaService.corregir(fecha, h.destino), 'No se pudo corregir');
 
@@ -394,6 +403,12 @@ export default function HojaDelDia() {
                 </button>
               )}
               {!cobrado && hoja.puede_agregar && <AgregarPan onAgregar={agregarPan} disabled={ocupado} />}
+              {!enviadoFijo && ajustesLlego.length > 0 && (
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={ajustarALoQueLlego} disabled={ocupado}
+                  title="Pone en ENVIADO lo que el destino anotó que le llegó. Revisa y guarda para que cuente.">
+                  Ajustar a lo que llegó ({ajustesLlego.length})
+                </button>
+              )}
               <input type="search" className="buscador-pan" placeholder="Buscar pan o clave" aria-label="Buscar pan"
                 value={busqueda} onChange={e => setBusqueda(e.target.value)} />
             </div>

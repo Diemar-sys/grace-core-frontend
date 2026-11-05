@@ -8,6 +8,8 @@
 // luis.th: lo dice el servidor (`puede_liquidar`), y la diferencia (`eva_debe`) también.
 // 20-oct (Diemar): rango libre Desde/Hasta en vez de «la semana del día elegido». Arranca
 // en la semana de hoy; el tope es el del servidor (MAX_DIAS_ESTADO + 1 = 32 días).
+// 05-nov (Diemar): también los ABARROTES del mismo deudor (Venta B2B), para que «Se debe» cuadre
+// con Mi cuenta. No llevan LIQUIDADO (la caja de Eva es solo del pan) y se cobran en Venta B2B.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import ModalError from './modals/ModalError';
@@ -60,8 +62,8 @@ function Egresos({ d }: { d: Pick<DiaCuenta, 'egreso' | 'egresos'> }) {
   );
 }
 
-function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_debe' | 'por_entregar'> }) {
-  if (d.pagado <= 0) return <span className="hoja-estado__sin">—</span>;
+function Liquidado({ d }: { d: Pick<DiaCuenta, 'pagado' | 'liquidado' | 'eva_debe' | 'por_entregar' | 'tipo'> }) {
+  if (d.pagado <= 0 || d.tipo === 'abarrotes') return <span className="hoja-estado__sin">—</span>;
   // 27-oct: sin liquidar dice cuánto esperar (cobrado − egresos que Eva pagó con eso; del servidor)
   if (d.liquidado == null || d.eva_debe == null) {
     return <span className="hoja-badge hoja-badge--ambar">POR ENTREGAR {pesos(d.por_entregar ?? d.pagado)}</span>;
@@ -132,7 +134,7 @@ export default function EstadoCuentaHoja() {
       // todas las facturas de PAN con saldo de ese deudor, como en Venta B2B → Cobrar (filtro PAN)
       const facturas = await ventasService.getFacturasPendientes({ customer: estado.cliente, tipo: 'pan' });
       const grupo = grupoCobro(estado.cliente, estado.cliente, facturas);
-      if (!grupo) { setError(`${estado.cliente} no debe nada de pan.`); cargar(); return; }
+      if (!grupo) { setError(`${estado.cliente} no debe nada de pan. Los abarrotes se cobran en Venta B2B → Cobrar.`); cargar(); return; }
       setPagoModal(grupo);
     } catch (e: any) { setError(e?.message || 'No se pudo abrir el cobro'); }
   };
@@ -252,7 +254,10 @@ export default function EstadoCuentaHoja() {
                 <tbody>
                   {estado.dias.map(d => (
                     <tr key={d.factura}>
-                      <td>{fechaCorta(d.fecha)}</td>
+                      <td>
+                        {fechaCorta(d.fecha)}
+                        {d.tipo === 'abarrotes' && <span className="hoja-badge hoja-badge--azul hoja-estado__tipo" title={`${d.factura} · se cobra en Venta B2B`}>ABARROTES</span>}
+                      </td>
                       <td className="cell-right">{pesos(d.venta)}</td>
                       {camioneta && (<>
                         <td className="cell-right">{pesos(d.comision)}</td>
@@ -265,7 +270,7 @@ export default function EstadoCuentaHoja() {
                       {conEgreso && <td className="hoja-estado__col-egreso"><Egresos d={d} /></td>}
                       <td className="hoja-estado__col-liq">
                         <span className="hoja-estado__liq">
-                          {estado.puede_liquidar && d.pagado > 0 && (
+                          {estado.puede_liquidar && d.pagado > 0 && d.tipo !== 'abarrotes' && (
                             <>
                               <input
                                 type="number" min={0} step="0.01" inputMode="decimal"

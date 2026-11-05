@@ -47,6 +47,23 @@ describe('EstadoCuentaHoja', () => {
     h.estadoCuenta.mockResolvedValue(ISMA as any);
   });
 
+  // 05-nov (Diemar): los abarrotes del mismo deudor salen (para cuadrar con Mi cuenta), sin LIQUIDADO
+  it('🔴 abarrotes: renglón marcado ABARROTES, sin casilla de LIQUIDADO ni POR ENTREGAR', async () => {
+    h.estadoCuenta.mockResolvedValue({ ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false, puede_liquidar: true,
+      dias: [dia('2026-09-22', 'SI-P', { estado: 'liquidado', venta: 500, recibir: 500, pagado: 500, tipo: 'pan', por_entregar: 500 }),
+             dia('2026-09-22', 'SI-A', { estado: 'liquidado', venta: 750, recibir: 750, pagado: 750, tipo: 'abarrotes' })],
+      total: { ...ISMA.total, venta: 1250, recibir: 1250, pagado: 1250, debe: 0, por_entregar: 500 } } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    const ab = (await screen.findByText('ABARROTES')).closest('tr')!;
+    expect(within(ab).getAllByText('$750.00').length).toBeGreaterThan(0);
+    expect(within(ab).queryByRole('spinbutton')).toBeNull();
+    expect(within(ab).queryByText(/POR ENTREGAR/)).toBeNull();
+    const pan = screen.getByText('$500.00', { selector: '.hoja-estado__recibir' }).closest('tr')!;
+    expect(within(pan).getByRole('spinbutton')).toBeInTheDocument();
+    expect(within(pan).getByText('POR ENTREGAR $500.00')).toBeInTheDocument();
+  });
+
   it('🔴 camioneta: las seis columnas del cuadro de Diemar, con los números del servidor', async () => {
     render(<EstadoCuentaHoja />);
     await elegir('ISMA');

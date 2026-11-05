@@ -233,3 +233,17 @@ export function conLlegadas(actual: Hoja, fresca: Hoja): Hoja {
     }),
   };
 }
+
+/** 05-nov (Diemar): «Ajustar a lo que llegó» — los panes cuyo LLEGÓ (lo que el destino ANOTÓ en
+ *  Mi cuenta) no es el ENVIADO de la pantalla (tecleado o guardado). Fuera: lo supuesto (no lo
+ *  anotó), lo que no anotó (null) y el bolillo (su ENVIADO sale de las tandas). Solo llena las
+ *  casillas: se cobra hasta que alguien guarda. O(n). */
+export function ajustesALoQueLlego(renglones: RenglonHoja[], captura: Record<string, string>) {
+  const ajustes: { item_code: string; llego: number }[] = [];
+  for (const r of renglones) {
+    if (r.llego == null || r.llego_supuesto || r.de_bolillo) continue;
+    const enviado = r.item_code in captura ? cantidad(captura[r.item_code]) : r.enviado;
+    if (r.llego !== enviado) ajustes.push({ item_code: r.item_code, llego: r.llego });
+  }
+  return ajustes;
+}

@@ -216,3 +216,26 @@ describe('conDescuento (15-oct, DELI 40% / ZAKIA 20%)', () => {
     expect(conDescuento(420, 0)).toEqual({ descuento: 0, seDebe: 420 });
   });
 });
+
+import { ajustesALoQueLlego } from './hojaDia';
+describe('ajustesALoQueLlego (05-nov: LLEGÓ → ENVIADO)', () => {
+  const base = r('DONA', 'DONAS', 25, 14);
+  const conLlego = (x: Partial<RenglonHoja>): RenglonHoja => ({ ...base, ...x });
+  it('pone lo ANOTADO cuando no cuadra con lo enviado; lo que cuadra no se toca', () => {
+    const renglones = [conLlego({ item_code: 'A', enviado: 25, llego: 20 }), conLlego({ item_code: 'B', enviado: 12, llego: 12 }),
+      conLlego({ item_code: 'C', enviado: 10, llego: 11 })];
+    expect(ajustesALoQueLlego(renglones, {})).toEqual([{ item_code: 'A', llego: 20 }, { item_code: 'C', llego: 11 }]);
+  });
+  it('lo supuesto, lo no anotado y el bolillo no se ajustan', () => {
+    const renglones = [conLlego({ item_code: 'S', enviado: 25, llego: 20, llego_supuesto: true }),
+      conLlego({ item_code: 'N', enviado: 25, llego: null }), conLlego({ item_code: 'BOL', enviado: 300, llego: 280, de_bolillo: true })];
+    expect(ajustesALoQueLlego(renglones, {})).toEqual([]);
+  });
+  it('compara contra lo TECLEADO si hay: ya tecleado igual a lo que llegó = nada que ajustar', () => {
+    const renglones = [conLlego({ item_code: 'A', enviado: 25, llego: 20 }), conLlego({ item_code: 'B', enviado: 20, llego: 20 })];
+    expect(ajustesALoQueLlego(renglones, { A: '20', B: '22' })).toEqual([{ item_code: 'B', llego: 20 }]);
+  });
+  it('llegó 0 también se ajusta (no es «no anotó»)', () => {
+    expect(ajustesALoQueLlego([conLlego({ item_code: 'A', enviado: 5, llego: 0 })], {})).toEqual([{ item_code: 'A', llego: 0 }]);
+  });
+});

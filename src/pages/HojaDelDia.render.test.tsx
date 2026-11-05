@@ -696,6 +696,33 @@ describe('HojaDelDia — cableado', () => {
     expect(within(fila('PAY')).getByText('12 *')).toHaveClass('hoja-llego--supuesto');
   });
 
+  // 05-nov (Diemar): «te mandamos 25, le llegaron 20» — Luis ajusta ENVIADO a lo que llegó de un golpe
+  it('🔴 Ajustar a lo que llegó: llena ENVIADO con lo ANOTADO (no lo supuesto), y se cobra hasta guardar', async () => {
+    const OJOS = { ...R, item_code: '1005', producto: 'OJOS', enviado: 36 };
+    const PAY = { ...R, item_code: '1006', producto: 'PAY', enviado: 12 };
+    s.hoja.mockResolvedValue({ ...hoja(), con_llegada: true, renglones: [
+      { ...R, enviado: 25, llego: 20 }, { ...OJOS, llego: 36 }, { ...PAY, llego: 10, llego_supuesto: true }] });
+    s.guardar.mockResolvedValue(hoja());
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.click(await screen.findByRole('button', { name: 'Ajustar a lo que llegó (1)' }));
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(20);
+    expect(screen.getByLabelText('Enviado OJOS')).toHaveValue(36);
+    expect(screen.getByLabelText('Enviado PAY')).toHaveValue(12);              // supuesto: no se toca
+    expect(screen.queryByRole('button', { name: /Ajustar a lo que llegó/ })).toBeNull();   // ya cuadra
+    expect(s.guardar).not.toHaveBeenCalled();                                    // solo llena; no guarda solo
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(s.guardar).toHaveBeenCalledWith(expect.any(String), 'DELI', [{ item_code: '1047', enviado: 20 }]));
+  });
+
+  it('Ajustar a lo que llegó: un destino cobrado no lo ofrece', async () => {
+    s.hoja.mockResolvedValue({ ...hoja({ name: 'SI-1', outstanding_amount: 0 }), con_llegada: true, renglones: [{ ...R, enviado: 25, llego: 20 }] });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    expect(screen.queryByRole('button', { name: /Ajustar a lo que llegó/ })).toBeNull();
+  });
+
   it('LLEGÓ: sin con_llegada no sale la columna', async () => {
     s.hoja.mockResolvedValue(hoja());
     render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
