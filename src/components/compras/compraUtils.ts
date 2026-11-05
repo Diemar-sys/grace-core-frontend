@@ -16,6 +16,56 @@ export const FILA_VACIA = () => ({
   impuesto_key: 'tasa0', impuesto_label: 'Tasa 0', impuesto_rate: 0,
 });
 
+/** Campos del renglón que salen del catálogo al elegir un item (buscador o escáner). */
+export const camposDeItem = (item: any) => {
+  const precioCatalogo = item.custom_precio_de_compra || '';
+  return {
+    item_code:       item.item_code,
+    item_name:       item.item_name,
+    uom:             item.stock_uom,
+    presentacion:    item.custom_presentación || '',
+    kg_por_bulto:    item.custom_cantidad_por_presentación || '',
+    precio_por_kg:   item.custom_precio_por_kg || '',
+    precio_catalogo: precioCatalogo,
+    costo_historico: item.costo_historico ?? null,
+    costo_muestras:  item.costo_muestras ?? 0,
+    ...(precioCatalogo ? { rate: String(precioCatalogo) } : {}),
+  };
+};
+
+/**
+ * Escaneo en cascada: el mismo item otra vez = +1 bulto en su renglón; uno
+ * nuevo llena el último renglón si está vacío o se agrega al final.
+ * ponytail: findIndex O(n) por escaneo; una compra trae decenas de renglones.
+ */
+export const agregarEscaneado = (filas: any[], item: any) => {
+  const i = filas.findIndex(f => f.item_code === item.item_code);
+  if (i >= 0) {
+    return filas.map((f, j) => j === i ? { ...f, bultos: String((Number(f.bultos) || 0) + 1) } : f);
+  }
+  const imp = IMPUESTOS_MAP[item.custom_impuesto] || IMPUESTOS_MAP['tasa0'];
+  const nueva = {
+    ...FILA_VACIA(), ...camposDeItem(item), bultos: '1',
+    impuesto_key: imp.key, impuesto_label: imp.label, impuesto_rate: imp.rate,
+  };
+  // _id nuevo a propósito: FilaProducto lee item_name solo al montar; con el
+  // mismo _id el renglón vacío se quedaría mostrando el buscador en blanco.
+  const ultima = filas[filas.length - 1];
+  return ultima && !ultima.item_code
+    ? [...filas.slice(0, -1), nueva]
+    : [...filas, nueva];
+};
+
+/** Deshace UNA bolsa escaneada («No es este»): −1 bulto, y sin bultos el renglón se va. */
+export const quitarEscaneado = (filas: any[], itemCode: string) => {
+  const i = filas.findIndex(f => f.item_code === itemCode);
+  if (i < 0) return filas;
+  const quedan = (Number(filas[i].bultos) || 0) - 1;
+  if (quedan > 0) return filas.map((f, j) => j === i ? { ...f, bultos: String(quedan) } : f);
+  const resto = filas.filter((_, j) => j !== i);
+  return resto.length ? resto : [FILA_VACIA()];
+};
+
 export const parseImpuesto = (description = '') => {
   if (description.includes('IVA')) return IMPUESTOS_MAP['iva16'];
   if (description.includes('IEPS')) return IMPUESTOS_MAP['ieps'];

@@ -1,6 +1,7 @@
 // src/components/NuevaVentaB2B.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ventasService, calcularTotalesVenta } from '../services/frappeSales';
+import { esCodigoDeBarras } from '../services/frappePurchase';
 import { fmtUom } from '../utils/uom';
 import CantidadDual from './CantidadDual';
 import { stockService } from '../services/frappeStock';
@@ -474,7 +475,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
 }
 
 // ── Fila de producto ────────────────────────────────────────────────────────
-function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, soloUna, bloqueaMP, cliente, onFocusNext }) {
+function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, onEliminar, soloUna, bloqueaMP, cliente, onFocusNext, inputRef }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -483,6 +484,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
   const wrapRef = useRef(null);
   const listRef = useRef(null);
   const qtyRef = useRef(null);
+  const [codigoDesconocido, setCodigoDesconocido] = useState('');
 
   useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
@@ -493,6 +495,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
     setCursor(-1);
+    setCodigoDesconocido('');
     if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
@@ -505,7 +508,25 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
     }, 500);
   };
 
+  // El escáner teclea el código y Enter en ~50 ms, antes del debounce: se
+  // cancela y se busca exacto. Solo entra si hay UNO; varios = variantes
+  // (azul/rosa) y se ofrecen. Ligar un código nuevo se hace en Compras.
+  const escanear = async (codigo) => {
+    clearTimeout(timerRef.current);
+    const res = (await ventasService.buscarItems(codigo)).filter(it => visibleEnB2B(it, bloqueaMP));
+    if (res.length === 1) { seleccionar(res[0]); return; }
+    if (res.length > 1) { setSugerencias(res); setCursor(-1); setAbierto(true); return; }
+    setSugerencias([]);
+    setAbierto(false);
+    setCodigoDesconocido(codigo);
+  };
+
   const handleItemKeyDown = (e) => {
+    if (e.key === 'Enter' && esCodigoDeBarras(busqueda.trim())) {
+      e.preventDefault();
+      escanear(busqueda.trim());
+      return;
+    }
     if (!abierto || !sugerencias.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -577,6 +598,8 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
       <td>
         <div className="nc-buscador-wrap" ref={wrapRef}>
           <input className="nc-buscar-input" type="text" value={busqueda}
+            ref={inputRef}
+            aria-label="Buscar producto"
             onChange={e => handleBusqueda(e.target.value)}
             onKeyDown={handleItemKeyDown}
             placeholder="Buscar producto..."
@@ -591,6 +614,13 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
                   <div className="d-sub">{item.item_group} — {item.item_code}</div>
                 </div>
               ))}
+            </div>
+          )}
+          {codigoDesconocido && (
+            <div className="nc-dropdown" role="alert">
+              <div className="nc-dropdown-item">
+                Código {codigoDesconocido} no está en venta B2B. Si es de un producto que ya existe, lígalo en Compras.
+              </div>
             </div>
           )}
         </div>

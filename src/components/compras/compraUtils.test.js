@@ -580,3 +580,56 @@ describe('cambiosDePrecio', () => {
     expect(cambiosDePrecio(null, null)).toEqual([]);
   });
 });
+
+// 04-nov: escáner en cascada. Lo que puede mentir: duplicar el renglón en vez
+// de sumar la bolsa, dejar el renglón vacío colgado, o perder impuesto/precio.
+import { agregarEscaneado, FILA_VACIA as VACIA } from './compraUtils';
+describe('agregarEscaneado', () => {
+  const AZUCAR = { item_code: '7501', item_name: 'AZUCAR', stock_uom: 'Kg', custom_precio_de_compra: 520, custom_impuesto: 'iva16' };
+  const HARINA = { item_code: '7502', item_name: 'HARINA', stock_uom: 'Kg', custom_impuesto: 'tasa0' };
+
+  it('primer escaneo llena el renglón vacío (no deja uno en blanco arriba)', () => {
+    const r = agregarEscaneado([VACIA()], AZUCAR);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ item_code: '7501', bultos: '1', rate: '520', impuesto_key: 'iva16', impuesto_rate: 0.16 });
+  });
+
+  it('el mismo producto otra vez suma un bulto, no otro renglón', () => {
+    const r = agregarEscaneado(agregarEscaneado(agregarEscaneado([VACIA()], AZUCAR), AZUCAR), AZUCAR);
+    expect(r).toHaveLength(1);
+    expect(r[0].bultos).toBe('3');
+  });
+
+  it('otro producto va al final y no toca los demás', () => {
+    const una = agregarEscaneado([VACIA()], AZUCAR);
+    const r = agregarEscaneado(una, HARINA);
+    expect(r.map(f => f.item_code)).toEqual(['7501', '7502']);
+    expect(r[0]).toBe(una[0]);
+    expect(r[1]).toMatchObject({ bultos: '1', impuesto_key: 'tasa0' });
+  });
+
+  it('sin precio de catálogo no inventa rate', () => {
+    expect(agregarEscaneado([VACIA()], HARINA)[0].rate).toBe('');
+  });
+});
+
+import { quitarEscaneado } from './compraUtils';
+describe('quitarEscaneado («No es este»)', () => {
+  const AZUL = { item_code: '7501', item_name: 'VELA AZUL', stock_uom: 'PZA' };
+  const ROSA = { item_code: '7502', item_name: 'VELA ROSA', stock_uom: 'PZA' };
+  it('quita UNA bolsa: con 3 quedan 2', () => {
+    let f = [VACIA()];
+    for (let i = 0; i < 3; i++) f = agregarEscaneado(f, AZUL);
+    expect(quitarEscaneado(f, '7501')[0].bultos).toBe('2');
+  });
+  it('con una sola, el renglón se va; si era el único, queda uno vacío', () => {
+    const r = quitarEscaneado(agregarEscaneado([VACIA()], AZUL), '7501');
+    expect(r).toHaveLength(1);
+    expect(r[0].item_code).toBe('');
+  });
+  it('no toca otros renglones', () => {
+    const f = agregarEscaneado(agregarEscaneado([VACIA()], ROSA), AZUL);
+    const r = quitarEscaneado(f, '7501');
+    expect(r).toEqual([f[0]]);
+  });
+});

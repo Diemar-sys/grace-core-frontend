@@ -67,6 +67,15 @@ class FrappeInventoryService extends FrappeBase {
     return { renglones: [], sin_tipo: [], ...(r.message ?? {}) };
   }
 
+  /** Clave interna N+1 de la serie de la categoría (VELAS → B0026), o null si
+   * la categoría no tiene serie. Sin caché: la siguiente cambia con cada alta. */
+  async siguienteCodigoInterno(itemGroup: string): Promise<string | null> {
+    const r = await this._fetch(
+      `/api/method/gestion_panaderia.api.inventory_api.siguiente_codigo_interno?item_group=${encodeURIComponent(itemGroup)}`,
+    );
+    return r?.message?.codigo ?? null;
+  }
+
   #cache: Record<string, any> = {};
 
   async #cachedFetch(key: string, fetchFn: () => Promise<any>): Promise<any> {

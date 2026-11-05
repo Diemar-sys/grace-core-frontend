@@ -12,6 +12,7 @@ import { IMPUESTOS_LIST, getTasa } from '../config/impuestos';
 import { loadAppConfig, getAppConfigSync } from './appConfig';
 import { getSucursalesInternas } from '../config/clientesB2B';
 import { hoyISO } from '../utils/hora';
+import { esCodigoDeBarras } from './frappePurchase';
 
 // Respuestas Frappe heterogéneas → any deliberado (mismo criterio que FrappeBase).
 type Cuentas = any;
@@ -236,11 +237,16 @@ class FrappeSalesService extends FrappeBase {
    */
   async buscarItems(search = '') {
     if (search.length > 0 && search.length < 3) return [];
-    if (this._abortItems) this._abortItems.abort();
-    this._abortItems = new AbortController();
+    // Escáner: búsqueda EXACTA por clave o código ligado, y sin abortar — la
+    // siguiente bolsa escaneada cancelaría la petición de esta (Compras, 04-nov).
+    const codigo = esCodigoDeBarras(search);
+    if (!codigo) {
+      if (this._abortItems) this._abortItems.abort();
+      this._abortItems = new AbortController();
+    }
 
     const filters = [['disabled', '=', 0], ['is_sales_item', '=', 1]];
-    if (search) filters.push(['item_name', 'like', '%' + search + '%']);
+    if (search && !codigo) filters.push(['item_name', 'like', '%' + search + '%']);
     const params = new URLSearchParams({
       fields: JSON.stringify([
         'item_code', 'item_name', 'stock_uom', 'item_group',
@@ -251,12 +257,12 @@ class FrappeSalesService extends FrappeBase {
         'valuation_rate', 'custom_vendible_b2b', 'custom_almacen_produccion',
       ]),
       filters: JSON.stringify(filters),
+      ...(codigo ? { or_filters: JSON.stringify([['item_code', '=', search], ['custom_codigo_barras', '=', search]]) } : {}),
       limit_page_length: '20',
     });
     try {
-      const data = await this._fetch('/api/resource/Item?' + params, {
-        signal: this._abortItems.signal,
-      });
+      const data = await this._fetch('/api/resource/Item?' + params,
+        codigo ? undefined : { signal: this._abortItems!.signal });
       // Devuelve todo lo vendible (is_sales_item=1). La materia prima SÍ se
       // vende a clientes externos (DELI, ZAKIA). El filtro de MP es por
       // cliente (solo PUERTA REAL) y se aplica en NuevaVentaB2B, no aquí.

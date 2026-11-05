@@ -10,6 +10,9 @@ import { calcConversion } from '../components/compras/compraUtils';
 import { getAppConfigSync } from './appConfig';
 import { hoyISO } from '../utils/hora';
 
+/** EAN-8/UPC-A/EAN-13/GTIN-14: solo dígitos, 8 a 14. Un pan (4-6 dígitos) no califica. */
+export const esCodigoDeBarras = (texto: string): boolean => /^\d{8,14}$/.test(texto);
+
 // Payload del formulario de compra, compartido por guardar/registrar/actualizar.
 interface CompraInput {
   supplier: string;
@@ -95,9 +98,37 @@ class FrappeComprasService extends FrappeBase {
    * Cancela automáticamente el request anterior si se llama antes de recibir respuesta.
    * @param search - Término de búsqueda parcial (filtrará por nombre del ítem).
    */
+  /**
+   * Insumo por código escaneado: su clave o un código ligado (`Item Barcode`).
+   * Igualdad exacta en el servidor, nunca LIKE del nombre. Máx. 2 resultados:
+   * con 2 la pantalla avisa en vez de elegir a ciegas.
+   */
+  async buscarPorCodigo(codigo: string): Promise<any[]> {
+    const res = await this._fetch(
+      `/api/method/gestion_panaderia.api.compras_api.buscar_por_codigo?codigo=${encodeURIComponent(codigo)}`
+    );
+    return res?.message || [];
+  }
+
+  /**
+   * Liga el código de la bolsa a un insumo que ya existe (no cambia su clave).
+   * La presentación se confirma en pantalla ANTES: el nombre no dice el tamaño.
+   */
+  async ligarCodigo(itemCode: string, codigo: string) {
+    return this._fetch("/api/method/gestion_panaderia.api.compras_api.ligar_codigo_barras", {
+      method: "POST",
+      body: JSON.stringify({ item_code: itemCode, codigo }),
+    });
+  }
+
   async buscarItems(search = ""): Promise<any[]> {
     // 🛑 Mínimo 3 caracteres: una "h" devuelve TODA la tabla Item sin filtro útil
     if (search.length > 0 && search.length < 3) return [];
+
+    // Código escaneado: va al servidor por clave o código ligado. NO usa el
+    // AbortController: en cascada, el segundo escaneo mataba la petición del
+    // primero y esa bolsa se perdía.
+    if (esCodigoDeBarras(search)) return this.buscarPorCodigo(search);
 
     // Cancelar request anterior si el usuario sigue escribiendo
     if (this._abortItems) this._abortItems.abort();
@@ -447,6 +478,12 @@ class FrappeComprasService extends FrappeBase {
     // 03-nov: lo suma la base (reportes_api.reporte_compras_mensual). Antes se
     // bajaba CADA compra del año (~770 peticiones) para pintar 12 renglones.
     const res = await this._fetch(`/api/method/gestion_panaderia.api.reportes_api.reporte_compras_mensual?${new URLSearchParams({ anio: String(año) })}`);
+    return res?.message || [];
+  }
+
+  /** Cantidad COMPRADA por insumo, mes y cuenta fiscal (reporte para el contador). */
+  async getKilosComprados(año: number | string): Promise<any[]> {
+    const res = await this._fetch(`/api/method/gestion_panaderia.api.reportes_api.kilos_comprados_mensual?${new URLSearchParams({ anio: String(año) })}`);
     return res?.message || [];
   }
 

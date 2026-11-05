@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-03.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-04.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -70,7 +70,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | `Nomina.tsx` | Corrida, empleados, reporte. | Gerente |
 | `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha. Tocar un System Manager pide llave de Administrator. | System Manager |
 | `Auditoria.tsx` | Bitácora de acciones sensibles. | Gerente |
-| `ReporteCuentasPorCobrar.jsx`, `ReporteCuentasPorPagar.jsx`, `ReporteCompras.jsx`, `ReporteGastos.jsx`, `ReporteGastosAnual.jsx`, `ReportesVentasCategoria.jsx`, `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `utils/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. | Gerente |
+| `ReporteCuentasPorCobrar.jsx`, `ReporteCuentasPorPagar.jsx`, `ReporteCompras.jsx`, `ReporteGastos.jsx`, `ReporteGastosAnual.jsx`, `ReportesVentasCategoria.jsx`, `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `utils/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `utils/kilosComprados.ts`). | Gerente |
 | `Panel.jsx` | Tablero post-login por nivel. | todos menos Repartidor/Cliente |
 | `Login.jsx` | Login con bloqueo por intentos. | público |
 
@@ -88,18 +88,18 @@ Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.re
 | `Reloj.tsx` | Fecha/hora local de la barra, un tic por minuto. |
 | `BannerConexion.jsx`, `ErrorBoundary.jsx`, `Layout.jsx`, `ProtectedRoute.jsx` | Red caída · boundary global · shell/topbar + «hay versión nueva» · guard de rutas + precarga de config. |
 | `CantidadDual.tsx` | Cantidad en base o presentación con conversión visible. 🔴 Existe por el bug de UOM de $8,846. |
-| `NuevaVentaB2B.jsx` | Alta de venta B2B; precio en `utils/ventaB2B.ts` (excepción DELI nata a precio de compra). |
+| `NuevaVentaB2B.jsx` | Alta de venta B2B; precio en `utils/ventaB2B.ts` (excepción DELI nata a precio de compra). Escáner: Enter con código de barras busca exacto; pan no entra a B2B. |
 | `TablaCuentasPorCobrar.jsx` | CxC (reporte y venta), filtro TODO/PAN/MATERIA PRIMA. |
 | `NuevaCompra.jsx`, `NuevaReceta.jsx`, `NuevoEnvioSucursal.jsx`, `NuevoInsumo.jsx`, `NuevoPan.jsx`, `NuevoProveedor.jsx` | Modales/formularios de alta. |
 | `ConteoFisico.jsx`, `HistorialMovimientos.jsx`, `RegistroMerma.jsx`, `RegistroRegalo.jsx`, `RegistroSalida.jsx`, `ReposicionInsumos.tsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
 | `BuscadorCliente.jsx`, `SelectorTipoItem.tsx` | Buscador de clientes B2B; filtro de tipo de item. |
 | `catalogo/` | `FilaItem.tsx`, `VistaPan.tsx` (costeo/margen), `catalogoTypes.ts`. |
-| `compras/` | `BuscadorProveedor.jsx`, `ComprasModales.jsx`, `FilaProducto.jsx`, `ModalReciboPDF.jsx`, `compraUtils.ts` (impuesto, bulto↔kg). `ModalPreciosActualizados.jsx` 🔴 sin botón «Omitir» (omitir dejaba el catálogo mintiendo). |
+| `compras/` | `BuscadorProveedor.jsx`, `ComprasModales.jsx`, `FilaProducto.jsx`, `ModalReciboPDF.jsx`, `compraUtils.ts` (impuesto, bulto↔kg). Escáner en `FilaProducto.jsx`; `LigarCodigo.tsx` (código desconocido: ligar a existente o alta; `ElegirVariante` cuando un código tiene varios items) 🔴 el nombre no dice el tamaño: se confirma la presentación. `ModalPreciosActualizados.jsx` 🔴 sin botón «Omitir» (omitir dejaba el catálogo mintiendo). |
 | `egresos/` | `EgresosTabla.tsx`, `ModalPagarEgreso.tsx` (pagar con un cobro), formularios `GasForm.tsx`, `GasolinaForm.tsx`, `LuzForm.tsx`, `SubcatForm.tsx`, `CampoAjustable.tsx`; cálculo puro `luzCalc.ts` (CFE, total truncado), `simpleCalc.ts`; `egresosConstants.ts`, `egresosIcons.tsx`, `egresosTypes.ts`. |
 | `modals/` | `ConfirmModal.jsx`, `ModalError.jsx` (🔴 recibe string, nunca objeto: React #31), `ModalEntradaPan.jsx` (precarga lo que FALTA del pedido; costo editable solo Gerente sin receta), `ModalHojaEntrega.jsx`, `ModalReciboPDF.jsx`, `ModalRegistrarPago.jsx` (cobra el SALDO; despliega productos). |
 | `pos/` | `POSCatalogo.jsx`, `POSHistorial.jsx`, `POSTicket.jsx`, `POSModalCantidad.jsx`, `POSModalCobro.jsx`, `POSModalCorte.jsx`, `POSModalEspera.jsx`, `posUtils.ts`. |
 
-Tests: `AvisoMantenimiento.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `RegistroMovimiento.borrador.test.jsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`.
+Tests: `AvisoMantenimiento.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `RegistroMovimiento.borrador.test.jsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`, `KilosComprados.render.test.tsx`, `NuevaCompra.escaner.render.test.tsx`, `NuevaVentaB2B.escaner.render.test.tsx`, `compras/FilaProducto.escaneo.render.test.tsx`.
 
 ## Estilos (`src/styles/`)
 
@@ -117,16 +117,16 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 | `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío. |
 | `frappePOS.ts` | Perfil POS, productos, `crearVentaOffline` (lo llama el outbox), corte, historial, cancelar. |
 | `frappeStock.ts` | Movimientos: entradas, salidas, mermas, ajustes, regalos, traspasos, conteo. |
-| `frappeInventory.ts` | Catálogo: almacenes, grupos, UOM, CRUD de Item, stock. |
+| `frappeInventory.ts` | Catálogo: almacenes, grupos, UOM, CRUD de Item, stock, `siguienteCodigoInterno`. |
 | `frappeProduccion.ts` | BOM, costeo, entrada de pan, `entradoHoy`. |
-| `frappePurchase.ts` | Compras: confirmar/cancelar, consolidar, revertir pagado (con contraseña), reporte fiscal (`reportes_api.reporte_compras_mensual`, lo suma la base). |
+| `frappePurchase.ts` | Compras: confirmar/cancelar, consolidar, revertir pagado (con contraseña), reporte fiscal (`reportes_api.reporte_compras_mensual`, lo suma la base), `getKilosComprados`, escáner (`esCodigoDeBarras`, `buscarPorCodigo`, `ligarCodigo`). |
 | `frappeEgresos.ts` | Egresos, CxP, `marcarPagado(…, cobro?)`, `cobrosParaEgreso`. |
 | `frappeAuth.ts` | Login/logout, rol, POS profile. `getUser()` valida localStorage (no escalar rol por DevTools). |
 | `frappeCuentas.ts`, `frappeAuditoria.ts`, `frappeNomina.ts`, `frappeKardex.ts`, `frappeReportes.ts`, `frappeSupplier.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
 | `appConfig.ts`, `sucursalesConfig.ts` | Config ERPNext y sucursales (cache + pub/sub). 🔴 Sin destinos hardcodeados. |
 | `printService.ts` | Cliente del print-server (`/print/...`): tickets de venta, corte, traspaso, B2B, Hoja, nómina, egreso. |
 
-Tests: `frappeCliente.miFactura.test.ts`, `frappePedido.test.ts`, `frappePurchase.buscar.test.js`, `frappeSales.cxc.test.js`, `frappeSales.facturaItems.test.ts`, `frappeSales.totales.test.js`, `frappeStock.envio.test.js`.
+Tests: `frappeCliente.miFactura.test.ts`, `frappePedido.test.ts`, `frappePurchase.buscar.test.js`, `frappeSales.cxc.test.js`, `frappeSales.buscar.test.js`, `frappeSales.facturaItems.test.ts`, `frappeSales.totales.test.js`, `frappeStock.envio.test.js`.
 
 ## Utilidades (`src/utils/`) — funciones puras
 
@@ -137,6 +137,7 @@ Tests: `frappeCliente.miFactura.test.ts`, `frappePedido.test.ts`, `frappePurchas
 | `liquidacion.ts` | Vendido, comisión 10% + `COMISION_FIJA` (espejo de `hoja_calculo.COMISION_FIJA`). |
 | `cierreRuta.ts`, `mermaAgrupada.ts` | Previsualizar liquidación; agrupar y repartir merma de polvorón/muerto. |
 | `buscarPan.ts` | Buscador (sin acentos). 🔴 Solo filtra lo que se pinta; guardar manda todo. |
+| `kilosComprados.ts` | Kilos comprados: agrupa categoría→insumo→mes por cuenta (Maps, O(n)), totales por unidad sin mezclar Kg/L/PZA, `csvKilos` (BOM + CRLF). Test `kilosComprados.test.ts`. |
 | `charolas.ts` | Piezas → «N char + M pz», espejo de `_charolas` del backend. |
 | `pedidoDia.ts`, `gruposDestino.ts`, `destinosEnvio.ts` | Juntar pestañas del pedido; ordenar destinos; destinos de envío (sin duplicar camionetas). |
 | `ventaB2B.ts`, `precioCanal.ts`, `precioPan.ts` | Precio B2B; precio por canal (🔴 `custom_precio_por_kg` es de COMPRA); margen del pan. |
@@ -163,9 +164,9 @@ Tests: `sync.test.js`, `borradorLocal.test.js`, `conteoBorrador.test.js`.
 
 ## Hooks (`src/hooks/`)
 
-`useBorradorLocal.js` (autosave por usuario) · `useAvisoSinGuardar.ts` (confirmar al salir con algo sin guardar) · `useAvisoMantenimiento.ts` · `useSesionCompartida.ts` · `useVersionNueva.ts` · `useConexion.ts` · `useCompras.ts` · `useInsumoForm.ts` (🔴 `formularioDeEdicion` debe traer TODO campo que manda `updateItem`, si no borra el costo) · `useAutoUppercase.ts` · `useConfirmModal.ts` · `useDebounce.ts` · `useSucursales.ts`.
+`useBorradorLocal.js` (autosave por usuario) · `useAvisoSinGuardar.ts` (confirmar al salir con algo sin guardar) · `useAvisoMantenimiento.ts` · `useSesionCompartida.ts` · `useVersionNueva.ts` · `useConexion.ts` · `useCompras.ts` · `useInsumoForm.ts` (🔴 `formularioDeEdicion` debe traer TODO campo que manda `updateItem`, si no borra el costo; al elegir categoría sugiere la clave N+1) · `useAutoUppercase.ts` · `useConfirmModal.ts` · `useDebounce.ts` · `useSucursales.ts`.
 
-Tests: `useAvisoSinGuardar.test.tsx`, `useSesionCompartida.test.tsx`, `useInsumoForm.edicion.test.ts`, `useInsumoForm.codigo.test.js`, `useAutoUppercase.test.jsx`, `useConexion.test.jsx`.
+Tests: `useAvisoSinGuardar.test.tsx`, `useSesionCompartida.test.tsx`, `useInsumoForm.edicion.test.ts`, `useInsumoForm.codigo.test.js`, `useInsumoForm.interno.test.js`, `useAutoUppercase.test.jsx`, `useConexion.test.jsx`.
 
 ## Configuración (`src/config/`)
 

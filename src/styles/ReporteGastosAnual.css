@@ -338,7 +338,7 @@
   html:has(.rga), body:has(.rga) { height: auto !important; overflow: visible !important; }
 
   /* Fuera lo que no se puede clicar en papel. */
-  .rga-controles, .rga-hint,
+  .rga-controles, .rga-hint, .rga-kilos-controles .rga-btn-print,
   .rga-modal-overlay, .rga-tooltip { display: none !important; }
 
   .rga-card, .rga-hero, .rga-tile {
@@ -366,3 +366,28 @@
 
   @page { size: landscape; margin: 12mm; }
 }
+
+/* ── Kilos comprados (para el contador) ─────────────────────────────────── */
+.rga-kilos-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.rga-kilos-controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rga-pills { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; background: #f2f1ed; }
+.rga-pill {
+  border: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.rga-pill:hover { color: #1f2937; }
+.rga-pill-activa { background: #fff; color: #1f2937; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.rga-btn-print:disabled { opacity: 0.5; cursor: default; }

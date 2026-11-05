@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { comprasService } from '../../services/frappePurchase';
+import { comprasService, esCodigoDeBarras } from '../../services/frappePurchase';
 import { fmtUom } from '../../utils/uom';
 import { cantidad, pesos } from '../../utils/formato';
 import { revisarCostoUnitario, costoPorUnidadBase } from '../../utils/costoAnomalo';
 import { convertir } from '../CantidadDual';
-import { fmt, totalPorFila, impuestoFila, totalFila, calcVariacion, partirImpuesto } from './compraUtils';
+import { camposDeItem, fmt, totalPorFila, impuestoFila, totalFila, calcVariacion, partirImpuesto } from './compraUtils';
 
 function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusNext, inputRef, soloUna }) {
   const [busqueda, setBusqueda] = useState(fila.item_name || '');
   const [sugerencias, setSugerencias] = useState([]);
   const [abierto, setAbierto] = useState(false);
   const [cursor, setCursor] = useState(-1);
+  const [codigoDesconocido, setCodigoDesconocido] = useState('');
   const timerRef = useRef(null);
   const wrapRef  = useRef(null);
   const listRef  = useRef(null);
@@ -30,6 +31,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
   const handleBusqueda = (texto) => {
     setBusqueda(texto);
     setCursor(-1);
+    setCodigoDesconocido('');
     if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
@@ -38,7 +40,25 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
     }, 500);
   };
 
+  // El escáner teclea el código y Enter en ~50 ms, antes de que dispare el
+  // debounce: se cancela y se busca exacto. Solo se toma si hay UNO.
+  const escanear = async (codigo) => {
+    clearTimeout(timerRef.current);
+    const res = await comprasService.buscarItems(codigo);
+    if (res.length === 1) { seleccionar(res[0]); return; }
+    // Varios = variantes del mismo código (azul/rosa): se ofrecen, no se elige.
+    if (res.length > 1) { setSugerencias(res); setCursor(-1); setAbierto(true); return; }
+    setSugerencias([]);
+    setAbierto(false);
+    setCodigoDesconocido(codigo);
+  };
+
   const handleItemKeyDown = (e) => {
+    if (e.key === 'Enter' && esCodigoDeBarras(busqueda.trim())) {
+      e.preventDefault();
+      escanear(busqueda.trim());
+      return;
+    }
     if (!abierto || !sugerencias.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -57,19 +77,7 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
 
   const seleccionar = (item) => {
     setBusqueda(item.item_name);
-    const precioCatalogo = item.custom_precio_de_compra || '';
-    onChange({
-      item_code:       item.item_code,
-      item_name:       item.item_name,
-      uom:             item.stock_uom,
-      presentacion:    item.custom_presentación || '',
-      kg_por_bulto:    item.custom_cantidad_por_presentación || '',
-      precio_por_kg:   item.custom_precio_por_kg || '',
-      precio_catalogo: precioCatalogo,
-      costo_historico: item.costo_historico ?? null,
-      costo_muestras:  item.costo_muestras ?? 0,
-      ...(precioCatalogo ? { rate: String(precioCatalogo) } : {}),
-    });
+    onChange(camposDeItem(item));
     onImpuesto(item.custom_impuesto || 'tasa0');
     setAbierto(false);
     setCursor(-1);
@@ -110,6 +118,13 @@ function FilaProducto({ fila, margen, onChange, onImpuesto, onEliminar, onFocusN
                   <div className="d-sub">{item.item_group} — {item.item_code}</div>
                 </div>
               ))}
+            </div>
+          )}
+          {codigoDesconocido && (
+            <div className="nc-dropdown" role="alert">
+              <div className="nc-dropdown-item">
+                Código {codigoDesconocido} no está en el catálogo. Búscalo por nombre o dalo de alta.
+              </div>
             </div>
           )}
         </div>

@@ -4,7 +4,7 @@ import '../styles/NuevoInsumo.css';
 import { numero } from '../utils/formato';
 import { auth } from '../services/frappeAuth';
 
-function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
+function NuevoInsumo({ onSuccess, onCancel, editItem = null, codigoInicial = '', codigoALigar = '' }) {
   const {
     formData,
     catalogos,
@@ -22,7 +22,7 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
     handleTipoChange,
     generateCode,
     handleSubmit,
-  } = useInsumoForm({ editItem, onSuccess });
+  } = useInsumoForm({ editItem, onSuccess, codigoInicial });
 
   return (
     <div className="nuevo-insumo-modal">
@@ -46,6 +46,12 @@ function NuevoInsumo({ onSuccess, onCancel, editItem = null }) {
           {/* IDENTIFICACIÓN */}
           <div className="form-section">
             <h3>Identificación</h3>
+            {codigoALigar && (
+              <p className="ni-aviso-ligar" role="note">
+                El código de barras <strong>{codigoALigar}</strong> ya es la clave de su otra variante:
+                esta lleva su propia clave (botón «Auto») y el código se le liga al guardar.
+              </p>
+            )}
             <div className="form-row">
               <div className="form-group">
                 <label>Código del Producto {!isEditing && '*'}</label>

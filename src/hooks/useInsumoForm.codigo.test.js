@@ -30,3 +30,20 @@ describe('resolverCodigoInterno', () => {
     expect(resolverCodigoInterno(undefined, undefined)).toBe('');
   });
 });
+
+// 04-nov: alta desde el escáner de Compras — la clave nace con el código de la bolsa.
+import { renderHook as renderHook2 } from '@testing-library/react';
+import { vi as vi2, beforeEach as beforeEach2 } from 'vitest';
+import useInsumoForm2 from './useInsumoForm';
+import { inventory as inventory2 } from '../services/frappeInventory';
+describe('useInsumoForm — codigoInicial', () => {
+  beforeEach2(() => { vi2.spyOn(inventory2, '_fetch').mockResolvedValue({ data: [] }); });
+  it('la clave arranca con el código escaneado', () => {
+    const { result } = renderHook2(() => useInsumoForm2({ codigoInicial: '7501111111111' }));
+    expect(result.current.formData.item_code).toBe('7501111111111');
+  });
+  it('sin código, la clave arranca vacía', () => {
+    const { result } = renderHook2(() => useInsumoForm2({}));
+    expect(result.current.formData.item_code).toBe('');
+  });
+});

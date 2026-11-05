@@ -11,6 +11,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import Layout from '../components/Layout';
+import KilosComprados from '../components/KilosComprados';
 import { comprasService } from '../services/frappePurchase';
 import { egresosService } from '../services/frappeEgresos';
 import { parseErrorFrappe } from '../utils/errorFrappe';
@@ -332,6 +333,8 @@ function ReporteGastosAnual() {
             </section>
           </>
         )}
+
+        <KilosComprados anio={anio} />
 
         {detalle && (
           <div className="rga-modal-overlay" onClick={() => setDetalle(null)}>

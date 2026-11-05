@@ -62,3 +62,44 @@ describe('buscarItems — búsqueda por varias palabras', () => {
     expect(urls).toHaveLength(0);
   });
 });
+
+// Escáner de código de barras (04-nov): el código va EXACTO al servidor (clave
+// o código ligado), nunca como LIKE del nombre, y nunca se cancela entre escaneos.
+describe('buscarItems — código escaneado', () => {
+  let svc;
+  let llamadas;
+  beforeEach(() => {
+    svc = new FrappePurchaseService();
+    llamadas = [];
+    svc._fetch = vi.fn(async (url, opts) => { llamadas.push({ url, signal: opts?.signal }); return { message: [], data: [] }; });
+  });
+
+  it('EAN-13 va a buscar_por_codigo, no al LIKE del nombre', async () => {
+    await svc.buscarItems('7501553905567');
+    expect(llamadas).toHaveLength(1);
+    expect(llamadas[0].url).toBe('/api/method/gestion_panaderia.api.compras_api.buscar_por_codigo?codigo=7501553905567');
+  });
+
+  it('números cortos (pan, "500") siguen siendo búsqueda por nombre', async () => {
+    await svc.buscarItems('500');
+    const qs = new URLSearchParams(llamadas[0].url.split('?')[1]);
+    expect(JSON.parse(qs.get('filters'))).toContainEqual(['item_name', 'like', '%500%']);
+  });
+
+  it('un código escaneado no cancela al anterior (ni se deja cancelar)', async () => {
+    await Promise.all([svc.buscarItems('7501553905567'), svc.buscarItems('7501000000001')]);
+    expect(llamadas.map(l => l.signal)).toEqual([undefined, undefined]);
+  });
+
+  it('la búsqueda por nombre sí cancela la anterior', async () => {
+    await svc.buscarItems('azucar');
+    await svc.buscarItems('azucar morena');
+    expect(llamadas[0].signal.aborted).toBe(true);
+  });
+
+  it('ligar manda la clave del insumo y el código, nada más', async () => {
+    await svc.ligarCodigo('7500000000002', '7501553905567');
+    expect(llamadas[0].url).toBe('/api/method/gestion_panaderia.api.compras_api.ligar_codigo_barras');
+    expect(JSON.parse(svc._fetch.mock.calls[0][1].body)).toEqual({ item_code: '7500000000002', codigo: '7501553905567' });
+  });
+});

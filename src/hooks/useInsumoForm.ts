@@ -99,12 +99,15 @@ export function formularioDeEdicion(editItem: any) {
   };
 }
 
-export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editItem?: any; onSuccess?: (result: any) => void; tipoFijo?: string }) {
+export default function useInsumoForm({ editItem, onSuccess, tipoFijo, codigoInicial }: { editItem?: any; onSuccess?: (result: any) => void; tipoFijo?: string; codigoInicial?: string }) {
   const isEditing = !!editItem;
 
-  const [formData, setFormData] = useState<any>(
-    tipoFijo ? { ...ESTADO_INICIAL, custom_tipo_item: tipoFijo, stock_uom: 'PZA' } : ESTADO_INICIAL
-  );
+  // codigoInicial: alta desde el escáner de Compras — la clave nace con el
+  // código de la bolsa; lo demás (presentación incluida) se PREGUNTA.
+  const [formData, setFormData] = useState<any>(() => ({
+    ...(tipoFijo ? { ...ESTADO_INICIAL, custom_tipo_item: tipoFijo, stock_uom: 'PZA' } : ESTADO_INICIAL),
+    ...(codigoInicial ? { item_code: codigoInicial } : {}),
+  }));
   const [catalogos, setCatalogos] = useState<{ itemGroups: any[]; uoms: any[]; departamentos: any[]; presentaciones: any[]; warehouses: any[] }>({
     itemGroups: [], uoms: [], departamentos: [], presentaciones: [], warehouses: [],
   });
@@ -112,6 +115,10 @@ export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editI
   const [loading, setLoading] = useState(false);
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; message: string; type: string }>({ isOpen: false, message: '', type: 'error' });
   const ultimoCampoModificado = useRef<string | null>(null);
+  // Última clave interna SUGERIDA: si el campo aún la tiene, otra categoría la
+  // reemplaza; si el usuario tecleó la suya, no se pisa.
+  const internoSugerido = useRef('');
+  const grupoPedido = useRef('');
 
   // ── Carga catálogos y, si es edición, hidrata formData ───────────────────
   useEffect(() => {
@@ -205,7 +212,20 @@ export default function useInsumoForm({ editItem, onSuccess, tipoFijo }: { editI
       }),
     }));
     setEsAbarrotes(abarrotes);
-  }, []);
+    if (isEditing) return;
+    grupoPedido.current = newGroup;
+    const sugerir = async () => {
+      const codigo = newGroup ? await inventory.siguienteCodigoInterno(newGroup) : null;
+      if (grupoPedido.current !== newGroup) return;   // cambió de categoría mientras contestaba
+      setFormData((prev: any) => {
+        const actual = (prev.custom_código_interno || '').trim();
+        if (actual && actual !== internoSugerido.current) return prev;
+        internoSugerido.current = codigo || '';
+        return { ...prev, custom_código_interno: codigo || '' };
+      });
+    };
+    sugerir().catch(() => {});   // sin sugerencia se teclea a mano, como antes
+  }, [isEditing]);
 
   const handleTipoChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const nuevoTipo = e.target.value;

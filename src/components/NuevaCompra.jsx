@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { comprasService } from '../services/frappePurchase';
+import { comprasService, esCodigoDeBarras } from '../services/frappePurchase';
 import ModalError from './modals/ModalError';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import ModalPreciosActualizados from './compras/ModalPreciosActualizados';
@@ -9,10 +9,12 @@ import BuscadorProveedor from './compras/BuscadorProveedor';
 import { desglosarImpuesto, grupoSubtotal } from '../config/impuestos';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import FilaProducto from './compras/FilaProducto';
+import LigarCodigo, { ElegirVariante } from './compras/LigarCodigo';
+import NuevoInsumo from './NuevoInsumo';
 import {
   FILA_VACIA, MARGEN_DEFAULT, fmt,
   parseImpuesto, subtotalFila, calcVariacion, calcularTotalesEfectivos,
-  cambiosDePrecio,
+  cambiosDePrecio, agregarEscaneado, quitarEscaneado,
 } from './compras/compraUtils';
 import { fmtUom } from '../utils/uom';
 import { pesos, cantidad } from '../utils/formato';
@@ -207,6 +209,98 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
       : r
     ));
   };
+
+  // ── Escáner en cascada ────────────────────────────────────────────────────
+  // El escáner es un teclado: dígitos + Enter. Este campo recibe el escaneo y
+  // NO suelta el foco, así se escanea bolsa tras bolsa sin tocar el mouse.
+  const escanerRef = useRef(null);
+  const [codigoEscaneado, setCodigoEscaneado] = useState('');
+  const [avisoEscaner, setAvisoEscaner] = useState('');
+  // 🔴 Un código puede ser de VARIOS productos (Mi Alegría: mismo código para
+  // azul y rosa del mismo número). Con varios se pregunta cuál; con uno entra y
+  // se ofrece «No es este» por si la bolsa es una variante aún no registrada.
+  const [variantes, setVariantes] = useState(null);     // { codigo, items }
+  const [ultimoEscaneo, setUltimoEscaneo] = useState(null); // { codigo, item_code, item_name }
+  // compartido = el código ya es de otro producto: el alta NO puede usarlo de clave.
+  const [porLigar, setPorLigar] = useState(null);       // { codigo, compartido }
+  const [altaConCodigo, setAltaConCodigo] = useState(null); // idem porLigar
+
+  const volverAlEscaner = () => setTimeout(() => escanerRef.current?.focus(), 0);
+
+  const entraEscaneado = (codigo, item) => {
+    setFilas(f => agregarEscaneado(f, item));
+    setUltimoEscaneo({ codigo, item_code: item.item_code, item_name: item.item_name });
+  };
+
+  const escanearProducto = async (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const codigo = codigoEscaneado.trim();
+    setCodigoEscaneado('');
+    if (!codigo) return;
+    setAvisoEscaner('');
+    setUltimoEscaneo(null);
+    setVariantes(null);
+    setPorLigar(null);
+    if (!esCodigoDeBarras(codigo)) { setAvisoEscaner(`«${codigo}» no es un código de barras`); return; }
+    const res = await comprasService.buscarItems(codigo);
+    if (res.length === 0) { setPorLigar({ codigo, compartido: false }); return; }
+    if (res.length > 1) { setVariantes({ codigo, items: res }); return; }
+    entraEscaneado(codigo, res[0]);
+  };
+
+  const elegirVariante = (item) => {
+    const { codigo } = variantes;
+    setVariantes(null);
+    entraEscaneado(codigo, item);
+    volverAlEscaner();
+  };
+
+  // «No es este»: se quita la bolsa que acaba de entrar y se liga o crea la variante.
+  const noEsEste = () => {
+    const { codigo, item_code } = ultimoEscaneo;
+    setFilas(f => quitarEscaneado(f, item_code));
+    setUltimoEscaneo(null);
+    setPorLigar({ codigo, compartido: true });
+  };
+
+  // Alta desde el escáner. Si la clave que quedó no es el código (el código ya
+  // era de otra variante, o lo cambiaron en el formulario), se liga. Luego se
+  // relee del servidor —lo que quedó en la base, no lo tecleado— y entra.
+  const alCrear = async (creado) => {
+    const { codigo } = altaConCodigo;
+    const clave = creado?.item_code || codigo;
+    setAltaConCodigo(null);
+    setPorLigar(null);
+    try {
+      if (clave !== codigo) await comprasService.ligarCodigo(clave, codigo);
+      const item = (await comprasService.buscarItems(codigo)).find(i => i.item_code === clave);
+      if (item) entraEscaneado(codigo, item);
+      else setAvisoEscaner(`Se creó ${clave}, pero no responde al código ${codigo}. Búscalo por nombre en la tabla.`);
+    } catch (err) {
+      setAvisoEscaner(`Se creó ${clave}, pero no se pudo ligar el código ${codigo}: ${parseErrorFrappe(err).message}`);
+    }
+    volverAlEscaner();
+  };
+
+  const alLigar = (item) => {
+    const { codigo } = porLigar;
+    setPorLigar(null);
+    entraEscaneado(codigo, item);
+    volverAlEscaner();
+  };
+
+  // Un dígito tecleado fuera de cualquier campo (tras un clic en un botón) es
+  // el escáner: se manda a su campo para no perder el código.
+  useEffect(() => {
+    const alEscaner = (e) => {
+      const t = e.target;
+      if (!/^\d$/.test(e.key) || t.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      escanerRef.current?.focus();
+    };
+    window.addEventListener('keydown', alEscaner, true);
+    return () => window.removeEventListener('keydown', alEscaner, true);
+  }, []);
 
   const focusRow = useCallback((idx) => {
     if (idx < inputRefs.current.length) {
@@ -530,6 +624,46 @@ function NuevaCompra({ onSuccess, onCancel, initialData = null }) {
         </div>
 
         <p className="nc-section-title">Productos recibidos</p>
+        <div className="nc-escaner">
+          <label className="nc-escaner-campo">
+            <svg className="nc-escaner-icono" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14M8 5v14M19 5v14" />
+            </svg>
+            <input ref={escanerRef} className="nc-escaner-input" type="text" inputMode="numeric"
+              aria-label="Escanear código de barras"
+              placeholder="Escanear código de barras…"
+              value={codigoEscaneado}
+              onChange={e => { setCodigoEscaneado(e.target.value); setAvisoEscaner(''); }}
+              onKeyDown={escanearProducto} />
+          </label>
+          {avisoEscaner && <span className="nc-escaner-aviso" role="alert">{avisoEscaner}</span>}
+          {ultimoEscaneo && (
+            <span className="nc-escaner-ok" role="status">
+              Entró <strong>{ultimoEscaneo.item_name}</strong>
+              <button type="button" className="nc-escaner-noes" onClick={noEsEste}>No es este</button>
+            </span>
+          )}
+          {variantes && (
+            <ElegirVariante codigo={variantes.codigo} items={variantes.items} onElegir={elegirVariante}
+              onOtra={() => { setPorLigar({ codigo: variantes.codigo, compartido: true }); setVariantes(null); }}
+              onCancelar={() => { setVariantes(null); volverAlEscaner(); }} />
+          )}
+          {porLigar && (
+            <LigarCodigo key={porLigar.codigo} codigo={porLigar.codigo} compartido={porLigar.compartido}
+              onLigado={alLigar}
+              onCrear={() => setAltaConCodigo(porLigar)}
+              onCancelar={() => { setPorLigar(null); volverAlEscaner(); }} />
+          )}
+        </div>
+        {altaConCodigo && (
+          <div className="edit-overlay" onClick={e => e.target === e.currentTarget && setAltaConCodigo(null)}>
+            <div className="edit-modal-wrapper">
+              <NuevoInsumo codigoInicial={altaConCodigo.compartido ? '' : altaConCodigo.codigo}
+                codigoALigar={altaConCodigo.compartido ? altaConCodigo.codigo : ''}
+                onSuccess={alCrear} onCancel={() => setAltaConCodigo(null)} />
+            </div>
+          </div>
+        )}
         <div className="nc-tabla-scroll">
           <table className="nc-tabla">
             <colgroup>
