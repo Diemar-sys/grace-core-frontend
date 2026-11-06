@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import CargaDrive from '../components/CargaDrive';
 import { pedidoService, leerBase64, urlPdfPedido } from '../services/frappePedido';
 import { hojaDelDia } from '../utils/pedidoDia';
 import { agruparDestinos, enOrden } from '../utils/gruposDestino';
@@ -130,6 +131,8 @@ export default function Pedido() {
 
   return (
     <Layout title="Pedido del día" subtitle="Importar la hoja de producción de Drive">
+      {/* ya guardado: si la fecha era otra, el efecto de [fecha] vuelve a preguntar */}
+      <CargaDrive onCargado={() => { setFecha(hoyISO()); setGuardado(true); }} />
       <div className="ped-card">
         <div className="ped-card-head">
           <h3>Subir la hoja</h3>

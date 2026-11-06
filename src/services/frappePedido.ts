@@ -171,6 +171,15 @@ export interface Cuadre {
 }
 
 const RUTA = '/api/method/gestion_panaderia.api.pedido_api';
+const RUTA_DRIVE = '/api/method/gestion_panaderia.api.pedido_drive';
+
+export interface EstadoDrive {
+  activo: boolean;
+  cambio_por: string | null;
+  cambio_cuando: string | null;
+  puede_cambiar: boolean;
+  configurado: boolean;
+}
 
 /**
  * Rellena lo que el servidor pudo no mandar.
@@ -317,6 +326,30 @@ class FrappePedidoService extends FrappeBase {
     });
     if (!r) throw new Error('Sin conexión con el servidor.');
     return r.message as { quitado: string };
+  }
+
+  /** Carga automática desde Drive: switch, quién lo movió y si el servidor está configurado. */
+  async estadoDrive(): Promise<EstadoDrive> {
+    const r = await this._fetch(`${RUTA_DRIVE}.estado`, { method: 'POST', body: '{}' });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return r.message as EstadoDrive;
+  }
+
+  /** Prende/apaga la carga automática (solo Gerente; el servidor lo revisa). */
+  async cambiarDrive(activo: boolean): Promise<EstadoDrive> {
+    const r = await this._fetch(`${RUTA_DRIVE}.cambiar`, {
+      method: 'POST',
+      body: JSON.stringify({ activo: activo ? 1 : 0 }),
+    });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return r.message as EstadoDrive;
+  }
+
+  /** «Traer de Drive y mandar»: importa la hoja de HOY ya y la manda por Telegram. */
+  async traerDeDrive() {
+    const r = await this._fetch(`${RUTA_DRIVE}.traer`, { method: 'POST', body: '{}' });
+    if (!r) throw new Error('Sin conexión con el servidor.');
+    return r.message as { archivo: string; renglones: number; problemas: number; telegram_fallo: string[] };
   }
 
   /** Guarda el pedido del día con las pestañas elegidas. */

@@ -6,7 +6,8 @@ import { pedidoService } from '../services/frappePedido';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('../services/frappePedido', () => ({
-  pedidoService: { previsualizar: vi.fn(), importar: vi.fn(), hayPedido: vi.fn(), destinatarios: vi.fn(), quitar: vi.fn() },
+  pedidoService: { previsualizar: vi.fn(), importar: vi.fn(), hayPedido: vi.fn(), destinatarios: vi.fn(), quitar: vi.fn(),
+    estadoDrive: vi.fn(() => Promise.resolve({ configurado: false })) },
   leerBase64: vi.fn().mockResolvedValue('YmFzZTY0'),
   urlPdfPedido: () => '#',
 }));
