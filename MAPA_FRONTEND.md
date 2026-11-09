@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-06.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-09.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -41,7 +41,7 @@
 | Archivo | Qué es |
 |---|---|
 | `main.jsx` | Monta `<App/>` en `FrappeProvider` (`enableSocket=false`). 🔴 Auth solo por cookie; nunca API key en `VITE_*` (se hornea público). |
-| `App.jsx` | Router. Rutas protegidas, lazy para reportes. Monta `BannerConexion`, `AvisoSesion`, `AvisoMantenimiento` (fuera del `ErrorBoundary`). `/liquidacion` = única ruta de Repartidor; `/mi-cuenta` = única de Cliente. |
+| `App.jsx` | Router. `/recuperar` y `/update-password` (el enlace del correo) son públicas. Rutas protegidas, lazy para reportes. Monta `BannerConexion`, `AvisoSesion`, `AvisoMantenimiento` (fuera del `ErrorBoundary`). `/liquidacion` = única ruta de Repartidor; `/mi-cuenta` = única de Cliente. |
 | `index.css`, `vite-env.d.ts` | Reset base; tipos de Vite y `window.csrf_token`. |
 
 ## Páginas (`src/pages/`)
@@ -50,9 +50,9 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 
 | Archivo | Ruta / qué hace | Roles |
 |---|---|---|
-| `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura) + «Ajustar a lo que llegó» (copia LLEGÓ→ENVIADO al borrador, no guarda; ni supuesto ni bolillo; no en hoja cobrada), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
+| `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator; sin plazo), «Cerrar/Reabrir llegada» (LLEGÓ lo cierra Luis, `puede_cerrar_llegada`), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura) + «Ajustar a lo que llegó» (copia LLEGÓ→ENVIADO al borrador, no guarda; ni supuesto ni bolillo; no en hoja cobrada), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
 | `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. Borrador por día en IndexedDB (se ignora si ya se envió o cobró). 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). | Repartidor |
-| `MiCuenta.tsx` | `/mi-cuenta` — portal del cliente: Resumen (debes, facturado, pagado, surtido, antigüedad), Facturas con «Ver» detalle, Pedidos con «Ver pan», Envíos agrupados por folio con «Ver» (`enviosAgrupados`). Lo único que escribe: «Te llegó» del día hasta el cierre (19:00). | Cliente |
+| `MiCuenta.tsx` | `/mi-cuenta` — portal del cliente: Resumen (debes, facturado, pagado, surtido, antigüedad), Facturas con «Ver» detalle, Pedidos con «Ver pan», Envíos agrupados por folio con «Ver» (`enviosAgrupados`). Lo único que escribe: «Te llegó» mientras Luis no cierre el día; lo tecleado se respalda en IndexedDB (`useBorradorLocal`, por usuario y día) y se borra al guardar. | Cliente |
 | `Pedido.jsx` | La hoja del día: «Traer de Drive» (o, si Drive no responde, subir .xlsx a mano) → previsualiza → «Importar y mandar» (Telegram); limpio y enviado → regresa a Operaciones. Fecha la dice el Excel. Un Excel por día; «Quitar» borra el guardado. Abajo, tarjeta `CargaDrive`. | Almacén, Operaciones, Gerente |
 | `ConsultaPedido.tsx` | Pedido guardado + PDF (solo lectura). | idem |
 | `ConsultaTablero.tsx` | Avance del día vs pedido (traspasos reales + lo facturado a clientes). | idem |
@@ -68,19 +68,21 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | `Egresos.jsx` | Gastos (CFE, gasolina, etc.); «Por pagar» abre `ModalPagarEgreso` (normal o con un cobro). `?modo=consulta`. | idem |
 | `Proveedores.jsx` | Alta/edición de proveedores. | idem |
 | `Nomina.tsx` | Corrida, empleados, reporte. | Gerente |
-| `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha. Tocar un System Manager pide llave de Administrator. | System Manager |
+| `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha, «Correo para recuperar contraseña» (no System Manager). Tocar un System Manager pide llave de Administrator. | System Manager |
 | `Auditoria.tsx` | Bitácora de acciones sensibles. | Gerente |
 | `ReporteCuentasPorCobrar.jsx`, `ReporteCuentasPorPagar.jsx`, `ReporteCompras.jsx`, `ReporteGastos.jsx`, `ReporteGastosAnual.jsx`, `ReportesVentasCategoria.jsx`, `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `utils/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `utils/kilosComprados.ts`). | Gerente |
 | `Panel.jsx` | Tablero post-login por nivel. | todos menos Repartidor/Cliente |
-| `Login.jsx` | Login con bloqueo por intentos. | público |
+| `Login.jsx` | Login con bloqueo por intentos; «Recuperar acceso» → `/recuperar`. | público |
+| `Recuperar.tsx` | `/recuperar` (usuario o correo → enlace al correo real) y `/update-password?key=` (contraseña nueva, la llave la valida Frappe). 🔴 Sin sesión; reglas en `recuperar_api.py`. | público |
 
-Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.render.test.tsx`, `Pedido.fecha.test.tsx`, `Cuentas.ficha.render.test.tsx`, `ConsultaTablero.avance.test.ts`, `ConsultaPedido.totales.test.ts`, `Egresos.consulta.test.tsx`, `Egresos.partidas.test.js`, `Inventario.test.jsx`, `Kardex.test.js`, `Panel.rutas.test.js`, `Catalogo.filtroPan.test.js`, `ReporteCuentasPorPagar.test.js`, `ReporteCuentasPorPagar.render.test.tsx`, `ReporteValorizacion.test.ts`.
+Tests: `Recuperar.render.test.tsx`, `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.render.test.tsx`, `Pedido.fecha.test.tsx`, `Cuentas.ficha.render.test.tsx`, `ConsultaTablero.avance.test.ts`, `ConsultaPedido.totales.test.ts`, `Egresos.consulta.test.tsx`, `Egresos.partidas.test.js`, `Inventario.test.jsx`, `Kardex.test.js`, `Panel.rutas.test.js`, `Catalogo.filtroPan.test.js`, `ReporteCuentasPorPagar.test.js`, `ReporteCuentasPorPagar.render.test.tsx`, `ReporteValorizacion.test.ts`.
 
 ## Componentes (`src/components/`)
 
 | Archivo | Qué es |
 |---|---|
-| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Números del servidor. |
+| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. Pueblos (`pueblo`): Enviado/Entregó/Diferencia, mismos números. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. |
+| `DeshacerCobro.tsx` | Modal de «Deshacer cobro»: enseña TODAS las facturas del cobro, pide motivo, se bloquea si hay LIQUIDADO o egresos. |
 | `VistaBolillo.tsx` | Vista Bolillo de la Hoja: PEDIDO vs SALIÓ por tanda; guarda solo lo cambiado. Camioneta: solo se congela en ruta (en el paso 3 se corrige). |
 | `CargaDrive.tsx` | Tarjeta «Carga automática» de Pedido: solo el switch (visible si `puede_cambiar`) y último cambio. Sin carpeta configurada no se pinta. Reglas en `pedido_drive.py`. |
 | `AgregarPan.tsx` | «+ Agregar pan» de la Hoja: solo con `puede_agregar` (hoja corregida, Luis/Administrator). Manda solo la clave; el precio lo pone el servidor. |
@@ -112,7 +114,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 
 | Archivo | Pega a |
 |---|---|
-| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
+| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, cerrarLlegada, reabrirLlegada, cobrosDeFactura, deshacerCobro, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
 | `frappeCliente.ts` | `cliente_api`: miCuenta, miPedido, miFactura, confirmarLlegada. |
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
 | `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío; `estadoDrive`/`cambiarDrive`/`buscarEnDrive` (`pedido_drive`). |
@@ -122,12 +124,12 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 | `frappeProduccion.ts` | BOM, costeo, entrada de pan, `entradoHoy`. |
 | `frappePurchase.ts` | Compras: confirmar/cancelar, consolidar, revertir pagado (con contraseña), reporte fiscal (`reportes_api.reporte_compras_mensual`, lo suma la base), `getKilosComprados`, escáner (`esCodigoDeBarras`, `buscarPorCodigo`, `ligarCodigo`). |
 | `frappeEgresos.ts` | Egresos, CxP, `marcarPagado(…, cobro?)`, `cobrosParaEgreso`. |
-| `frappeAuth.ts` | Login/logout, rol, POS profile. `getUser()` valida localStorage (no escalar rol por DevTools). |
+| `frappeAuth.ts` | Login/logout, rol, POS profile. `getUser()` valida localStorage (no escalar rol por DevTools). `pedirRecuperacion`/`cambiarConLlave` (sin sesión; tras cambiar cierra la sesión que abre Frappe). |
 | `frappeCuentas.ts`, `frappeAuditoria.ts`, `frappeNomina.ts`, `frappeKardex.ts`, `frappeReportes.ts`, `frappeSupplier.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
 | `appConfig.ts`, `sucursalesConfig.ts` | Config ERPNext y sucursales (cache + pub/sub). 🔴 Sin destinos hardcodeados. |
 | `printService.ts` | Cliente del print-server (`/print/...`): tickets de venta, corte, traspaso, B2B, Hoja, nómina, egreso. |
 
-Tests: `frappeCliente.miFactura.test.ts`, `frappePedido.test.ts`, `frappePurchase.buscar.test.js`, `frappeSales.cxc.test.js`, `frappeSales.buscar.test.js`, `frappeSales.facturaItems.test.ts`, `frappeSales.totales.test.js`, `frappeStock.envio.test.js`.
+Tests: `frappeAuth.recuperar.test.ts`, `frappeCliente.miFactura.test.ts`, `frappePedido.test.ts`, `frappePurchase.buscar.test.js`, `frappeSales.cxc.test.js`, `frappeSales.buscar.test.js`, `frappeSales.facturaItems.test.ts`, `frappeSales.totales.test.js`, `frappeStock.envio.test.js`.
 
 ## Utilidades (`src/utils/`) — funciones puras
 
@@ -165,7 +167,7 @@ Tests: `sync.test.js`, `borradorLocal.test.js`, `conteoBorrador.test.js`.
 
 ## Hooks (`src/hooks/`)
 
-`useBorradorLocal.js` (autosave por usuario) · `useAvisoSinGuardar.ts` (confirmar al salir con algo sin guardar) · `useAvisoMantenimiento.ts` · `useSesionCompartida.ts` · `useVersionNueva.ts` · `useConexion.ts` · `useCompras.ts` · `useInsumoForm.ts` (🔴 `formularioDeEdicion` debe traer TODO campo que manda `updateItem`, si no borra el costo; al elegir categoría sugiere la clave N+1) · `useAutoUppercase.ts` · `useConfirmModal.ts` · `useDebounce.ts` · `useSucursales.ts`.
+`useBorradorLocal.js` (autosave por usuario; al cambiar de clave lee antes de guardar) · `useAvisoSinGuardar.ts` (confirmar al salir con algo sin guardar) · `useAvisoMantenimiento.ts` · `useSesionCompartida.ts` · `useVersionNueva.ts` · `useConexion.ts` · `useCompras.ts` · `useInsumoForm.ts` (🔴 `formularioDeEdicion` debe traer TODO campo que manda `updateItem`, si no borra el costo; al elegir categoría sugiere la clave N+1) · `useAutoUppercase.ts` · `useConfirmModal.ts` · `useDebounce.ts` · `useSucursales.ts`.
 
 Tests: `useAvisoSinGuardar.test.tsx`, `useSesionCompartida.test.tsx`, `useInsumoForm.edicion.test.ts`, `useInsumoForm.codigo.test.js`, `useInsumoForm.interno.test.js`, `useAutoUppercase.test.jsx`, `useConexion.test.jsx`.
 

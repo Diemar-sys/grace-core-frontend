@@ -73,6 +73,39 @@ class FrappeAuthService extends FrappeBase {
     return data;
   }
 
+  // ─────────────────────────────────────────────
+  // RECUPERAR CONTRASEÑA (09-nov) — sin sesión
+  // ─────────────────────────────────────────────
+
+  /** Manda el enlace al correo REAL de la cuenta. La respuesta es la misma exista o no
+   *  (no se enumeran cuentas); System Manager no recupera por aquí. Regla: recuperar_api.py */
+  async pedirRecuperacion(usuario: string): Promise<string> {
+    try {
+      const r = await this._fetch('/api/method/gestion_panaderia.api.recuperar_api.pedir',
+        { method: 'POST', body: JSON.stringify({ user: usuario }) });
+      if (!r) throw new Error('Sin conexión. Intenta de nuevo.');
+      return r.message;
+    } catch (e: any) {
+      if (e?.status === 429) throw new Error('Demasiados intentos. Espera una hora e intenta de nuevo.');
+      throw e;
+    }
+  }
+
+  /** Pone la contraseña nueva con la llave del correo. La llave la valida Frappe (vence, un solo
+   *  uso). Frappe deja la sesión abierta como ese usuario: se cierra, y entra por el Login. */
+  async cambiarConLlave(key: string, nueva: string): Promise<void> {
+    let r;
+    try {
+      r = await this._fetch('/api/method/frappe.core.doctype.user.user.update_password',
+        { method: 'POST', body: JSON.stringify({ new_password: nueva, key, logout_all_sessions: 1 }) });
+    } catch (e: any) {
+      if (e?.status === 410) throw new Error('El enlace ya venció o ya se usó. Pide otro.');
+      throw e;
+    }
+    if (!r) throw new Error('Sin conexión. Intenta de nuevo.');
+    try { await fetch('/api/method/logout'); } catch { /* best-effort: la clave ya cambió */ }
+  }
+
   async _fetchRole() {
     try {
       const res = await fetch(

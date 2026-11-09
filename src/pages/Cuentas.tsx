@@ -8,7 +8,7 @@ import ModalError from '../components/modals/ModalError';
 import { parseErrorFrappe } from '../utils/errorFrappe';
 import '../styles/Cuentas.css';
 
-const FORM_INIT: any = { email: '', nombre: '', password: '', nivel: 'Vendedor', pos_profile: '' };
+const FORM_INIT: any = { email: '', nombre: '', password: '', nivel: 'Vendedor', pos_profile: '', correo_recuperacion: '' };
 
 // Color por nivel (tokens globales en global.css).
 const NIVEL_COLOR: Record<string, { fg: string; bg: string }> = {
@@ -94,7 +94,8 @@ export default function Cuentas() {
   const abrirNuevo = () => { setEditEmail(null); setForm(FORM_INIT); setVerPwd(false); setShowForm(true); };
   const abrirEditar = (u: any) => {
     setEditEmail(u.name);
-    setForm({ email: u.name, nombre: u.full_name || '', password: '', nivel: u.nivel || 'Vendedor', pos_profile: u.pos_profile || '', es_sm: u.es_system_manager });
+    setForm({ email: u.name, nombre: u.full_name || '', password: '', nivel: u.nivel || 'Vendedor', pos_profile: u.pos_profile || '', es_sm: u.es_system_manager,
+      correo_recuperacion: u.custom_correo_recuperacion || '' });
     setVerPwd(false); setShowForm(true);
   };
   const cerrarForm = () => { setShowForm(false); setEditEmail(null); setForm(FORM_INIT); };
@@ -104,6 +105,7 @@ export default function Cuentas() {
       await cuentasService.editarUsuario({
         email: editEmail, nombre: form.nombre,
         nuevo_email: form.email, password: form.password || undefined,
+        correo_recuperacion: form.correo_recuperacion,   // '' = quitar
         admin_password: adminPassword,
       });
     } else {
@@ -281,6 +283,14 @@ export default function Cuentas() {
                     </button>
                   </span>
                 </label>
+                {/* 09-nov: el correo REAL de «¿Olvidaste tu contraseña?»; el login no cambia */}
+                {editEmail && !form.es_sm && (
+                  <label className="cuentas-field full">CORREO PARA RECUPERAR CONTRASEÑA
+                    <input type="email" placeholder="Su correo de verdad (Gmail, etc.). Vacío = no recupera por correo"
+                      value={form.correo_recuperacion} maxLength={140}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => set('correo_recuperacion', e.target.value)} />
+                  </label>
+                )}
                 {!editEmail && (
                   <>
                     <label className="cuentas-field">NIVEL
@@ -337,6 +347,8 @@ export default function Cuentas() {
                       <div className="ficha-kpi"><span>Estado</span><strong>{ficha.enabled ? 'Activo' : 'Inactivo'}</strong></div>
                       <div className="ficha-kpi"><span>Punto de venta</span><strong>{ficha.pos_profile || '—'}</strong></div>
                       <div className="ficha-kpi"><span>Último acceso</span><strong>{ultimoAcceso(ficha.last_login)}</strong></div>
+                      <div className="ficha-kpi ficha-kpi--ancho"><span>Recupera contraseña en</span>
+                        <strong>{esSM ? 'No (System Manager)' : ficha.custom_correo_recuperacion || 'Sin correo'}</strong></div>
                     </div>
                     {ficha.nivel === 'Cliente' && (
                       <div className="ficha-cliente" aria-label="Cuenta de cliente">

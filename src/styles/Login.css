@@ -408,3 +408,14 @@ body:has(.login-container) #root {
   margin-bottom: 16px;
   font-size: 14px;
 }
+
+/* 09-nov: aviso verde (recuperar contraseña / contraseña cambiada) */
+.login-aviso {
+  background: var(--color-success-bg, #e8f6ec);
+  color: #1e6b3a;
+  border: 1px solid #bfe3cb;
+  padding: 11px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}

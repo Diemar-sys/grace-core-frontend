@@ -188,3 +188,6 @@
 /* 29-oct: renglón de total (del periodo en Facturas; de la factura en su detalle) */
 .mc-total td { font-weight: 700; border-top: 2px solid var(--color-surface-sunk); background: var(--color-surface-sunk); }
 .mc-tabla--pan .mc-total td { height: auto; }
+
+/* 09-nov: aviso de lo recuperado de IndexedDB (Te llegó) */
+.mc-nota--recuperado { color: var(--color-success, #2e7d32); font-weight: 600; }

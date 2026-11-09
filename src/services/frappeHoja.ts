@@ -15,7 +15,7 @@ export interface RenglonHoja {
   de_bolillo?: boolean;
   /** 20-oct: lo que el destino anotó que le LLEGÓ (Mi cuenta). null = todavía no dice. Solo lectura aquí */
   llego?: number | null;
-  /** Pasó el cierre sin que lo anotara: es lo enviado, no una confirmación */
+  /** Luis cerró el día sin que lo anotara: es lo enviado, no una confirmación */
   llego_supuesto?: boolean;
 }
 export interface Factura { name: string; grand_total: number; outstanding_amount: number }
@@ -29,7 +29,7 @@ export interface Hoja {
   /** Vendió menos que su sueldo (10% + $200): la comisión se topó a lo vendido y esto
    *  es lo que la panadería le debe al repartidor (excepción 23-sep). */
   a_favor: number;
-  /** Cobrada, dentro de la ventana y sin abono: «Corregir» cancela la factura (06-oct).
+  /** Cobrada y sin abono: «Corregir» cancela la factura (06-oct; sin plazo desde el 09-nov).
    *  La regla vive en el servidor; aquí solo se lee. */
   corregible?: boolean;
   /** 02-nov: hoja corregida y sesión de Luis/Administrator → «+ Agregar pan». Regla del servidor. */
@@ -39,6 +39,9 @@ export interface Hoja {
   descuento?: number; descuento_pct?: number;
   /** 20-oct: el destino anota lo que le llegó (hoy: cuenta de cliente, Puerta Real) → columna LLEGÓ */
   con_llegada?: boolean;
+  /** 09-nov: el LLEGÓ ya no cierra a las 19:00; lo cierra Luis. Regla y permiso del servidor. */
+  llegada_cerrada?: boolean;
+  puede_cerrar_llegada?: boolean;
 }
 export interface DestinoDia {
   destino: string; grupo: string; camioneta: boolean; total: number; comision: number; se_debe: number;
@@ -82,11 +85,22 @@ export interface EgresoDeCobro {
   egreso: string; cobro: string; subcategoria: string | null; concepto: string | null;
   monto: number; capturo: string; cuando: string;
 }
+/** 09-nov: un cobro (Payment Entry) y las facturas que pagó; `liquidado` = Luis ya lo contó (no se deshace). */
+export interface CobroDeFactura {
+  cobro: string; cliente: string; fecha: string; monto: number; registro: string; egresos: string[];
+  facturas: { factura: string; fecha: string; destino: string; monto: number; liquidado: boolean }[];
+}
+/** 09-nov: día con pan ENVIADO y sin factura: lo que se cobraría (misma cuenta que la Hoja). No suma a debe. */
+export interface DiaSinCobrar { fecha: string; factura: null; estado: 'sin_cobrar'; sin_cobrar: number }
 export interface EstadoCuenta {
-  destino: string; cliente: string; camioneta: boolean; desde: string; hasta: string; dias: DiaCuenta[];
+  destino: string; cliente: string; camioneta: boolean; desde: string; hasta: string; dias: (DiaCuenta | DiaSinCobrar)[];
   /** solo Administrator y luis.th: lo decide el servidor */
   puede_liquidar: boolean;
-  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe' | 'tipo'> & { liquidado: number; eva_debe: number; egreso?: number; por_entregar?: number };
+  /** 09-nov: pueblo (MILA, LAGUNI, VEGIL): se le MANDA, no compra → otras palabras, mismos números */
+  pueblo?: boolean;
+  /** 09-nov: solo Administrator deshace un cobro mal hecho */
+  puede_deshacer?: boolean;
+  total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe' | 'tipo'> & { liquidado: number; eva_debe: number; egreso?: number; por_entregar?: number; sin_cobrar?: number };
 }
 
 class HojaService extends FrappeBase {
@@ -122,6 +136,13 @@ class HojaService extends FrappeBase {
   confirmarEnvio(fecha: string, destino: string) { return this._post<Hoja>('confirmar_envio', { fecha, destino }); }
   reabrirEnvio(fecha: string, destino: string) { return this._post<Hoja>('reabrir_envio', { fecha, destino }); }
   corregir(fecha: string, destino: string) { return this._post<Hoja>('corregir', { fecha, destino }); }
+  cerrarLlegada(fecha: string, destino: string) { return this._post<Hoja>('cerrar_llegada', { fecha, destino }); }
+  reabrirLlegada(fecha: string, destino: string) { return this._post<Hoja>('reabrir_llegada', { fecha, destino }); }
+  /** 09-nov: solo Administrator. Los cobros vivos de una factura, cada uno con TODAS sus facturas. */
+  cobrosDeFactura(factura: string) { return this._get<CobroDeFactura[]>('cobros_de_factura', { factura }); }
+  deshacerCobro(cobro: string, motivo: string) {
+    return this._post<{ cobro: string; facturas: string[] }>('deshacer_cobro', { cobro, motivo });
+  }
   /** 02-nov: pan habilitado del catálogo, para agregar a una hoja corregida. */
   panesParaAgregar() { return this._get<PanParaAgregar[]>('panes_para_agregar', {}); }
   /** 02-nov: solo el pan; el precio lo pone el servidor (catálogo por canal). */

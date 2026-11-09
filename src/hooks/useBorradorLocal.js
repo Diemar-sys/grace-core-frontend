@@ -53,6 +53,9 @@ export default function useBorradorLocal(keyBase, datos, restaurar, { delay = 60
   useEffect(() => {
     if (!key) return;
     let vivo = true;
+    // 09-nov: al CAMBIAR de clave (otro día en Mi cuenta) no se guarda hasta leer el de la
+    // nueva; si no, el estado vacío del cambio la borra antes de restaurarla.
+    hidratado.current = false;
     cargarBorradorForm(key)
       .then(prev => {
         if (!vivo || !prev) return;

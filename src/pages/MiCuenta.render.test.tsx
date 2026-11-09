@@ -6,10 +6,17 @@ import { clienteService } from '../services/frappeCliente';
 import { getRoleConfig } from '../config/roles';
 
 vi.mock('../components/Layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
+// IndexedDB en memoria: sobrevive al desmontar (la «recarga» del borrador de Te llegó, 09-nov)
+const almacen = vi.hoisted(() => new Map<string, any>());
+vi.mock('../db/borradorLocal', () => ({
+  cargarBorradorForm: async (k: string) => almacen.get(k),
+  guardarBorradorForm: async (k: string, datos: any) => { if (datos == null) almacen.delete(k); else almacen.set(k, { datos, actualizado: 'x' }); },
+  borrarBorradorForm: async (k: string) => { almacen.delete(k); },
+}));
 vi.mock('../services/frappeCliente', () => ({ clienteService: { miCuenta: vi.fn(), miPedido: vi.fn(), confirmarLlegada: vi.fn(), miFactura: vi.fn() } }));
 const s = vi.mocked(clienteService);
 
-const dia = (renglones: any[], abierta = false) => ({ renglones, abierta, cierre: 19 });
+const dia = (renglones: any[], abierta = false) => ({ renglones, abierta });
 const pan = (item_code: string, producto: string, piezas: number, enviado: number, llego: number | null = null, llego_supuesto = false) =>
   ({ item_code, producto, piezas, enviado, precio: 14, llego, llego_supuesto });
 
@@ -168,6 +175,38 @@ describe('Mi cuenta (cliente)', () => {
     await waitFor(() => expect(screen.getByLabelText('Te llegó CONCHA')).toHaveValue(58));
   });
 
+  // 09-nov (Diemar): «si no lo guardan, va a valer» — lo tecleado sobrevive a cerrar la pestaña
+  it('🔴 Te llegó: lo tecleado sin guardar vuelve al recargar, avisa, y Guardar lo borra', async () => {
+    almacen.clear();
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60), pan('1002', 'OJOS', 36, 30)], true));
+    s.confirmarLlegada.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58), pan('1002', 'OJOS', 36, 30)], true));
+    const { unmount } = render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver pan' }));
+    fireEvent.change(await screen.findByLabelText('Te llegó CONCHA'), { target: { value: '58' } });
+    await waitFor(() => expect([...almacen.values()].map(v => v.datos)).toEqual([{ 1001: '58' }]), { timeout: 5000 });
+    expect([...almacen.keys()][0]).toMatch(/^mi-llegada\|2026-10-15/);         // por día (y por usuario)
+    unmount();                                                                   // «cerró la pestaña»
+
+    await abrirPan();
+    await waitFor(() => expect(screen.getByLabelText('Te llegó CONCHA')).toHaveValue(58));
+    expect(screen.getByText(/Recuperé lo que habías tecleado/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar lo que llegó' }));
+    await waitFor(() => expect(s.confirmarLlegada).toHaveBeenCalledWith('2026-10-15', [{ item_code: '1001', llego: 58 }]));
+    await waitFor(() => expect(almacen.size).toBe(0), { timeout: 5000 });        // ya está en el servidor
+  });
+
+  it('Te llegó: un día cerrado no restaura nada', async () => {
+    almacen.clear();
+    almacen.set('mi-llegada|2026-10-15', { datos: { 1001: '1' }, actualizado: 'x' });
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58)]));
+    await abrirPan();
+    await screen.findByRole('table', { name: 'Pedido del 2026-10-15' });
+    expect(screen.queryByText(/Recuperé/)).toBeNull();
+    expect(screen.queryAllByRole('spinbutton')).toHaveLength(0);
+  });
+
   it('cerrado: sin casillas; lo no anotado sale como lo mandado con *', async () => {
     s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60, 58), pan('1002', 'OJOS', 36, 30, 30, true)]));
     await abrirPan();
@@ -176,7 +215,7 @@ describe('Mi cuenta (cliente)', () => {
     expect(screen.queryByRole('button', { name: 'Guardar lo que llegó' })).not.toBeInTheDocument();
     expect(within(t).getByText('58')).toBeInTheDocument();
     expect(within(t).getByText('30 *')).toBeInTheDocument();
-    expect(screen.getByText(/No lo anotaste a tiempo/)).toBeInTheDocument();
+    expect(screen.getByText(/No lo anotaste antes de que se cerrara el día/)).toBeInTheDocument();
   });
 
   // 29-oct: buscador del pan del día; Guardar manda también lo que quedó escondido

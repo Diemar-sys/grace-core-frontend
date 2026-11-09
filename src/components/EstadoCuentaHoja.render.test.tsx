@@ -4,7 +4,8 @@ import EstadoCuentaHoja, { diasDelRango } from './EstadoCuentaHoja';
 import { hojaService } from '../services/frappeHoja';
 import { ventasService } from '../services/frappeSales';
 
-vi.mock('../services/frappeHoja', () => ({ hojaService: { deudores: vi.fn(), estadoCuenta: vi.fn(), liquidar: vi.fn() } }));
+vi.mock('../services/frappeHoja', () => ({ hojaService: { deudores: vi.fn(), estadoCuenta: vi.fn(), liquidar: vi.fn(),
+  cobrosDeFactura: vi.fn(), deshacerCobro: vi.fn() } }));
 vi.mock('../services/frappeSales', async (orig) => {
   const actual = await orig<typeof import('../services/frappeSales')>();
   return { ...actual, ventasService: { getFacturasPendientes: vi.fn() } };
@@ -45,6 +46,103 @@ describe('EstadoCuentaHoja', () => {
     vi.resetAllMocks();
     h.deudores.mockResolvedValue(DEUDORES);
     h.estadoCuenta.mockResolvedValue(ISMA as any);
+  });
+
+  // 09-nov (Diemar): a un pueblo se le MANDA pan; mismos números, otras palabras
+  it('🔴 pueblo: Enviado / Entregó / Diferencia; cliente sigue con Venta / Pagado / Se debe', async () => {
+    const base = { ...ISMA, camioneta: false, puede_liquidar: false,
+      dias: [dia('2026-11-06', 'SI-M', { estado: 'abono', venta: 350, recibir: 350, pagado: 300, debe: 50 })],
+      total: { ...ISMA.total, venta: 350, recibir: 350, pagado: 300, debe: 50, sueldo: 0, comision: 0, ayudante: 0 } };
+    h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
+    h.estadoCuenta.mockResolvedValue({ ...base, destino: 'MILA', cliente: 'MILAGRO', pueblo: true } as any);
+    const { unmount } = render(<EstadoCuentaHoja />);
+    await elegir('MILA');
+    expect(await screen.findByText('Enviado del periodo')).toBeInTheDocument();
+    expect(screen.getByText('Entregó')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Registrar entrega' })).toBeInTheDocument();
+    expect(screen.getByText('ENTREGÓ PARTE')).toBeInTheDocument();
+    expect(screen.getByText('entregó $300.00')).toBeInTheDocument();
+    expect(screen.queryByText('Se debe')).toBeNull();
+    unmount();
+    h.estadoCuenta.mockResolvedValue({ ...base, destino: 'DELI', cliente: 'DELI', pueblo: false } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    expect(await screen.findByText('Se debe')).toBeInTheDocument();
+    expect(screen.getByText('ABONÓ')).toBeInTheDocument();
+    expect(screen.queryByText('Enviado del periodo')).toBeNull();
+  });
+
+  // 09-nov (Diemar): deshacer un cobro mal hecho, solo Administrator (antes: script)
+  it('🔴 Deshacer cobro: solo con puede_deshacer; enseña TODAS sus facturas, pide motivo y recarga', async () => {
+    const conPago = { ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false,
+      dias: [dia('2026-10-27', 'SI-27', { estado: 'liquidado', venta: 192, recibir: 192, pagado: 192 })] };
+    h.estadoCuenta.mockResolvedValue({ ...conPago, puede_deshacer: false } as any);
+    const { unmount } = render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('Venta del periodo');
+    expect(screen.queryByRole('button', { name: 'Deshacer cobro' })).toBeNull();   // Luis/Eva no lo ven
+    unmount();
+
+    h.estadoCuenta.mockResolvedValue({ ...conPago, puede_deshacer: true } as any);
+    h.cobrosDeFactura.mockResolvedValue([{ cobro: 'PAY-95', cliente: 'ZAKIA', fecha: '2026-11-04', monto: 11436, registro: 'Administrator',
+      egresos: [], facturas: [{ factura: 'SI-27', fecha: '2026-10-27', destino: 'ZAKIA', monto: 192, liquidado: false },
+                              { factura: 'SI-30', fecha: '2026-10-30', destino: 'ZAKIA', monto: 3453.6, liquidado: false }] }]);
+    h.deshacerCobro.mockResolvedValue({ cobro: 'PAY-95', facturas: ['SI-27', 'SI-30'] });
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer cobro' }));
+    await waitFor(() => expect(h.cobrosDeFactura).toHaveBeenCalledWith('SI-27'));
+    expect(await screen.findByText(/30\/10\/2026 · ZAKIA · SI-30/)).toBeInTheDocument();   // el otro día del mismo cobro
+    const llamadas = h.estadoCuenta.mock.calls.length;
+    fireEvent.click(within(document.body).getAllByRole('button', { name: 'Deshacer cobro' }).at(-1)!);
+    expect(await screen.findByText('Escribe por qué se deshace.')).toBeInTheDocument();
+    expect(h.deshacerCobro).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'ZAKIA va a ajustar' } });
+    fireEvent.click(within(document.body).getAllByRole('button', { name: 'Deshacer cobro' }).at(-1)!);
+    await waitFor(() => expect(h.deshacerCobro).toHaveBeenCalledWith('PAY-95', 'ZAKIA va a ajustar'));
+    await waitFor(() => expect(h.estadoCuenta.mock.calls.length).toBeGreaterThan(llamadas));   // recargó
+  });
+
+  it('🔴 Deshacer cobro: con LIQUIDADO en alguna de sus facturas no deja ni pedir motivo', async () => {
+    h.estadoCuenta.mockResolvedValue({ ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false, puede_deshacer: true,
+      dias: [dia('2026-10-27', 'SI-27', { estado: 'liquidado', venta: 192, recibir: 192, pagado: 192 })] } as any);
+    h.cobrosDeFactura.mockResolvedValue([{ cobro: 'PAY-95', cliente: 'ZAKIA', fecha: '2026-11-04', monto: 384, registro: 'eva.rh@grace.mx',
+      egresos: [], facturas: [{ factura: 'SI-27', fecha: '2026-10-27', destino: 'ZAKIA', monto: 192, liquidado: true }] }]);
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer cobro' }));
+    expect(await screen.findByText(/Luis ya registró LIQUIDADO/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Motivo/)).toBeNull();
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deshacer cobro' })).toBeDisabled();
+    fireEvent.click(within(document.body).getAllByRole('button', { name: 'Deshacer cobro' }).at(-1)!);
+    expect(h.deshacerCobro).not.toHaveBeenCalled();
+  });
+
+  // 09-nov (Diemar): MILA 29 y 30-oct se mandaron y nunca se cobraron; sin factura no salían
+  it('🔴 SIN COBRAR: el día con pan y sin factura sale con su monto, sin casilla de LIQUIDADO, y su propio total', async () => {
+    h.estadoCuenta.mockResolvedValue({ ...ISMA, destino: 'DELI', cliente: 'DELI', camioneta: false, puede_liquidar: true,
+      dias: [dia('2026-09-22', 'SI-P', { estado: 'liquidado', venta: 500, recibir: 500, pagado: 500, tipo: 'pan', por_entregar: 500 }),
+             { fecha: '2026-09-23', factura: null, estado: 'sin_cobrar', sin_cobrar: 1234.5 },
+             { fecha: '2026-09-24', factura: null, estado: 'sin_cobrar', sin_cobrar: 10 }],
+      total: { ...ISMA.total, venta: 500, recibir: 500, pagado: 500, debe: 0, por_entregar: 500, sin_cobrar: 1244.5 } } as any);
+    const errores = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    const fila = (await screen.findByText('SIN COBRAR $1,234.50')).closest('tr')!;
+    expect(within(fila).queryByRole('spinbutton')).toBeNull();
+    expect(within(fila).getByText(/Captura del día/)).toBeInTheDocument();
+    expect(screen.getByText('SIN COBRAR $10.00')).toBeInTheDocument();          // dos sin factura: llaves distintas
+    expect(screen.getByText('Sin cobrar').nextElementSibling).toHaveTextContent('$1,244.50');
+    expect(screen.getAllByRole('spinbutton')).toHaveLength(1);                   // solo el día cobrado liquida
+    expect(errores.mock.calls.flat().join(' ')).not.toMatch(/same key/);          // sin factura no hay llave: la pone la fecha
+    errores.mockRestore();
+  });
+
+  it('sin días sin cobrar no sale la tarjeta', async () => {
+    render(<EstadoCuentaHoja />);
+    await elegir('ISMA');
+    await screen.findByText('Venta del periodo');
+    expect(screen.queryByText('Sin cobrar')).toBeNull();
   });
 
   // 05-nov (Diemar): los abarrotes del mismo deudor salen (para cuadrar con Mi cuenta), sin LIQUIDADO

@@ -323,6 +323,18 @@ export default function HojaDelDia() {
     finally { setOcupado(false); }
   };
 
+  // 09-nov: Luis cierra (o reabre) el LLEGÓ del día. No toca lo tecleado: no va por `ejecutar`.
+  const cambiarLlegada = async (cerrar: boolean) => {
+    if (!hoja) return;
+    setOcupado(true);
+    try {
+      const folio = ++peticionRef.current;
+      const nueva = await (cerrar ? hojaService.cerrarLlegada : hojaService.reabrirLlegada).call(hojaService, fecha, hoja.destino);
+      if (peticionRef.current === folio) setHoja(nueva);
+    } catch (e: any) { setError(e?.message || 'No se pudo cambiar la llegada'); }
+    finally { setOcupado(false); }
+  };
+
   return (
     <Layout>
       <div className="hoja-dia">
@@ -403,6 +415,12 @@ export default function HojaDelDia() {
                 </button>
               )}
               {!cobrado && hoja.puede_agregar && <AgregarPan onAgregar={agregarPan} disabled={ocupado} />}
+              {hoja.puede_cerrar_llegada && (
+                <button type="button" className="hoja-btn hoja-btn--secundario" onClick={() => cambiarLlegada(!hoja.llegada_cerrada)} disabled={ocupado}
+                  title={hoja.llegada_cerrada ? 'El destino vuelve a poder anotar lo que le llegó' : 'El destino ya no anota; lo que no anotó cuenta como lo enviado'}>
+                  {hoja.llegada_cerrada ? 'Reabrir llegada' : 'Cerrar llegada'}
+                </button>
+              )}
               {!enviadoFijo && ajustesLlego.length > 0 && (
                 <button type="button" className="hoja-btn hoja-btn--secundario" onClick={ajustarALoQueLlego} disabled={ocupado}
                   title="Pone en ENVIADO lo que el destino anotó que le llegó. Revisa y guarda para que cuente.">

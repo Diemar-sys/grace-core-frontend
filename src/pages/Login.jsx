@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import { auth } from '../services/frappeAuth';
 import { rateLimiter, sanitizar, validar } from '../utils/security';
@@ -14,6 +14,8 @@ import '../styles/Login.css';
  */
 function Login() {
   const navigate = useNavigate();
+  // 09-nov: «Listo: entra con tu contraseña nueva» (viene de /update-password)
+  const aviso = useLocation().state?.aviso || '';
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -134,6 +136,7 @@ function Login() {
 
           {/* Muestra el error si existe */}
           {error && <div className="login-error">{error}</div>}
+          {!error && aviso && <div className="login-aviso" role="status">{aviso}</div>}
 
           {/* Formulario */}
           <form onSubmit={handleSubmit} className="login-form">
@@ -202,7 +205,7 @@ function Login() {
           <div className="login-footer">
             <p>
               ¿Olvidaste tu contraseña?{' '}
-              <button type="button" className="link-button">
+              <button type="button" className="link-button" onClick={() => navigate('/recuperar')}>
                 Recuperar acceso
               </button>
             </p>

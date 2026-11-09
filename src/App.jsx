@@ -2,6 +2,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Recuperar from './pages/Recuperar';
 import Panel from './pages/Panel';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -78,6 +79,9 @@ function App() {
           {/* Ruta pública */}
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
+          {/* 09-nov: sin sesión. /update-password es el enlace del correo (nombre que pone Frappe) */}
+          <Route path="/recuperar" element={<Recuperar />} />
+          <Route path="/update-password" element={<Recuperar />} />
 
           {/* Rutas protegidas */}
           <Route

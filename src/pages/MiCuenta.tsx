@@ -5,12 +5,13 @@
 // Quién es lo dice la sesión en el servidor: aquí no se elige cliente.
 // Tablero (Diemar, misma tarde): lado carbón con su nombre y menú, tarjetas de cifras,
 // barras de pedido contra lo que se mandó y dona de lo pagado. Gráficas en SVG/CSS, sin librería.
-// 20-oct (Diemar): LO ÚNICO que escribe: en «Ver pan» de HOY anota, pan por pan, cuánto le
-// LLEGÓ (acumulado del día; el pan llega en varias entregas) hasta el cierre (19:00 de la
-// torre). Lo que no anote se toma como lo que se mandó. Solo auditoría: se cobra lo mandado.
+// 20-oct (Diemar): LO ÚNICO que escribe: en «Ver pan» anota, pan por pan, cuánto le LLEGÓ
+// (acumulado del día; el pan llega en varias entregas) mientras el día siga abierto (09-nov: lo
+// cierra Luis, ya no las 19:00). Lo que no anote se toma como lo que se mandó. Solo auditoría.
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutDashboard, Receipt, ShoppingBasket, Truck } from 'lucide-react';
 import Layout from '../components/Layout';
+import useBorradorLocal from '../hooks/useBorradorLocal';
 import { auth } from '../services/frappeAuth';
 import { fechaCorta, fechaLarga, hoyISO, rangoFechas } from '../utils/hora';
 import { numero, pesos } from '../utils/formato';
@@ -174,6 +175,10 @@ export default function MiCuenta() {
     return () => clearInterval(id);
   }, [dia, abierta]);
 
+  // 09-nov (Diemar): lo tecleado en «Te llegó» se respalda en IndexedDB (por usuario y día) mientras
+  // el día siga abierto: cerrar la pestaña o quedarse sin luz ya no lo tira. Guardar lo borra.
+  const { restaurado } = useBorradorLocal(dia && abierta ? `mi-llegada|${dia}` : null,
+    Object.keys(tecleado).length ? tecleado : null, setTecleado);
   const cambios = detalle ? llegadasCambiadas(detalle.renglones, tecleado) : [];
   const guardarLlegada = async () => {
     if (!cambios.length) return;
@@ -370,7 +375,10 @@ export default function MiCuenta() {
                           <tr className="mc-fila-detalle"><td colSpan={4}><div className="mc-detalle">
                             {!detalle ? <p className="mc-nota">Cargando…</p> : (<>
                               {detalle.abierta && (
-                                <p className="mc-nota">Anota cuánto te ha llegado de cada pan en todo el día (no solo esta entrega), hasta las {detalle.cierre}:00. Lo que no anotes se toma como lo que se mandó.</p>
+                                <p className="mc-nota">Anota cuánto te ha llegado de cada pan en todo el día (no solo esta entrega). Cuando la panadería cierre el día, lo que no anotes se toma como lo que se mandó.</p>
+                              )}
+                              {detalle.abierta && restaurado && Object.keys(tecleado).length > 0 && (
+                                <p className="mc-nota mc-nota--recuperado" role="status">Recuperé lo que habías tecleado y no guardaste. Revísalo y dale «Guardar lo que llegó».</p>
                               )}
                               <div className="mc-detalle-cabeza">
                                 <strong>Pan del {fechaLarga(p.fecha)}</strong>
@@ -409,7 +417,7 @@ export default function MiCuenta() {
                                 </button>
                               )}
                               {!detalle.abierta && detalle.renglones.some(r => r.llego_supuesto) && (
-                                <p className="mc-nota">* No lo anotaste a tiempo: se tomó lo que se mandó.</p>
+                                <p className="mc-nota">* No lo anotaste antes de que se cerrara el día: se tomó lo que se mandó.</p>
                               )}
                             </>)}
                           </div></td></tr>

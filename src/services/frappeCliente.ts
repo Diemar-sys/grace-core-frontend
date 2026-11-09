@@ -23,13 +23,13 @@ export interface RenglonPedido {
   item_code: string; producto: string; piezas: number; enviado: number; precio: number;
   /** Lo que anotó que le llegó (acumulado del día). null = todavía no dice. 20-oct */
   llego: number | null;
-  /** Pasó el cierre sin que lo anotara: se tomó lo que se mandó */
+  /** Se cerró el día sin que lo anotara: se tomó lo que se mandó */
   llego_supuesto: boolean;
 }
 /** Un renglón de factura ya con impuesto (29-oct): el mismo cálculo que el cobro de B2B */
 export type RenglonFactura = ReturnType<typeof renglonDeFactura>;
-/** `abierta`: hoy y antes de `cierre` (hora de la torre) todavía puede anotar lo que llegó */
-export interface DetallePedido { renglones: RenglonPedido[]; abierta: boolean; cierre: number }
+/** `abierta`: el día ya llegó y nadie lo ha cerrado (09-nov: lo cierra Luis, no el reloj) */
+export interface DetallePedido { renglones: RenglonPedido[]; abierta: boolean }
 
 class FrappeClienteService extends FrappeBase {
   async miCuenta(desde: string, hasta: string): Promise<MiCuenta> {
@@ -41,7 +41,7 @@ class FrappeClienteService extends FrappeBase {
   async miPedido(fecha: string): Promise<DetallePedido> {
     const r = await this._fetch(`${RUTA}.mi_pedido`, { method: 'POST', body: JSON.stringify({ fecha }) });
     if (!r) throw new Error('Sin conexión con el servidor.');
-    return { renglones: [], abierta: false, cierre: 19, ...(r.message ?? {}) };
+    return { renglones: [], abierta: false, ...(r.message ?? {}) };
   }
 
   /** Qué se le cobró en UNA factura suya (29-oct). El servidor manda los renglones crudos y aquí
@@ -57,7 +57,7 @@ class FrappeClienteService extends FrappeBase {
   async confirmarLlegada(fecha: string, renglones: { item_code: string; llego: number }[]): Promise<DetallePedido> {
     const r = await this._fetch(`${RUTA}.confirmar_llegada`, { method: 'POST', body: JSON.stringify({ fecha, renglones }) });
     if (!r) throw new Error('Sin conexión con el servidor.');
-    return { renglones: [], abierta: false, cierre: 19, ...(r.message ?? {}) };
+    return { renglones: [], abierta: false, ...(r.message ?? {}) };
   }
 }
 

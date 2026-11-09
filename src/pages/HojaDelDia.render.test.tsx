@@ -13,7 +13,7 @@ vi.mock('../services/printService', () => ({ imprimirTicketHoja: vi.fn() }));
 vi.mock('../services/frappeHoja', () => ({
   hojaService: { destinos: vi.fn(), hoja: vi.fn(), guardar: vi.fn(), confirmar: vi.fn(),
     confirmarEnvio: vi.fn(), reabrirEnvio: vi.fn(), guardarMerma: vi.fn(), guardarTodo: vi.fn(), corregir: vi.fn(),
-    panesParaAgregar: vi.fn(), agregarPan: vi.fn() },
+    panesParaAgregar: vi.fn(), agregarPan: vi.fn(), cerrarLlegada: vi.fn(), reabrirLlegada: vi.fn() },
 }));
 
 // IndexedDB en memoria: sobrevive al desmontar (la «recarga» de los tests del borrador)
@@ -721,6 +721,33 @@ describe('HojaDelDia — cableado', () => {
     await elegir('DELI');
     await screen.findByLabelText('Enviado CONCHAS');
     expect(screen.queryByRole('button', { name: /Ajustar a lo que llegó/ })).toBeNull();
+  });
+
+  // 09-nov (Diemar): «que nada se cierre de forma automática» — el LLEGÓ lo cierra Luis
+  it('🔴 Cerrar/Reabrir llegada: solo si el servidor lo permite, manda el destino y conserva lo tecleado', async () => {
+    const base = { ...hoja(), con_llegada: true, renglones: [{ ...R, enviado: 25, llego: null }] };
+    s.hoja.mockResolvedValue({ ...base, puede_cerrar_llegada: false });
+    const { unmount } = render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    await screen.findByLabelText('Enviado CONCHAS');
+    expect(screen.queryByRole('button', { name: /llegada/ })).toBeNull();          // Héctor no lo ve
+    unmount();
+
+    s.hoja.mockResolvedValue({ ...base, puede_cerrar_llegada: true, llegada_cerrada: false });
+    s.cerrarLlegada.mockResolvedValue({ ...base, puede_cerrar_llegada: true, llegada_cerrada: true,
+      renglones: [{ ...R, enviado: 25, llego: 25, llego_supuesto: true }] });
+    s.reabrirLlegada.mockResolvedValue({ ...base, puede_cerrar_llegada: true, llegada_cerrada: false });
+    render(<MemoryRouter><HojaDelDia /></MemoryRouter>);
+    await elegir('DELI');
+    fireEvent.change(await screen.findByLabelText('Enviado CONCHAS'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar llegada' }));
+    await waitFor(() => expect(s.cerrarLlegada).toHaveBeenCalledWith(expect.any(String), 'DELI'));
+    expect(await screen.findByText('25 *')).toHaveClass('hoja-llego--supuesto');
+    expect(screen.getByLabelText('Enviado CONCHAS')).toHaveValue(30);               // no tiró lo tecleado
+    expect(s.reabrirLlegada).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir llegada' }));
+    await waitFor(() => expect(s.reabrirLlegada).toHaveBeenCalledWith(expect.any(String), 'DELI'));
+    expect(await screen.findByRole('button', { name: 'Cerrar llegada' })).toBeInTheDocument();
   });
 
   it('LLEGÓ: sin con_llegada no sale la columna', async () => {
