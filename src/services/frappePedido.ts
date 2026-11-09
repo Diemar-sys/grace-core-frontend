@@ -345,11 +345,11 @@ class FrappePedidoService extends FrappeBase {
     return r.message as EstadoDrive;
   }
 
-  /** «Traer de Drive y mandar»: importa la hoja de HOY ya y la manda por Telegram. */
-  async traerDeDrive() {
-    const r = await this._fetch(`${RUTA_DRIVE}.traer`, { method: 'POST', body: '{}' });
+  /** «Traer de Drive»: la hoja de esa fecha en base64, SIN guardar (se previsualiza como un .xlsx). */
+  async buscarEnDrive(fecha: string) {
+    const r = await this._fetch(`${RUTA_DRIVE}.buscar`, { method: 'POST', body: JSON.stringify({ fecha }) });
     if (!r) throw new Error('Sin conexión con el servidor.');
-    return r.message as { archivo: string; renglones: number; problemas: number; telegram_fallo: string[] };
+    return r.message as { archivo: string; nombre: string };
   }
 
   /** Guarda el pedido del día con las pestañas elegidas. */

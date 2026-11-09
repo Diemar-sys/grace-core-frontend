@@ -2,7 +2,11 @@
 // Importa el pedido diario desde la hoja de Drive del jefe.
 // El pedido se sigue capturando en Drive (a la 1 AM, sin conexión y sin depender
 // de la torre); aquí solo entra al sistema, ya cerrado, en la mañana.
+// 06-nov: «Traer de Drive» la baja el servidor (pedido_drive.buscar) y se previsualiza
+// igual que un .xlsx subido; subir a mano queda solo para cuando Drive no responde.
+// «Importar y mandar» guarda y manda por Telegram; si todo salió limpio regresa al panel.
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ModalError from '../components/modals/ModalError';
 import ConfirmModal from '../components/modals/ConfirmModal';
@@ -17,6 +21,7 @@ import { hoyISO } from '../utils/hora';
 const suma = (piezas) => Object.values(piezas).reduce((a, b) => a + b, 0);
 
 export default function Pedido() {
+  const navigate = useNavigate();
   const [archivo, setArchivo] = useState(null);
   const [datos, setDatos] = useState('');
   const [fecha, setFecha] = useState(hoyISO());
@@ -42,6 +47,8 @@ export default function Pedido() {
   // 16-oct: un Excel por día; quitar el guardado borra lo capturado y se confirma
   const [confirmaQuitar, setConfirmaQuitar] = useState(false);
   const [errorQuitar, setErrorQuitar] = useState('');
+  // subir el .xlsx a mano: solo si Drive no responde
+  const [aMano, setAMano] = useState(false);
 
   useEffect(() => {
     pedidoService.destinatarios()
@@ -72,17 +79,17 @@ export default function Pedido() {
     setNonce((n) => n + 1);
   };
 
-  const elegirArchivo = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setArchivo(f);
+  // De Drive o del disco, el archivo llega igual: base64 + nombre, y se previsualiza.
+  // `archivo` solo guarda { name }: es lo único que se usa de él.
+  const previsualizar = async (obtener) => {
     setHojas(null);
     setResultado(null);
     setCargando(true);
     try {
-      const b64 = await leerBase64(f);
+      const { b64, nombre } = await obtener();
+      setArchivo({ name: nombre });
       setDatos(b64);
-      const previa = await pedidoService.previsualizar(b64, f.name);
+      const previa = await pedidoService.previsualizar(b64, nombre);
       // el archivo dice de qué día es (02-oct): se precarga para no guardar el
       // Excel de ayer como pedido de hoy. El servidor rechaza si no coincide.
       if (previa.fecha) setFecha(previa.fecha);
@@ -100,16 +107,40 @@ export default function Pedido() {
     }
   };
 
+  const elegirArchivo = (e) => {
+    const f = e.target.files?.[0];
+    if (f) previsualizar(async () => ({ b64: await leerBase64(f), nombre: f.name }));
+  };
+
+  const traerDeDrive = () => previsualizar(async () => {
+    const r = await pedidoService.buscarEnDrive(fecha);
+    return { b64: r.archivo, nombre: r.nombre };
+  });
+
   const alternar = (pestana) =>
     setElegidas((prev) =>
       prev.includes(pestana) ? prev.filter((p) => p !== pestana) : [...prev, pestana]);
 
+  // Guarda y manda a TODOS los destinatarios. Limpio (sin problemas y salió a todos)
+  // → regresa al panel; si algo falló se queda para que se vea el aviso.
   const confirmar = async () => {
     setCargando(true);
     try {
-      setResultado(await pedidoService.importar(datos, archivo.name, fecha, elegidas));
+      const r = await pedidoService.importar(datos, archivo.name, fecha, elegidas);
       setHojas(null);
       setGuardado(true);
+      const fallo = aQuienes.length ? [] : ['Telegram sin configurar'];
+      for (const d of aQuienes) {
+        try {
+          await pedidoService.enviar(fecha, d);
+        } catch {
+          fallo.push(d);
+        }
+      }
+      setResultado({ ...r, fallo });
+      if (!fallo.length && !r.problemas.length) {
+        setTimeout(() => navigate('/panel?seccion=operaciones'), 1500);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -131,11 +162,9 @@ export default function Pedido() {
 
   return (
     <Layout title="Pedido del día" subtitle="Importar la hoja de producción de Drive">
-      {/* ya guardado: si la fecha era otra, el efecto de [fecha] vuelve a preguntar */}
-      <CargaDrive onCargado={() => { setFecha(hoyISO()); setGuardado(true); }} />
       <div className="ped-card">
         <div className="ped-card-head">
-          <h3>Subir la hoja</h3>
+          <h3>La hoja del día</h3>
           {archivo && <span className="ped-badge info">Hoja cargada</span>}
         </div>
 
@@ -155,7 +184,7 @@ export default function Pedido() {
                   ✕
                 </button>
               </span>
-            ) : (
+            ) : aMano ? (
               <>
                 <input
                   key={nonce}
@@ -165,9 +194,18 @@ export default function Pedido() {
                   onChange={elegirArchivo}
                 />
                 <label className="ped-archivo-elegir" htmlFor="ped-file">
-                  Elegir el .xlsx de Drive
+                  Elegir el .xlsx descargado de Drive
                 </label>
               </>
+            ) : (
+              <span className="ped-archivo-puesto">
+                <button className="ped-btn primario" disabled={cargando} onClick={traerDeDrive}>
+                  Traer de Drive
+                </button>
+                <button className="ped-btn secundario" disabled={cargando} onClick={() => setAMano(true)}>
+                  ¿Drive no responde? Subir archivo
+                </button>
+              </span>
             )}
           </div>
           <div className="ped-field">
@@ -236,11 +274,12 @@ export default function Pedido() {
           no lo que estés viendo abajo.
         </p>
         <p className="ped-nota">
-          En Drive: <strong>Archivo → Descargar → Microsoft Excel (.xlsx)</strong> y sube
-          ese archivo: trae todas las pestañas de un jalón. El CSV también sirve, pero
-          solo exporta la pestaña que tengas abierta.
+          «Traer de Drive» busca la hoja con la <strong>FECHA</strong> de arriba. Solo si Drive no
+          responde: en Drive <strong>Archivo → Descargar → Microsoft Excel (.xlsx)</strong> y súbelo.
         </p>
       </div>
+
+      <CargaDrive />
 
       {cargando && <div className="ped-card ped-cargando">Leyendo la hoja…</div>}
 
@@ -254,6 +293,10 @@ export default function Pedido() {
             Pestañas: <strong>{resultado.pestanas.join(', ')}</strong> · destinos:{' '}
             <strong>{resultado.destinos.join(', ')}</strong>
           </p>
+          {resultado.fallo.length > 0
+            ? <p className="ped-nota"><span className="ped-badge bad">⚠️ NO salió a: {resultado.fallo.join(', ')}</span></p>
+            : <p className="ped-nota"><span className="ped-badge ok">✔ Importado y mandado</span>
+                {!resultado.problemas.length && ' · regresando a Operaciones…'}</p>}
           {resultado.problemas.length > 0 && (
             <p className="ped-nota">
               <span className="ped-badge bad">
@@ -333,7 +376,7 @@ export default function Pedido() {
                 onClick={confirmar}
                 disabled={cargando || !elegidas.length || guardado !== false}
               >
-                Importar al sistema
+                Importar y mandar
               </button>
             </div>
           </div>

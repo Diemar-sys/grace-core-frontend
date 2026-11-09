@@ -53,7 +53,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura) + «Ajustar a lo que llegó» (copia LLEGÓ→ENVIADO al borrador, no guarda; ni supuesto ni bolillo; no en hoja cobrada), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. | Operaciones, Gerente |
 | `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. Borrador por día en IndexedDB (se ignora si ya se envió o cobró). 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). | Repartidor |
 | `MiCuenta.tsx` | `/mi-cuenta` — portal del cliente: Resumen (debes, facturado, pagado, surtido, antigüedad), Facturas con «Ver» detalle, Pedidos con «Ver pan», Envíos agrupados por folio con «Ver» (`enviosAgrupados`). Lo único que escribe: «Te llegó» del día hasta el cierre (19:00). | Cliente |
-| `Pedido.jsx` | Importa el Excel del pedido (fecha la dice el Excel), PDF/Telegram. Un Excel por día; «Quitar» borra el guardado. Arriba, tarjeta `CargaDrive`. | Almacén, Operaciones, Gerente |
+| `Pedido.jsx` | La hoja del día: «Traer de Drive» (o, si Drive no responde, subir .xlsx a mano) → previsualiza → «Importar y mandar» (Telegram); limpio y enviado → regresa a Operaciones. Fecha la dice el Excel. Un Excel por día; «Quitar» borra el guardado. Abajo, tarjeta `CargaDrive`. | Almacén, Operaciones, Gerente |
 | `ConsultaPedido.tsx` | Pedido guardado + PDF (solo lectura). | idem |
 | `ConsultaTablero.tsx` | Avance del día vs pedido (traspasos reales + lo facturado a clientes). | idem |
 | `POS.jsx` | Punto de venta offline-first; todo por Dexie/`db/sync`. | Vendedor, Gerente |
@@ -82,7 +82,7 @@ Tests: `HojaDelDia.render.test.tsx`, `Liquidacion.render.test.tsx`, `MiCuenta.re
 |---|---|
 | `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Números del servidor. |
 | `VistaBolillo.tsx` | Vista Bolillo de la Hoja: PEDIDO vs SALIÓ por tanda; guarda solo lo cambiado. Camioneta: solo se congela en ruta (en el paso 3 se corrige). |
-| `CargaDrive.tsx` | Tarjeta «Desde Drive» de Pedido: «Traer de Drive y mandar» y switch del automático (solo si `puede_cambiar`). Sin carpeta configurada no se pinta. Reglas en `pedido_drive.py`. |
+| `CargaDrive.tsx` | Tarjeta «Carga automática» de Pedido: solo el switch (visible si `puede_cambiar`) y último cambio. Sin carpeta configurada no se pinta. Reglas en `pedido_drive.py`. |
 | `AgregarPan.tsx` | «+ Agregar pan» de la Hoja: solo con `puede_agregar` (hoja corregida, Luis/Administrator). Manda solo la clave; el precio lo pone el servidor. |
 | `AvisoMantenimiento.tsx` / `PildoraMantenimiento.tsx` | Aviso de 5 min + píldora junto al reloj; en mantenimiento (503) tapa la pantalla sin recargar. Lógica en `utils/mantenimiento.ts`. |
 | `AvisoSesion.tsx` | Bloquea la pantalla si otra pestaña cambió la sesión. |
@@ -115,7 +115,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 | `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
 | `frappeCliente.ts` | `cliente_api`: miCuenta, miPedido, miFactura, confirmarLlegada. |
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
-| `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío; `estadoDrive`/`cambiarDrive`/`traerDeDrive` (`pedido_drive`). |
+| `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío; `estadoDrive`/`cambiarDrive`/`buscarEnDrive` (`pedido_drive`). |
 | `frappePOS.ts` | Perfil POS, productos, `crearVentaOffline` (lo llama el outbox), corte, historial, cancelar. |
 | `frappeStock.ts` | Movimientos: entradas, salidas, mermas, ajustes, regalos, traspasos, conteo. |
 | `frappeInventory.ts` | Catálogo: almacenes, grupos, UOM, CRUD de Item, stock, `siguienteCodigoInterno`. |
