@@ -29,7 +29,12 @@ export interface RenglonPedido {
 /** Un renglón de factura ya con impuesto (29-oct): el mismo cálculo que el cobro de B2B */
 export type RenglonFactura = ReturnType<typeof renglonDeFactura>;
 /** `abierta`: el día ya llegó y nadie lo ha cerrado (09-nov: lo cierra Luis, no el reloj) */
-export interface DetallePedido { renglones: RenglonPedido[]; abierta: boolean }
+/** 09-nov: por departamento y total del día, con la MISMA cuenta que la Hoja (servidor). */
+export interface DeptoDia { departamento: string; pedido: number; enviado: number; importe: number }
+export interface DetallePedido {
+  renglones: RenglonPedido[]; abierta: boolean;
+  departamentos?: DeptoDia[]; total?: number; descuento?: number; se_debe?: number;
+}
 
 class FrappeClienteService extends FrappeBase {
   async miCuenta(desde: string, hasta: string): Promise<MiCuenta> {

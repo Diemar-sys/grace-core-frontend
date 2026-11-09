@@ -197,6 +197,28 @@ describe('Mi cuenta (cliente)', () => {
     await waitFor(() => expect(almacen.size).toBe(0), { timeout: 5000 });        // ya está en el servidor
   });
 
+  // 09-nov (Diemar): «el monto total de lo que va aquí, con sus categorías», como la Hoja
+  it('🔴 Ver pan: tabla por departamento y el TOTAL tal cual del servidor (con descuento si lo hay)', async () => {
+    s.miPedido.mockResolvedValue({ ...dia([pan('1001', 'CONCHA', 60, 60)], true),
+      departamentos: [{ departamento: 'PAN DULCE', pedido: 707, enviado: 707, importe: 10660 },
+                      { departamento: 'PAN BLANCO', pedido: 1090, enviado: 1122, importe: 5610 }],
+      total: 16270, descuento: 6508, se_debe: 9762 });
+    await abrirPan();
+    const t = await screen.findByRole('table', { name: 'Por departamento' });
+    expect(within(t).getAllByRole('row').map(r => r.textContent)).toEqual([
+      'DepartamentoPedido (pz)Enviado (pz)Importe', 'PAN DULCE707707$10,660.00', 'PAN BLANCO1,0901,122$5,610.00']);
+    expect(screen.getByLabelText('Total del día')).toHaveTextContent('$9,762.00');      // lo que se cobra: con descuento
+    expect(screen.getByText(/descuento −\$6,508.00/)).toBeInTheDocument();
+  });
+
+  it('Ver pan: sin departamentos (servidor viejo o día vacío) no pinta tabla ni total', async () => {
+    s.miPedido.mockResolvedValue(dia([pan('1001', 'CONCHA', 60, 60)], true));
+    await abrirPan();
+    await screen.findByRole('table', { name: 'Pedido del 2026-10-15' });
+    expect(screen.queryByRole('table', { name: 'Por departamento' })).toBeNull();
+    expect(screen.queryByLabelText('Total del día')).toBeNull();
+  });
+
   it('Te llegó: un día cerrado no restaura nada', async () => {
     almacen.clear();
     almacen.set('mi-llegada|2026-10-15', { datos: { 1001: '1' }, actualizado: 'x' });

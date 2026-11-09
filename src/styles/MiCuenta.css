@@ -191,3 +191,14 @@
 
 /* 09-nov: aviso de lo recuperado de IndexedDB (Te llegó) */
 .mc-nota--recuperado { color: var(--color-success, #2e7d32); font-weight: 600; }
+
+/* 09-nov: por departamento + total del día en «Ver pan» (como la Hoja) */
+.mc-deptos { margin-top: 1rem; }
+.mc-total-desc { margin: 0.6rem 0 0; text-align: right; color: var(--tv-ink-soft, #6b6b6b); font-size: 0.85rem; }
+.mc-total {
+  display: flex; justify-content: flex-end; align-items: baseline; gap: 1rem; margin-top: 0.6rem;
+  padding: 0.9rem 1.2rem; border-radius: 20px; background: #3a3633; color: #fff;
+  border-bottom: 3px solid var(--color-primary, #c0563f);
+}
+.mc-total span { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.8; }
+.mc-total strong { font-size: 1.6rem; font-family: var(--font-mono, monospace); }

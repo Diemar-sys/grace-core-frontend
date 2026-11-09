@@ -416,6 +416,24 @@ export default function MiCuenta() {
                                   {guardando ? 'Guardando…' : 'Guardar lo que llegó'}
                                 </button>
                               )}
+                              {/* 09-nov (Diemar): como la Hoja — por departamento y el total; números del servidor */}
+                              {(detalle.departamentos?.length ?? 0) > 0 && (<>
+                                <table className="mc-tabla mc-deptos" aria-label="Por departamento">
+                                  <thead><tr><th>Departamento</th><th className="mc-num">Pedido (pz)</th><th className="mc-num">Enviado (pz)</th><th className="mc-num">Importe</th></tr></thead>
+                                  <tbody>
+                                    {detalle.departamentos!.map(d => (
+                                      <tr key={d.departamento}>
+                                        <td>{d.departamento}</td><td className="mc-num">{numero(d.pedido, 0)}</td>
+                                        <td className="mc-num">{numero(d.enviado, 0)}</td><td className="mc-num">{pesos(d.importe)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {(detalle.descuento ?? 0) > 0 && (
+                                  <p className="mc-total-desc">Total {pesos(detalle.total ?? 0)} · descuento −{pesos(detalle.descuento ?? 0)}</p>
+                                )}
+                                <div className="mc-total" aria-label="Total del día"><span>Total</span><strong>{pesos(detalle.se_debe ?? 0)}</strong></div>
+                              </>)}
                               {!detalle.abierta && detalle.renglones.some(r => r.llego_supuesto) && (
                                 <p className="mc-nota">* No lo anotaste antes de que se cerrara el día: se tomó lo que se mandó.</p>
                               )}
