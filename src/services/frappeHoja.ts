@@ -3,6 +3,7 @@
 // Camioneta en tres pasos (23-sep): confirmarEnvio (Héctor) → guardarRegreso
 // (repartidor) → guardarMerma + confirmar (Héctor). `etapa` dice en cuál va.
 import FrappeBase from './FrappeBase';
+import type { ReporteCamionetas } from '../utils/reporteCamionetas';
 
 const API = '/api/method/gestion_panaderia.api.hoja_api.';
 
@@ -116,6 +117,21 @@ class HojaService extends FrappeBase {
   }
   destinos(fecha: string) { return this._get<DestinoDia[]>('destinos', { fecha }); }
   deudores() { return this._get<DeudorHoja[]>('deudores', {}); }
+  /** Reportes → Camionetas (10-nov): venta y gastos por camioneta y día. Solo Gerente. */
+  rentabilidadCamionetas(desde: string, hasta: string) {
+    return this._get<ReporteCamionetas>('rentabilidad_camionetas', { desde, hasta });
+  }
+  /** 11-nov: merma escrita a mano. monto null = borrar la guardada. Todo o nada. */
+  guardarMermasCamioneta(capturas: { fecha: string; destino: string; monto: number | null }[]) {
+    return this._post<{ guardadas: number }>('guardar_mermas_camioneta', { capturas });
+  }
+  cerrarMermaCamioneta(fecha: string, destino: string) {
+    return this._post<{ cerrada: boolean }>('cerrar_merma_camioneta', { fecha, destino });
+  }
+  /** solo Administrator y luis.th (lo exige el servidor) */
+  reabrirMermaCamioneta(fecha: string, destino: string) {
+    return this._post<{ cerrada: boolean }>('reabrir_merma_camioneta', { fecha, destino });
+  }
   estadoCuenta(destino: string, desde: string, hasta: string) {
     return this._get<EstadoCuenta>('estado_cuenta', { destino, desde, hasta });
   }

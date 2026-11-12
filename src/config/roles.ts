@@ -18,7 +18,7 @@ const ROUTE: Record<string, string> = {
 
 // Debe cubrir todo MODULOS_REPORTES de Panel.jsx: una tarjeta sin su ruta aquí
 // se pinta pero el guard la rebota al panel, y parece que el clic no hace nada.
-const RUTAS_REPORTES = ['/reportes/valorizacion', '/reportes/gastos-anual', '/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar', '/reportes/cuentas-por-cobrar'];
+const RUTAS_REPORTES = ['/reportes/valorizacion', '/reportes/gastos-anual', '/reportes/ventas-categoria', '/reportes/compras', '/reportes/gastos', '/reportes/cuentas-por-pagar', '/reportes/cuentas-por-cobrar', '/reportes/camionetas'];
 
 // Construye la lista de rutas permitidas a partir de los módulos del nivel.
 function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { reportes?: boolean; cuentas?: boolean } = {}): string[] {

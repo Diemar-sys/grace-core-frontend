@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-09.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-12.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -71,6 +71,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha, «Correo para recuperar contraseña» (no System Manager). Tocar un System Manager pide llave de Administrator. | System Manager |
 | `Auditoria.tsx` | Bitácora de acciones sensibles. | Gerente |
 | `ReporteCuentasPorCobrar.jsx`, `ReporteCuentasPorPagar.jsx`, `ReporteCompras.jsx`, `ReporteGastos.jsx`, `ReporteGastosAnual.jsx`, `ReportesVentasCategoria.jsx`, `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `utils/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `utils/kilosComprados.ts`). | Gerente |
+| `ReporteCamionetas.tsx` | `/reportes/camionetas` (solo Gerente). Venta, gastos y vendido por categoría de cada camioneta por día. La merma se teclea en $: borrador local → Guardar → Cerrar por día (cerrada: «Reabrir» solo Luis/Administrator). Cuentas en `utils/reporteCamionetas.ts`; 🔴 el dinero viene sumado del servidor. |
 | `Panel.jsx` | Tablero post-login por nivel. | todos menos Repartidor/Cliente |
 | `Login.jsx` | Login con bloqueo por intentos; «Recuperar acceso» → `/recuperar`. | público |
 | `Recuperar.tsx` | `/recuperar` (usuario o correo → enlace al correo real) y `/update-password?key=` (contraseña nueva, la llave la valida Frappe). 🔴 Sin sesión; reglas en `recuperar_api.py`. | público |
@@ -114,7 +115,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 
 | Archivo | Pega a |
 |---|---|
-| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, cerrarLlegada, reabrirLlegada, cobrosDeFactura, deshacerCobro, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar. |
+| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, cerrarLlegada, reabrirLlegada, cobrosDeFactura, deshacerCobro, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar, rentabilidadCamionetas, guardarMermasCamioneta, cerrarMermaCamioneta, reabrirMermaCamioneta. |
 | `frappeCliente.ts` | `cliente_api`: miCuenta, miPedido, miFactura, confirmarLlegada. |
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
 | `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío; `estadoDrive`/`cambiarDrive`/`buscarEnDrive` (`pedido_drive`). |
@@ -147,6 +148,7 @@ Tests: `frappeAuth.recuperar.test.ts`, `frappeCliente.miFactura.test.ts`, `frapp
 | `costoAnomalo.ts` | Costo de compra vs mediana histórica (ok/aviso/bloqueo). |
 | `produccionCalc.ts`, `entradaPan.ts`, `conteoFisico.ts`, `kardex.ts`, `stockMP.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
 | `cuentasPorPagar.ts`, `gastosAnuales.ts`, `nominaTotales.ts`, `egresosUtils.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
+| `reporteCamionetas.ts` (+ `reporteCamionetas.test.ts`) | Reporte de camionetas: totales por camioneta y `conMerma` (sobrepone la merma tecleada por DIFERENCIA contra la guardada). |
 | `formato.ts`, `hora.ts`, `reloj.ts`, `uom.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
 | `catalogoUtils.ts`, `itemGroups.ts` | Margen/filtro de pan; árbol de grupos por nested set. |
 | `errorFrappe.ts`, `security.ts`, `version.ts`, `mantenimiento.ts` | Errores legibles; rate-limit de login + anti-XSS; detectar deploy nuevo; leer aviso de mantenimiento con el reloj de la torre. |
@@ -185,7 +187,7 @@ Tests: `useAvisoSinGuardar.test.tsx`, `useSesionCompartida.test.tsx`, `useInsumo
 
 ## `public/` y `docs/`
 
-`public/logo_GRACE.png`, `public/nuevologobkd.png` (favicon), `public/mantenimiento.html` (página del 503), `public/ticket_preview.html` (maqueta). `docs/screenshots/`: `panel.png`, `catalogo.png`, `compras.png`, `pos.png`, `proveedores.png` (capturas del README).
+`public/logo_GRACE.png`, `public/nuevologobkd.png` (favicon), `public/mantenimiento.html` (página del 503), `public/ticket_preview.html` (maqueta). `docs/auditoria-frontend.md` (auditoría del 11-nov, hallazgos FE-*; el plan vive en `gestion_panaderia/docs/plan-de-accion.md`). `docs/screenshots/`: `panel.png`, `catalogo.png`, `compras.png`, `pos.png`, `proveedores.png` (capturas del README).
 
 ## `print-server/`
 

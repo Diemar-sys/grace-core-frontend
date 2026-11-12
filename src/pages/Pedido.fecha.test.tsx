@@ -169,7 +169,8 @@ describe('Pedido — Traer de Drive e Importar y mandar', () => {
     s.importar.mockResolvedValue({ ...guardado, problemas: [{ clave: 'X', producto: 'X', motivo: 'no existe' }] });
     pantalla();
     await traerEImportar();
-    await screen.findByText(/renglones quedaron fuera/);
+    // 12-nov: con la suite completa el import tardaba más del segundo que espera findBy (1 de cada ~3 corridas).
+    await screen.findByText(/renglones quedaron fuera/, {}, { timeout: 5000 });
     await new Promise((ok) => setTimeout(ok, 1700));
     expect(screen.queryByText('PANEL')).toBeNull();
   });

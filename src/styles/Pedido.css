@@ -359,3 +359,62 @@
   .val-fechas { grid-template-columns: 1fr; }
   .val-tiles  { grid-template-columns: 1fr 1fr; }
 }
+
+/* ══ Reportes → Camionetas (10/11-nov) — dentro de .comprasv2, como Compras ══════════ */
+.cam-titulo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.cam-titulo h1 { margin: 0; }
+.cam-acciones { margin-left: auto; display: flex; gap: var(--space-2); align-items: flex-end; flex-wrap: wrap; }
+/* CTA: el único sólido en terracota, píldora */
+.comprasv2 .cam-guardar {
+  padding: 9px 18px; border-radius: var(--radius-pill); font-size: 13px;
+  background: var(--tv-marca); border: 1px solid var(--tv-marca); color: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.comprasv2 .cam-guardar:hover:not(:disabled) { background: var(--tv-marca); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(200,80,60,0.25); }
+.comprasv2 .cam-guardar:disabled { opacity: 0.45; cursor: default; }
+.cam-nota { margin: var(--space-4) 0 var(--space-5); }
+
+/* Cada camioneta: tarjeta blanca flotando sobre la masa */
+.cam-bloque {
+  background: var(--tv-surface); border-radius: 20px; padding: var(--space-5);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.04); margin-bottom: var(--space-5);
+}
+.cam-bloque-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+.cam-bloque-head h2 { margin: 0; font-family: var(--tv-display); font-size: 20px; font-weight: 600; color: var(--tv-ink); }
+.cam-subtitulo {
+  margin: var(--space-5) 0 var(--space-3); font-family: var(--tv-mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; color: var(--tv-ink-soft);
+}
+
+/* Tabla: fechas en un renglón, compactas; TOTAL al pie */
+.cam-tabla td, .cam-tabla th { white-space: nowrap; }
+.cam-tabla .cam-fecha { font-size: 14px; font-weight: 500; color: var(--tv-ink); }
+.cam-tabla td .ped-badge { margin-left: 6px; }
+.cam-tabla tfoot td { font-weight: 700; border-top: 2px solid var(--tv-hairline); font-variant-numeric: tabular-nums; }
+/* Encabezado y TOTAL fijos al bajar: el th ya es sticky (global.css), pero solo pega si su
+   contenedor scrollea → tope de alto = pantalla menos barra (68) + menú (46) + aire. */
+.cam-scroll { max-height: calc(100dvh - 140px); }
+.cam-tabla tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--tv-surface); }
+
+/* Merma escrita a mano: input píldora + Cerrar/Reabrir */
+.cam-merma-celda { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.cam-merma {
+  width: 100px; padding: 6px 12px; text-align: right;
+  font: inherit; font-size: 14px; font-variant-numeric: tabular-nums;
+  border: 1px solid var(--tv-hairline); border-radius: var(--radius-pill); background: var(--tv-surface);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.cam-merma:focus { outline: none; border-color: var(--tv-marca); box-shadow: 0 0 0 3px rgba(200,80,60,0.15); }
+.cam-merma.is-pendiente { border-color: var(--tv-warn); background: var(--tv-warn-bg); }
+.cam-merma.is-invalida  { border-color: #991b1b; background: #fee2e2; }
+.cam-mini {
+  padding: 4px 10px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--tv-hairline); background: var(--tv-surface); color: var(--tv-ink-soft);
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.cam-mini:hover { transform: translateY(-1px); border-color: var(--tv-marca); color: var(--tv-marca); }
+
+@media (max-width: 768px) {
+  .cam-acciones { margin-left: 0; width: 100%; }
+  .cam-bloque { padding: var(--space-4); border-radius: 16px; }
+}

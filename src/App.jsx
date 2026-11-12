@@ -36,6 +36,7 @@ const ReporteGastos = lazy(() => import('./pages/ReporteGastos'));
 const ReporteGastosAnual = lazy(() => import('./pages/ReporteGastosAnual'));
 const ReporteCompras = lazy(() => import('./pages/ReporteCompras'));
 const ReporteValorizacion = lazy(() => import('./pages/ReporteValorizacion'));
+const ReporteCamionetas = lazy(() => import('./pages/ReporteCamionetas'));
 const ReporteCuentasPorPagar = lazy(() => import('./pages/ReporteCuentasPorPagar'));
 const ReporteCuentasPorCobrar = lazy(() => import('./pages/ReporteCuentasPorCobrar'));
 const Nomina = lazy(() => import('./pages/Nomina'));
@@ -105,6 +106,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ConsultaPedido />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reportes/camionetas"
+            element={
+              <ProtectedRoute>
+                <ReporteCamionetas />
               </ProtectedRoute>
             }
           />
