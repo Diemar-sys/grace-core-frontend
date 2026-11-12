@@ -55,6 +55,12 @@ export default function ModalRegistrarPago({ grupo, onSuccess, onCancel }) {
       .map(f => ({ name: f.name, allocated: parseFloat(alloc[f.name] || 0) }))
       .filter(f => f.allocated > 0);
     if (!facturas.length) { setError('Marca o asigna monto a alguna factura'); return; }
+    // 12-nov: antes lo rechazaba ERPNext en inglés («Allocated Amount cannot be greater than outstanding amount»)
+    const pasada = grupo.facturas.find(f => parseFloat(alloc[f.name] || 0) > f.outstanding_amount + 0.005);
+    if (pasada) {
+      setError(`No puedes abonar más de lo que debe una factura: la del ${pasada.posting_date} debe ${pesos(pasada.outstanding_amount)} y le pusiste ${pesos(parseFloat(alloc[pasada.name]))}. Reparte el resto en otra.`);
+      return;
+    }
     // El pago es EXACTAMENTE lo asignado (no un monto fijo aparte). Así se puede pagar
     // una factura específica aunque sea más reciente, sin quedar bloqueado por FIFO.
     const pagoTotal = round2(facturas.reduce((s, f) => s + f.allocated, 0));

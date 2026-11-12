@@ -5,7 +5,7 @@ import { hojaService } from '../services/frappeHoja';
 import { ventasService } from '../services/frappeSales';
 
 vi.mock('../services/frappeHoja', () => ({ hojaService: { deudores: vi.fn(), estadoCuenta: vi.fn(), liquidar: vi.fn(),
-  cobrosDeFactura: vi.fn(), deshacerCobro: vi.fn() } }));
+  cobrosDeFactura: vi.fn(), deshacerCobro: vi.fn(), registrarEntrega: vi.fn() } }));
 vi.mock('../services/frappeSales', async (orig) => {
   const actual = await orig<typeof import('../services/frappeSales')>();
   return { ...actual, ventasService: { getFacturasPendientes: vi.fn() } };
@@ -70,6 +70,62 @@ describe('EstadoCuentaHoja', () => {
     expect(await screen.findByText('Se debe')).toBeInTheDocument();
     expect(screen.getByText('ABONÓ')).toBeInTheDocument();
     expect(screen.queryByText('Enviado del periodo')).toBeNull();
+  });
+
+  // 12-nov (Diemar): el pueblo entrega día por día: efectivo + en qué se fue lo demás
+  it('🔴 pueblo: «Registrar entrega» por día manda efectivo y gastos de ESE día y recarga; de más avisa que se balancea', async () => {
+    const MILA = { ...ISMA, destino: 'MILA', cliente: 'MILAGRO', camioneta: false, pueblo: true, puede_liquidar: false,
+      dias: [dia('2026-11-09', 'SI-9', { venta: 1555, recibir: 1555, debe: 1555 }),
+             dia('2026-11-10', 'SI-10', { estado: 'abono', venta: 2015, recibir: 2015, pagado: 1900, debe: 115, egreso: 300, efectivo: 1600,
+               egresos: [{ egreso: 'EGR-1', cobro: 'PAY-1', subcategoria: 'LUZ', concepto: 'LUZ · MILA', monto: 300, capturo: 'eva.rh@grace.mx', cuando: '2026-11-12 14:00' }] }),
+             dia('2026-11-11', 'SI-11', { estado: 'liquidado', venta: 1380, recibir: 1380, pagado: 1380, efectivo: 1380 })],
+      total: { ...ISMA.total, venta: 4950, recibir: 4950, pagado: 3280, debe: 1670, egreso: 300, efectivo: 2980, sueldo: 0, comision: 0, ayudante: 0 } };
+    h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
+    h.estadoCuenta.mockResolvedValue(MILA as any);
+    h.registrarEntrega.mockResolvedValue({ cobro: 'PAY-2', egresos: ['EGR-2'], efectivo: 1000, gastos: 500, sin_justificar: 55,
+      sobrante: 0, cobro_sobrante: null, balanceo: [] });
+    render(<EstadoCuentaHoja />);
+    await elegir('MILA');
+    // «Entregó» es el efectivo (2,980), no lo pagado con gastos (3,280); los gastos van aparte
+    expect(await screen.findByText('$2,980.00')).toBeInTheDocument();
+    expect(screen.getByText('Se fue en gastos')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'GASTOS' })).toBeInTheDocument();
+    expect(screen.getByText('entregó $1,600.00')).toBeInTheDocument();
+    // un botón por día que todavía debe (09 y 10), ninguno en el que ya quedó (11) ni el general de arriba
+    const botones = screen.getAllByRole('button', { name: 'Registrar entrega' });
+    expect(botones).toHaveLength(2);
+    expect(screen.getByText('SIN DIFERENCIA')).toBeInTheDocument();
+    fireEvent.click(botones[0]);
+    const modal = await screen.findByRole('dialog', { name: 'Registrar entrega' });
+    expect(within(modal).getByText('Entrega de MILA · 09/11/2026')).toBeInTheDocument();
+    const guardar = within(modal).getByRole('button', { name: 'Guardar entrega' });
+    expect(guardar).toBeDisabled();                                               // nada tecleado
+    fireEvent.change(within(modal).getByLabelText('Entregó en efectivo'), { target: { value: '1610' } });
+    // el caso de la foto: 1,610 sobre 1,555 → se puede, y avisa a dónde van los 55
+    expect(within(modal).getByRole('status')).toHaveTextContent('QUEDA EN 0 SOBRAN $55.00 se abonan a los días más viejos que deban');
+    expect(guardar).toBeEnabled();
+    // los gastos sí tienen tope: lo que debe ese día
+    fireEvent.change(within(modal).getByLabelText('Luz'), { target: { value: '1555.01' } });
+    expect(within(modal).getByRole('alert')).toHaveTextContent('Los gastos ($1,555.01) pasan');
+    expect(guardar).toBeDisabled();
+    fireEvent.change(within(modal).getByLabelText('Luz'), { target: { value: '' } });
+    fireEvent.change(within(modal).getByLabelText('Entregó en efectivo'), { target: { value: '1000' } });
+    fireEvent.change(within(modal).getByLabelText('Agua'), { target: { value: '500' } });
+    expect(within(modal).getByRole('status')).toHaveTextContent('SIN JUSTIFICAR $55.00');
+    fireEvent.change(within(modal).getByLabelText('Pérdida'), { target: { value: '55' } });
+    expect(within(modal).getByRole('status')).toHaveTextContent('QUEDA EN 0');
+    fireEvent.change(within(modal).getByLabelText('Pérdida'), { target: { value: '' } });
+    fireEvent.click(guardar);
+    await waitFor(() => expect(h.registrarEntrega).toHaveBeenCalledWith('SI-9', 1000, [{ concepto: 'AGUA', monto: 500 }]));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar entrega' })).toBeNull());
+    expect(h.estadoCuenta).toHaveBeenCalledTimes(2);                              // recargó
+    // si el servidor lo rechaza, el mensaje se ve y la ventana no se cierra
+    h.registrarEntrega.mockRejectedValue(new Error('SI-10 no es una factura viva de la hoja.'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Registrar entrega' })[1]);
+    const otro = await screen.findByRole('dialog', { name: 'Registrar entrega' });
+    fireEvent.change(within(otro).getByLabelText('Entregó en efectivo'), { target: { value: '115' } });
+    fireEvent.click(within(otro).getByRole('button', { name: 'Guardar entrega' }));
+    expect(await within(otro).findByRole('alert')).toHaveTextContent('no es una factura viva');
   });
 
   // 09-nov (Diemar): deshacer un cobro mal hecho, solo Administrator (antes: script)

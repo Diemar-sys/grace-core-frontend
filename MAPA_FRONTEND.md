@@ -71,7 +71,7 @@ Roles salen de `config/roles.ts`. Tests viven junto a cada página (`*.test.*`).
 | `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha, «Correo para recuperar contraseña» (no System Manager). Tocar un System Manager pide llave de Administrator. | System Manager |
 | `Auditoria.tsx` | Bitácora de acciones sensibles. | Gerente |
 | `ReporteCuentasPorCobrar.jsx`, `ReporteCuentasPorPagar.jsx`, `ReporteCompras.jsx`, `ReporteGastos.jsx`, `ReporteGastosAnual.jsx`, `ReportesVentasCategoria.jsx`, `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `utils/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `utils/kilosComprados.ts`). | Gerente |
-| `ReporteCamionetas.tsx` | `/reportes/camionetas` (solo Gerente). Venta, gastos y vendido por categoría de cada camioneta por día. La merma se teclea en $: borrador local → Guardar → Cerrar por día (cerrada: «Reabrir» solo Luis/Administrator). Cuentas en `utils/reporteCamionetas.ts`; 🔴 el dinero viene sumado del servidor. |
+| `ReporteCamionetas.tsx` | `/reportes/camionetas` (solo Gerente). Primero GRUPO (Camionetas, Pueblos, Clientes, Sucursales) y luego quién; los grupos que no son camioneta los pinta `ReporteGrupo.tsx`. Camionetas: Venta, gastos y vendido por categoría de cada camioneta por día. La merma se teclea en $: borrador local → Guardar → Cerrar por día (cerrada: «Reabrir» solo Luis/Administrator). Cuentas en `utils/reporteCamionetas.ts`; 🔴 el dinero viene sumado del servidor. |
 | `Panel.jsx` | Tablero post-login por nivel. | todos menos Repartidor/Cliente |
 | `Login.jsx` | Login con bloqueo por intentos; «Recuperar acceso» → `/recuperar`. | público |
 | `Recuperar.tsx` | `/recuperar` (usuario o correo → enlace al correo real) y `/update-password?key=` (contraseña nueva, la llave la valida Frappe). 🔴 Sin sesión; reglas en `recuperar_api.py`. | público |
@@ -83,6 +83,8 @@ Tests: `Recuperar.render.test.tsx`, `HojaDelDia.render.test.tsx`, `Liquidacion.r
 | Archivo | Qué es |
 |---|---|
 | `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. Pueblos (`pueblo`): Enviado/Entregó/Diferencia, mismos números. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. |
+| `modals/ModalEntregaPueblo.tsx` | Entrega de un pueblo de UN día (botón por renglón en el Estado de cuenta): efectivo + agua/luz/renta/sueldo/pérdida/otro; enseña «sin justificar» o «sobran» (se balancea con otros días) antes de guardar. La suma es cortesía (`utils/entregaPueblo.ts`); 🔴 decide el servidor. |
+| `ReporteGrupo.tsx` | Tablas de Reportes → Pueblos / Clientes / Sucursales (un bloque por destino, un renglón por día). 🔴 Columnas y sumas vienen del servidor (`reporte_grupo`); solo pinta. Vive dentro de `ReporteCamionetas.tsx`. |
 | `DeshacerCobro.tsx` | Modal de «Deshacer cobro»: enseña TODAS las facturas del cobro, pide motivo, se bloquea si hay LIQUIDADO o egresos. |
 | `VistaBolillo.tsx` | Vista Bolillo de la Hoja: PEDIDO vs SALIÓ por tanda; guarda solo lo cambiado. Camioneta: solo se congela en ruta (en el paso 3 se corrige). |
 | `CargaDrive.tsx` | Tarjeta «Carga automática» de Pedido: solo el switch (visible si `puede_cambiar`) y último cambio. Sin carpeta configurada no se pinta. Reglas en `pedido_drive.py`. |
@@ -103,7 +105,7 @@ Tests: `Recuperar.render.test.tsx`, `HojaDelDia.render.test.tsx`, `Liquidacion.r
 | `modals/` | `ConfirmModal.jsx`, `ModalError.jsx` (🔴 recibe string, nunca objeto: React #31), `ModalEntradaPan.jsx` (precarga lo que FALTA del pedido; costo editable solo Gerente sin receta), `ModalHojaEntrega.jsx`, `ModalReciboPDF.jsx`, `ModalRegistrarPago.jsx` (cobra el SALDO; despliega productos). |
 | `pos/` | `POSCatalogo.jsx`, `POSHistorial.jsx`, `POSTicket.jsx`, `POSModalCantidad.jsx`, `POSModalCobro.jsx`, `POSModalCorte.jsx`, `POSModalEspera.jsx`, `posUtils.ts`. |
 
-Tests: `AvisoMantenimiento.render.test.tsx`, `CargaDrive.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `RegistroMovimiento.borrador.test.jsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`, `KilosComprados.render.test.tsx`, `NuevaCompra.escaner.render.test.tsx`, `NuevaVentaB2B.escaner.render.test.tsx`, `compras/FilaProducto.escaneo.render.test.tsx`.
+Tests: `ReporteGrupo.render.test.tsx`, `AvisoMantenimiento.render.test.tsx`, `CargaDrive.render.test.tsx`, `EstadoCuentaHoja.render.test.tsx`, `VistaBolillo.render.test.tsx`, `Reloj.render.test.tsx`, `CantidadDual.test.ts`, `CantidadDual.render.test.jsx`, `ConteoFisico.test.js`, `NuevaVentaB2B.precio.test.ts`, `NuevoPan.margen.test.js`, `TablaCuentasPorCobrar.tipo.test.tsx`, `compraUtils.test.js`, `compraUtils.impuesto.test.ts`, `ModalPagarEgreso.render.test.tsx`, `RegistroMovimiento.borrador.test.jsx`, `luzCalc.test.ts`, `simpleCalc.test.ts`, `ConfirmModal.test.jsx`, `ModalEntradaPan.test.js`, `ModalEntradaPan.segunda.test.tsx`, `ModalEntradaPan.candado.test.tsx`, `ModalError.objeto.test.jsx`, `ModalRegistrarPago.test.tsx`, `posUtils.test.js`, `KilosComprados.render.test.tsx`, `NuevaCompra.escaner.render.test.tsx`, `NuevaVentaB2B.escaner.render.test.tsx`, `compras/FilaProducto.escaneo.render.test.tsx`.
 
 ## Estilos (`src/styles/`)
 
@@ -115,7 +117,7 @@ Cada uno extiende `FrappeBase.ts` (fetch, CSRF si existe, parseo de error) y exp
 
 | Archivo | Pega a |
 |---|---|
-| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, cerrarLlegada, reabrirLlegada, cobrosDeFactura, deshacerCobro, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar, rentabilidadCamionetas, guardarMermasCamioneta, cerrarMermaCamioneta, reabrirMermaCamioneta. |
+| `frappeHoja.ts` | `hoja_api` (mismo nombre en camelCase): hoja, guardar, guardarTodo, confirmarEnvio, reabrirEnvio, guardarMerma, confirmar, corregir, cerrarLlegada, reabrirLlegada, cobrosDeFactura, deshacerCobro, panesParaAgregar, agregarPan, miHoja, guardarRegreso, vistaBolillo, guardarBolillo, destinos, deudores, estadoCuenta, liquidar, rentabilidadCamionetas, guardarMermasCamioneta, cerrarMermaCamioneta, reabrirMermaCamioneta, registrarEntrega, reporteGrupo. |
 | `frappeCliente.ts` | `cliente_api`: miCuenta, miPedido, miFactura, confirmarLlegada. |
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
 | `frappePedido.ts` | Importar Excel, fechas, tablero, valorización, sugerencia de envío; `estadoDrive`/`cambiarDrive`/`buscarEnDrive` (`pedido_drive`). |
@@ -148,6 +150,7 @@ Tests: `frappeAuth.recuperar.test.ts`, `frappeCliente.miFactura.test.ts`, `frapp
 | `costoAnomalo.ts` | Costo de compra vs mediana histórica (ok/aviso/bloqueo). |
 | `produccionCalc.ts`, `entradaPan.ts`, `conteoFisico.ts`, `kardex.ts`, `stockMP.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
 | `cuentasPorPagar.ts`, `gastosAnuales.ts`, `nominaTotales.ts`, `egresosUtils.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
+| `entregaPueblo.ts` (+ `entregaPueblo.test.ts`) | Entrega de pueblo: conceptos y `resumenEntrega` (en centavos enteros; sin justificar, sobrante y tope de gastos). Espejo de `caja_cobro.armar_entrega`. |
 | `reporteCamionetas.ts` (+ `reporteCamionetas.test.ts`) | Reporte de camionetas: totales por camioneta y `conMerma` (sobrepone la merma tecleada por DIFERENCIA contra la guardada). |
 | `formato.ts`, `hora.ts`, `reloj.ts`, `uom.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
 | `catalogoUtils.ts`, `itemGroups.ts` | Margen/filtro de pan; árbol de grupos por nested set. |

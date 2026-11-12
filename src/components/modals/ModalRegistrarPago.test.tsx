@@ -80,4 +80,18 @@ describe('ModalRegistrarPago — productos de la deuda', () => {
       monto: 58.32,
     });
   });
+
+  // 12-nov: MILAGRO, $1,610 sobre una factura que debía $1,555 → ERPNext contestaba en inglés
+  it('🔴 abonar más de lo que debe una factura: aviso en español y NO se manda', async () => {
+    render(<ModalRegistrarPago grupo={grupo} onSuccess={vi.fn()} onCancel={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Monto a cobrar de 63'), { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: /Registrar pago/ }));
+    expect(await screen.findByText(/No puedes abonar más de lo que debe una factura: la del 2026-08-21 debe \$58\.32 y le pusiste \$60\.00/)).toBeInTheDocument();
+    expect(registrarPago).not.toHaveBeenCalled();
+    // exacto al saldo sí pasa
+    registrarPago.mockResolvedValue({} as never);
+    fireEvent.change(screen.getByLabelText('Monto a cobrar de 63'), { target: { value: '58.32' } });
+    fireEvent.click(screen.getByRole('button', { name: /Registrar pago/ }));
+    await waitFor(() => expect(registrarPago).toHaveBeenCalledTimes(1));
+  });
 });

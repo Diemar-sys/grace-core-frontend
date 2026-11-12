@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ModalError from '../components/modals/ModalError';
+import ReporteGrupo from '../components/ReporteGrupo';
 import useBorradorLocal from '../hooks/useBorradorLocal';
 import { hojaService } from '../services/frappeHoja';
 import '../styles/global.css';
@@ -28,6 +29,15 @@ const TITULOS: Record<Columna, string> = {
   diferencia: 'Diferencia',
 };
 const TODAS = '';
+// 12-nov (Diemar): primero el GRUPO, luego quién de ese grupo. Camionetas es el reporte de siempre
+// (venta − gastos, con su merma); los demás grupos salen del Estado de cuenta (`ReporteGrupo`).
+const CAMIONETAS = 'CAMIONETAS';
+const GRUPOS = [
+  { clave: CAMIONETAS, nombre: 'Camionetas', quien: 'Camioneta', sub: 'Venta, gastos y diferencia por día' },
+  { clave: 'PUEBLOS', nombre: 'Pueblos', quien: 'Pueblo', sub: 'Enviado, entregado y en qué se fue lo demás' },
+  { clave: 'CLIENTES', nombre: 'Clientes', quien: 'Cliente', sub: 'Venta, pagado y lo que deben por día' },
+  { clave: 'SUCURSALES', nombre: 'Sucursales', quien: 'Sucursal', sub: 'Venta, pagado y lo que deben por día' },
+];
 
 type Accion = { tipo: 'cerrar' | 'reabrir'; destino: string; fecha: string };
 
@@ -161,6 +171,10 @@ export default function ReporteCamionetas() {
   const [desde, setDesde] = useState(() => hoyISO().slice(0, 8) + '01');
   const [hasta, setHasta] = useState(hoyISO());
   const [elegida, setElegida] = useState(TODAS);
+  const [grupo, setGrupo] = useState(CAMIONETAS);
+  const [delGrupo, setDelGrupo] = useState<string[]>([]);   // destinos que trajo `ReporteGrupo`
+  const esCamionetas = grupo === CAMIONETAS;
+  const g = GRUPOS.find((x) => x.clave === grupo)!;
   const [datos, setDatos] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(true);
   const [recarga, setRecarga] = useState(0);
@@ -173,7 +187,7 @@ export default function ReporteCamionetas() {
   const escribir = (clave: string, valor: string) => setEscritas((e) => ({ ...e, [clave]: valor }));
 
   useEffect(() => {
-    if (!desde || !hasta) return;
+    if (!desde || !hasta || !esCamionetas) return;
     let vigente = true;
     setCargando(true);
     hojaService.rentabilidadCamionetas(desde, hasta)
@@ -181,7 +195,7 @@ export default function ReporteCamionetas() {
       .catch((err: any) => { if (vigente) { setError(err.message); setDatos(null); } })
       .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
-  }, [desde, hasta, recarga]);
+  }, [desde, hasta, recarga, esCamionetas]);
 
   const camionetas = datos?.camionetas;
   const categorias = datos?.categorias ?? [];
@@ -239,18 +253,30 @@ export default function ReporteCamionetas() {
       <div className="page-container comprasv2">
         <div className="page-header">
           <div className="cam-titulo">
-            <h1>Camionetas</h1>
-            <span className="header-subtitle">Venta, gastos y diferencia por día</span>
+            <h1>{g.nombre}</h1>
+            <span className="header-subtitle">{g.sub}</span>
           </div>
         </div>
 
         <div className="filtros-section">
           <div className="filtro-group filtro-sm">
-            <label htmlFor="cam-camioneta">Camioneta</label>
+            <label htmlFor="cam-grupo">Grupo</label>
+            <select id="cam-grupo" className="comp-date-input" value={grupo}
+              onChange={(e) => { setGrupo(e.target.value); setElegida(TODAS); setDelGrupo([]); }}>
+              {GRUPOS.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
+            </select>
+          </div>
+          <div className="filtro-group filtro-sm">
+            <label htmlFor="cam-camioneta">{g.quien}</label>
             <select id="cam-camioneta" className="comp-date-input" value={elegida}
               onChange={(e) => setElegida(e.target.value)}>
-              <option value={TODAS}>Todas ({camionetas?.length ?? 0})</option>
-              {(camionetas ?? []).map((c) => <option key={c.destino} value={c.destino}>{c.destino}</option>)}
+              {esCamionetas ? (<>
+                <option value={TODAS}>Todas ({camionetas?.length ?? 0})</option>
+                {(camionetas ?? []).map((c) => <option key={c.destino} value={c.destino}>{c.destino}</option>)}
+              </>) : (<>
+                <option value={TODAS}>Todos ({delGrupo.length})</option>
+                {delGrupo.map((d) => <option key={d} value={d}>{d}</option>)}
+              </>)}
             </select>
           </div>
           <div className="filtro-group filtro-sm">
@@ -263,7 +289,7 @@ export default function ReporteCamionetas() {
             <input id="cam-hasta" type="date" className="comp-date-input" value={hasta} min={desde}
               onChange={(e) => setHasta(e.target.value)} />
           </div>
-          <div className="cam-acciones">
+          {esCamionetas && <div className="cam-acciones">
             {filas.length > 0 && (
               <button type="button" className="btn-refresh btn-compacto" onClick={descargar}>Descargar CSV</button>
             )}
@@ -271,9 +297,18 @@ export default function ReporteCamionetas() {
               disabled={!porGuardar.length || hayInvalidas || guardando} onClick={guardar}>
               {guardando ? 'Guardando…' : `Guardar merma${porGuardar.length ? ` (${porGuardar.length})` : ''}`}
             </button>
-          </div>
+          </div>}
         </div>
 
+        {!esCamionetas && (<>
+          <p className="ped-nota cam-nota">
+            Los mismos números del Estado de cuenta de la Hoja, día por día. Máximo 32 días por consulta.
+            {grupo === 'PUEBLOS' && ' Entregó = efectivo. Los gastos se capturan en Hoja → Estado de cuenta → «Registrar entrega».'}
+          </p>
+          <ReporteGrupo grupo={grupo} desde={desde} hasta={hasta} elegido={elegida} onDestinos={setDelGrupo} onError={setError} />
+        </>)}
+
+        {esCamionetas && (<>
         <p className="ped-nota cam-nota">
           Monto = lo vendido (lo cargado menos la merma). <strong>Merma</strong>: escríbela a mano,
           dale <strong>Guardar</strong> y, cuando ya esté bien, <strong>Cerrar</strong> (solo Luis la reabre).
@@ -306,6 +341,7 @@ export default function ReporteCamionetas() {
             </div>
           </section>
         )}
+        </>)}
       </div>
 
       {accion && (

@@ -4,6 +4,7 @@
 // (repartidor) → guardarMerma + confirmar (Héctor). `etapa` dice en cuál va.
 import FrappeBase from './FrappeBase';
 import type { ReporteCamionetas } from '../utils/reporteCamionetas';
+import type { GastoEntrega } from '../utils/entregaPueblo';
 
 const API = '/api/method/gestion_panaderia.api.hoja_api.';
 
@@ -79,6 +80,8 @@ export interface DiaCuenta {
   egreso?: number; egresos?: EgresoDeCobro[];
   /** 27-oct: sin liquidar, lo que Luis debe esperar (cobrado − egresos del día); null si ya liquidó o sin cobro. */
   por_entregar?: number | null;
+  /** 12-nov: lo que llegó en EFECTIVO (pagado − lo que se fue en gastos). Para los pueblos es «Entregó». */
+  efectivo?: number;
   /** 05-nov: 'abarrotes' = Venta B2B del mismo deudor (cuenta en lo que debe; fuera de la caja de Eva). */
   tipo?: 'pan' | 'abarrotes';
 }
@@ -102,6 +105,15 @@ export interface EstadoCuenta {
   /** 09-nov: solo Administrator deshace un cobro mal hecho */
   puede_deshacer?: boolean;
   total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe' | 'tipo'> & { liquidado: number; eva_debe: number; egreso?: number; por_entregar?: number; sin_cobrar?: number };
+}
+
+/** 12-nov: Reportes → por grupo (PUEBLOS, CLIENTES, SUCURSALES). Columnas y sumas del servidor. */
+export interface ReporteGrupoDatos {
+  grupo: string; desde: string; hasta: string;
+  columnas: { clave: string; titulo: string }[];
+  destinos: { destino: string; total: Record<string, number>; sin_cobrar: number;
+              dias: ({ fecha: string; nota: string; sin_cobrar?: number } & Record<string, number | string | undefined>)[] }[];
+  total: Record<string, number>;
 }
 
 class HojaService extends FrappeBase {
@@ -166,6 +178,15 @@ class HojaService extends FrappeBase {
     return this._post<Hoja>('agregar_pan', { fecha, destino, item_code });
   }
   /** 09-oct: lo que Eva le entregó a Luis de esa factura (solo Administrator y luis.th). */
+  reporteGrupo(grupo: string, desde: string, hasta: string) {
+    return this._get<ReporteGrupoDatos>('reporte_grupo', { grupo, desde, hasta });
+  }
+  /** 12-nov: entrega de un pueblo de UN día: efectivo + en qué se fue lo demás. Todo o nada. */
+  registrarEntrega(factura: string, entrego: number, gastos: GastoEntrega[]) {
+    return this._post<{ cobro: string | null; egresos: string[]; efectivo: number; gastos: number; sin_justificar: number;
+      sobrante: number; cobro_sobrante: string | null; balanceo: { factura: string; fecha: string; monto: number }[] }>(
+      'registrar_entrega', { factura, entrego, gastos });
+  }
   liquidar(factura: string, monto: number) {
     return this._post<{ factura: string; liquidado: number; eva_debe: number }>('liquidar', { factura, monto });
   }
