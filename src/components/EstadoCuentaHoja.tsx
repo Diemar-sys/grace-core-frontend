@@ -200,7 +200,8 @@ export default function EstadoCuentaHoja() {
               <span className="hoja-estado__cliente">{estado.cliente}</span>
             </div>
             {/* 12-nov: el pueblo entrega día por día (botón en cada renglón), con sus gastos */}
-            {estado.total.debe > 0 && !estado.pueblo && (
+            {/* 13-nov: «Cobrar» y «Registrar entrega» solo a quien recibe el dinero (`puede_cobrar`, del servidor) */}
+            {estado.puede_cobrar && estado.total.debe > 0 && !estado.pueblo && (
               <button type="button" className="hoja-btn hoja-btn--primario hoja-estado__cobrar" onClick={cobrar}>{p.cobrar}</button>
             )}
           </header>
@@ -364,7 +365,7 @@ export default function EstadoCuentaHoja() {
                       {estado.pueblo && (
                         <td className="hoja-estado__col-acciones">
                           <span className="hoja-estado__acciones">
-                            {d.debe > 0 && d.tipo !== 'abarrotes' && (
+                            {estado.puede_cobrar && d.debe > 0 && d.tipo !== 'abarrotes' && (
                               <button type="button" className="hoja-estado__entrega" onClick={() => setEntrega(d)}>{p.cobrar}</button>
                             )}
                             {estado.puede_deshacer && d.pagado > 0 && d.tipo !== 'abarrotes' && (

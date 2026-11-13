@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-13.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-13 (tarde).
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -82,7 +82,7 @@ Tests: `Recuperar.render.test.tsx`, `HojaDelDia.render.test.tsx`, `Liquidacion.r
 
 | Archivo | Qué es |
 |---|---|
-| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. Pueblos (`pueblo`): Enviado/Entregó/Diferencia, mismos números. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. Pueblo: columnas del reporte (PAN · EFECTIVO · DIFERENCIA · GASTOS · ENTREGADO · LIQUIDADO) y sus botones en la última columna. |
+| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. Pueblos (`pueblo`): Enviado/Entregó/Diferencia, mismos números. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. Pueblo: columnas del reporte (PAN · EFECTIVO · DIFERENCIA · GASTOS · ENTREGADO · LIQUIDADO) y sus botones en la última columna. «Cobrar» y «Registrar entrega» solo con `puede_cobrar` (cortesía; el hook del cobro decide). |
 | `modals/ModalEntregaPueblo.tsx` | Entrega de un pueblo de UN día (botón por renglón en el Estado de cuenta): EFECTIVO que regresó + agua/luz/renta/sueldo/pérdida/otro; enseña DIFERENCIA (efectivo − pan) y ENTREGADO (efectivo − gastos) antes de guardar. La suma es cortesía (`utils/entregaPueblo.ts`); 🔴 decide el servidor. |
 | `ReporteGrupo.tsx` | Tablas de Reportes → Pueblos / Clientes / Sucursales (un bloque por destino, un renglón por día). 🔴 Columnas y sumas vienen del servidor (`reporte_grupo`); solo pinta (la DIFERENCIA de pueblos con signo y color de texto). Vive dentro de `ReporteCamionetas.tsx`. |
 | `DeshacerCobro.tsx` | Modal de «Deshacer cobro»: enseña TODAS las facturas del cobro, pide motivo, se bloquea si hay LIQUIDADO o egresos. |

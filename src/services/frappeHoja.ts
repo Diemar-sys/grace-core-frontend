@@ -105,6 +105,8 @@ export interface EstadoCuenta {
   pueblo?: boolean;
   /** 09-nov: solo Administrator deshace un cobro mal hecho */
   puede_deshacer?: boolean;
+  /** 13-nov: recibe dinero de pan (Cobranza o System Manager). Solo esconde botones: manda el servidor. */
+  puede_cobrar?: boolean;
   total: Omit<DiaCuenta, 'fecha' | 'factura' | 'estado' | 'liquidado' | 'eva_debe' | 'tipo'> & { liquidado: number; eva_debe: number; egreso?: number; por_entregar?: number; sin_cobrar?: number };
 }
 

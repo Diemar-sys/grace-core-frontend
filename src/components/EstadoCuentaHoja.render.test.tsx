@@ -31,7 +31,7 @@ const ISMA = {
     dia('2026-09-22', 'SI-1', { estado: 'liquidado', venta: 8761, comision: 876.1, ayudante: 200, sueldo: 1076.1, recibir: 7684.9, pagado: 7684.9 }),
     dia('2026-09-23', 'SI-2', { estado: 'abono', venta: 6571, comision: 657.1, ayudante: 200, sueldo: 857.1, recibir: 5713.9, pagado: 1000, debe: 4713.9 }),
   ],
-  puede_liquidar: false,
+  puede_liquidar: false, puede_cobrar: true,
   total: { venta: 15332, comision: 1533.2, ayudante: 400, sueldo: 1933.2, recibir: 13398.8, pagado: 8684.9, debe: 4713.9, a_favor: 0,
            liquidado: 0, eva_debe: 0 },
 };
@@ -76,6 +76,30 @@ describe('EstadoCuentaHoja', () => {
     expect(await screen.findByText('Se debe')).toBeInTheDocument();
     expect(screen.getByText('ABONÓ')).toBeInTheDocument();
     expect(screen.queryByText('Pan del periodo')).toBeNull();
+  });
+
+  // 13-nov (Diemar): Héctor y Guillermo hacen todo menos recibir dinero: sin `puede_cobrar` no hay botones de cobro
+  it('🔴 sin puede_cobrar no sale «Cobrar» (cliente) ni «Registrar entrega» (pueblo); con él, sí', async () => {
+    const debe = { ...ISMA, camioneta: false, destino: 'DELI', cliente: 'DELI',
+      dias: [dia('2026-11-06', 'SI-D', { estado: 'pendiente', venta: 350, recibir: 350, debe: 350 })],
+      total: { ...ISMA.total, venta: 350, recibir: 350, pagado: 0, debe: 350, sueldo: 0, comision: 0, ayudante: 0 } };
+    h.estadoCuenta.mockResolvedValue({ ...debe, puede_cobrar: false } as any);
+    const uno = render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    await screen.findByText('06/11/2026');
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
+    uno.unmount();
+    h.estadoCuenta.mockResolvedValue({ ...debe, puede_cobrar: true } as any);
+    const dos = render(<EstadoCuentaHoja />);
+    await elegir('DELI');
+    expect(await screen.findByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
+    dos.unmount();
+    h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
+    h.estadoCuenta.mockResolvedValue({ ...debe, destino: 'MILA', cliente: 'MILAGRO', pueblo: true, puede_cobrar: false } as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('MILA');
+    await screen.findByText('06/11/2026');
+    expect(screen.queryByRole('button', { name: 'Registrar entrega' })).toBeNull();
   });
 
   // 13-nov (Diemar): la tabla PAN | EFECTIVO | DIFERENCIA | GASTO | ENTREGADO, día por día
