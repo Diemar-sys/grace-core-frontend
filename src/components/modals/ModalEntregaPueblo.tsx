@@ -1,11 +1,11 @@
-// 12-nov (Diemar): entrega de un pueblo (MILA, LAGUNI, VEGIL) de UN día. Se teclea lo que entregó en
-// efectivo y en qué se fue lo demás (agua, luz, renta, sueldo, pérdida…). El servidor registra un cobro
-// por entregó + gastos y cada gasto como egreso pagado con ese cobro (hoja_api.registrar_entrega): el día
-// queda en 0 si todo se justificó, o con la diferencia sin justificar. Si entregó de MÁS, el sobrante se
-// abona a otros días que deban (del más viejo al más nuevo). Aquí solo se suma para enseñarlo.
+// 13-nov (Diemar; el modelo del 12-nov estaba mal): entrega de un pueblo (MILA, LAGUNI, VEGIL) de UN día.
+// Se teclea el EFECTIVO que regresó y, si de ahí pagó algo (agua, luz, sueldo…), en qué. La DIFERENCIA es
+// efectivo − pan y los gastos no la mueven; lo ENTREGADO es efectivo − gastos. El servidor registra un
+// cobro por todo el efectivo y cada gasto como egreso pagado con ese cobro (hoja_api.registrar_entrega).
+// Lo que regrese de más se queda en SU día: ya no se abona a otros. Aquí solo se suma para enseñarlo.
 import { useState } from 'react';
 import { hojaService } from '../../services/frappeHoja';
-import { CONCEPTOS_ENTREGA, resumenEntrega, type ConceptoEntrega, type TecleoEntrega } from '../../utils/entregaPueblo';
+import { CONCEPTOS_ENTREGA, claseDiferencia, conSigno, resumenEntrega, type ConceptoEntrega, type TecleoEntrega } from '../../utils/entregaPueblo';
 import { pesos } from '../../utils/formato';
 
 const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
@@ -14,11 +14,11 @@ const ETIQUETA: Record<ConceptoEntrega, string> = { AGUA: 'Agua', LUZ: 'Luz', RE
 interface Props { destino: string; fecha: string; factura: string; debe: number; onListo: () => void; onCerrar: () => void }
 
 export default function ModalEntregaPueblo({ destino, fecha, factura, debe, onListo, onCerrar }: Props) {
-  const [tecleo, setTecleo] = useState<TecleoEntrega>({ entrego: '', montos: {}, nota: '' });
+  const [tecleo, setTecleo] = useState<TecleoEntrega>({ efectivo: '', montos: {}, nota: '' });
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const r = resumenEntrega(debe, tecleo);
-  const vacio = tecleo.entrego.trim() === '' && Object.values(tecleo.montos).every(m => !m?.trim());
+  const vacio = tecleo.efectivo.trim() === '' && Object.values(tecleo.montos).every(m => !m?.trim());
 
   const guardar = async () => {
     if (r.error) { setError(r.error); return; }
@@ -32,10 +32,10 @@ export default function ModalEntregaPueblo({ destino, fecha, factura, debe, onLi
     <div className="edit-overlay" onClick={e => e.target === e.currentTarget && !ocupado && onCerrar()}>
       <div className="del-modal hoja-deshacer" role="dialog" aria-label="Registrar entrega">
         <h3>Entrega de {destino} · {fechaCorta(fecha)}</h3>
-        <p>De este día falta <strong>{pesos(debe)}</strong>. Escribe lo que entregó y en qué se fue lo demás.</p>
-        <label>Entregó en efectivo
-          <input type="number" min={0} step="0.01" inputMode="decimal" autoFocus value={tecleo.entrego} disabled={ocupado}
-            onChange={e => { setTecleo(t => ({ ...t, entrego: e.target.value })); setError(''); }} />
+        <p>Pan de este día: <strong>{pesos(debe)}</strong>. Escribe el efectivo que regresó y, si de ahí pagó algo, en qué.</p>
+        <label>Efectivo que regresó
+          <input type="number" min={0} step="0.01" inputMode="decimal" autoFocus value={tecleo.efectivo} disabled={ocupado}
+            onChange={e => { setTecleo(t => ({ ...t, efectivo: e.target.value })); setError(''); }} />
         </label>
         {CONCEPTOS_ENTREGA.map(c => (
           <label key={c}>{ETIQUETA[c]}
@@ -51,13 +51,8 @@ export default function ModalEntregaPueblo({ destino, fecha, factura, debe, onLi
         )}
         {!vacio && !r.error && (
           <p role="status">
-            Entregó {pesos(r.efectivo)} · gastos {pesos(r.gastosTotal)} ·{' '}
-            <span className={`hoja-badge ${r.sinJustificar > 0 ? 'hoja-badge--ambar' : 'hoja-badge--verde'}`}>
-              {r.sinJustificar > 0 ? `SIN JUSTIFICAR ${pesos(r.sinJustificar)}` : 'QUEDA EN 0'}
-            </span>
-            {/* 12-nov: entregó de más → se balancea con otros días; si no hay dónde, el servidor lo dice */}
-            {r.sobrante > 0 && (<>{' '}<span className="hoja-badge hoja-badge--azul">SOBRAN {pesos(r.sobrante)}</span>
-              {' '}se abonan a los días más viejos que deban.</>)}
+            DIFERENCIA <span className={claseDiferencia(r.diferencia)}>{conSigno(r.diferencia)}</span>
+            {' '}· gastos {pesos(r.gastosTotal)} · <strong>ENTREGADO {pesos(r.entregado)}</strong>
           </p>
         )}
         {(error || (!vacio && r.error)) && <div className="del-modal-error" role="alert"><p>{error || r.error}</p></div>}

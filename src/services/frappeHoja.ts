@@ -80,8 +80,9 @@ export interface DiaCuenta {
   egreso?: number; egresos?: EgresoDeCobro[];
   /** 27-oct: sin liquidar, lo que Luis debe esperar (cobrado − egresos del día); null si ya liquidó o sin cobro. */
   por_entregar?: number | null;
-  /** 12-nov: lo que llegó en EFECTIVO (pagado − lo que se fue en gastos). Para los pueblos es «Entregó». */
-  efectivo?: number;
+  /** 13-nov (pueblos): EFECTIVO que regresó; DIFERENCIA = efectivo − pan (los gastos no la mueven);
+   *  ENTREGADO = efectivo − gastos. Los tres vienen del servidor. */
+  efectivo?: number; diferencia?: number; entregado?: number;
   /** 05-nov: 'abarrotes' = Venta B2B del mismo deudor (cuenta en lo que debe; fuera de la caja de Eva). */
   tipo?: 'pan' | 'abarrotes';
 }
@@ -181,11 +182,11 @@ class HojaService extends FrappeBase {
   reporteGrupo(grupo: string, desde: string, hasta: string) {
     return this._get<ReporteGrupoDatos>('reporte_grupo', { grupo, desde, hasta });
   }
-  /** 12-nov: entrega de un pueblo de UN día: efectivo + en qué se fue lo demás. Todo o nada. */
-  registrarEntrega(factura: string, entrego: number, gastos: GastoEntrega[]) {
-    return this._post<{ cobro: string | null; egresos: string[]; efectivo: number; gastos: number; sin_justificar: number;
-      sobrante: number; cobro_sobrante: string | null; balanceo: { factura: string; fecha: string; monto: number }[] }>(
-      'registrar_entrega', { factura, entrego, gastos });
+  /** 13-nov: entrega de un pueblo de UN día: el EFECTIVO que regresó + en qué gastó de él. Todo o nada. */
+  registrarEntrega(factura: string, efectivo: number, gastos: GastoEntrega[]) {
+    return this._post<{ cobro: string; egresos: string[]; efectivo: number; gastos: number; entregado: number;
+      diferencia: number; a_favor: number }>(
+      'registrar_entrega', { factura, efectivo, gastos });
   }
   liquidar(factura: string, monto: number) {
     return this._post<{ factura: string; liquidado: number; eva_debe: number }>('liquidar', { factura, monto });

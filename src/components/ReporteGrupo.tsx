@@ -1,11 +1,13 @@
 // Reportes → por grupo (12-nov, Diemar): la misma idea que Camionetas para PUEBLOS, CLIENTES y SUCURSALES.
-// Un bloque por destino, un renglón por día. Pueblos: enviado, entregó (efectivo), en qué se fue lo demás
-// por concepto y lo que quedó sin justificar. 🔴 Solo lectura: columnas, renglones y totales vienen del
+// Un bloque por destino, un renglón por día. Pueblos (13-nov): PAN, EFECTIVO, DIFERENCIA (efectivo − pan),
+// gastos por concepto y ENTREGADO (efectivo − gastos); el TOTAL es la sumatoria del periodo.
+// 🔴 Solo lectura: columnas, renglones y totales vienen del
 // servidor (`hoja_api.reporte_grupo`, los números del Estado de cuenta); aquí no se suma dinero.
 import { useEffect, useState } from 'react';
 import { hojaService, type ReporteGrupoDatos } from '../services/frappeHoja';
 import { pesos } from '../utils/formato';
 import { fechaConDia } from '../utils/reporteCamionetas';
+import { claseDiferencia, conSigno } from '../utils/entregaPueblo';
 
 interface Props {
   grupo: string; desde: string; hasta: string;
@@ -16,7 +18,9 @@ interface Props {
   onError: (mensaje: string) => void;
 }
 
-const valor = (n: number | undefined) => (n ? pesos(n) : '—');
+/** La DIFERENCIA de un pueblo va con signo y color de texto (de más azul, de menos rojo); lo demás, en pesos. */
+const celda = (clave: string, n: number | undefined, enCero: string) => (clave !== 'diferencia' ? (n ? pesos(n) : enCero)
+  : <span className={claseDiferencia(n ?? 0)}>{conSigno(n ?? 0)}</span>);
 
 export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos, onError }: Props) {
   const [datos, setDatos] = useState<ReporteGrupoDatos | null>(null);
@@ -62,16 +66,16 @@ export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos,
                   <tr key={`${d.fecha}-${d.nota}-${i}`}>
                     <td className="cam-fecha">
                       {fechaConDia(d.fecha)}
-                      {d.nota && <span className="hoja-badge hoja-badge--azul"> {d.nota}{d.sin_cobrar ? ` ${pesos(d.sin_cobrar)}` : ''}</span>}
+                      {d.nota && <span className={`hoja-badge ${d.nota === 'ABARROTES' ? 'hoja-badge--azul' : 'hoja-badge--rojo'}`}> {d.nota}{d.sin_cobrar ? ` ${pesos(d.sin_cobrar)}` : ''}</span>}
                     </td>
-                    {columnas.map((c) => <td key={c.clave} className="cell-right">{d.nota === 'SIN COBRAR' ? '—' : valor(d[c.clave] as number)}</td>)}
+                    {columnas.map((c) => <td key={c.clave} className="cell-right">{d.nota === 'SIN COBRAR' ? '—' : celda(c.clave, d[c.clave] as number, '—')}</td>)}
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <td>TOTAL</td>
-                  {columnas.map((c) => <td key={c.clave} className="cell-right">{pesos(x.total[c.clave] ?? 0)}</td>)}
+                  {columnas.map((c) => <td key={c.clave} className="cell-right">{celda(c.clave, x.total[c.clave], pesos(0))}</td>)}
                 </tr>
               </tfoot>
             </table>
@@ -84,7 +88,7 @@ export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos,
           <div className="cam-bloque-head"><h2>Todo el grupo</h2></div>
           <div className="val-tiles">
             {columnas.map((c) => (
-              <div className="val-tile" key={c.clave}><span>{c.titulo}</span><strong>{pesos(datos.total[c.clave] ?? 0)}</strong></div>
+              <div className="val-tile" key={c.clave}><span>{c.titulo}</span><strong>{celda(c.clave, datos.total[c.clave], pesos(0))}</strong></div>
             ))}
           </div>
         </section>

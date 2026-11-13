@@ -1111,3 +1111,10 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 @media (max-width: 600px) {
   .buscador-pan { margin-left: 0; min-width: 0; width: 100%; }
 }
+
+/* 13-nov: DIFERENCIA de un pueblo (efectivo − pan). Solo cambia el color del número: misma fuente
+   y tamaño que sus vecinos, sin píldora. En 0 verde, de más azul, de menos rojo. */
+.dif { font-weight: 700; }
+.dif--cero { color: var(--color-success); }
+.dif--mas { color: #1e40af; }
+.dif--menos { color: var(--color-danger); }

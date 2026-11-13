@@ -48,20 +48,26 @@ describe('EstadoCuentaHoja', () => {
     h.estadoCuenta.mockResolvedValue(ISMA as any);
   });
 
-  // 09-nov (Diemar): a un pueblo se le MANDA pan; mismos números, otras palabras
-  it('🔴 pueblo: Enviado / Entregó / Diferencia; cliente sigue con Venta / Pagado / Se debe', async () => {
+  // 09-nov (Diemar): a un pueblo se le MANDA pan. 13-nov: Pan / Efectivo / Diferencia (con signo) / Entregado
+  it('🔴 pueblo: Pan / Efectivo / Diferencia / Entregado; cliente sigue con Venta / Pagado / Se debe', async () => {
     const base = { ...ISMA, camioneta: false, puede_liquidar: false,
-      dias: [dia('2026-11-06', 'SI-M', { estado: 'abono', venta: 350, recibir: 350, pagado: 300, debe: 50 })],
-      total: { ...ISMA.total, venta: 350, recibir: 350, pagado: 300, debe: 50, sueldo: 0, comision: 0, ayudante: 0 } };
+      dias: [dia('2026-11-06', 'SI-M', { estado: 'abono', venta: 350, recibir: 350, pagado: 300, debe: 50, efectivo: 300, diferencia: -50, entregado: 300 })],
+      total: { ...ISMA.total, venta: 350, recibir: 350, pagado: 300, debe: 50, efectivo: 300, diferencia: -50, entregado: 300, sueldo: 0, comision: 0, ayudante: 0 } };
     h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
     h.estadoCuenta.mockResolvedValue({ ...base, destino: 'MILA', cliente: 'MILAGRO', pueblo: true } as any);
     const { unmount } = render(<EstadoCuentaHoja />);
     await elegir('MILA');
-    expect(await screen.findByText('Enviado del periodo')).toBeInTheDocument();
-    expect(screen.getByText('Entregó')).toBeInTheDocument();
+    expect(await screen.findByText('Pan del periodo')).toBeInTheDocument();
+    expect(screen.getByText('Efectivo').nextSibling).toHaveTextContent('$300.00');
+    expect(screen.getByText('Diferencia').nextSibling).toHaveTextContent('−$50.00');
+    expect(screen.getByText('Entregado').nextSibling).toHaveTextContent('$300.00');
     expect(screen.getByRole('button', { name: 'Registrar entrega' })).toBeInTheDocument();
-    expect(screen.getByText('ENTREGÓ PARTE')).toBeInTheDocument();
-    expect(screen.getByText('entregó $300.00')).toBeInTheDocument();
+    // 13-nov: las columnas del reporte, un número por columna; la diferencia es texto de color, sin píldora
+    expect(screen.getAllByRole('columnheader').map(c => c.textContent)).toEqual(['FECHA', 'PAN', 'EFECTIVO', 'DIFERENCIA', 'GASTOS', 'ENTREGADO', 'LIQUIDADO', 'Acciones']);
+    const dia06 = screen.getByText('06/11/2026').closest('tr')!;
+    expect(dia06).toHaveTextContent('06/11/2026$350.00$300.00−$50.00—$300.00');
+    expect(within(dia06).getByText('−$50.00')).toHaveClass('dif--menos');
+    expect(within(dia06).getByText('−$50.00')).not.toHaveClass('hoja-badge');
     expect(screen.queryByText('Se debe')).toBeNull();
     unmount();
     h.estadoCuenta.mockResolvedValue({ ...base, destino: 'DELI', cliente: 'DELI', pueblo: false } as any);
@@ -69,61 +75,70 @@ describe('EstadoCuentaHoja', () => {
     await elegir('DELI');
     expect(await screen.findByText('Se debe')).toBeInTheDocument();
     expect(screen.getByText('ABONÓ')).toBeInTheDocument();
-    expect(screen.queryByText('Enviado del periodo')).toBeNull();
+    expect(screen.queryByText('Pan del periodo')).toBeNull();
   });
 
-  // 12-nov (Diemar): el pueblo entrega día por día: efectivo + en qué se fue lo demás
-  it('🔴 pueblo: «Registrar entrega» por día manda efectivo y gastos de ESE día y recarga; de más avisa que se balancea', async () => {
+  // 13-nov (Diemar): la tabla PAN | EFECTIVO | DIFERENCIA | GASTO | ENTREGADO, día por día
+  it('🔴 pueblo: «Registrar entrega» manda el EFECTIVO y los gastos de ESE día; la diferencia no se mueve con los gastos', async () => {
     const MILA = { ...ISMA, destino: 'MILA', cliente: 'MILAGRO', camioneta: false, pueblo: true, puede_liquidar: false,
-      dias: [dia('2026-11-09', 'SI-9', { venta: 1555, recibir: 1555, debe: 1555 }),
-             dia('2026-11-10', 'SI-10', { estado: 'abono', venta: 2015, recibir: 2015, pagado: 1900, debe: 115, egreso: 300, efectivo: 1600,
+      dias: [dia('2026-11-09', 'SI-9', { venta: 1000, recibir: 1000, debe: 1000, efectivo: 0, diferencia: -1000, entregado: 0 }),
+             dia('2026-11-10', 'SI-10', { estado: 'abono', venta: 2000, recibir: 2000, pagado: 600, debe: 1400, egreso: 300, efectivo: 600, diferencia: -1400, entregado: 300,
                egresos: [{ egreso: 'EGR-1', cobro: 'PAY-1', subcategoria: 'LUZ', concepto: 'LUZ · MILA', monto: 300, capturo: 'eva.rh@grace.mx', cuando: '2026-11-12 14:00' }] }),
-             dia('2026-11-11', 'SI-11', { estado: 'liquidado', venta: 1380, recibir: 1380, pagado: 1380, efectivo: 1380 })],
-      total: { ...ISMA.total, venta: 4950, recibir: 4950, pagado: 3280, debe: 1670, egreso: 300, efectivo: 2980, sueldo: 0, comision: 0, ayudante: 0 } };
+             dia('2026-11-11', 'SI-11', { estado: 'liquidado', venta: 1380, recibir: 1380, pagado: 1380, efectivo: 1580, diferencia: 200, entregado: 1580 }),
+             dia('2026-11-12', 'SI-12', { estado: 'liquidado', venta: 500, recibir: 500, pagado: 500, efectivo: 500, diferencia: 0, entregado: 500 })],
+      total: { ...ISMA.total, venta: 4880, recibir: 4880, pagado: 2480, debe: 2400, egreso: 300, efectivo: 2680, diferencia: -2200, entregado: 2380, sueldo: 0, comision: 0, ayudante: 0 } };
     h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
     h.estadoCuenta.mockResolvedValue(MILA as any);
-    h.registrarEntrega.mockResolvedValue({ cobro: 'PAY-2', egresos: ['EGR-2'], efectivo: 1000, gastos: 500, sin_justificar: 55,
-      sobrante: 0, cobro_sobrante: null, balanceo: [] });
+    h.registrarEntrega.mockResolvedValue({ cobro: 'PAY-2', egresos: ['EGR-2'], efectivo: 1200, gastos: 300, entregado: 900, diferencia: 200, a_favor: 200 });
     render(<EstadoCuentaHoja />);
     await elegir('MILA');
-    // «Entregó» es el efectivo (2,980), no lo pagado con gastos (3,280); los gastos van aparte
-    expect(await screen.findByText('$2,980.00')).toBeInTheDocument();
-    expect(screen.getByText('Se fue en gastos')).toBeInTheDocument();
+    // tarjetas: los totales del servidor; la diferencia con signo
+    expect((await screen.findByText('Efectivo')).nextSibling).toHaveTextContent('$2,680.00');
+    expect(screen.getByText('Diferencia').nextSibling).toHaveTextContent('−$2,200.00');
+    expect(screen.getByText('Entregado').nextSibling).toHaveTextContent('$2,380.00');
+    expect(screen.getByText('Gastos')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'GASTOS' })).toBeInTheDocument();
-    expect(screen.getByText('entregó $1,600.00')).toBeInTheDocument();
-    // un botón por día que todavía debe (09 y 10), ninguno en el que ya quedó (11) ni el general de arriba
+    // por día: sin entregar, de menos, de más (se queda en SU día) y en cero
+    const fila = (fecha: string) => screen.getByText(fecha).closest('tr')!;
+    expect(within(fila('09/11/2026')).getByText('SIN ENTREGAR')).toHaveClass('hoja-badge--rojo');
+    expect(fila('09/11/2026')).toHaveTextContent('SIN ENTREGAR$1,000.00—−$1,000.00——');          // sin efectivo: —, no $0.00
+    expect(within(fila('10/11/2026')).getByText('−$1,400.00')).toHaveClass('dif--menos');
+    expect(within(fila('11/11/2026')).getByText('+$200.00')).toHaveClass('dif--mas');
+    expect(within(fila('12/11/2026')).getByText('$0.00')).toHaveClass('dif--cero');
+    expect(fila('11/11/2026')).toHaveTextContent('$1,380.00$1,580.00+$200.00—$1,580.00');
+    // el pie: la sumatoria del servidor, columna por columna
+    expect(screen.getByText('TOTAL').closest('tr')!).toHaveTextContent('TOTAL$4,880.00$2,680.00−$2,200.00−$300.00$2,380.00');
+    // los botones viven en la última columna, no entre los números
+    expect(within(fila('10/11/2026')).getByRole('button', { name: 'Registrar entrega' }).closest('td')).toHaveClass('hoja-estado__col-acciones');
+    // un botón por día al que todavía le falta pan (09 y 10), ninguno en los completos ni el general de arriba
     const botones = screen.getAllByRole('button', { name: 'Registrar entrega' });
     expect(botones).toHaveLength(2);
-    expect(screen.getByText('SIN DIFERENCIA')).toBeInTheDocument();
     fireEvent.click(botones[0]);
     const modal = await screen.findByRole('dialog', { name: 'Registrar entrega' });
     expect(within(modal).getByText('Entrega de MILA · 09/11/2026')).toBeInTheDocument();
     const guardar = within(modal).getByRole('button', { name: 'Guardar entrega' });
     expect(guardar).toBeDisabled();                                               // nada tecleado
-    fireEvent.change(within(modal).getByLabelText('Entregó en efectivo'), { target: { value: '1610' } });
-    // el caso de la foto: 1,610 sobre 1,555 → se puede, y avisa a dónde van los 55
-    expect(within(modal).getByRole('status')).toHaveTextContent('QUEDA EN 0 SOBRAN $55.00 se abonan a los días más viejos que deban');
+    // el primer renglón del dibujo: pan 1,000, regresó 1,200 → +200
+    fireEvent.change(within(modal).getByLabelText('Efectivo que regresó'), { target: { value: '1200' } });
+    expect(within(modal).getByRole('status')).toHaveTextContent('DIFERENCIA +$200.00 · gastos $0.00 · ENTREGADO $1,200.00');
     expect(guardar).toBeEnabled();
-    // los gastos sí tienen tope: lo que debe ese día
-    fireEvent.change(within(modal).getByLabelText('Luz'), { target: { value: '1555.01' } });
-    expect(within(modal).getByRole('alert')).toHaveTextContent('Los gastos ($1,555.01) pasan');
+    // 🔴 el sueldo baja lo ENTREGADO; la DIFERENCIA sigue en +200
+    fireEvent.change(within(modal).getByLabelText('Sueldo'), { target: { value: '300' } });
+    expect(within(modal).getByRole('status')).toHaveTextContent('DIFERENCIA +$200.00 · gastos $300.00 · ENTREGADO $900.00');
+    // los gastos salen del efectivo: no pasan de él
+    fireEvent.change(within(modal).getByLabelText('Luz'), { target: { value: '900.01' } });
+    expect(within(modal).getByRole('alert')).toHaveTextContent('Los gastos ($1,200.01) pasan del efectivo');
     expect(guardar).toBeDisabled();
     fireEvent.change(within(modal).getByLabelText('Luz'), { target: { value: '' } });
-    fireEvent.change(within(modal).getByLabelText('Entregó en efectivo'), { target: { value: '1000' } });
-    fireEvent.change(within(modal).getByLabelText('Agua'), { target: { value: '500' } });
-    expect(within(modal).getByRole('status')).toHaveTextContent('SIN JUSTIFICAR $55.00');
-    fireEvent.change(within(modal).getByLabelText('Pérdida'), { target: { value: '55' } });
-    expect(within(modal).getByRole('status')).toHaveTextContent('QUEDA EN 0');
-    fireEvent.change(within(modal).getByLabelText('Pérdida'), { target: { value: '' } });
     fireEvent.click(guardar);
-    await waitFor(() => expect(h.registrarEntrega).toHaveBeenCalledWith('SI-9', 1000, [{ concepto: 'AGUA', monto: 500 }]));
+    await waitFor(() => expect(h.registrarEntrega).toHaveBeenCalledWith('SI-9', 1200, [{ concepto: 'SUELDO', monto: 300 }]));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar entrega' })).toBeNull());
     expect(h.estadoCuenta).toHaveBeenCalledTimes(2);                              // recargó
     // si el servidor lo rechaza, el mensaje se ve y la ventana no se cierra
     h.registrarEntrega.mockRejectedValue(new Error('SI-10 no es una factura viva de la hoja.'));
     fireEvent.click(screen.getAllByRole('button', { name: 'Registrar entrega' })[1]);
     const otro = await screen.findByRole('dialog', { name: 'Registrar entrega' });
-    fireEvent.change(within(otro).getByLabelText('Entregó en efectivo'), { target: { value: '115' } });
+    fireEvent.change(within(otro).getByLabelText('Efectivo que regresó'), { target: { value: '115' } });
     fireEvent.click(within(otro).getByRole('button', { name: 'Guardar entrega' }));
     expect(await within(otro).findByRole('alert')).toHaveTextContent('no es una factura viva');
   });

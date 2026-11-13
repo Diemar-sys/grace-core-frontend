@@ -642,6 +642,23 @@
 }
 .hoja-estado__entrega:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
 @media (max-width: 720px) { .hoja-estado__entrega { min-height: 44px; padding: 0 18px; } }
+/* 13-nov: Estado de cuenta de un pueblo — los botones del día en su propia columna (última), apilados
+   y a la derecha: ya no se enciman con los números ni bailan de renglón en renglón. */
+.hoja-estado__tabla .hoja-estado__col-acciones { width: 1%; white-space: nowrap; text-align: right; padding-left: 1.25rem; }
+.hoja-estado__acciones { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.hoja-estado__acciones .hoja-estado__entrega { margin-top: 0; }
+.hoja-estado__acciones .hoja-estado__deshacer { margin-left: 0; }
+/* La tabla del pueblo tiene 8 columnas: para que quepa sin scroll (los botones se cortaban a la derecha)
+   el detalle del gasto se parte en renglones en vez de estirar su columna, y las celdas van más juntas. */
+.hoja-estado__tabla--pueblo td, .hoja-estado__tabla--pueblo td.cell-right,
+.hoja-estado__tabla--pueblo thead th, .hoja-estado__tabla--pueblo thead th.cell-right { padding-left: 14px; padding-right: 14px; }
+.hoja-estado__tabla--pueblo .hoja-estado__col-egreso { padding-left: 1rem; }
+.hoja-estado__tabla--pueblo .hoja-estado__egreso { max-width: 13rem; }
+.hoja-estado__tabla--pueblo .hoja-estado__egreso small { white-space: normal; }
+.hoja-estado__tabla--pueblo .hoja-estado__col-liq { padding-left: 1.25rem; }
+.hoja-estado__tabla--pueblo input.hoja-estado__liq-input { width: 6.5rem; }
+.hoja-estado__tabla .hoja-estado__col-acciones { padding-right: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hoja-deshacer { display: grid; gap: 0.6rem; text-align: left; }
 .hoja-deshacer ul { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; max-height: 12rem; overflow: auto; }
 .hoja-deshacer label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
