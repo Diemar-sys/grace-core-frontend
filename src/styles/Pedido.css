@@ -395,6 +395,12 @@
    contenedor scrollea → tope de alto = pantalla menos barra (68) + menú (46) + aire. */
 .cam-scroll { max-height: calc(100dvh - 140px); }
 .cam-tabla tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--tv-surface); }
+/* Pueblos/Clientes/Sucursales: muchas columnas → el encabezado parte en dos renglones y todo va centrado
+   para que la tabla quepa sin irse de lado (la FECHA se cortaba). */
+.cam-tabla--grupo th { white-space: normal; text-align: center; vertical-align: middle; line-height: 1.25; }
+.cam-tabla--grupo th, .cam-tabla--grupo td { padding-left: 8px; padding-right: 8px; }
+.cam-tabla--grupo td.cell-right, .cam-tabla--grupo th.cell-right { text-align: center; }
+.cam-tabla--grupo td { font-variant-numeric: tabular-nums; }
 
 /* Merma escrita a mano: input píldora + Cerrar/Reabrir */
 .cam-merma-celda { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }

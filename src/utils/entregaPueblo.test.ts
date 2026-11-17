@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { claseDiferencia, conSigno, resumenEntrega, type TecleoEntrega } from './entregaPueblo';
+import { claseDiferencia, conSigno, razonesGasto, resumenEntrega, type TecleoEntrega } from './entregaPueblo';
 
 const t = (efectivo: string, montos: TecleoEntrega['montos'] = {}, nota = ''): TecleoEntrega => ({ efectivo, montos, nota });
 
@@ -23,15 +23,16 @@ describe('resumenEntrega — lo que se enseña antes de guardar la entrega de un
     expect(resumenEntrega(0.3, t('0.30', { AGUA: '0.10', LUZ: '0.20' }))).toMatchObject({ diferencia: 0, entregado: 0, error: '' });
   });
 
-  it('🔴 los gastos salen del efectivo: no pasan de él ni por un centavo; del pan sí pueden pasar', () => {
-    expect(resumenEntrega(1500, t('1000', { AGUA: '1000.01' })).error).toMatch(/Los gastos \(\$1,000\.01\) pasan del efectivo.*\$1,000\.00/);
-    expect(resumenEntrega(1500, t('1000', { AGUA: '1000' })).error).toBe('');
+  it('🔴 17-nov: los gastos son informe: PUEDEN pasar del efectivo (08-nov MILA: $550, sueldo $2,400)', () => {
+    expect(resumenEntrega(550, t('550', { SUELDO: '2400' }))).toMatchObject({ diferencia: 0, entregado: -1850, error: '' });
+    expect(resumenEntrega(1500, t('1000', { AGUA: '1000.01' }))).toMatchObject({ entregado: -0.01, error: '' });
     expect(resumenEntrega(300, t('1000', { AGUA: '900' }))).toMatchObject({ entregado: 100, diferencia: 700, error: '' });
   });
 
-  it('sin efectivo no hay entrega; negativos, letras y OTRO sin nota', () => {
-    expect(resumenEntrega(1500, t('')).error).toMatch(/Escribe el efectivo/);
-    expect(resumenEntrega(1500, t('', { AGUA: '500' })).error).toMatch(/Escribe el efectivo/);
+  it('🔴 gastos sin efectivo sí; sin efectivo NI gastos, no; negativos, letras y OTRO sin nota', () => {
+    expect(resumenEntrega(1500, t('', { AGUA: '500' }))).toMatchObject({ efectivo: 0, diferencia: -1500, entregado: -500, error: '' });
+    expect(resumenEntrega(1500, t('')).error).toMatch(/Escribe el efectivo que regresó o un gasto/);
+    expect(resumenEntrega(1500, t('0', { AGUA: '0' })).error).toMatch(/o un gasto/);
     expect(resumenEntrega(1500, t('-5')).error).toMatch(/positivo/);
     expect(resumenEntrega(1500, t('100', { LUZ: 'abc' })).error).toMatch(/positivo/);
     expect(resumenEntrega(1500, t('100', { OTRO: '50' }, '  ')).error).toMatch(/OTRO/);
@@ -49,5 +50,20 @@ describe('conSigno / claseDiferencia — la diferencia se lee sin adivinar', () 
   it('de más, de menos y en cero', () => {
     expect([conSigno(200), conSigno(-1400), conSigno(0), conSigno(-0.004)]).toEqual(['+$200.00', '−$1,400.00', '$0.00', '$0.00']);
     expect([claseDiferencia(200), claseDiferencia(-1400), claseDiferencia(0)]).toEqual(['dif dif--mas', 'dif dif--menos', 'dif dif--cero']);
+  });
+});
+
+describe('razonesGasto — el Estado de cuenta del pueblo enseña la razón, no el monto', () => {
+  it('🔴 concepto de la entrega, nota de OTRO, egreso a mano, sin repetir', () => {
+    expect(razonesGasto([
+      { concepto: 'SUELDO · MILA', subcategoria: 'OTROS GASTOS' },
+      { concepto: 'OTRO · MILA · garrafones', subcategoria: 'OTROS GASTOS' },
+      { concepto: 'SUELDO · MILA · semana', subcategoria: 'OTROS GASTOS' },
+      { concepto: 'pipa del 3', subcategoria: 'AGUA' },
+      { concepto: 'tornillos', subcategoria: 'OTROS GASTOS' },
+    ])).toEqual(['SUELDO', 'garrafones', 'AGUA', 'tornillos']);
+    expect(razonesGasto()).toEqual([]);
+    // 17-nov: PÉRDIDA se llama MERMA; un gasto guardado antes sale como MERMA (y no se repite)
+    expect(razonesGasto([{ concepto: 'PÉRDIDA · MILA' }, { concepto: 'MERMA · MILA · duro' }])).toEqual(['MERMA']);
   });
 });

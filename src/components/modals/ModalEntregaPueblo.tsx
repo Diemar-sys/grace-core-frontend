@@ -1,15 +1,16 @@
 // 13-nov (Diemar; el modelo del 12-nov estaba mal): entrega de un pueblo (MILA, LAGUNI, VEGIL) de UN día.
 // Se teclea el EFECTIVO que regresó y, si de ahí pagó algo (agua, luz, sueldo…), en qué. La DIFERENCIA es
 // efectivo − pan y los gastos no la mueven; lo ENTREGADO es efectivo − gastos. El servidor registra un
-// cobro por todo el efectivo y cada gasto como egreso pagado con ese cobro (hoja_api.registrar_entrega).
-// Lo que regrese de más se queda en SU día: ya no se abona a otros. Aquí solo se suma para enseñarlo.
+// cobro por todo el efectivo (si hubo) y cada gasto como egreso de puro informe (hoja_api.registrar_entrega;
+// 17-nov: puede pasar del efectivo y puede haber gastos sin efectivo). Lo que regrese de más se queda en
+// SU día: ya no se abona a otros. Aquí solo se suma para enseñarlo.
 import { useState } from 'react';
 import { hojaService } from '../../services/frappeHoja';
 import { CONCEPTOS_ENTREGA, claseDiferencia, conSigno, resumenEntrega, type ConceptoEntrega, type TecleoEntrega } from '../../utils/entregaPueblo';
 import { pesos } from '../../utils/formato';
 
 const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
-const ETIQUETA: Record<ConceptoEntrega, string> = { AGUA: 'Agua', LUZ: 'Luz', RENTA: 'Renta', SUELDO: 'Sueldo', 'PÉRDIDA': 'Pérdida', OTRO: 'Otro' };
+const ETIQUETA: Record<ConceptoEntrega, string> = { AGUA: 'Agua', LUZ: 'Luz', RENTA: 'Renta', SUELDO: 'Sueldo', MERMA: 'Merma', OTRO: 'Otro' };
 
 interface Props { destino: string; fecha: string; factura: string; debe: number; onListo: () => void; onCerrar: () => void }
 

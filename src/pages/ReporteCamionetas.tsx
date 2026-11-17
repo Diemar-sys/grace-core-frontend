@@ -34,7 +34,7 @@ const TODAS = '';
 const CAMIONETAS = 'CAMIONETAS';
 const GRUPOS = [
   { clave: CAMIONETAS, nombre: 'Camionetas', quien: 'Camioneta', sub: 'Venta, gastos y diferencia por día' },
-  { clave: 'PUEBLOS', nombre: 'Pueblos', quien: 'Pueblo', sub: 'Enviado, entregado y en qué se fue lo demás' },
+  { clave: 'PUEBLOS', nombre: 'Pueblos', quien: 'Pueblo', sub: 'Efectivo, gastos y ganancia por día' },
   { clave: 'CLIENTES', nombre: 'Clientes', quien: 'Cliente', sub: 'Venta, pagado y lo que deben por día' },
   { clave: 'SUCURSALES', nombre: 'Sucursales', quien: 'Sucursal', sub: 'Venta, pagado y lo que deben por día' },
 ];
@@ -303,7 +303,7 @@ export default function ReporteCamionetas() {
         {!esCamionetas && (<>
           <p className="ped-nota cam-nota">
             Los mismos números del Estado de cuenta de la Hoja, día por día. Máximo 32 días por consulta.
-            {grupo === 'PUEBLOS' && ' Entregó = efectivo. Los gastos se capturan en Hoja → Estado de cuenta → «Registrar entrega».'}
+            {grupo === 'PUEBLOS' && ' Monto = el efectivo que regresó. El 35% y los $100 de chofer, decoración y desgaste son fijos del dueño, no medidos. Los gastos se capturan en Hoja → Estado de cuenta → «Registrar entrega».'}
           </p>
           <ReporteGrupo grupo={grupo} desde={desde} hasta={hasta} elegido={elegida} onDestinos={setDelGrupo} onError={setError} />
         </>)}

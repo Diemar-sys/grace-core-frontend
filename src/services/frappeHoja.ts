@@ -114,7 +114,8 @@ export interface EstadoCuenta {
 export interface ReporteGrupoDatos {
   grupo: string; desde: string; hasta: string;
   columnas: { clave: string; titulo: string }[];
-  destinos: { destino: string; total: Record<string, number>; sin_cobrar: number;
+  /** `columnas` del destino (cada pueblo la suya); sin ella, las del grupo */
+  destinos: { destino: string; columnas?: { clave: string; titulo: string }[]; total: Record<string, number>; sin_cobrar: number;
               dias: ({ fecha: string; nota: string; sin_cobrar?: number } & Record<string, number | string | undefined>)[] }[];
   total: Record<string, number>;
 }

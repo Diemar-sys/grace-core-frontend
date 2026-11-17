@@ -1,6 +1,7 @@
 // Reportes → por grupo (12-nov, Diemar): la misma idea que Camionetas para PUEBLOS, CLIENTES y SUCURSALES.
-// Un bloque por destino, un renglón por día. Pueblos (13-nov): PAN, EFECTIVO, DIFERENCIA (efectivo − pan),
-// gastos por concepto y ENTREGADO (efectivo − gastos); el TOTAL es la sumatoria del periodo.
+// Un bloque por destino, un renglón por día. Pueblos (17-nov, la tabla del jefe): MONTO (el efectivo), 35%,
+// fijos, gastos por concepto, TOTAL GASTOS y GANANCIA; el TOTAL es la sumatoria del periodo.
+// 17-nov: cada pueblo trae SUS columnas (VEGIL lleva su 10%); las del grupo son las del total de abajo.
 // 🔴 Solo lectura: columnas, renglones y totales vienen del
 // servidor (`hoja_api.reporte_grupo`, los números del Estado de cuenta); aquí no se suma dinero.
 import { useEffect, useState } from 'react';
@@ -18,8 +19,8 @@ interface Props {
   onError: (mensaje: string) => void;
 }
 
-/** La DIFERENCIA de un pueblo va con signo y color de texto (de más azul, de menos rojo); lo demás, en pesos. */
-const celda = (clave: string, n: number | undefined, enCero: string) => (clave !== 'diferencia' ? (n ? pesos(n) : enCero)
+/** La GANANCIA de un pueblo va con signo y color de texto (gana azul, pierde rojo); lo demás, en pesos. */
+const celda = (clave: string, n: number | undefined, enCero: string) => (clave !== 'ganancia' ? (n ? pesos(n) : enCero)
   : <span className={claseDiferencia(n ?? 0)}>{conSigno(n ?? 0)}</span>);
 
 export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos, onError }: Props) {
@@ -47,18 +48,18 @@ export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos,
 
   return (
     <>
-      {destinos.map((x) => (
+      {destinos.map((x) => { const cols = x.columnas ?? columnas; return (
         <section className="cam-bloque" key={x.destino}>
           <div className="cam-bloque-head">
             <h2>{x.destino}</h2>
             <span className="ped-chip">{x.dias.length} {x.dias.length === 1 ? 'día' : 'días'}</span>
           </div>
           <div className="table-container cam-scroll">
-            <table className="sys-table cam-tabla">
+            <table className="sys-table cam-tabla cam-tabla--grupo">
               <thead>
                 <tr>
                   <th>Fecha</th>
-                  {columnas.map((c) => <th key={c.clave} className="cell-right">{c.titulo}</th>)}
+                  {cols.map((c) => <th key={c.clave} className="cell-right">{c.titulo}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -68,20 +69,20 @@ export default function ReporteGrupo({ grupo, desde, hasta, elegido, onDestinos,
                       {fechaConDia(d.fecha)}
                       {d.nota && <span className={`hoja-badge ${d.nota === 'ABARROTES' ? 'hoja-badge--azul' : 'hoja-badge--rojo'}`}> {d.nota}{d.sin_cobrar ? ` ${pesos(d.sin_cobrar)}` : ''}</span>}
                     </td>
-                    {columnas.map((c) => <td key={c.clave} className="cell-right">{d.nota === 'SIN COBRAR' ? '—' : celda(c.clave, d[c.clave] as number, '—')}</td>)}
+                    {cols.map((c) => <td key={c.clave} className="cell-right">{d.nota === 'SIN COBRAR' ? '—' : celda(c.clave, d[c.clave] as number, '—')}</td>)}
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <td>TOTAL</td>
-                  {columnas.map((c) => <td key={c.clave} className="cell-right">{celda(c.clave, x.total[c.clave], pesos(0))}</td>)}
+                  {cols.map((c) => <td key={c.clave} className="cell-right">{celda(c.clave, x.total[c.clave], pesos(0))}</td>)}
                 </tr>
               </tfoot>
             </table>
           </div>
         </section>
-      ))}
+      ); })}
 
       {!elegido && destinos.length > 1 && (
         <section className="cam-bloque">

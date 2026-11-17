@@ -2,9 +2,12 @@
 // regresó EFECTIVO; de ese efectivo pagó agua, luz, sueldo… y entregó el resto:
 //     DIFERENCIA = EFECTIVO − PAN      (los gastos NO la mueven; se queda en su día)
 //     ENTREGADO  = EFECTIVO − GASTOS
-// Aquí solo se suma lo tecleado para enseñarlo antes de guardar; la regla de verdad (y el rechazo)
-// vive en el servidor: `caja_cobro.armar_entrega`. Misma lista, mismo tope.
-export const CONCEPTOS_ENTREGA = ['AGUA', 'LUZ', 'RENTA', 'SUELDO', 'PÉRDIDA', 'OTRO'] as const;
+// 17-nov (Diemar): los gastos son PURO INFORME: pueden pasar del efectivo y puede haber gastos sin
+// efectivo; ENTREGADO puede salir negativo. Aquí solo se suma lo tecleado para enseñarlo antes de
+// guardar; la regla de verdad (y el rechazo) vive en el servidor: `caja_cobro.armar_entrega`.
+// 17-nov: PÉRDIDA se llama MERMA (pan que ya no se rescata); los gastos guardados antes dicen PÉRDIDA.
+export const CONCEPTOS_ENTREGA = ['AGUA', 'LUZ', 'RENTA', 'SUELDO', 'MERMA', 'OTRO'] as const;
+const CONCEPTO_VIEJO: Record<string, string> = { 'PÉRDIDA': 'MERMA' };
 export type ConceptoEntrega = typeof CONCEPTOS_ENTREGA[number];
 export interface GastoEntrega { concepto: ConceptoEntrega; monto: number; nota?: string }
 export interface TecleoEntrega { efectivo: string; montos: Partial<Record<ConceptoEntrega, string>>; nota: string }
@@ -35,11 +38,23 @@ export function resumenEntrega(debe: number, t: TecleoEntrega) {
   }));
   const otro = porConcepto.find(g => g.concepto === 'OTRO')!.centavos;
   const error = [efectivoC, ...porConcepto.map(g => g.centavos)].some(c => !Number.isFinite(c) || c < 0) ? 'Los montos van en positivo.'
-    : efectivoC === 0 ? 'Escribe el efectivo que regresó.'
+    : efectivoC === 0 && gastosC === 0 ? 'Escribe el efectivo que regresó o un gasto.'
     : otro > 0 && !t.nota.trim() ? 'OTRO: escribe en qué se fue.'
-    // los gastos salen del efectivo que regresó: no pueden pasar de él (ya no del pan del día)
-    : gastosC > efectivoC ? `Los gastos (${pesos(gastosC)}) pasan del efectivo que regresó (${pesos(efectivoC)}).`
     : '';
   return { efectivo: efectivoC / 100, gastosTotal: gastosC / 100, diferencia: (efectivoC - debeC) / 100,
            entregado: (efectivoC - gastosC) / 100, gastos, error };
+}
+
+/** Gastos de un día del Estado de cuenta → solo la RAZÓN, sin montos (17-nov, Diemar: los montos van en
+ *  Reportes). `concepto` del egreso de entrega = «SUELDO · MILA · nota»; OTRO enseña su nota. Un egreso
+ *  capturado a mano (sin esa forma) enseña su subcategoría o su concepto. Sin repetir. */
+export function razonesGasto(egresos: { concepto?: string | null; subcategoria?: string | null }[] = []): string[] {
+  const razones = egresos.map(e => {
+    const [crudo, , nota] = (e.concepto ?? '').split(' · ');
+    const primero = CONCEPTO_VIEJO[crudo] ?? crudo;
+    if (primero === 'OTRO' && nota) return nota;
+    if ((CONCEPTOS_ENTREGA as readonly string[]).includes(primero)) return primero;
+    return (e.subcategoria && e.subcategoria !== 'OTROS GASTOS' ? e.subcategoria : e.concepto) || 'GASTO';
+  });
+  return [...new Set(razones)];
 }
