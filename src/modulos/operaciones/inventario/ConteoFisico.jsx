@@ -1,0 +1,319 @@
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { cargarBorrador, guardarBorrador, borrarBorrador } from '../../../compartido/db/conteoBorrador';
+import { inventory } from '../../../compartido/services/frappeInventory';
+import { stockService } from '../../../compartido/services/frappeStock';
+import { BODEGA_CENTRAL } from '../../../compartido/config/constants';
+import { parseErrorFrappe } from '../../../compartido/utils/errorFrappe';
+import ModalError from '../../../compartido/components/modals/ModalError';
+import SelectorTipoItem from '../../../compartido/components/SelectorTipoItem';
+import '../../../compartido/styles/NuevaCompra.css';
+import { numero } from '../../../compartido/utils/formato';
+import { presFactor, presUnit, filtrarPorTipo, contarPendientes, lineasAjuste } from './conteoFisico';
+
+function ConteoFisico({ onSuccess, onCancel }) {
+  const [items, setItems]     = useState([]);
+  const [conteo, setConteo]   = useState({});
+  const [search, setSearch]   = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError]     = useState(null);
+  const [restaurado, setRestaurado] = useState(0);
+  const [tipoItem, setTipoItem] = useState('');
+  const hidratado = useRef(false);
+  const [pidiendoPass, setPidiendoPass] = useState(false);
+  const [password, setPassword]         = useState('');
+  const [passError, setPassError]       = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    // El ajuste escribe en BODEGA_CENTRAL, así que el stock de referencia tiene
+    // que ser el de ESE almacén. Sumar todos mostraba existencias de las tiendas.
+    // ponytail: almacén fijo. Cuando cada admin ajuste el suyo, sale de la sesión.
+    inventory.getProductosRegistrados({ warehouse: BODEGA_CENTRAL })
+      .then(data => { if (active) setItems(data.filter(i => !i.disabled)); })
+      .catch(e => { if (active) setError(parseErrorFrappe(e)); })
+      .finally(() => { if (active) setLoading(false); });
+
+    // Lo capturado antes de cerrar el modal (o de que muriera la tablet).
+    cargarBorrador(BODEGA_CENTRAL)
+      .then(prev => { if (active && prev) { setConteo(prev); setRestaurado(Object.keys(prev).length); } })
+      .catch(e => console.error('borrador conteo:', e))
+      .finally(() => { if (active) hidratado.current = true; });
+
+    return () => { active = false; };
+  }, []);
+
+  // Persistir mientras se teclea. El guard evita que el {} inicial pise el
+  // borrador antes de que termine de cargarse.
+  useEffect(() => {
+    if (!hidratado.current) return;
+    const t = setTimeout(() => {
+      guardarBorrador(BODEGA_CENTRAL, conteo).catch(e => console.error('borrador conteo:', e));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [conteo]);
+
+  // El tipo acota QUÉ se está contando; el texto busca dentro de eso.
+  //
+  // 🔴 Filtra la lista ya cargada, NO recarga desde el servidor. `lineasAjuste`
+  // busca cada código contado dentro de `items`: si el filtro vaciara esa lista,
+  // un item ya contado daría `find() === undefined` → factor de presentación 1 en
+  // vez del real y `actual_qty` 0. O sea, contar bultos, cambiar el filtro y
+  // mandar el ajuste con el stock equivocado. `items` se queda completo siempre.
+  const universo = useMemo(() => filtrarPorTipo(items, tipoItem), [items, tipoItem]);
+
+  const filtrados = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q
+      ? universo.filter(i => i.item_name?.toLowerCase().includes(q) || i.item_code?.toLowerCase().includes(q))
+      : universo;
+  }, [universo, search]);
+
+  // Contados DENTRO del universo elegido.
+  const pendientes = useMemo(() => contarPendientes(conteo, universo), [conteo, universo]);
+
+  // Un renglón vacío NO se ajusta y no avisa (lineasAjuste lo salta): así se
+  // quedaron 115 productos sin contar en el cierre de junio. Contarlos a la vista.
+  // Va contra el universo filtrado: con "Materia Prima" elegido, "faltan 12 de
+  // 248" es la verdad de lo que se está contando; contra el catálogo entero
+  // diría "faltan 239" para siempre y el aviso dejaría de significar algo.
+  const faltantes = universo.length - pendientes;
+
+  // Paso 1: valida que haya diferencias reales antes de pedir la contraseña.
+  const revisar = () => {
+    setError(null);
+    // Stock Reconciliation guarda qty en base y SOLO acepta ítems con diferencia real.
+    if (!lineasAjuste(conteo, items).length) {
+      setError({ title: 'Sin diferencias',
+                 message: 'El conteo coincide con el stock del sistema: no hay diferencias que ajustar.' });
+      return;
+    }
+    setPassword('');
+    setPassError(null);
+    setPidiendoPass(true);
+  };
+
+  // Paso 2: el backend valida rol Gerente + esta contraseña antes de aplicar el ajuste.
+  const confirmar = async () => {
+    const lineas = lineasAjuste(conteo, items);
+    if (!lineas.length || !password) return;
+    setSending(true);
+    setPassError(null);
+    try {
+      await stockService.crearConteoFisico({ items: lineas, password });
+      await borrarBorrador(BODEGA_CENTRAL).catch(() => {});  // ya cumplió
+      onSuccess?.();
+    } catch (e) {
+      setPassError(parseErrorFrappe(e)); // inline en el modal → permite reintentar
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const setQty = (item_code, val) =>
+    setConteo(prev => ({ ...prev, [item_code]: val }));
+
+  return (
+    <div className="nc-container">
+      <div className="nc-header">
+        <h2>Conteo Físico</h2>
+        <button className="nc-btn-close" onClick={onCancel}>×</button>
+      </div>
+
+      <div className="nc-section-title">
+        Productos a contar
+        {!loading && (
+          <span className={faltantes > 0 ? 'cf-contador cf-contador--falta' : 'cf-contador'}>
+            {faltantes > 0
+              ? `faltan ${faltantes} de ${universo.length}`
+              : `los ${universo.length} capturados`}
+          </span>
+        )}
+      </div>
+
+      <div className="nc-field" style={{ marginBottom: 14 }}>
+        <SelectorTipoItem
+          id="cf-tipo-item"
+          value={tipoItem}
+          onChange={setTipoItem}
+          className="nc-input"
+        />
+      </div>
+
+      <input
+        type="text"
+        placeholder="Buscar item..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        autoFocus
+        style={{
+          width: '100%', padding: '10px 14px', marginBottom: 14,
+          border: '1px solid var(--color-border-input)', borderRadius: 8,
+          fontSize: 15, fontFamily: 'inherit', color: 'var(--tv-ink)',
+          background: 'var(--tv-surface)', boxSizing: 'border-box',
+          outline: 'none',
+        }}
+        onFocus={e => { e.target.style.borderColor = 'var(--tv-marca)'; e.target.style.boxShadow = '0 0 0 3px rgba(200,80,60,.15)'; }}
+        onBlur={e =>  { e.target.style.borderColor = 'var(--color-border-input)'; e.target.style.boxShadow = 'none'; }}
+      />
+
+      {loading ? (
+        <p style={{ color: 'var(--tv-ink-soft)', padding: '20px 0' }}>Cargando inventario…</p>
+      ) : (
+        <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 340px)' }}>
+          <table className="nc-tabla">
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left' }}>Item</th>
+                <th style={{ textAlign: 'center', width: 80 }}>UOM</th>
+                <th style={{ textAlign: 'right', width: 90 }}>Stock ERP</th>
+                <th style={{ textAlign: 'center', width: 110 }}>Conteo físico</th>
+                <th style={{ textAlign: 'right', width: 80 }}>Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map(it => {
+                const factor    = presFactor(it);
+                const unit      = presUnit(it);
+                const erpQty    = (parseFloat(it.actual_qty) || 0) / factor; // base → presentación
+                const rawVal    = conteo[it.item_code] ?? '';
+                const fisicoQty = rawVal !== '' ? parseFloat(rawVal) : null;
+                const diff      = fisicoQty !== null ? fisicoQty - erpQty : null;
+                const diffColor = diff === null ? 'var(--color-border)'
+                  : diff > 0 ? 'var(--tv-ok)'
+                  : diff < 0 ? 'var(--tv-stop)'
+                  : 'var(--tv-ink-soft)';
+                return (
+                  <tr key={it.item_code}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--tv-ink)' }}>{it.item_name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--tv-ink-soft)' }}>{it.item_code}</div>
+                    </td>
+                    <td style={{ textAlign: 'center', color: 'var(--tv-ink-soft)', fontWeight: 500 }}>
+                      {unit}
+                      {factor !== 1 && (
+                        <div style={{ fontSize: 11, color: 'var(--tv-ink-soft)' }}>
+                          ×{factor} {it.stock_uom || 'Kg'}
+                        </div>
+                      )}
+                    </td>
+                    {/* La unidad va pegada al número: "9.00" a solas no dice si son
+                        bultos, kilos o piezas, y de eso depende lo que se teclea. */}
+                    <td style={{ textAlign: 'right', color: 'var(--tv-ink)', fontVariantNumeric: 'tabular-nums' }}>
+                      {numero(erpQty, 2)} <span className="cf-unidad">{unit}</span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        placeholder="—"
+                        value={rawVal}
+                        onChange={e => setQty(it.item_code, e.target.value)}
+                        style={{
+                          width: 90, textAlign: 'right', padding: '5px 8px',
+                          border: '1px solid', borderColor: rawVal !== '' ? 'var(--tv-marca)' : 'var(--color-border-input)',
+                          borderRadius: 6, fontSize: 14, fontFamily: 'inherit',
+                          background: rawVal !== '' ? 'var(--tv-marca-wash)' : 'var(--tv-surface)',
+                        }}
+                      />
+                      {/* Se captura en presentación pero el stock se guarda en base:
+                          sin esto, teclear 0.04 BULTO y ver 1 Kg parece un error de la app. */}
+                      {factor !== 1 && fisicoQty > 0 && (
+                        <div className="cf-conversion">
+                          = {(fisicoQty * factor).toLocaleString('es-MX', { maximumFractionDigits: 3 })} {it.stock_uom}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: diffColor, fontVariantNumeric: 'tabular-nums' }}>
+                      {diff === null ? '—' : (
+                        <>
+                          {(diff >= 0 ? '+' : '') + numero(diff, 2)}{' '}
+                          <span className="cf-unidad">{unit}</span>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtrados.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--tv-ink-soft)' }}>
+                    Sin resultados
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {restaurado > 0 && (
+        <div className="cf-restaurado">
+          Se recuperó tu conteo anterior: <strong>{restaurado} productos</strong> ya capturados.
+          Se guarda solo en esta computadora, mientras no apliques el ajuste.
+        </div>
+      )}
+
+      {!loading && faltantes > 0 && (
+        <div className="cf-faltantes">
+          <strong>Faltan {faltantes} de {items.length} productos por capturar.</strong>{' '}
+          Los que dejes vacíos NO se ajustan: se quedan con el stock del sistema.
+          Si un producto no tiene existencia, escribe <strong>0</strong> — no lo dejes en blanco.
+        </div>
+      )}
+
+      <div className="nc-actions">
+        <button className="nc-btn-secondary" onClick={onCancel} disabled={sending}>
+          Cancelar
+        </button>
+        <button
+          className="nc-btn-primary"
+          onClick={revisar}
+          disabled={sending || pendientes === 0}
+          style={pendientes > 0 ? { background: 'var(--tv-marca-deep)', color: '#fff', borderColor: 'var(--tv-marca-deep)' } : {}}
+        >
+          {sending ? 'Aplicando…' : `Aplicar conteo (${pendientes} de ${items.length})`}
+        </button>
+      </div>
+
+      {pidiendoPass && (
+        <div className="edit-overlay" onClick={e => e.target === e.currentTarget && !sending && setPidiendoPass(false)}>
+          <div className="del-modal">
+            <h3>Confirmar ajuste de inventario</h3>
+            {faltantes > 0 && (
+              <div className="cf-faltantes">
+                <strong>Ojo: {faltantes} de {items.length} productos quedaron sin capturar.</strong>{' '}
+                Esos NO se ajustan, conservan el stock del sistema. Si no hay existencia, cancela y escribe <strong>0</strong>.
+              </div>
+            )}
+            <p>Ajustar el stock queda registrado a tu nombre. Escribe tu contraseña para continuar.</p>
+            <input
+              type="password"
+              autoFocus
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && password && !sending) confirmar(); }}
+              placeholder="Tu contraseña"
+              style={{ width: '100%', padding: '10px 14px', marginTop: 8, borderRadius: 12, border: '1px solid var(--tv-line, #e2ddd4)', boxSizing: 'border-box' }}
+            />
+            {passError && <p style={{ color: 'var(--tv-stop)', marginTop: 10, fontSize: 14 }}>{passError.message}</p>}
+            <div className="del-modal-actions" style={{ marginTop: 16 }}>
+              <button className="del-btn-cancel" onClick={() => setPidiendoPass(false)} disabled={sending}>
+                Cancelar
+              </button>
+              <button className="del-btn-confirm" onClick={confirmar} disabled={sending || !password}>
+                {sending ? 'Aplicando…' : 'Ajustar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && <ModalError isOpen title={error.title} message={error.message}
+                            onClose={() => setError(null)} />}
+    </div>
+  );
+}
+
+export default ConteoFisico;

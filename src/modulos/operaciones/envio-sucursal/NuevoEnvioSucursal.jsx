@@ -1,0 +1,623 @@
+// src/components/NuevoEnvioSucursal.jsx
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { stockService } from '../../../compartido/services/frappeStock';
+import { pedidoService } from '../../../compartido/services/frappePedido';
+import { inventory } from '../../../compartido/services/frappeInventory';
+import { fmtUom } from '../../../compartido/utils/uom';
+import CantidadDual from '../../../compartido/components/CantidadDual';
+import { BODEGA_CENTRAL } from '../../../compartido/config/constants';
+import useSucursales from './useSucursales';
+import useBorradorLocal from '../../../compartido/hooks/useBorradorLocal';
+import ModalError from '../../../compartido/components/modals/ModalError';
+import ModalHojaEntrega from './ModalHojaEntrega';
+import { imprimirTraspasoTermico } from '../../../compartido/services/printService';
+import { parseErrorFrappe } from '../../../compartido/utils/errorFrappe';
+import { horaLocal } from '../../../compartido/utils/hora';
+import '../../../compartido/styles/NuevaCompra.css';
+import SelectorTipoItem from '../../../compartido/components/SelectorTipoItem';
+import { hoyISO } from '../../../compartido/utils/hora';
+import { gruposDestinoEnvio } from './destinosEnvio';
+
+const FILA_VACIA = () => ({
+  _id: Math.random(),
+  item_code: '', item_name: '', uom: '',
+  qty: '',                       // en stock_uom (Kg/Lt/Pza)
+  stock: null,
+  stockLoading: false,
+  cantidad_por_presentacion: 1,
+  presentacion: '',
+});
+
+const fmtQty = (n) =>
+  Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// De dónde sale el envío: Bodega Central (materia prima) o el almacén de
+// producción del pan (ALMACEN - PAN BLANCO/DULCE/PANQUELERIA...). El pan diario
+// y la MP se reparten en días distintos, así que basta elegir uno por envío.
+// La lista real viene del backend (almacenes tipo Departamento + Bodega Central).
+
+// ── Componente principal ────────────────────────────────────────────────────
+function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
+  const { sucursales_destino: sucursales } = useSucursales();
+  const [warehouseDestino, setWarehouseDestino] = useState(sucursalDefault || '');
+  const [origenes, setOrigenes] = useState([]);
+  const [almacenes, setAlmacenes] = useState([]);
+  const [warehouseOrigen, setWarehouseOrigen] = useState(BODEGA_CENTRAL);
+
+  // Orígenes reales: Bodega Central + almacenes de producción (tipo Departamento).
+  useEffect(() => {
+    stockService.fetchAllWarehouses()
+      .then(setOrigenes)
+      .catch(err => console.error('cargar orígenes envío:', err));
+    // El tipo de cada almacén: agrupa el Destino (sucursal / camioneta / pueblo) y
+    // da las camionetas del origen (regreso de ruta).
+    stockService.fetchAlmacenes()
+      .then(setAlmacenes)
+      .catch(err => console.error('cargar almacenes:', err));
+  }, []);
+  const camionetas = useMemo(() => almacenes.filter(a => a.warehouse_type === 'CAMIONETA'), [almacenes]);
+  const gruposDestino = useMemo(() => gruposDestinoEnvio(sucursales, almacenes), [sucursales, almacenes]);
+
+  // Inicializar warehouse cuando cargue config (si no vino sucursalDefault)
+  useEffect(() => {
+    if (!warehouseDestino && sucursales.length > 0) {
+      setWarehouseDestino(sucursales[0].warehouse);
+    }
+  }, [sucursales, warehouseDestino]);
+  const [fecha] = useState(hoyISO());
+  const [filas, setFilas] = useState([FILA_VACIA()]);
+  const [tipoItem, setTipoItem] = useState('');
+  const [notas, setNotas] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [jalando, setJalando] = useState(false);
+  const [avisoPedido, setAvisoPedido] = useState('');
+  const [success, setSuccess] = useState('');
+  const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '' });
+  const inputRefs = useRef([]);
+  const [hojaData, setHojaData] = useState(null);
+
+  // La camioneta también necesita nombre legible en la hoja de entrega y el
+  // ticket: se busca en las dos listas, no solo en sucursales.
+  const sucursalLabel =
+    sucursales.find(s => s.warehouse === warehouseDestino)?.label ||
+    camionetas.find(c => c.name === warehouseDestino)?.label ||
+    warehouseDestino;
+  const tipoDestino = almacenes.find(a => a.name === warehouseDestino)?.warehouse_type;
+  const origenEsCamioneta = camionetas.some(c => c.name === warehouseOrigen);
+
+  // ── Borrador local ──────────────────────────────────────────────────────
+  // Cerrar el modal por accidente tiraba el envío a medias. Ahora se guarda en
+  // este navegador mientras se teclea y se descarta al confirmar.
+  const restaurarBorrador = useCallback((d) => {
+    if (d.warehouseOrigen)  setWarehouseOrigen(d.warehouseOrigen);
+    if (d.warehouseDestino) setWarehouseDestino(d.warehouseDestino);
+    setTipoItem(d.tipoItem || '');
+    setNotas(d.notas || '');
+
+    const previas = (d.filas || []).filter(f => f.item_code);
+    if (!previas.length) return;
+    // El stock guardado es de la sesión anterior y para entonces ya se movió:
+    // se pide de nuevo en vez de validar contra un número muerto.
+    setFilas([...previas.map(f => ({ ...f, stock: null, stockLoading: true })), FILA_VACIA()]);
+
+    const origen = d.warehouseOrigen || BODEGA_CENTRAL;
+    const ponerStock = (id, campos) =>
+      setFilas(fs => fs.map(r => r._id === id ? { ...r, ...campos } : r));
+    previas.forEach(f => {
+      stockService.getStockActual(f.item_code, origen)
+        .then(bin => ponerStock(f._id, { stock: parseFloat(bin?.actual_qty || 0), stockLoading: false }))
+        .catch(() => ponerStock(f._id, { stock: 0, stockLoading: false }));
+    });
+  }, []);
+
+  // Con `success` el envío ya existe en ERPNext: el respaldo local sobra. Además
+  // apaga el autosave, si no el debounce pendiente vuelve a escribir el borrador
+  // *después* de que descartar() lo borró (zombi).
+  const hayCaptura = !success && (filas.some(f => f.item_code) || notas.trim() !== '');
+  const { restaurado, descartar } = useBorradorLocal(
+    'envio-sucursal',
+    hayCaptura ? { warehouseOrigen, warehouseDestino, tipoItem, notas, filas } : null,
+    restaurarBorrador,
+  );
+
+  const descartarBorrador = () => {
+    descartar();
+    setFilas([FILA_VACIA()]);
+    setNotas('');
+  };
+
+  // ── CRUD filas ──────────────────────────────────────────────────────────
+  const agregarFila = useCallback(() => setFilas(f => [...f, FILA_VACIA()]), []);
+  const eliminarFila = (id) => { if (filas.length > 1) setFilas(f => f.filter(r => r._id !== id)); };
+  const updateFila = (id, campos) =>
+    setFilas(f => f.map(r => r._id === id ? { ...r, ...campos } : r));
+
+  const focusRow = useCallback((idx) => {
+    if (idx < inputRefs.current.length) {
+      inputRefs.current[idx]?.focus();
+    } else {
+      agregarFila();
+    }
+  }, [agregarFila]);
+
+  // ── Traer lo que toca reponer ───────────────────────────────────────────
+  // El gemelo del botón de arriba, para los insumos. El sistema no sabe cuántas
+  // bolsas le quedan a la sucursal —usar una no genera movimiento— pero sí cada
+  // cuánto se le reponen, y eso basta para llenar la carga: lo vencido primero,
+  // con la cantidad que se le suele mandar. Sugerido, no mandado.
+  const traerReposicion = async () => {
+    setJalando(true);
+    setAvisoPedido('');
+    try {
+      const d = await inventory.getReposicion(true);
+      const delDestino = d.renglones.filter(r => r.almacen === warehouseDestino);
+      if (!delDestino.length) {
+        setAvisoPedido('A este destino no le toca reponer nada todavía.');
+        return;
+      }
+      setFilas(delDestino.map(r => {
+        // El mismo tope que el botón del pedido: min(lo que se suele mandar, lo
+        // que hay). Sugerir 5 Kg de polipapel cuando en bodega hay 1.18 manda a
+        // confirmar un traspaso que el servidor va a rechazar —el sitio no
+        // permite stock negativo— y quien surte no sabría por qué.
+        const sugerido = Math.min(r.cantidad_tipica || 0, r.disponible || 0);
+        return {
+          ...FILA_VACIA(),
+          item_code: r.clave,
+          item_name: r.producto,
+          // sin `uom` el renglón sale al Stock Entry con unidad vacía
+          uom: r.uom,
+          qty: sugerido ? String(sugerido) : '',
+          stock: r.disponible,
+        };
+      }));
+      const vencidos = delDestino.filter(r => r.estado === 'vencido').length;
+      const sinExistencia = delDestino.filter(r => !r.disponible).length;
+      setAvisoPedido(
+        `${delDestino.length} insumos por reponer`
+        + (vencidos ? ` · ${vencidos} ya le tocaban` : '')
+        + (sinExistencia ? ` · ${sinExistencia} sin existencia en bodega, van en cero` : ''),
+      );
+    } catch (err) {
+      setAvisoPedido(err.message);
+    } finally {
+      setJalando(false);
+    }
+  };
+
+  // ── Traer del pedido del día ────────────────────────────────────────────
+  // El pedido ya tiene, por destino y por producto, cuántas piezas van. Teclear
+  // esos mismos 70 renglones a mano es la forma más cara de equivocarse. Se
+  // prellenan, NO se mandan: la cantidad sugerida es min(lo que falta, lo que
+  // hay), y quien surte la corrige con lo que de verdad contó.
+  const traerDelPedido = async () => {
+    setJalando(true);
+    setAvisoPedido('');
+    try {
+      const d = await pedidoService.sugerenciaEnvio(fecha, warehouseDestino, warehouseOrigen);
+      const conPendiente = d.renglones.filter(r => r.falta > 0);
+      if (!conPendiente.length) {
+        setAvisoPedido(d.destino
+          ? `El pedido de hoy para ${d.destino} ya está surtido desde este almacén.`
+          : 'Ese destino no viene en el pedido de hoy; captúralo a mano.');
+        return;
+      }
+      setFilas(conPendiente.map(r => ({
+        ...FILA_VACIA(),
+        item_code: r.clave,
+        item_name: r.producto,
+        uom: 'PZA',
+        qty: r.sugerido ? String(r.sugerido) : '',
+        stock: r.disponible,
+      })));
+      const sinPan = conPendiente.filter(r => r.disponible <= 0).length;
+      setAvisoPedido(
+        `${conPendiente.length} productos del pedido de ${d.destino}`
+        + (sinPan ? ` · ${sinPan} sin pan en el almacén, van en cero` : ''),
+      );
+    } catch (err) {
+      setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
+    } finally {
+      setJalando(false);
+    }
+  };
+
+  // ── Validación ──────────────────────────────────────────────────────────
+  const validar = () => {
+    if (!warehouseDestino) {
+      setErrorModal({ isOpen: true, title: 'Falta destino', message: 'Selecciona una sucursal de destino.' });
+      return null;
+    }
+    const validos = filas.filter(f => f.item_code && parseFloat(f.qty) > 0);
+    if (!validos.length) {
+      setErrorModal({ isOpen: true, title: 'Sin productos', message: 'Agrega al menos un producto con cantidad para registrar el envío.' });
+      return null;
+    }
+    const sinStock = validos.filter(f => f.stock != null && parseFloat(f.qty) > parseFloat(f.stock));
+    if (sinStock.length) {
+      const lista = sinStock.map(f =>
+        `• ${f.item_name}: pides ${f.qty} ${f.uom || ''}, hay ${f.stock} ${f.uom || ''}`
+      ).join('\n');
+      // El origen ya no siempre es Bodega Central: el pan sale del almacén de su
+      // departamento. Nombrar el almacén equivocado manda a buscar el pan al
+      // lugar donde no está.
+      setErrorModal({ isOpen: true, title: 'Stock insuficiente', message: `${warehouseOrigen} no tiene suficiente:\n\n${lista}` });
+      return null;
+    }
+    return validos;
+  };
+
+  // El stock vive en unidad base (stock_uom); el Stock Entry transfiere en base.
+  // La UI captura qty en Kg/Lt/Pza (base) → se manda tal cual, sin convertir a presentación.
+  const itemsPayload = (items) => items.map(f => ({
+    item_code: f.item_code,
+    item_name: f.item_name,
+    uom: f.uom,
+    qty: parseFloat(f.qty || 0),
+  }));
+
+  // ── Confirmar envío ─────────────────────────────────────────────────────
+  const handleConfirmar = async () => {
+    const items = validar(); if (!items) return;
+    setLoading(true);
+    try {
+      const doc = await stockService.crearTransferenciaSucursal({
+        warehouseDestino,
+        warehouseOrigen,
+        items: itemsPayload(items),
+        fecha,
+        notas,
+        asBorrador: false,
+      });
+      setSuccess(`✅ Envío registrado: ${doc.name}`);
+      descartar();   // el documento ya vive en ERPNext; el borrador cumplió
+      const hora = horaLocal();
+      setHojaData({
+        fecha, hora, sucursalLabel, warehouseDestino,
+        filas: items, notas, docName: doc.name,
+      });
+      // Auto-imprime el ticket térmico al confirmar (la reimpresión queda en Consultas).
+      // ponytail: fire-and-forget; si la térmica falla no debe tumbar el envío ya registrado.
+      imprimirTraspasoTermico({ fecha, hora, sucursalLabel, warehouseDestino, filas: items, docName: doc.name })
+        .catch(err => console.error('Auto-print traspaso:', err));
+    } catch (err) {
+      setErrorModal({ isOpen: true, ...parseErrorFrappe(err) });
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="nc-modal">
+      <ModalError
+        isOpen={errorModal.isOpen}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ isOpen: false, title: '', message: '' })}
+      />
+
+      {hojaData && (
+        <ModalHojaEntrega
+          datos={hojaData}
+          onClose={() => { setHojaData(null); onSuccess?.(); }}
+        />
+      )}
+
+      <div className="nc-container">
+        <div className="nc-header">
+          <h2>Nuevo Envío a Sucursal</h2>
+          <button className="nc-btn-close" onClick={onCancel}>×</button>
+        </div>
+
+        {success && <div className="nc-alert nc-alert-success">{success}</div>}
+
+        {restaurado && !success && (
+          <div className="nc-alert nc-alert-borrador">
+            <span>
+              Se retomó un envío sin terminar (guardado{' '}
+              {new Date(restaurado).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}).
+              Revisa las cantidades antes de confirmar.
+            </span>
+            <button className="nc-btn-descartar" onClick={descartarBorrador}>
+              Descartar y empezar de cero
+            </button>
+          </div>
+        )}
+
+        <div className="nc-top-row">
+          <div className="nc-field nc-field-tipo">
+            <SelectorTipoItem value={tipoItem} onChange={setTipoItem} className="nc-input" />
+          </div>
+          <div className="nc-field nc-field-proveedor">
+            <label>Sale de *</label>
+            <select className="nc-input" value={warehouseOrigen}
+              onChange={e => {
+                setWarehouseOrigen(e.target.value);
+                // El stock mostrado por renglón es el del origen: cambiarlo invalida
+                // lo capturado, así que se parte de una tabla limpia.
+                setFilas([FILA_VACIA()]);
+              }}>
+              <optgroup label="Bodega y producción">
+                {origenes.map(o => (
+                  <option key={o.name} value={o.name}>{o.label}</option>
+                ))}
+              </optgroup>
+              {camionetas.length > 0 && (
+                /* El pan dulce que sobra de la ruta vuelve como stock a la tienda
+                   (Santuarios, Paseos): vive un día más. El bolillo NO vuelve —
+                   ese se captura en Merma, que ya acepta camioneta como origen. */
+                <optgroup label="Camionetas (regreso de ruta)">
+                  {camionetas.map(c => (
+                    <option key={c.name} value={c.name}>{c.label}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {origenEsCamioneta && (
+              <small className="nc-th-hint">Regreso de ruta — el bolillo va por Merma</small>
+            )}
+          </div>
+          <div className="nc-field nc-field-proveedor">
+            <label>Destino *</label>
+            <select className="nc-input" value={warehouseDestino}
+              onChange={e => setWarehouseDestino(e.target.value)}>
+              {gruposDestino.map(g => (
+                <optgroup key={g.titulo} label={g.titulo}>
+                  {g.destinos.map(s => (
+                    <option key={s.warehouse} value={s.warehouse}>{s.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            {tipoDestino === 'CAMIONETA' && (
+              <small className="nc-th-hint">Se valúa a precio de camioneta</small>
+            )}
+            {tipoDestino === 'PUNTO DE VENTA' && (
+              <small className="nc-th-hint">Se valúa a precio de pueblos</small>
+            )}
+          </div>
+          <div className="nc-field nc-fecha">
+            <label>Fecha</label>
+            <input type="date" value={fecha} readOnly />
+          </div>
+        </div>
+
+        <div className="nc-pedido-barra">
+          <p className="nc-section-title">Productos a enviar</p>
+          <button
+            type="button"
+            className="nc-btn-pedido"
+            onClick={traerDelPedido}
+            disabled={jalando || !warehouseDestino}
+            title="Llena los renglones con lo que este destino pidió hoy y aún no le llega"
+          >
+            {jalando ? 'Buscando…' : 'Traer del pedido del día'}
+          </button>
+          {warehouseOrigen === BODEGA_CENTRAL && (
+            <button
+              type="button"
+              className="nc-btn-pedido"
+              onClick={traerReposicion}
+              disabled={jalando || !warehouseDestino}
+              title="Llena los renglones con los insumos a los que ya se les pasó su ritmo de reposición"
+            >
+              {jalando ? 'Buscando…' : 'Traer lo que toca reponer'}
+            </button>
+          )}
+        </div>
+        {avisoPedido && <p className="nc-pedido-aviso">{avisoPedido}</p>}
+        <div className="nc-tabla-scroll">
+          <table className="nc-tabla">
+            <colgroup>
+              <col style={{ width: '50%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '5%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Stock disp.</th>
+                <th>Cantidad</th>
+                <th>Stock final</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((fila, idx) => (
+                <FilaEnvio
+                  key={fila._id}
+                  fila={fila}
+
+                  warehouseOrigen={warehouseOrigen}
+                  tipoItem={tipoItem}
+                  onChange={(campos) => updateFila(fila._id, campos)}
+                  onEliminar={() => eliminarFila(fila._id)}
+                  onFocusNext={() => focusRow(idx + 1)}
+                  inputRef={el => { inputRefs.current[idx] = el; }}
+                  soloUna={filas.length === 1}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <button className="nc-btn-agregar" onClick={agregarFila}>+ Agregar producto</button>
+
+        <label className="nc-notas-label">Notas (opcional)</label>
+        <textarea className="nc-notas" value={notas} onChange={e => setNotas(e.target.value)}
+          placeholder="Ej: Entrega matutina, contiene pedido especial..." />
+
+        <div className="nc-actions">
+          <button className="nc-btn-secondary" onClick={onCancel} disabled={loading}>Cancelar</button>
+          <button className="nc-btn-primary" onClick={handleConfirmar} disabled={loading}>
+            {loading ? 'Enviando...' : 'Confirmar envío'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Fila de envío (sin precios) ─────────────────────────────────────────────
+function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna, warehouseOrigen = BODEGA_CENTRAL, tipoItem = '' }) {
+  const [busqueda, setBusqueda] = useState(fila.item_name || '');
+  const [sugerencias, setSugerencias] = useState([]);
+  const [abierto, setAbierto] = useState(false);
+  const [cursor, setCursor] = useState(-1);
+  const timerRef = useRef(null);
+  const wrapRef = useRef(null);
+  const listRef = useRef(null);
+  const qtyRef = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const handleBusqueda = (texto) => {
+    setBusqueda(texto);
+    setCursor(-1);
+    if (!texto) { onChange({ item_code: '', item_name: '' }); setSugerencias([]); return; }
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      const res = await stockService.buscarItemsTexto(texto, tipoItem);
+      setSugerencias(res); setAbierto(true);
+    }, 500);
+  };
+
+  const handleItemKeyDown = (e) => {
+    if (!abierto || !sugerencias.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCursor(c => { const next = Math.min(c + 1, sugerencias.length - 1); listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' }); return next; });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCursor(c => { const prev = Math.max(c - 1, 0); listRef.current?.children[prev]?.scrollIntoView({ block: 'nearest' }); return prev; });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx = cursor >= 0 ? cursor : 0;
+      if (sugerencias[idx]) seleccionar(sugerencias[idx]);
+    } else if (e.key === 'Escape') {
+      setAbierto(false);
+    }
+  };
+
+  const seleccionar = async (item) => {
+    const cantPres = parseFloat(item.custom_cantidad_por_presentación) || 1;
+    setBusqueda(item.item_name);
+    onChange({
+      item_code:               item.item_code,
+      item_name:               item.item_name,
+      uom:                     item.stock_uom,
+      cantidad_por_presentacion: cantPres,
+      presentacion:            item.custom_presentación || '',
+      stockLoading:            true,
+    });
+    setAbierto(false);
+    setCursor(-1);
+    setTimeout(() => { qtyRef.current?.focus(); qtyRef.current?.select(); }, 0);
+
+    try {
+      const bin = await stockService.getStockActual(item.item_code, warehouseOrigen);
+      // Bin ya está en unidad base (stock_uom) tras la migración UOM. NO multiplicar
+      // por cantidad_por_presentación: eso inflaba ×factor (ej. Santa Clara ×12).
+      // cantPres solo sirve para el guion "= N cajas" al capturar (más abajo).
+      const stockEnUnidad = parseFloat(bin?.actual_qty || 0);
+      onChange({ stock: stockEnUnidad, stockLoading: false, ...(stockEnUnidad <= 0 ? { qty: '' } : {}) });
+    } catch (err) {
+      console.error('Error fetch stock:', err);
+      onChange({ stock: 0, qty: '', stockLoading: false });
+    }
+  };
+
+
+  const uomLabel = fmtUom(fila.uom || 'unid');
+  const qtyNum = parseFloat(fila.qty || 0);
+  const stock = fila.stock;
+  const stockRestante = stock != null ? stock - qtyNum : null;
+  const sinStock = stock != null && stock <= 0 && fila.item_code;
+  const excedeStock = stockRestante != null && stockRestante < 0;
+
+  return (
+    <tr className={excedeStock ? 'nc-fila-alerta' : ''}>
+      <td>
+        <div className="nc-buscador-wrap" ref={wrapRef}>
+          <input className="nc-buscar-input" type="text" value={busqueda}
+            ref={inputRef}
+            onChange={e => handleBusqueda(e.target.value)}
+            onKeyDown={handleItemKeyDown}
+            placeholder="Buscar producto..."
+            onFocus={() => sugerencias.length && setAbierto(true)} />
+          {abierto && sugerencias.length > 0 && (
+            <div className="nc-dropdown" ref={listRef}>
+              {sugerencias.map((item, i) => (
+                <div key={item.item_code}
+                  className={`nc-dropdown-item${i === cursor ? ' nc-dropdown-item--active' : ''}`}
+                  onMouseDown={() => seleccionar(item)}>
+                  <div className="d-name">{item.item_name}</div>
+                  <div className="d-sub">{item.item_group} — {item.item_code}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
+
+      <td>
+        {!fila.item_code ? (
+          <span className="nc-uom-empty">—</span>
+        ) : fila.stockLoading ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>...</span>
+        ) : sinStock ? (
+          <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>Sin stock</span>
+        ) : (
+          <span style={{ fontWeight: 600, fontSize: 14, color: '#111' }}>
+            {fmtQty(stock)} {uomLabel}
+          </span>
+        )}
+      </td>
+
+      <td>
+        <CantidadDual
+          valor={sinStock ? '' : fila.qty}
+          onValor={v => onChange({ qty: v })}
+          factor={fila.cantidad_por_presentacion}
+          uomBase={uomLabel}
+          presentacion={fila.presentacion}
+          disabled={sinStock}
+          alerta={excedeStock}
+          placeholder={sinStock ? '—' : '0'}
+          title={sinStock ? 'Sin stock — elimina la fila' : ''}
+          inputRef={qtyRef}
+          onEnter={onFocusNext} />
+      </td>
+
+      <td>
+        {!fila.item_code || stock == null ? (
+          <span className="nc-uom-empty">—</span>
+        ) : sinStock ? (
+          <span className="nc-uom-empty">—</span>
+        ) : (
+          <span style={{
+            fontWeight: 700, fontSize: 14,
+            color: excedeStock ? '#dc2626' : stockRestante <= (stock * 0.1) ? '#d97706' : '#16a34a',
+          }}>
+            {fmtQty(stockRestante)} {uomLabel}
+          </span>
+        )}
+      </td>
+
+      <td style={{ textAlign: 'center', padding: '0 4px' }}>
+        <button className="nc-btn-eliminar" onClick={onEliminar}
+          disabled={soloUna} title="Eliminar"
+          style={{
+            fontSize: 22, fontWeight: 700, lineHeight: 1,
+            padding: '4px 10px', minWidth: 32,
+          }}>×</button>
+      </td>
+    </tr>
+  );
+}
+
+export default NuevoEnvioSucursal;

@@ -1,0 +1,219 @@
+/**
+ * frappeSupplier.js
+ * Todos los datos del proveedor en campos custom directos en Supplier.
+ * Sin dependencia de Contact ni Address doctypes.
+ */
+
+import FrappeBase from '../../../compartido/services/FrappeBase';
+
+interface ProveedorFiltros {
+  grupo?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+type ProveedorForm = Record<string, any>; // dict del formulario (muchos custom_*); tipar campo a campo = low-value
+
+class FrappeProveedoresService extends FrappeBase {
+  #cache: Record<string, any> = {};
+
+  async #cachedFetch(key: string, fetcher: () => Promise<any>): Promise<any> {
+    if (this.#cache[key]) return this.#cache[key];
+    const data = await fetcher();
+    this.#cache[key] = data;
+    return data;
+  }
+
+  // ─────────────────────────────────────────────
+  // LISTADOS
+  // ─────────────────────────────────────────────
+
+  /**
+   * Obtiene la lista de todos los proveedores activos, ordenados por número de proveedor.
+   * @param {Object} [filtros={}] - Posible filtro de "grupo" (Supplier Group).
+   * @returns {Promise<Array<Object>>} Lista de objetos proveedor.
+   */
+  async getProveedores(filtros: ProveedorFiltros = {}, signal?: AbortSignal) {
+    const { grupo, search, page = 1, pageSize = 20 } = filtros;
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), disabled: '0' });
+    if (grupo) params.append('grupo', grupo);
+    if (search) params.append('search', search);
+
+    const res = await this._fetch(
+      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`,
+      signal ? { signal } : undefined
+    );
+    return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
+  }
+
+  /**
+   * Obtiene la lista histórico de proveedores deshabilitados o en pausa comercial.
+   * @param {Object} [filtros={}] - Posible filtro de grupo.
+   * @returns {Promise<Array<Object>>} Lista de proveedores inactivos.
+   */
+  async getProveedoresDeshabilitados(filtros: ProveedorFiltros = {}, signal?: AbortSignal) {
+    const { grupo, search, page = 1, pageSize = 20 } = filtros;
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), disabled: '1' });
+    if (grupo) params.append('grupo', grupo);
+    if (search) params.append('search', search);
+
+    const res = await this._fetch(
+      `/api/method/gestion_panaderia.api.proveedores_api.get_proveedores?${params}`,
+      signal ? { signal } : undefined
+    );
+    return res.message || { items: [], total: 0, page: 1, page_size: 20, total_pages: 1 };
+  }
+
+  // ─────────────────────────────────────────────
+  // DETALLE COMPLETO
+  // ─────────────────────────────────────────────
+
+  /**
+   * Consulta el registro completo de un proveedor desde ERPNext.
+   * @param {string} supplierName - ID/Key único del proveedor en el docType.
+   * @returns {Promise<Object>} Datos detallados incluyendo sus customs hooks.
+   * @throws {Error} Si el proveedor no es encontrado.
+   */
+  async getProveedorCompleto(supplierName: string) {
+    const res = await this._fetch(
+      `/api/resource/Supplier/${encodeURIComponent(supplierName)}`
+    );
+    const data = res.data;
+    if (!data) throw new Error("Proveedor no encontrado");
+    return data;
+  }
+
+  // ─────────────────────────────────────────────
+  // AUTO-INCREMENTO
+  // ─────────────────────────────────────────────
+
+  /**
+   * Genera secuencialmente el siguiente ID Custom para proveeduría (#).
+   * Evita solapamiento de identificaciones.
+   * @private
+   * @returns {Promise<number>} Número secuencial disponible.
+   */
+  async #getSiguienteNumero() {
+    // El max lo saca el server (order_by desc + limit 1), no un reduce sobre
+    // una página de 500: pasando 500 proveedores la página quedaba parcial y
+    // el folio se duplicaba garantizado.
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["custom_no_de_proveedor"]),
+      order_by: "custom_no_de_proveedor desc",
+      limit_page_length: "1",
+    });
+    const res = await this._fetch(`/api/resource/Supplier?${params}`);
+    return (res.data?.[0]?.custom_no_de_proveedor || 0) + 1;
+  }
+
+  // ─────────────────────────────────────────────
+  // CREAR
+  // ─────────────────────────────────────────────
+
+  /**
+   * Crea un nuevo Supplier e inyecta la numeración automática de control interno.
+   * @param {Object} formData - Diccionario extraído del formulario "NuevoProveedor".
+   * @returns {Promise<Object>} Documento final registrado en el backend.
+   */
+  async createProveedor(formData: ProveedorForm) {
+    const numero = await this.#getSiguienteNumero();
+
+    const res = await this._fetch("/api/resource/Supplier", {
+      method: "POST",
+      body: JSON.stringify({
+        doctype: "Supplier",
+        supplier_name: formData.supplier_name?.trim(),
+        supplier_group: formData.supplier_group || "All Supplier Groups",
+        supplier_type: "Company",
+        disabled: 0,
+        custom_no_de_proveedor: numero,
+        custom_alias: formData.custom_alias?.trim() || "",
+        custom_razon_social: formData.custom_razon_social?.trim() || "",
+        custom_direccion: formData.custom_direccion?.trim() || "",
+        custom_puesto_encargado: formData.custom_puesto_encargado?.trim() || "",
+        custom_teléfono: formData.custom_teléfono?.trim() || "",
+        custom_correo: formData.custom_correo?.trim() || "",
+        custom_tipo: formData.custom_tipo || "",
+        custom_contacto_1_nombre: formData.custom_contacto_1_nombre?.trim() || "",
+        custom_contacto_1_teléfono: formData.custom_contacto_1_teléfono?.trim() || "",
+        custom_contacto_1_puesto: formData.custom_contacto_1_puesto?.trim() || "",
+        custom_contacto_2_nombre: formData.custom_contacto_2_nombre?.trim() || "",
+        custom_contacto_2_teléfono: formData.custom_contacto_2_teléfono?.trim() || "",
+        custom_contacto_2_puesto: formData.custom_contacto_2_puesto?.trim() || "",
+      }),
+    });
+
+    return res.data;
+  }
+
+  // ─────────────────────────────────────────────
+  // ACTUALIZAR
+  // ─────────────────────────────────────────────
+
+  /**
+   * Llama un PUT a la API de ERPNext para sobrescribir los campos del proveedor.
+   * @param {string} supplierName - PK a identificar para modificar.
+   * @param {Object} formData - Data mutada del frontend.
+   * @returns {Promise<Object>} Registro actualizado.
+   */
+  async updateProveedor(supplierName: string, formData: ProveedorForm) {
+    const res = await this._fetch(
+      `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          supplier_name: formData.supplier_name?.trim(),
+          custom_no_de_proveedor: formData.custom_no_de_proveedor,
+          supplier_group: formData.supplier_group || "All Supplier Groups",
+          disabled: formData.disabled ? 1 : 0,
+          custom_alias: formData.custom_alias?.trim() || "",
+          custom_razon_social: formData.custom_razon_social?.trim() || "",
+          custom_direccion: formData.custom_direccion?.trim() || "",
+          custom_puesto_encargado: formData.custom_puesto_encargado?.trim() || "",
+          custom_teléfono: formData.custom_teléfono?.trim() || "",
+          custom_correo: formData.custom_correo?.trim() || "",
+          custom_tipo: formData.custom_tipo || "",
+          custom_contacto_1_nombre: formData.custom_contacto_1_nombre?.trim() || "",
+          custom_contacto_1_teléfono: formData.custom_contacto_1_teléfono?.trim() || "",
+          custom_contacto_1_puesto: formData.custom_contacto_1_puesto?.trim() || "",
+          custom_contacto_2_nombre: formData.custom_contacto_2_nombre?.trim() || "",
+          custom_contacto_2_teléfono: formData.custom_contacto_2_teléfono?.trim() || "",
+          custom_contacto_2_puesto: formData.custom_contacto_2_puesto?.trim() || "",
+        }),
+      }
+    );
+
+    return res.data;
+  }
+
+  // ─────────────────────────────────────────────
+  // ELIMINAR
+  // ─────────────────────────────────────────────
+
+  async eliminarProveedor(supplierName: string) {
+    await this._fetch(
+      `/api/resource/Supplier/${encodeURIComponent(supplierName)}`,
+      { method: "DELETE" }
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  // CATÁLOGOS
+  // ─────────────────────────────────────────────
+
+  /**
+   * Obtiene la estructura arborescente (lista simple en frontend) de los grupos de proveedores.
+   * @returns {Promise<Array<Object>>} Lista de Supplier Group.
+   */
+  async getGruposProveedor() {
+    return this.#cachedFetch('grupos_proveedor', async () => {
+      const res = await this._fetch(
+        `/api/resource/Supplier Group?fields=["name"]&limit_page_length=100`
+      );
+      return res.data || [];
+    });
+  }
+}
+
+export const proveedores = new FrappeProveedoresService();
+export default FrappeProveedoresService;

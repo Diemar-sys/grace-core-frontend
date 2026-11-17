@@ -1,0 +1,239 @@
+import { useState, useEffect, useCallback } from 'react';
+import Layout from '../../../app/Layout';
+import POSHistorial from './POSHistorial';
+import POSModalCorte from './POSModalCorte';
+import ConfirmModal from '../../../compartido/components/modals/ConfirmModal';
+import ModalError from '../../../compartido/components/modals/ModalError';
+import { posService } from '../../../compartido/services/frappePOS';
+import { auth } from '../../../compartido/services/frappeAuth';
+import { generarHTMLCorte } from './corteTemplate';
+import { imprimirHTML } from '../../../compartido/utils/print/printUtils';
+import { imprimirCorteTermico } from '../../../compartido/services/printService';
+import '../../../compartido/styles/global.css';
+import '../../../compartido/styles/Panel.css';
+import '../../../compartido/styles/pos/POSModals.css';
+import { hoyISO } from '../../../compartido/utils/hora';
+
+
+const IconHistorial = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l4 2" />
+  </svg>
+);
+
+const SUB_OPCIONES = [
+  { key: 'historial', nombre: 'Historial de Ventas', sub: 'Consulta de ventas por fecha', icon: <IconHistorial />, color: '#bf360c', bg: '#fbe9e7' },
+];
+
+function LandingConsultasPOS({ onSeleccionar }) {
+  return (
+    <div className="panel-body" style={{ paddingTop: 40 }}>
+      <div className="panel-greeting">
+        <h2>Consultas — Punto de Venta</h2>
+        <p>Selecciona una opción</p>
+      </div>
+      <div className="panel-grid" style={{ maxWidth: 600 }}>
+        {SUB_OPCIONES.map(op => (
+          <button
+            key={op.key}
+            className="panel-module"
+            style={{ "--mod-color": op.color, "--mod-bg": op.bg, border: 'none', cursor: 'pointer' }}
+            onClick={() => onSeleccionar(op.key)}
+          >
+            <div className="panel-module-icon">{op.icon}</div>
+            <span className="panel-module-name">{op.nombre}</span>
+            <span className="panel-module-sub">{op.sub}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConsultasPOS() {
+  const [vista,          setVista]          = useState(null);
+  const [ventasHoy,      setVentasHoy]      = useState([]);
+  const [loadingHist,    setLoadingHist]    = useState(false);
+  const [rangoInicio,    setRangoInicio]    = useState(hoyISO);
+  const [rangoFin,       setRangoFin]       = useState(hoyISO);
+  const [datosReporte,   setDatosReporte]   = useState(null);
+  const [loadingReporte, setLoadingReporte] = useState(false);
+
+  const [modalCorte,   setModalCorte]   = useState(false);
+  const [datosCorte,   setDatosCorte]   = useState(null);
+  const [loadingCorte, setLoadingCorte] = useState(false);
+  const [errorCorte,   setErrorCorte]   = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [errorModal,   setErrorModal]   = useState(null);
+
+  // puedeCancel se mantiene como derivado de la sesión actual para el render de botones
+  const puedeCancel = auth.getUser()?.role === 'Gerente';
+
+  useEffect(() => {
+    if (vista !== 'historial') return;
+    const controller = new AbortController();
+    setLoadingHist(true);
+    posService.getVentasDelDia(rangoInicio, rangoFin)
+      .then(setVentasHoy)
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); })
+      .finally(() => setLoadingHist(false));
+    return () => controller.abort();
+  }, [vista, rangoInicio, rangoFin]);
+
+  useEffect(() => {
+    if (vista !== 'historial') return;
+    setLoadingReporte(true);
+    setDatosReporte(null);
+    const t = setTimeout(() => {
+      posService.getReporteVentas(rangoInicio, rangoFin)
+        .then(setDatosReporte)
+        .catch(console.error)
+        .finally(() => setLoadingReporte(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [vista, rangoInicio, rangoFin]);
+
+  const setHoy = useCallback(() => {
+    const h = hoyISO();
+    setRangoInicio(h); setRangoFin(h);
+  }, []);
+
+  const setEstaSemana = useCallback(() => {
+    const d = new Date();
+    const lunes = new Date(d);
+    lunes.setDate(d.getDate() - d.getDay() + (d.getDay() === 0 ? -6 : 1));
+    setRangoInicio(hoyISO(lunes));
+    setRangoFin(hoyISO(d));
+  }, []);
+
+  const setEsteMes = useCallback(() => {
+    const d = new Date();
+    const primero = new Date(d.getFullYear(), d.getMonth(), 1);
+    setRangoInicio(hoyISO(primero));
+    setRangoFin(hoyISO(d));
+  }, []);
+
+  const cancelarVenta = useCallback((name) => {
+    if (auth.getUser()?.role !== 'Gerente') {
+      setErrorModal({ title: 'Sin permisos', message: 'Tu usuario no tiene permisos para cancelar ventas.' });
+      return;
+    }
+    setCancelTarget(name);
+  }, []);
+
+  const confirmarCancelacion = useCallback(async () => {
+    if (!cancelTarget) return;
+    setCancelLoading(true);
+    try {
+      await posService.cancelarVenta(cancelTarget);
+      setVentasHoy(prev => prev.map(v =>
+        v.name === cancelTarget ? { ...v, docstatus: 2, status: 'Cancelled' } : v
+      ));
+      setCancelTarget(null);
+    } catch (err) {
+      setCancelTarget(null);
+      setErrorModal({ title: 'Error al cancelar', message: err.message || 'No se pudo cancelar la venta.' });
+    } finally {
+      setCancelLoading(false);
+    }
+  }, [cancelTarget]);
+
+  const abrirCorte = useCallback(async () => {
+    setModalCorte(true);
+    setErrorCorte('');
+    setDatosCorte(null);
+    setLoadingCorte(true);
+    try {
+      const data = await posService.getCorteCaja(rangoInicio, rangoFin);
+      setDatosCorte(data);
+    } catch (err) {
+      setErrorCorte(err.message || 'Error al generar el corte');
+    } finally {
+      setLoadingCorte(false);
+    }
+  }, [rangoInicio, rangoFin]);
+
+  const imprimirCorte = useCallback(async () => {
+    if (!datosCorte) return;
+    try {
+      await imprimirCorteTermico({
+        rango_inicio:      rangoInicio,
+        rango_fin:         rangoFin,
+        num_transacciones: datosCorte.num_transacciones,
+        por_forma_pago:    datosCorte.por_forma_pago,
+        por_departamento:  datosCorte.por_departamento,
+        total_ventas:      datosCorte.total_ventas,
+      });
+    } catch {
+      imprimirHTML(generarHTMLCorte(datosCorte, rangoInicio, rangoFin));
+    }
+  }, [datosCorte, rangoInicio, rangoFin]);
+
+  return (
+    <Layout>
+      {vista === null && (
+        <LandingConsultasPOS onSeleccionar={setVista} />
+      )}
+
+      {vista === 'historial' && (
+        <POSHistorial
+          ventasHoy={ventasHoy}
+          loadingHist={loadingHist}
+          rangoInicio={rangoInicio}
+          setRangoInicio={setRangoInicio}
+          rangoFin={rangoFin}
+          setRangoFin={setRangoFin}
+          datosReporte={datosReporte}
+          loadingReporte={loadingReporte}
+          onCancelarVenta={cancelarVenta}
+          setHoy={setHoy}
+          setEstaSemana={setEstaSemana}
+          setEsteMes={setEsteMes}
+          onAbrirCorte={abrirCorte}
+          puedeCancel={puedeCancel}
+          onVolver={() => setVista(null)}
+        />
+      )}
+
+      {modalCorte && (
+        <POSModalCorte
+          datosCorte={datosCorte}
+          loadingCorte={loadingCorte}
+          errorCorte={errorCorte}
+          rangoInicio={rangoInicio}
+          rangoFin={rangoFin}
+          imprimirCorte={imprimirCorte}
+          onCerrar={() => setModalCorte(false)}
+        />
+      )}
+
+      {cancelTarget && (
+        <ConfirmModal
+          title={`Cancelar venta ${cancelTarget}`}
+          description={<>La venta quedará registrada como cancelada en el historial.</>}
+          subdescription="Esta acción no se puede deshacer."
+          confirmLabel="Sí, cancelar"
+          loadingLabel="Cancelando..."
+          confirmStyle={{ background: '#d97706' }}
+          cancelLabel="Regresar"
+          onConfirm={confirmarCancelacion}
+          onCancel={() => setCancelTarget(null)}
+          loading={cancelLoading}
+        />
+      )}
+
+      <ModalError
+        isOpen={!!errorModal}
+        title={errorModal?.title}
+        message={errorModal?.message}
+        onClose={() => setErrorModal(null)}
+      />
+    </Layout>
+  );
+}
+
+export default ConsultasPOS;

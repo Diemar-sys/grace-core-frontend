@@ -1,0 +1,152 @@
+// src/components/Layout.jsx
+import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom";
+import { User, LogOut, RefreshCw } from "lucide-react";
+import { auth } from "../compartido/services/frappeAuth";
+import { getRoleConfig } from "./roles";
+import { TENANT } from "../compartido/config/tenant";
+import { useVersionNueva } from "../compartido/hooks/useVersionNueva";
+import Reloj from "./Reloj";
+import "./Layout.css";
+
+/**
+ * Aviso de deploy nuevo. Vive en el Layout porque debe salir en cualquier
+ * pantalla donde se haya quedado abierto el sistema, no solo en el inicio.
+ * Nunca recarga solo: quien está en medio de una venta decide cuándo.
+ */
+function BannerVersion() {
+  const hayNueva = useVersionNueva();
+  if (!hayNueva) return null;
+  return (
+    <div className="version-banner" role="status">
+      <RefreshCw size={15} aria-hidden="true" />
+      <span>Hay una versión nueva del sistema.</span>
+      <button type="button" onClick={() => window.location.reload()}>
+        Recargar
+      </button>
+    </div>
+  );
+}
+
+// ── Layout ────────────────────────────────────────────
+/**
+ * Componente Layout principal.
+ * Envuelve todas las vistas protegidas, renderizando el Topbar (con usuario y logo)
+ * y la barra de navegación lateral/superior (Menubar) según los permisos.
+ *
+ * @param {Object} props - Propiedades del componente.
+ * @param {React.ReactNode} props.children - El contenido específico de la página activa.
+ * @returns {JSX.Element} Estructura base de la aplicación.
+ */
+function Layout({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = auth.getUser();
+  const roleConfig = getRoleConfig(user?.role);
+
+  const handleLogout = async () => {
+    // try/finally: pase lo que pase con auth.logout() (red caída, etc.),
+    // SIEMPRE navegamos a /login. El estado local ya se limpió dentro de logout().
+    try {
+      await auth.logout();
+    } finally {
+      navigate('/login');
+    }
+  };
+
+  const [searchParams] = useSearchParams();
+  const modoConsulta = searchParams.get('modo') === 'consulta';
+
+  // Rutas que pertenecen a Operaciones (todas las páginas de módulos sin ?modo=consulta)
+  const RUTAS_OPERACIONES = new Set([
+    '/catalogo', '/inventario', '/compras', '/venta-b2b',
+    '/envio-sucursal', '/proveedores', '/pos', '/pedido', '/produccion',
+  ]);
+  // Egresos vive como módulo de Operaciones (tile en /panel), ya no como pestaña propia.
+  const enOperaciones = (RUTAS_OPERACIONES.has(location.pathname)
+    || location.pathname.startsWith('/egresos')) && !modoConsulta;
+
+  // Consultas: rutas /consultas/... O cualquier módulo con ?modo=consulta
+  const enConsultas = location.pathname.startsWith('/consultas') || modoConsulta;
+
+  // Reportes
+  const enReportes = location.pathname.startsWith('/reportes');
+
+  const mostrarMenubar = roleConfig.rutas.includes('/panel');
+
+  return (
+    <div className="layout-container">
+
+      <BannerVersion />
+
+      {/* TOPBAR */}
+      <header className="panel-topbar">
+        <div className="panel-topbar-left">
+          <img
+            src={TENANT.logo}
+            alt={TENANT.nombre}
+            className="logo-imagen-pq"
+          />
+          <div>
+            <h1>{TENANT.nombre}</h1>
+            <span>Sistema ERP Web</span>
+          </div>
+        </div>
+        <div className="panel-topbar-right">
+          <Reloj />
+          <div className="panel-user-chip">
+            <User size={18} />
+            {user?.fullName || user?.email || "Usuario"}
+            {/* 16-oct: el Cliente no tiene POS aunque su cuenta conserve el perfil */}
+            {user?.posProfile && user?.role !== 'Cliente' && (
+              <span className="user-branch-badge">
+                {typeof user.posProfile === 'string' ? user.posProfile : user.posProfile?.name}
+              </span>
+            )}
+          </div>
+          <button className="panel-logout-btn" onClick={handleLogout} data-sale>
+            <LogOut size={16} /> Salir
+          </button>
+        </div>
+      </header>
+
+      {/* BARRA DE MENÚ */}
+      {mostrarMenubar && (
+        <nav className="layout-menubar">
+          <Link
+            to="/panel?seccion=operaciones"
+            className={"layout-menu-btn" + (enOperaciones ? " active" : "")}
+          >
+            Operaciones
+          </Link>
+          <Link
+            to="/panel?seccion=consultas"
+            className={"layout-menu-btn" + (enConsultas ? " active" : "")}
+          >
+            Consultas
+          </Link>
+          <span className="layout-menu-btn disabled">Procesos</span>
+          {roleConfig.reportes ? (
+            <Link
+              to="/panel?seccion=reportes"
+              className={"layout-menu-btn" + (enReportes ? " active" : "")}
+            >
+              Reportes
+            </Link>
+          ) : (
+            <span className="layout-menu-btn disabled">Reportes</span>
+          )}
+          <span className="layout-menu-btn disabled">Estadísticas</span>
+          <span className="layout-menu-btn disabled">Configuración</span>
+        </nav>
+      )}
+
+      {/* CONTENIDO */}
+      <main className="main-content">
+        {children}
+      </main>
+
+    </div>
+  );
+}
+
+export default Layout;
