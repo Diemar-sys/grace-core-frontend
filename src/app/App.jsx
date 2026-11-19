@@ -36,7 +36,7 @@ const ReporteGastos = lazy(() => import('../modulos/reportes/gastos/ReporteGasto
 const ReporteGastosAnual = lazy(() => import('../modulos/reportes/gastos-anual/ReporteGastosAnual'));
 const ReporteCompras = lazy(() => import('../modulos/reportes/compras/ReporteCompras'));
 const ReporteValorizacion = lazy(() => import('../modulos/reportes/valorizacion/ReporteValorizacion'));
-const ReporteCamionetas = lazy(() => import('../modulos/reportes/camionetas/ReporteCamionetas'));
+const ReportePorGrupo = lazy(() => import('../modulos/reportes/por-grupo/ReportePorGrupo'));
 const ReporteCuentasPorPagar = lazy(() => import('../modulos/reportes/cuentas-por-pagar/ReporteCuentasPorPagar'));
 const ReporteCuentasPorCobrar = lazy(() => import('../modulos/reportes/cuentas-por-cobrar/ReporteCuentasPorCobrar'));
 const Nomina = lazy(() => import('../modulos/procesos/nomina/Nomina'));
@@ -110,13 +110,15 @@ function App() {
             }
           />
           <Route
-            path="/reportes/camionetas"
+            path="/reportes/por-grupo"
             element={
               <ProtectedRoute>
-                <ReporteCamionetas />
+                <ReportePorGrupo />
               </ProtectedRoute>
             }
           />
+          {/* 19-nov: la ruta vieja (marcadores) */}
+          <Route path="/reportes/camionetas" element={<Navigate to="/reportes/por-grupo" replace />} />
           <Route
             path="/reportes/valorizacion"
             element={

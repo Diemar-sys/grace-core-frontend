@@ -345,14 +345,14 @@ describe('EstadoCuentaHoja', () => {
     await waitFor(() => expect(h.estadoCuenta).toHaveBeenLastCalledWith('ISMA', '2026-08-27', '2026-09-27'));
   });
 
-  it('🔴 «Cobrar» abre el modal de siempre con las facturas de PAN con saldo de ese deudor', async () => {
+  it('🔴 «Cobrar» abre el modal de siempre con TODAS las facturas con saldo (pan y abarrotes, 19-nov)', async () => {
     v.getFacturasPendientes.mockResolvedValue([
       { name: 'SI-2', outstanding_amount: 4713.9 }, { name: 'SI-0', outstanding_amount: 0.001 },
     ] as any);
     render(<EstadoCuentaHoja />);
     await elegir('ISMA');
     fireEvent.click(await screen.findByRole('button', { name: 'Cobrar' }));
-    await waitFor(() => expect(v.getFacturasPendientes).toHaveBeenCalledWith({ customer: 'REPARTIDOR ISMA', tipo: 'pan' }));
+    await waitFor(() => expect(v.getFacturasPendientes).toHaveBeenCalledWith({ customer: 'REPARTIDOR ISMA' }));
     // sin la basurilla de 0.001: una sola factura, deuda exacta
     expect((await screen.findByRole('dialog')).textContent).toBe('COBRO REPARTIDOR ISMA · 1 facturas · 4713.9');
   });

@@ -149,10 +149,11 @@ export default function EstadoCuentaHoja() {
   const cobrar = async () => {
     if (!estado) return;
     try {
-      // todas las facturas de PAN con saldo de ese deudor, como en Venta B2B → Cobrar (filtro PAN)
-      const facturas = await ventasService.getFacturasPendientes({ customer: estado.cliente, tipo: 'pan' });
+      // 19-nov (Diemar): pan Y abarrotes con saldo de ese deudor, como Venta B2B → Cobrar. Los abarrotes quedan
+      // PAGADOS y ya: no entran a la caja de Eva (sin POR ENTREGAR/LIQUIDADO; cajas_de_cobro solo ve la hoja).
+      const facturas = await ventasService.getFacturasPendientes({ customer: estado.cliente });
       const grupo = grupoCobro(estado.cliente, estado.cliente, facturas);
-      if (!grupo) { setError(`${estado.cliente} no debe nada de pan. Los abarrotes se cobran en Venta B2B → Cobrar.`); cargar(); return; }
+      if (!grupo) { setError(`${estado.cliente} no debe nada.`); cargar(); return; }
       setPagoModal(grupo);
     } catch (e: any) { setError(e?.message || 'No se pudo abrir el cobro'); }
   };

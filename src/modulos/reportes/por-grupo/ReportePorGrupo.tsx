@@ -1,4 +1,4 @@
-// src/pages/ReporteCamionetas.tsx
+// src/modulos/reportes/por-grupo/ReportePorGrupo.tsx (19-nov: antes reportes/camionetas)
 // Reportes → Camionetas (Diemar 10-nov, su Excel): por camioneta y día que salió, la venta,
 // lo que cuesta y la diferencia. La merma ya está fuera del MONTO.
 // 11-nov: la merma de gastos se escribe a mano (no es un 35 % parejo): borrador en Dexie →
@@ -167,7 +167,7 @@ function TablaCamioneta(p: PropsTabla) {
   );
 }
 
-export default function ReporteCamionetas() {
+export default function ReportePorGrupo() {
   const [desde, setDesde] = useState(() => hoyISO().slice(0, 8) + '01');
   const [hasta, setHasta] = useState(hoyISO());
   const [elegida, setElegida] = useState(TODAS);

@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-17 (mudanza de src/).
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-19 (reportes/por-grupo).
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -220,7 +220,7 @@ Tests: `destinosEnvio.test.ts`.
 | `AgregarPan.tsx` | «+ Agregar pan» de la Hoja: solo con `puede_agregar` (hoja corregida, Luis/Administrator). Manda solo la clave; el precio lo pone el servidor. |
 | `bolilloDia.ts` | Vista Bolillo: totales por tanda/camioneta. |
 | `DeshacerCobro.tsx` | Modal de «Deshacer cobro»: enseña TODAS las facturas del cobro, pide motivo, se bloquea si hay LIQUIDADO o egresos. |
-| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (solo pan). Renglones ABARROTES (`tipo`): suman a Se debe, sin LIQUIDADO/POR ENTREGAR. Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. Pueblo (`pueblo`), UN paso: FECHA con día · PAN · EFECTIVO · DIFERENCIA · GASTOS (solo la razón, `razonesGasto`; los montos en Reportes) y sus botones; sin LIQUIDADO/POR ENTREGAR/ENTREGADO ni tarjetas de caja. «Cobrar» y «Registrar entrega» solo con `puede_cobrar` (cortesía; el hook del cobro decide). |
+| `EstadoCuentaHoja.tsx` | Pestaña «Estado de cuenta» de la Hoja: rango de fechas, tabla por día, LIQUIDADO (Eva→Luis, solo `puede_liquidar`), EGRESO, POR ENTREGAR, «Cobrar» (pan y abarrotes, el modal de CxC). Renglones ABARROTES (`tipo`): suman a Se debe; cobrados quedan PAGADOS sin LIQUIDADO/POR ENTREGAR (no entran a la caja de Eva). Días SIN COBRAR (pan enviado sin factura) con tarjeta propia, fuera de Se debe. «Deshacer cobro» solo con `puede_deshacer` (Administrator). Números del servidor. Pueblo (`pueblo`), UN paso: FECHA con día · PAN · EFECTIVO · DIFERENCIA · GASTOS (solo la razón, `razonesGasto`; los montos en Reportes) y sus botones; sin LIQUIDADO/POR ENTREGAR/ENTREGADO ni tarjetas de caja. «Cobrar» y «Registrar entrega» solo con `puede_cobrar` (cortesía; el hook del cobro decide). |
 | `HojaDelDia.css` | Estilos de esta pantalla. |
 | `HojaDelDia.tsx` | `/hoja` — **cobro sin inventario por destino/día.** Captura ENVIADO por pan (colores vs PEDIDO), «+ charolas», buscador, borrador en IndexedDB, «Guardar todo», camioneta en 3 pasos (capturando / en ruta / liquidado con MERMA y corrección de ENVIADO), cobrar (siempre guarda antes), «Corregir» (si el servidor manda `corregible`: solo Luis/Administrator; sin plazo), «Cerrar/Reabrir llegada» (LLEGÓ lo cierra Luis, `puede_cerrar_llegada`), «+ Agregar pan» en hoja corregida (`AgregarPan`), Ticket, descuento DELI/ZAKIA, columna LLEGÓ (solo lectura) + «Ajustar a lo que llegó» (copia LLEGÓ→ENVIADO al borrador, no guarda; ni supuesto ni bolillo; no en hoja cobrada), vista Bolillo, pestaña Estado de cuenta (`?vista=estado`). 🔴 Venta, comisión, Se debe y descuento vienen del servidor; aquí solo se pintan. `peticionRef` descarta respuestas viejas. |
 | `ModalEntregaPueblo.tsx` | Entrega de un pueblo de UN día (botón por renglón en el Estado de cuenta): EFECTIVO que regresó + agua/luz/renta/sueldo/merma/otro (informe: pueden pasar del efectivo o ir sin efectivo); enseña DIFERENCIA (efectivo − pan) y ENTREGADO (efectivo − gastos) antes de guardar. La suma es cortesía (`compartido/utils/entregaPueblo.ts`); 🔴 decide el servidor. |
@@ -322,12 +322,12 @@ Tests: `nominaTotales.test.js`.
 
 Tests: `Liquidacion.render.test.tsx`, `mermaAgrupada.test.ts`.
 
-### `modulos/reportes/camionetas/`
+### `modulos/reportes/por-grupo/`
 
 | Archivo | Qué es |
 |---|---|
-| `ReporteCamionetas.tsx` | `/reportes/camionetas` (solo Gerente). Primero GRUPO (Camionetas, Pueblos, Clientes, Sucursales) y luego quién; los grupos que no son camioneta los pinta `ReporteGrupo.tsx`. Camionetas: Venta, gastos y vendido por categoría de cada camioneta por día. La merma se teclea en $: borrador local → Guardar → Cerrar por día (cerrada: «Reabrir» solo Luis/Administrator). Cuentas en `compartido/utils/reporteCamionetas.ts`; 🔴 el dinero viene sumado del servidor. |
-| `ReporteGrupo.tsx` | Tablas de Reportes → Pueblos / Clientes / Sucursales (un bloque por destino, un renglón por día). 🔴 Columnas y sumas vienen del servidor (`reporte_grupo`); solo pinta. Cada destino puede traer SUS columnas (pueblos: tabla del jefe, VEGIL con su 10%); las del grupo son las del total de abajo. GANANCIA con signo y color de texto. Tabla `cam-tabla--grupo` (encabezado en dos renglones, centrado). Vive dentro de `ReporteCamionetas.tsx`. |
+| `ReportePorGrupo.tsx` | `/reportes/por-grupo` (solo Gerente; `/reportes/camionetas` redirige). Primero GRUPO (Camionetas, Pueblos, Clientes, Sucursales) y luego quién; los grupos que no son camioneta los pinta `ReporteGrupo.tsx`. Camionetas: Venta, gastos y vendido por categoría de cada camioneta por día. La merma se teclea en $: borrador local → Guardar → Cerrar por día (cerrada: «Reabrir» solo Luis/Administrator). Cuentas en `compartido/utils/reporteCamionetas.ts`; 🔴 el dinero viene sumado del servidor. |
+| `ReporteGrupo.tsx` | Tablas de Reportes → Pueblos / Clientes / Sucursales (un bloque por destino, un renglón por día). 🔴 Columnas y sumas vienen del servidor (`reporte_grupo`); solo pinta. Cada destino puede traer SUS columnas (pueblos: tabla del jefe, VEGIL con su 10%); las del grupo son las del total de abajo. GANANCIA con signo y color de texto. Tabla `cam-tabla--grupo` (encabezado en dos renglones, centrado). Vive dentro de `ReportePorGrupo.tsx`. |
 
 Tests: `ReporteGrupo.render.test.tsx`.
 
