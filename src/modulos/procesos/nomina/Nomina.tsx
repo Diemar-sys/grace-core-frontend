@@ -385,14 +385,14 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
           </div>
         )}
         <div className="nom-suma-hero">
-          <div className="nom-hero"><span>Total neto</span><b>{money(totales.neto)}</b></div>
-          <div className="nom-hero gasto"><span>💰 Gasto en empleados</span><b>{money(totales.costo)}</b></div>
+          <div className="nom-hero neto"><span>Total neto</span><b>{money(totales.neto)}</b></div>
+          <div className="nom-hero gasto"><span>Gasto en empleados</span><b>{money(totales.costo)}</b></div>
           {/* Este es el que cuadra con "Total Deducciones" del recibo: lleva el
               Infonavit, que NO es impuesto (es el crédito de vivienda) y por eso
               queda fuera del tile de al lado. Sin este número había que restar
               a mano para comparar contra CONTPAQi. */}
-          <div className="nom-hero ded"><span>➖ Total deducciones</span><b>{money(totales.deducc)}</b></div>
-          <div className="nom-hero imp"><span>🏛️ Total impuestos</span><b>{money(totales.impuestos)}</b></div>
+          <div className="nom-hero ded"><span>Total deducciones</span><b>{money(totales.deducc)}</b></div>
+          <div className="nom-hero imp"><span>Total impuestos</span><b>{money(totales.impuestos)}</b></div>
         </div>
       </div>
 
@@ -415,7 +415,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
           </select>
         </label>
       </div>
-      <table className="nomina-lista">
+      <table className="sys-table nomina-lista">
         <thead>
           <tr><th>Folio</th><th>Nómina de</th><th>Pago</th><th>Estado</th><th>Neto</th><th>Costo patrón</th><th>Gasto Generado</th><th></th></tr>
         </thead>
@@ -599,7 +599,7 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
             </select>
           </label>
         </div>
-        <table className="nomina-lista">
+        <table className="sys-table nomina-lista">
           <thead><tr><th>Nombre</th><th>Sucursal</th><th>Nómina de</th><th>Ingreso</th><th></th></tr></thead>
           <tbody>
             {visibles.map(e => (
@@ -662,7 +662,7 @@ function Reporte({ flash }: { flash: Flash }) {
         <label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label>
         <label>Hasta<input type="date" value={hastaEstado} onChange={e => setHasta(e.target.value)} /></label>
       </div>
-      <table className="nomina-lista">
+      <table className="sys-table nomina-lista">
         <thead>
           <tr><th>Sucursal</th><th>Empleado</th><th>Corridas</th><th>Declarado</th><th>Neto</th><th>Costo patrón</th></tr>
         </thead>
