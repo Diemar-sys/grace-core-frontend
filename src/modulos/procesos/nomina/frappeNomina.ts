@@ -59,6 +59,7 @@ export interface RenglonInput {
   gratificacion?: number | string;
   vacaciones?: number | string;
   prima_vacacional?: number | string;
+  descanso_obligatorio?: number | string;
   isr_mes?: number | string;
   isr_art174?: number | string;
   imss?: number | string;

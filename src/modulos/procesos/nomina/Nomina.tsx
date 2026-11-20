@@ -31,7 +31,7 @@ interface Fila {
   empleado: string;
   // Percepciones
   sueldo: string; septimo_dia: string; prima_dominical: string; gratificacion: string;
-  vacaciones: string; prima_vacacional: string;
+  vacaciones: string; prima_vacacional: string; descanso_obligatorio: string;
   // Deducciones
   isr_mes: string; isr_art174: string; imss: string; prestamo_infonavit_cf: string; ajuste_neto: string;
   // Informativos (no suman)
@@ -39,7 +39,7 @@ interface Fila {
 }
 const filaVacia = (): Fila => ({
   empleado: '', sueldo: '', septimo_dia: '', prima_dominical: '', gratificacion: '',
-  vacaciones: '', prima_vacacional: '',
+  vacaciones: '', prima_vacacional: '', descanso_obligatorio: '',
   isr_mes: '', isr_art174: '', imss: '', prestamo_infonavit_cf: '', ajuste_neto: '',
   isr_antes_subsidio: '', subsidio_empleo: '', infonavit_cf_corresp: '',
 });
@@ -49,6 +49,7 @@ const PERCEPCIONES: [keyof Fila, string][] = [
   ['sueldo', 'Sueldo'], ['septimo_dia', 'Séptimo día'],
   ['prima_dominical', 'Prima dominical'], ['gratificacion', 'Gratificación'],
   ['vacaciones', 'Vacaciones a tiempo'], ['prima_vacacional', 'Prima de vacaciones a tiempo'],
+  ['descanso_obligatorio', 'Días de descanso obligatorios'],
 ];
 const DEDUCCIONES: [keyof Fila, string][] = [
   ['isr_mes', 'ISR (mes)'], ['isr_art174', 'ISR Art. 174'], ['imss', 'IMSS'],
@@ -195,6 +196,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       sueldo: s(r.sueldo), septimo_dia: s(r.septimo_dia),
       prima_dominical: s(r.prima_dominical), gratificacion: s(r.gratificacion),
       vacaciones: s(r.vacaciones), prima_vacacional: s(r.prima_vacacional),
+      descanso_obligatorio: s(r.descanso_obligatorio),
       isr_mes: s(r.isr_mes), isr_art174: s(r.isr_art174), imss: s(r.imss),
       prestamo_infonavit_cf: s(r.prestamo_infonavit_cf), ajuste_neto: s(r.ajuste_neto),
       isr_antes_subsidio: s(r.isr_antes_subsidio), subsidio_empleo: s(r.subsidio_empleo),
@@ -261,6 +263,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     ['Prima dominical', totales.prima_dominical], ['Gratificación', totales.gratificacion],
     ['Vacaciones a tiempo', totales.vacaciones],
     ['Prima de vacaciones a tiempo', totales.prima_vacacional],
+    ['Días de descanso obligatorios', totales.descanso_obligatorio],
     ['ISR', totales.isr_mes], ['ISR Art. 174', totales.isr_art174], ['IMSS', totales.imss],
     ['Infonavit CF corresp.', totales.infonavit_cf_corresp], ['Ajuste al neto', totales.ajuste_neto],
   ];

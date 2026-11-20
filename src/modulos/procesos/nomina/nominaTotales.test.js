@@ -95,4 +95,17 @@ describe('payloadTicketNomina', () => {
     expect(p.total_prima_vacacional).toBeCloseTo(608.30, 2);
     expect(p.total_isr_art174).toBeCloseTo(229.71, 2);
   });
+
+  // Concepto 55: mismo caso que el `_self_check` del backend (316 de feriado).
+  it('días de descanso obligatorios suman al bruto y van al ticket', () => {
+    const conFeriado = { ...RECIBO, descanso_obligatorio: 316.00 };
+    const c = calcRenglon(conFeriado);
+    expect(c.bruto).toBeCloseTo(7366.75, 2);
+    expect(c.neto).toBeCloseTo(6631.80, 2);
+    const t = sumarTotales([conFeriado, RECIBO]);
+    expect(t.descanso_obligatorio).toBeCloseTo(316.00, 2);
+    expect(t.costo).toBeCloseTo(14417.50, 2);
+    const p = payloadTicketNomina(meta, t, 2);
+    expect(p.total_descanso_obligatorio).toBeCloseTo(316.00, 2);
+  });
 });

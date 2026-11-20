@@ -618,6 +618,7 @@ def render_nomina_image(data):
     concepto(' 12 Gratificacion',                data.get('total_gratificacion'))
     concepto(' 19 Vacaciones a tiempo',          data.get('total_vacaciones'))
     concepto(' 20 Prima de vacaciones a tiempo', data.get('total_prima_vacacional'))
+    concepto(' 55 Dias de descanso oblig.',      data.get('total_descanso_obligatorio'))
     rows.append({'rule': True})
     rows.append({'lr': ('Total Percepciones', money(_num(data.get('total_declarado')))), 'size': body})
 

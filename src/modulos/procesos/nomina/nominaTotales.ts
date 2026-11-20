@@ -25,6 +25,7 @@ export interface RenglonSumable {
   gratificacion?: number | string | null;
   vacaciones?: number | string | null;
   prima_vacacional?: number | string | null;
+  descanso_obligatorio?: number | string | null;
   isr_mes?: number | string | null;
   isr_art174?: number | string | null;
   imss?: number | string | null;
@@ -39,6 +40,7 @@ export interface RenglonSumable {
 export interface TotalesNomina {
   sueldo: number; septimo_dia: number; prima_dominical: number;
   gratificacion: number; vacaciones: number; prima_vacacional: number;
+  descanso_obligatorio: number;
   bruto: number;
   isr_mes: number; isr_art174: number; imss: number;
   infonavit_cf_corresp: number; ajuste_neto: number; deducc: number;
@@ -50,7 +52,7 @@ export interface TotalesNomina {
 /** Bruto/deducciones/neto de UN renglón. */
 export function calcRenglon(f: RenglonSumable) {
   const bruto = n(f.sueldo) + n(f.septimo_dia) + n(f.prima_dominical) + n(f.gratificacion)
-    + n(f.vacaciones) + n(f.prima_vacacional);
+    + n(f.vacaciones) + n(f.prima_vacacional) + n(f.descanso_obligatorio);
   const deducc = n(f.isr_mes) + n(f.isr_art174) + n(f.imss)
     + n(f.infonavit_cf_corresp) + n(f.ajuste_neto);
   return { bruto, deducc, neto: bruto - deducc, costo: bruto };
@@ -59,7 +61,7 @@ export function calcRenglon(f: RenglonSumable) {
 export function sumarTotales(filas: RenglonSumable[]): TotalesNomina {
   const t: TotalesNomina = {
     sueldo: 0, septimo_dia: 0, prima_dominical: 0, gratificacion: 0, vacaciones: 0,
-    prima_vacacional: 0, bruto: 0,
+    prima_vacacional: 0, descanso_obligatorio: 0, bruto: 0,
     isr_mes: 0, isr_art174: 0, imss: 0, infonavit_cf_corresp: 0, ajuste_neto: 0, deducc: 0,
     neto: 0, costo: 0, impuestos: 0,
     isr_antes_subsidio: 0, subsidio_empleo: 0, prestamo_infonavit_cf: 0,
@@ -69,6 +71,7 @@ export function sumarTotales(filas: RenglonSumable[]): TotalesNomina {
     t.sueldo += n(f.sueldo); t.septimo_dia += n(f.septimo_dia);
     t.prima_dominical += n(f.prima_dominical); t.gratificacion += n(f.gratificacion);
     t.vacaciones += n(f.vacaciones); t.prima_vacacional += n(f.prima_vacacional);
+    t.descanso_obligatorio += n(f.descanso_obligatorio);
     t.isr_mes += n(f.isr_mes); t.isr_art174 += n(f.isr_art174); t.imss += n(f.imss);
     t.infonavit_cf_corresp += n(f.infonavit_cf_corresp); t.ajuste_neto += n(f.ajuste_neto);
     t.isr_antes_subsidio += n(f.isr_antes_subsidio); t.subsidio_empleo += n(f.subsidio_empleo);
@@ -117,6 +120,7 @@ export function payloadTicketNomina(
     total_gratificacion: t.gratificacion,
     total_vacaciones: t.vacaciones,
     total_prima_vacacional: t.prima_vacacional,
+    total_descanso_obligatorio: t.descanso_obligatorio,
     total_declarado: t.bruto,
     total_isr: t.isr_mes,
     total_isr_art174: t.isr_art174,
