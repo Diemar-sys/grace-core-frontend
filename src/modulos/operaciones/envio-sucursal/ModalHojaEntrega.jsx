@@ -1,4 +1,6 @@
 // src/components/ModalHojaEntrega.jsx
+import { useState } from 'react';
+import ModalError from '../../../compartido/components/modals/ModalError';
 import { TENANT } from '../../../compartido/config/tenant';
 import { imprimirTraspasoTermico } from '../../../compartido/services/printService';
 import { numero } from '../../../compartido/utils/formato';
@@ -25,11 +27,13 @@ const escHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
 function ModalHojaEntrega({ datos, onClose }) {
   const { fecha, hora, sucursalLabel, warehouseDestino, filas, notas, docName } = datos;
 
+  const [errorTermico, setErrorTermico] = useState('');
+
   const imprimirTermico = async () => {
     try {
       await imprimirTraspasoTermico({ sucursalLabel, warehouseDestino, docName, fecha, hora, filas });
     } catch (e) {
-      alert(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF" (tamaño carta).`);
+      setErrorTermico(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF" (tamaño carta).`);
     }
   };
 
@@ -121,6 +125,8 @@ function ModalHojaEntrega({ datos, onClose }) {
 
   return (
     <div className="nc-modal-overlay">
+      <ModalError isOpen={!!errorTermico} title="NO SALIÓ EN LA TÉRMICA"
+        message={errorTermico} onClose={() => setErrorTermico('')} />
       <div className="nc-pdf-preview-modal">
         <div className="nc-pdf-modal-header">
           <span>📋 Hoja de Entrega — {sucursalLabel}</span>

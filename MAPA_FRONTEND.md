@@ -310,7 +310,7 @@ Tests: `NuevaVentaB2B.escaner.render.test.tsx`, `NuevaVentaB2B.precio.test.ts`.
 | `Nomina.tsx` | Corrida, empleados, reporte. |
 | `nominaTotales.ts` | Totales de la corrida de nómina (espejo del backend) y payload del ticket. |
 
-Tests: `nominaTotales.test.js`.
+Tests: `nominaTotales.test.js`, `Nomina.confirmar.render.test.tsx`.
 
 ### `modulos/repartidor/liquidacion/`
 

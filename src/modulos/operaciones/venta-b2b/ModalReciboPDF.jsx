@@ -1,4 +1,6 @@
 // src/components/ModalReciboPDF.jsx
+import { useState } from 'react';
+import ModalError from '../../../compartido/components/modals/ModalError';
 // Preview + impresión PDF de venta B2B (preventa o registrada).
 // Espera datos: { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador }
 import { TENANT } from '../../../compartido/config/tenant';
@@ -17,11 +19,13 @@ function ModalReciboPDF({ datos, onClose }) {
   const { noVenta, fecha, hora, cliente, filas, totales, ajuste, esBorrador } = datos;
   const numStr = noVenta != null ? String(noVenta).padStart(4, '0') : '----';
 
+  const [errorTermico, setErrorTermico] = useState('');
+
   const imprimirTermico = async () => {
     try {
       await imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, filas, totales, ajuste, esBorrador });
     } catch (e) {
-      alert(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF".`);
+      setErrorTermico(`No se pudo imprimir en la térmica SICAR: ${e?.message || e}\nUsa "Imprimir / Guardar PDF".`);
     }
   };
 
@@ -128,6 +132,8 @@ function ModalReciboPDF({ datos, onClose }) {
 
   return (
     <div className="nc-modal-overlay">
+      <ModalError isOpen={!!errorTermico} title="NO SALIÓ EN LA TÉRMICA"
+        message={errorTermico} onClose={() => setErrorTermico('')} />
       <div className="nc-pdf-preview-modal">
         <div className="nc-pdf-modal-header">
           <span>🧾 Vista previa — {esBorrador ? 'Preventa' : 'Venta'} #{numStr}</span>

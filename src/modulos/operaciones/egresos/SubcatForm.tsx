@@ -173,12 +173,12 @@ export const SubcatForm: React.FC<SubcatFormProps> = ({
           <table className="egresos-partidas-tabla">
             <thead>
               <tr>
-                <th>Cant.</th>
+                <th className="num col-cant">Cant.</th>
                 <th>Concepto</th>
-                <th>Precio</th>
-                <th>Impuesto</th>
-                <th className="cell-right">Importe</th>
-                <th></th>
+                <th className="num col-precio">Precio</th>
+                <th className="col-impuesto">Impuesto</th>
+                <th className="num col-importe">Importe</th>
+                <th className="col-quitar"></th>
               </tr>
             </thead>
             <tbody>

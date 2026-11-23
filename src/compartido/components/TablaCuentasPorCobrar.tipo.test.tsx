@@ -58,7 +58,6 @@ describe('TablaCuentasPorCobrar — filtro Tipo', () => {
   it('🔴 «Cobrar» con MATERIA PRIMA pide solo las facturas de ese tipo; con TODO, sin tipo', async () => {
     getCuentasPorCobrar.mockResolvedValue([DELI] as never);
     getFacturasPendientes.mockReset().mockResolvedValue([]);
-    vi.spyOn(window, 'alert').mockImplementation(() => {});
     render(<TablaCuentasPorCobrar />);
 
     fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'abarrote' } });

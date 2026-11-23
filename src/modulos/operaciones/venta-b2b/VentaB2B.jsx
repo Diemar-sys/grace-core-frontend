@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import Layout from "../../../app/Layout";
 import NuevaVentaB2B from "./NuevaVentaB2B";
 import ConfirmModal from "../../../compartido/components/modals/ConfirmModal";
+import ModalError from "../../../compartido/components/modals/ModalError";
 import TablaCuentasPorCobrar from "../../../compartido/components/TablaCuentasPorCobrar";
 import ModalReciboPDF from "./ModalReciboPDF";
 import { ventasService } from "../../../compartido/services/frappeSales";
@@ -173,6 +174,7 @@ function VentaB2B() {
   // Guard de doble-toque, mismo patrón que useCompras: dos taps antes del
   // refresh dispararían dos confirmaciones del mismo borrador.
   const [confirmando, setConfirmando] = useState(() => new Set());
+  const [errorConfirmar, setErrorConfirmar] = useState('');
   const handleConfirmarBorrador = async (name) => {
     if (confirmando.has(name)) return;
     setConfirmando(s => new Set(s).add(name));
@@ -180,7 +182,7 @@ function VentaB2B() {
       await ventasService.confirmarBorrador(name);
       cargar();
     } catch (err) {
-      alert(err.message || 'Error al confirmar la venta');
+      setErrorConfirmar(err.message || 'Error al confirmar la venta');
     } finally {
       setConfirmando(s => { const n = new Set(s); n.delete(name); return n; });
     }
@@ -212,6 +214,8 @@ function VentaB2B() {
 
   return (
     <Layout>
+      <ModalError isOpen={!!errorConfirmar} title="NO SE CONFIRMÓ LA VENTA"
+        message={errorConfirmar} onClose={() => setErrorConfirmar('')} />
       {/* comprasv2: la piel moderna del sistema vive scopeada bajo esa clase
           en Compras.css, que esta pantalla ya importaba sin usarla. */}
       <div className="page-container comprasv2">

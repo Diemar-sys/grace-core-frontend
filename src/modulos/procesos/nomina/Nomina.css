@@ -56,46 +56,29 @@
 }
 
 /* Tablas: limpias dentro de la tarjeta, sin rejilla dura */
-.nomina-tabla, .nomina-lista {
+.nomina-lista {
   width: 100%; border-collapse: separate; border-spacing: 0; margin: .25rem 0;
   font-size: .9rem; font-variant-numeric: tabular-nums;
 }
 /* Tablero: la lista va en su propia caja redondeada, como el modal de cobro. */
 .nomina-lista { border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-bento); }
-/* Layout fijo: un nombre de empleado largo NO debe reflowar las columnas.
-   El <select> trunca dentro de su celda de ancho fijo en vez de estirar la tabla. */
-.nomina-tabla { table-layout: fixed; }
-.nomina-tabla th:nth-child(1) { width: 20%; }           /* Empleado */
-.nomina-tabla th:nth-child(5), .nomina-tabla th:nth-child(6) { width: 9%; }  /* Neto, Costo patrón */
-.nomina-tabla th:nth-child(7) { width: 56px; }          /* acción × */
-.nomina-tabla select { text-overflow: ellipsis; }
-.nomina-tabla thead th {
-  text-align: left; font-weight: 600; font-size: .72rem; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--color-text-muted);
-  padding: .6rem .7rem; border-bottom: 1px solid var(--color-border);
-}
-.nomina-tabla td, .nomina-lista td {
+.nomina-lista td {
   padding: .65rem .7rem; border-bottom: 1px solid var(--color-hairline); text-align: left;
 }
-.nomina-tabla tbody tr:last-child td, .nomina-lista tbody tr:last-child td { border-bottom: none; }
+.nomina-lista tbody tr:last-child td { border-bottom: none; }
 .nomina-lista tbody tr { transition: background .15s; }
 .nomina-lista tbody tr:hover { background: var(--color-brand-bg); }
-.nomina-tabla input, .nomina-tabla select { width: 100%; box-sizing: border-box; }
-.nomina-tabla td.ro { text-align: right; font-weight: 600; color: var(--color-text); }
 
-/* Columnas numéricas — scopeadas por tabla (cada lista tiene columnas distintas) */
-.nomina-corrida .nomina-lista td:nth-child(5),
-.nomina-corrida .nomina-lista td:nth-child(6) { text-align: right; font-weight: 600; }
-.nomina-reporte .nomina-lista td:nth-child(n+3),
-.nomina-reporte .nomina-lista th:nth-child(n+3) { text-align: right; }
-.nomina-reporte .nomina-lista td:nth-child(7) { font-weight: 600; }
+/* Columnas numéricas por CLASE: `num` a la derecha (th y td), `total` en negrita. */
+.nomina-lista .num { text-align: right; }
+.nomina-lista td.total { font-weight: 600; }
 
 /* Totales (tfoot) con wash sutil */
-.nomina-tabla tfoot th, .nomina-lista tfoot th {
+.nomina-lista tfoot th {
   text-align: right; background: var(--color-brand-bg); padding: .7rem;
   font-weight: 700; border-top: 1px solid var(--color-border);
 }
-.nomina-tabla tfoot th:first-child, .nomina-lista tfoot th[colspan] { text-align: left; }
+.nomina-lista tfoot th[colspan] { text-align: left; }
 .nomina-lista tfoot tr th:first-child { border-bottom-left-radius: 14px; }
 .nomina-lista tfoot tr th:last-child { border-bottom-right-radius: 14px; }
 
@@ -307,7 +290,6 @@
 
 @media (max-width: 720px) {
   .nomina-empleados { grid-template-columns: 1fr; }
-  .nomina-tabla { display: block; overflow-x: auto; }
   .nom-grupo { flex-basis: 100%; }
 }
 

@@ -1,5 +1,6 @@
 import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
+import ConfirmModal from './modals/ConfirmModal';
 import { ventasService, grupoCobro } from '../services/frappeSales';
 
 const fmt = (n) =>
@@ -26,6 +27,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   // (Hoja del día) de Abarrote/MP (Venta B2B) sin bajar toda la cartera.
   const [tipo, setTipo] = useState('');
   const [pagoModal, setPagoModal] = useState(null);
+  const [avisoSaldadas, setAvisoSaldadas] = useState('');  // cliente que ya no debía
   const [abonos, setAbonos] = useState({});      // customer -> [] | 'cargando'
   const [abierto, setAbierto] = useState(null);  // customer con el historial desplegado
   const abortRef = useRef(null);
@@ -98,7 +100,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
       // solo las que deben medio centavo o más (la basurilla decimal de Frappe no se cobra)
       const grupo = grupoCobro(fila.customer, fila.customer_name, facturasBrutas);
       if (!grupo) {
-        alert(`Al parecer las facturas de ${fila.customer_name} ya estaban saldadas.`);
+        setAvisoSaldadas(fila.customer_name);
         await cargar();
         return;
       }
@@ -112,6 +114,12 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
 
   return (
     <>
+      {avisoSaldadas && (
+        <ConfirmModal hideCancel title="Ya estaba saldado"
+          description={`Al parecer las facturas de ${avisoSaldadas} ya estaban saldadas.`}
+          confirmLabel="Entendido"
+          onConfirm={() => setAvisoSaldadas('')} onCancel={() => setAvisoSaldadas('')} />
+      )}
       <div className="cxc-barra">
         <div className="cxc-barra-filtros">
           <div className="filtro-group filtro-sm filtro-pildora">

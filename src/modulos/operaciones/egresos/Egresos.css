@@ -343,16 +343,14 @@
   color: var(--tv-ink-soft); padding: 0 10px 6px; font-weight: 700;
 }
 .egresos-partidas-tabla td { padding: 0 10px; vertical-align: middle; }
-/* encabezados numéricos a la derecha (cant, precio, importe) */
-.egresos-partidas-tabla th:nth-child(1),
-.egresos-partidas-tabla th:nth-child(3),
-.egresos-partidas-tabla th:nth-child(5) { text-align: right; }
-/* anchos por columna: concepto flexible, resto fijo — cols: 1 cant, 2 concepto, 3 precio, 4 impuesto, 5 importe, 6 ✕ */
-.egresos-partidas-tabla th:nth-child(1), .egresos-partidas-tabla td:nth-child(1) { width: 100px; }
-.egresos-partidas-tabla th:nth-child(3), .egresos-partidas-tabla td:nth-child(3) { width: 130px; }
-.egresos-partidas-tabla th:nth-child(4), .egresos-partidas-tabla td:nth-child(4) { width: 130px; }
-.egresos-partidas-tabla th:nth-child(5), .egresos-partidas-tabla td:nth-child(5) { width: 130px; }
-.egresos-partidas-tabla th:nth-child(6), .egresos-partidas-tabla td:nth-child(6) { width: 44px; }
+/* Por CLASE en el <th>, no por número de columna. Con table-layout:fixed el ancho
+   del encabezado manda en toda la columna. Concepto es el flexible. */
+.egresos-partidas-tabla th.num { text-align: right; }
+.egresos-partidas-tabla .col-cant { width: 100px; }
+.egresos-partidas-tabla .col-precio,
+.egresos-partidas-tabla .col-impuesto,
+.egresos-partidas-tabla .col-importe { width: 130px; }
+.egresos-partidas-tabla .col-quitar { width: 44px; }
 .egresos-partidas-tabla input,
 .egresos-partidas-tabla select {
   width: 100%; border: 1px solid var(--tv-hairline); border-radius: 8px;

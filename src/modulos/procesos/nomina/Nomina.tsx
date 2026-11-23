@@ -12,6 +12,7 @@ import { imprimirNominaTermico } from '../../../compartido/services/printService
 import { calcRenglon, sumarTotales, payloadTicketNomina } from './nominaTotales';
 import { pesos } from '../../../compartido/utils/formato';
 import { hoyISO } from '../../../compartido/utils/hora';
+import ConfirmModal from '../../../compartido/components/modals/ConfirmModal';
 import './Nomina.css'; // <-- Tu CSS hace toda la magia aquí
 
 type Num = number | string | null | undefined;
@@ -124,6 +125,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
   const [corridas, setCorridas] = useState<Corrida[]>([]);
   const [borradorId, setBorradorId] = useState<string | null>(null); // name del borrador que se está editando
 
+  // Pregunta antes de una acción que mueve el gasto de nómina (antes: window.confirm).
+  const [pregunta, setPregunta] = useState<{ title: string; description: string; confirmLabel: string; accion: () => void } | null>(null);
   const [filtroNom, setFiltroNom] = useState<'todas' | 'ALMA RODRIGUEZ' | 'LUIS TORRES'>('todas');
 
   const cargarCorridas = useCallback(async () => {
@@ -165,8 +168,14 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     } catch (e) { flash('error', (e as Error).message); }
   };
 
-  const cancelarCorrida = async (c: Corrida) => {
-    if (!window.confirm(`Cancelar la corrida ${c.name}? Se borrará su gasto de nómina.`)) return;
+  const cancelarCorrida = (c: Corrida) => setPregunta({
+    title: `¿Cancelar la corrida ${c.name}?`,
+    description: 'Se borrará su gasto de nómina.',
+    confirmLabel: 'Sí, cancelar corrida',
+    accion: () => ejecutarCancelacion(c),
+  });
+
+  const ejecutarCancelacion = async (c: Corrida) => {
     try {
       await nominaService.cancelarCorrida(c.name);
       flash('ok', `Corrida ${c.name} cancelada`);
@@ -276,11 +285,19 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
     ['I.S.R. antes de Subs', totales.isr_antes_subsidio],
   ];
 
-  const guardar = async (submit: boolean) => {
+  const guardar = async (submit: boolean, confirmado = false) => {
     const renglones = filas.filter(f => f.empleado);
     if (!nominaDe) { flash('error', 'Elige de quién es la nómina (Alma / Luis)'); return; }
     if (!renglones.length) { flash('error', 'Agrega al menos un empleado'); return; }
-    if (submit && !window.confirm('Confirmar la corrida generará el gasto de nómina. ¿Continuar?')) return;
+    if (submit && !confirmado) {
+      setPregunta({
+        title: '¿Confirmar la corrida?',
+        description: 'Confirmar la corrida generará el gasto de nómina.',
+        confirmLabel: 'Sí, confirmar',
+        accion: () => guardar(true, true),
+      });
+      return;
+    }
     setGuardando(true);
     try {
       const res = await nominaService.crearCorrida({
@@ -309,6 +326,19 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
 
   return (
     <div className="nomina-corrida">
+      {pregunta && (
+        <ConfirmModal
+          title={pregunta.title}
+          description={pregunta.description}
+          confirmLabel={pregunta.confirmLabel}
+          subdescription={undefined} icon={undefined} iconStyle={undefined}
+          confirmClassName={undefined} confirmStyle={undefined} error={undefined}
+          onFallback={undefined} fallbackLabel={undefined} fallbackDescription={undefined}
+          passwordPrompt={undefined}
+          onCancel={() => setPregunta(null)}
+          onConfirm={() => { const { accion } = pregunta; setPregunta(null); accion(); }}
+        />
+      )}
       {borradorId && (
         <div className="nomina-borrador-bar">
           <span>✏️ Editando borrador <b>{borradorId}</b></span>
@@ -417,7 +447,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       </div>
       <table className="sys-table nomina-lista">
         <thead>
-          <tr><th>Folio</th><th>Nómina de</th><th>Pago</th><th>Estado</th><th>Neto</th><th>Costo patrón</th><th>Gasto Generado</th><th></th></tr>
+          <tr><th>Folio</th><th>Nómina de</th><th>Pago</th><th>Estado</th><th className="num">Neto</th><th className="num">Costo patrón</th><th>Gasto Generado</th><th></th></tr>
         </thead>
         <tbody>
           {corridasFiltradas.map(c => (
@@ -432,8 +462,8 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
                     ? <span className="nomina-badge cancelada">Cancelada</span>
                     : <span className="nomina-badge borrador">Borrador</span>}
               </td>
-              <td>{money(c.total_neto)}</td>
-              <td>{money(c.total_costo)}</td>
+              <td className="num total">{money(c.total_neto)}</td>
+              <td className="num total">{money(c.total_costo)}</td>
               <td>{c.egreso_generado || '—'}</td>
               <td>
                 {c.docstatus === 0 && (
@@ -664,14 +694,14 @@ function Reporte({ flash }: { flash: Flash }) {
       </div>
       <table className="sys-table nomina-lista">
         <thead>
-          <tr><th>Sucursal</th><th>Empleado</th><th>Corridas</th><th>Declarado</th><th>Neto</th><th>Costo patrón</th></tr>
+          <tr><th>Sucursal</th><th>Empleado</th><th className="num">Corridas</th><th className="num">Declarado</th><th className="num">Neto</th><th className="num">Costo patrón</th></tr>
         </thead>
         <tbody>
           {datos.map((r, i) => (
             <tr key={i}>
-              <td>{r.sucursal}</td><td>{r.empleado}</td><td>{r.corridas}</td>
-              <td>{money(r.declarado)}</td>
-              <td>{money(r.neto)}</td><td>{money(r.costo_patron)}</td>
+              <td>{r.sucursal}</td><td>{r.empleado}</td><td className="num">{r.corridas}</td>
+              <td className="num">{money(r.declarado)}</td>
+              <td className="num">{money(r.neto)}</td><td className="num total">{money(r.costo_patron)}</td>
             </tr>
           ))}
           {!datos.length && <tr><td colSpan={6} className="vacio">Sin datos en el rango</td></tr>}
