@@ -139,6 +139,26 @@ describe('Mi cuenta (cliente)', () => {
     expect(fila.nextElementSibling).toHaveTextContent('jue 1 oct 2026');
   });
 
+  // FE-M5 (auditoría 11-nov): con red lenta la respuesta del día viejo llegaba DESPUÉS y lo pisaba.
+  it('🔴 Ver pan: la respuesta tardía del día anterior no pisa al día abierto', async () => {
+    s.miCuenta.mockResolvedValue({ ...CUENTA, pedidos: [
+      { fecha: '2026-10-01', piezas: 10, enviado: 10 }, { fecha: '2026-10-02', piezas: 20, enviado: 20 }] });
+    let soltarViejo: (v: any) => void = () => {};
+    s.miPedido.mockImplementation((f: string) => f === '2026-10-01'
+      ? new Promise(r => { soltarViejo = r; })
+      : Promise.resolve(dia([pan('2002', 'CONCHA', 20, 20)])));
+    render(<MiCuenta />);
+    await screen.findByLabelText('Saldo');
+    fireEvent.click(screen.getByRole('button', { name: /^Pedidos$/ }));
+    const [ver02, ver01] = await screen.findAllByRole('button', { name: 'Ver pan' });
+    fireEvent.click(ver01);                       // A (lento)
+    fireEvent.click(ver02);                       // B (rápido)
+    expect(await screen.findByText('CONCHA')).toBeInTheDocument();
+    await act(async () => { soltarViejo(dia([pan('1001', 'MANTECADA GDE', 10, 10)])); });
+    expect(screen.queryByText('MANTECADA GDE')).toBeNull();
+    expect(screen.getByText('CONCHA')).toBeInTheDocument();
+  });
+
   // 20-oct (Diemar): ve lo que se mandó (no lo toca) y anota lo que le LLEGÓ, pan por pan
   it('llegadasCambiadas: solo lo que cambia, entero y ≥ 0; vacío no va', () => {
     const rs = [pan('A', 'A', 1, 1, 5), pan('B', 'B', 1, 1), pan('C', 'C', 1, 1), pan('D', 'D', 1, 1), pan('E', 'E', 1, 1)];

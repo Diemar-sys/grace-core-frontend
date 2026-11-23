@@ -135,6 +135,9 @@ export default function MiCuenta() {
   const [factura, setFactura] = useState('');
   const [productos, setProductos] = useState<RenglonFactura[] | null>(null);
   const facturaPedida = useRef('');
+  // FE-M5: lo mismo para el día. Con red lenta (celular): toca A, toca B, llega B y luego A →
+  // encabezado de B con el pan de A, y «Te llegó» se guardaba con fecha B. Respuesta de otro día = se tira.
+  const diaPedido = useRef('');
   const [envioAbierto, setEnvioAbierto] = useState('');
   const buscado = normalizarBusqueda(busqueda);
   const usuario = auth.getUser();
@@ -148,9 +151,12 @@ export default function MiCuenta() {
 
   const abrirDia = async (fecha: string) => {
     setTecleado({});
-    if (dia === fecha) { setDia(''); setDetalle(null); return; }
-    setDia(fecha); setDetalle(null);
-    try { setDetalle(await clienteService.miPedido(fecha)); }
+    if (dia === fecha) { diaPedido.current = ''; setDia(''); setDetalle(null); return; }
+    diaPedido.current = fecha; setDia(fecha); setDetalle(null);
+    try {
+      const r = await clienteService.miPedido(fecha);
+      if (diaPedido.current === fecha) setDetalle(r);
+    }
     catch (e: any) { setError(e?.message || 'No se pudo cargar el pedido'); }
   };
 
@@ -170,7 +176,7 @@ export default function MiCuenta() {
     if (!dia || !abierta) return;
     const id = setInterval(() => {
       if (document.hidden) return; // 29-oct: pestaña escondida o celular bloqueado: no pregunta
-      clienteService.miPedido(dia).then(setDetalle).catch(() => { /* ponytail: el siguiente minuto reintenta */ });
+      clienteService.miPedido(dia).then(r => { if (diaPedido.current === dia) setDetalle(r); }).catch(() => { /* ponytail: el siguiente minuto reintenta */ });
     }, RELEER_MS);
     return () => clearInterval(id);
   }, [dia, abierta]);
@@ -183,7 +189,10 @@ export default function MiCuenta() {
   const guardarLlegada = async () => {
     if (!cambios.length) return;
     setGuardando(true); setError('');
-    try { setDetalle(await clienteService.confirmarLlegada(dia, cambios)); setTecleado({}); }
+    try {
+      const r = await clienteService.confirmarLlegada(dia, cambios);
+      if (diaPedido.current === dia) { setDetalle(r); setTecleado({}); }
+    }
     catch (e: any) { setError(e?.message || 'No se pudo guardar lo que llegó'); }
     finally { setGuardando(false); }
   };
