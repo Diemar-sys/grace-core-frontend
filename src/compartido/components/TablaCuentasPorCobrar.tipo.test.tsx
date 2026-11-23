@@ -71,6 +71,17 @@ describe('TablaCuentasPorCobrar — filtro Tipo', () => {
     await waitFor(() => expect(getFacturasPendientes).toHaveBeenLastCalledWith({ customer: 'DELI', tipo: undefined }));
   });
 
+  // 23-nov: si falla la red al abrir el cobro, antes solo iba a la consola y el
+  // botón «no hacía nada». Ahora se avisa.
+  it('🔴 «Cobrar» con falla de red avisa en pantalla', async () => {
+    getCuentasPorCobrar.mockResolvedValue([DELI] as never);
+    getFacturasPendientes.mockReset().mockRejectedValue(new Error('Network Error'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<TablaCuentasPorCobrar />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cobrar' }));
+    expect(await screen.findByText('NO SE ABRIÓ EL COBRO')).toBeTruthy();
+  });
+
   it('las opciones van en mayúsculas: TODO / PAN / MATERIA PRIMA', () => {
     render(<TablaCuentasPorCobrar />);
     const opciones = [...(screen.getByLabelText('Tipo') as HTMLSelectElement).options].map(o => o.textContent);

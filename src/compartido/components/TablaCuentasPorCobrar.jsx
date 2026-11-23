@@ -1,6 +1,7 @@
 import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import ModalRegistrarPago from './modals/ModalRegistrarPago';
 import ConfirmModal from './modals/ConfirmModal';
+import ModalError from './modals/ModalError';
 import { ventasService, grupoCobro } from '../services/frappeSales';
 
 const fmt = (n) =>
@@ -28,6 +29,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
   const [tipo, setTipo] = useState('');
   const [pagoModal, setPagoModal] = useState(null);
   const [avisoSaldadas, setAvisoSaldadas] = useState('');  // cliente que ya no debía
+  const [errorCobro, setErrorCobro] = useState('');        // cliente cuyo cobro no abrió
   const [abonos, setAbonos] = useState({});      // customer -> [] | 'cargando'
   const [abierto, setAbierto] = useState(null);  // customer con el historial desplegado
   const abortRef = useRef(null);
@@ -107,6 +109,7 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
       setPagoModal(grupo);
     } catch (err) {
       console.error('Error abriendo cobro:', err);
+      setErrorCobro(fila.customer_name);
     }
   };
 
@@ -120,6 +123,9 @@ const TablaCuentasPorCobrar = forwardRef(function TablaCuentasPorCobrar({ readOn
           confirmLabel="Entendido"
           onConfirm={() => setAvisoSaldadas('')} onCancel={() => setAvisoSaldadas('')} />
       )}
+      <ModalError isOpen={!!errorCobro} title="NO SE ABRIÓ EL COBRO"
+        message={`No se pudieron traer las facturas de ${errorCobro}. Revisa la conexión e intenta otra vez.`}
+        onClose={() => setErrorCobro('')} />
       <div className="cxc-barra">
         <div className="cxc-barra-filtros">
           <div className="filtro-group filtro-sm filtro-pildora">
