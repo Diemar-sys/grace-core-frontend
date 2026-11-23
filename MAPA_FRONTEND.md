@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-19 (reportes/por-grupo).
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-23.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -50,18 +50,18 @@ Raíz de `src/`: `main.jsx` (monta `<App/>` en `FrappeProvider`, `enableSocket=f
 |---|---|
 | `App.jsx` | Router. `/recuperar` y `/update-password` (el enlace del correo) son públicas. Rutas protegidas, lazy para reportes. Monta `BannerConexion`, `AvisoSesion`, `AvisoMantenimiento` (fuera del `ErrorBoundary`). `/liquidacion` = única ruta de Repartidor; `/mi-cuenta` = única de Cliente. |
 | `AvisoMantenimiento.css` | Estilos de esta pantalla. |
-| `AvisoMantenimiento.tsx` | Aviso de 5 min + píldora junto al reloj; en mantenimiento (503) tapa la pantalla sin recargar. Lógica en `compartido/utils/mantenimiento.ts`. |
+| `AvisoMantenimiento.tsx` | Modal de aviso de mantenimiento (se puede cerrar); en mantenimiento (503) tapa la pantalla sin recargar. |
 | `AvisoSesion.css` | Estilos de esta pantalla. |
 | `AvisoSesion.tsx` | Bloquea la pantalla si otra pestaña cambió la sesión. |
 | `BannerConexion.css` | Estilos de esta pantalla. |
-| `BannerConexion.jsx` | Red caída · boundary global · shell/topbar + «hay versión nueva» · guard de rutas + precarga de config. |
-| `ErrorBoundary.jsx` | Red caída · boundary global · shell/topbar + «hay versión nueva» · guard de rutas + precarga de config. |
-| `iconosModulos.jsx` | Tiles del Panel y sus iconos. |
+| `BannerConexion.jsx` | Aviso de red caída, en cualquier pantalla. |
+| `ErrorBoundary.jsx` | Boundary global: atrapa el error de render y ofrece recargar. |
+| `iconosModulos.jsx` | SVG de los tiles del Panel. |
 | `Layout.css` | Estilos de esta pantalla. |
-| `Layout.jsx` | Red caída · boundary global · shell/topbar + «hay versión nueva» · guard de rutas + precarga de config. |
-| `modulos.jsx` | Tiles del Panel y sus iconos. |
-| `PildoraMantenimiento.tsx` | Aviso de 5 min + píldora junto al reloj; en mantenimiento (503) tapa la pantalla sin recargar. Lógica en `compartido/utils/mantenimiento.ts`. |
-| `ProtectedRoute.jsx` | Red caída · boundary global · shell/topbar + «hay versión nueva» · guard de rutas + precarga de config. |
+| `Layout.jsx` | Shell: topbar con reloj, menú por rol (`getRoleConfig`), salir (siempre navega a `/login`) y aviso «hay versión nueva». |
+| `modulos.jsx` | Tiles del Panel: módulo, ruta, icono (operación, consultas, reportes, config). |
+| `PildoraMantenimiento.tsx` | Cuenta regresiva del aviso junto al reloj de la barra. |
+| `ProtectedRoute.jsx` | Guard de rutas: sin sesión → `/login`, ruta fuera del rol → su inicio. Precarga `appConfig` y `sucursalesConfig` (dependencia = email, no el objeto `user`). |
 | `Reloj.tsx` | Fecha/hora local de la barra, un tic por minuto. |
 | `roles.ts` | Niveles (Vendedor, Almacén, Operaciones, Gerente, Repartidor, Cliente): módulos y rutas de cada uno. |
 
@@ -97,7 +97,7 @@ Tests: `frappeCliente.miFactura.test.ts`, `MiCuenta.render.test.tsx`.
 | Archivo | Qué es |
 |---|---|
 | `Auditoria.tsx` | Bitácora de acciones sensibles. |
-| `frappeAuditoria.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
+| `frappeAuditoria.ts` | `auditoria_api`: `feed` (bitácora por usuario/rango) y `operadores`. |
 
 ### `modulos/configuracion/cuentas/`
 
@@ -105,7 +105,7 @@ Tests: `frappeCliente.miFactura.test.ts`, `MiCuenta.render.test.tsx`.
 |---|---|
 | `Cuentas.css` | Estilos de esta pantalla. |
 | `Cuentas.tsx` | Usuarios: crear, nivel, POS, habilitar, ficha, «Correo para recuperar contraseña» (no System Manager). Tocar un System Manager pide llave de Administrator. |
-| `frappeCuentas.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
+| `frappeCuentas.ts` | Cuentas de usuario: listar/crear/editar, habilitar, nivel, POS profile. |
 
 Tests: `Cuentas.ficha.render.test.tsx`.
 
@@ -113,9 +113,9 @@ Tests: `Cuentas.ficha.render.test.tsx`.
 
 | Archivo | Qué es |
 |---|---|
-| `frappeKardex.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
+| `frappeKardex.ts` | Kardex de un item en un almacén por rango; items para el selector. |
 | `Kardex.jsx` | Consumo entre los dos últimos conteos. |
-| `kardex.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
+| `kardex.ts` | `consumoEntreConteos`: materia prima gastada entre los dos últimos conteos físicos. |
 
 Tests: `Kardex.test.js`.
 
@@ -152,11 +152,11 @@ Tests: `ConsultaTablero.avance.test.ts`.
 | `Catalogo.jsx` | Alta/edición de insumos y pan, costeo. |
 | `CatalogoPan.css` | Estilos de esta pantalla. |
 | `catalogoTypes.ts` | Tipos del catálogo. |
-| `catalogoUtils.ts` | Margen/filtro de pan; árbol de grupos por nested set. |
+| `catalogoUtils.ts` | Catálogo de pan: `calcularMargen`, categorías, `filtrarPanes`. |
 | `FilaItem.tsx` | Renglón de un item en la lista del catálogo. |
 | `NuevoPan.css` | Estilos de esta pantalla. |
-| `NuevoPan.jsx` | Modales/formularios de alta. |
-| `precioPan.ts` | Precio B2B; precio por canal (🔴 `custom_precio_por_kg` es de COMPRA); margen del pan. |
+| `NuevoPan.jsx` | Modal alta/edición de pan y sus precios. |
+| `precioPan.ts` | Alta de pan: margen contra el costo estimado y comparación con el precio de sucursal. |
 | `VistaPan.tsx` | Costeo/margen. |
 
 Tests: `Catalogo.filtroPan.test.js`, `NuevoPan.margen.test.js`.
@@ -173,7 +173,7 @@ Tests: `Catalogo.filtroPan.test.js`, `NuevoPan.margen.test.js`.
 | `LigarCodigo.tsx` | Código desconocido: ligar a existente o alta; `ElegirVariante` cuando un código tiene varios items. |
 | `ModalPreciosActualizados.jsx` | Avisa los precios que cambió la compra. 🔴 Sin botón «Omitir» (dejaba el catálogo mintiendo). |
 | `ModalReciboPDF.jsx` | Recibo PDF de la compra. |
-| `NuevaCompra.jsx` | Modales/formularios de alta. |
+| `NuevaCompra.jsx` | Formulario de compra con borrador; descuento como fila de impuesto «Total». |
 | `useCompras.ts` | Hook de la lista de compras. |
 
 Tests: `costoAnomalo.test.ts`, `FilaProducto.escaneo.render.test.tsx`, `NuevaCompra.escaner.render.test.tsx`.
@@ -189,7 +189,7 @@ Tests: `costoAnomalo.test.ts`, `FilaProducto.escaneo.render.test.tsx`, `NuevaCom
 | `egresosIcons.tsx` | Iconos por categoría. |
 | `EgresosTabla.tsx` | Tabla de egresos. |
 | `egresosTypes.ts` | Tipos de egresos. |
-| `egresosUtils.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
+| `egresosUtils.ts` | Egresos: autocompleta Agua por proveedor; totales por partida con ajuste SAT (misma función que Compras). |
 | `GasForm.tsx` | Formulario de gas. |
 | `GasolinaForm.tsx` | Formulario de gasolina. |
 | `luzCalc.ts` | CFE, total truncado. |
@@ -204,11 +204,11 @@ Tests: `Egresos.consulta.test.tsx`, `Egresos.partidas.test.js`, `luzCalc.test.ts
 
 | Archivo | Qué es |
 |---|---|
-| `destinosEnvio.ts` | Juntar pestañas del pedido; ordenar destinos; destinos de envío (sin duplicar camionetas). |
+| `destinosEnvio.ts` | Dropdown Destino de Envío a Sucursal agrupado por TIPO de almacén (sucursales, camionetas, pueblos). |
 | `EnvioSucursal.jsx` | Traspasos a sucursal, «+ Entrada de Pan», reposición de insumos. |
 | `ModalHojaEntrega.jsx` | Hoja de entrega de un envío. |
-| `NuevoEnvioSucursal.jsx` | Modales/formularios de alta. |
-| `ReposicionInsumos.tsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
+| `NuevoEnvioSucursal.jsx` | Formulario de envío: origen Bodega Central (MP) o almacén de pan; un solo origen por envío. |
+| `ReposicionInsumos.tsx` | Qué le falta a cada sucursal (por ritmo de consumo, no por saldo). |
 | `useSucursales.ts` | Lista de sucursales/destinos. |
 
 Tests: `destinosEnvio.test.ts`.
@@ -233,15 +233,15 @@ Tests: `bolilloDia.test.ts`, `EstadoCuentaHoja.render.test.tsx`, `HojaDelDia.ren
 
 | Archivo | Qué es |
 |---|---|
-| `ConteoFisico.jsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
-| `conteoFisico.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
-| `HistorialMovimientos.jsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
+| `ConteoFisico.jsx` | Conteo físico; ajusta contra el stock de BODEGA_CENTRAL. Con borrador local. |
+| `conteoFisico.ts` | PURO: conteo físico: factor presentación→base, filtro por tipo, pendientes, `lineasAjuste`. |
+| `HistorialMovimientos.jsx` | Historial de Stock Entry por almacén. |
 | `Inventario.jsx` | Stock, agotados, ajustes, conteo físico. |
-| `RegistroMerma.jsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
+| `RegistroMerma.jsx` | Modal de merma (Material Issue), con borrador local. |
 | `RegistroMovimiento.css` | Estilos de esta pantalla. |
-| `RegistroRegalo.jsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
-| `RegistroSalida.jsx` | Inventario: conteo, historial, merma, regalo de proveedor, salida, qué reponer (por ritmo, no por saldo). Merma y Salida con borrador local (`useBorradorLocal`). |
-| `stockMP.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
+| `RegistroRegalo.jsx` | Modal de regalo de proveedor (Material Receipt). |
+| `RegistroSalida.jsx` | Modal de salida/transferencia interna, con borrador local. |
+| `stockMP.ts` | Mapa de stock por almacén en unidad base (Kg) con presentación (`fetchStockMapKg`). |
 
 Tests: `ConteoFisico.test.js`, `Inventario.test.jsx`, `stockMP.test.js`.
 
@@ -251,9 +251,9 @@ Tests: `ConteoFisico.test.js`, `Inventario.test.jsx`, `stockMP.test.js`.
 |---|---|
 | `CargaDrive.tsx` | Tarjeta «Carga automática» de Pedido: solo el switch (visible si `puede_cambiar`) y último cambio. Sin carpeta configurada no se pinta. Reglas en `pedido_drive.py`. |
 | `charolas.ts` | Piezas → «N char + M pz», espejo de `_charolas` del backend. |
-| `gruposDestino.ts` | Juntar pestañas del pedido; ordenar destinos; destinos de envío (sin duplicar camionetas). |
+| `gruposDestino.ts` | Ordena destinos por grupo y arma los tramos del encabezado del pedido. |
 | `Pedido.jsx` | La hoja del día: «Traer de Drive» (o, si Drive no responde, subir .xlsx a mano) → previsualiza → «Importar y mandar» (Telegram); limpio y enviado → regresa a Operaciones. Fecha la dice el Excel. Un Excel por día; «Quitar» borra el guardado. Abajo, tarjeta `CargaDrive`. |
-| `pedidoDia.ts` | Juntar pestañas del pedido; ordenar destinos; destinos de envío (sin duplicar camionetas). |
+| `pedidoDia.ts` | `hojaDelDia`: junta las pestañas marcadas del Excel en el pedido del día. |
 
 Tests: `CargaDrive.render.test.tsx`, `charolas.test.ts`, `gruposDestino.test.ts`, `Pedido.fecha.test.tsx`, `pedidoDia.test.ts`.
 
@@ -261,18 +261,18 @@ Tests: `CargaDrive.render.test.tsx`, `charolas.test.ts`, `gruposDestino.test.ts`
 
 | Archivo | Qué es |
 |---|---|
-| `NuevaReceta.jsx` | Modales/formularios de alta. |
+| `NuevaReceta.jsx` | Alta/edición de receta (BOM). |
 | `Produccion.jsx` | Recetas (BOM) y entrada de pan. |
 
 ### `modulos/operaciones/proveedores/`
 
 | Archivo | Qué es |
 |---|---|
-| `frappeSupplier.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
+| `frappeSupplier.ts` | Proveedores: CRUD, grupos, deshabilitados (datos en campos custom de Supplier). |
 | `NuevoProveedor.css` | Estilos de esta pantalla. |
-| `NuevoProveedor.jsx` | Modales/formularios de alta. |
+| `NuevoProveedor.jsx` | Alta/edición de proveedor con contactos principal y secundario. |
 | `Proveedores.jsx` | Alta/edición de proveedores. |
-| `proveedorTaxonomy.ts` | Sucursales internas/destino; grupos de proveedor. |
+| `proveedorTaxonomy.ts` | Jerarquía de Supplier Groups (nombres EXACTOS de ERPNext): `TAXONOMY`, `getTipoDeGrupo`, `GRUPOS_RAIZ`. |
 | `useDebounce.ts` | Debounce del buscador. |
 
 ### `modulos/operaciones/punto-de-venta/`
@@ -293,11 +293,11 @@ Tests: `CargaDrive.render.test.tsx`, `charolas.test.ts`, `gruposDestino.test.ts`
 
 | Archivo | Qué es |
 |---|---|
-| `BuscadorCliente.jsx` | Buscador de clientes B2B; filtro de tipo de item. |
+| `BuscadorCliente.jsx` | Buscador de clientes B2B (precarga todos: son pocos). |
 | `ModalReciboPDF.jsx` | Recibo PDF de la venta B2B. |
 | `NuevaVentaB2B.jsx` | Alta de venta B2B; precio en `modulos/operaciones/venta-b2b/ventaB2B.ts` (excepción DELI nata a precio de compra). Escáner: Enter con código de barras busca exacto; pan no entra a B2B. |
 | `VentaB2B.jsx` | Venta mayoreo de abarrote/MP + CxC con «Cobrar». 🔴 El pan ya no se vende aquí (va por la Hoja). |
-| `ventaB2B.ts` | Precio B2B; precio por canal (🔴 `custom_precio_por_kg` es de COMPRA); margen del pan. |
+| `ventaB2B.ts` | Venta B2B: precio por tipo (materia prima al costo sin impuesto), qué items se ven (el pan ya no: va por la Hoja), precio con impuesto. |
 
 Tests: `NuevaVentaB2B.escaner.render.test.tsx`, `NuevaVentaB2B.precio.test.ts`.
 
@@ -305,10 +305,10 @@ Tests: `NuevaVentaB2B.escaner.render.test.tsx`, `NuevaVentaB2B.precio.test.ts`.
 
 | Archivo | Qué es |
 |---|---|
-| `frappeNomina.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
+| `frappeNomina.ts` | Nómina: empleados, sucursales, corridas (crear/cancelar), último renglón, costo real. Datos personales con `admin_password`. |
 | `Nomina.css` | Estilos de esta pantalla. |
 | `Nomina.tsx` | Corrida, empleados, reporte. |
-| `nominaTotales.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
+| `nominaTotales.ts` | Totales de la corrida de nómina (espejo del backend) y payload del ticket. |
 
 Tests: `nominaTotales.test.js`.
 
@@ -318,7 +318,7 @@ Tests: `nominaTotales.test.js`.
 |---|---|
 | `Liquidacion.css` | Estilos de esta pantalla. |
 | `Liquidacion.tsx` | `/liquidacion` — el repartidor elige día y teclea MERMA (polvorón/muerto agrupados, `repartirMerma`). Manda todos los renglones. Borrador por día en IndexedDB (se ignora si ya se envió o cobró). 🔴 Ya «liquidado» = solo lectura (la merma se manda una vez). |
-| `mermaAgrupada.ts` | Previsualizar liquidación; agrupar y repartir merma de polvorón/muerto. |
+| `mermaAgrupada.ts` | Liquidación: polvorón/muerto (mismo costo) se capturan en UN renglón y la merma se reparte entre sabores (`agruparRenglones`, `repartirMerma`). |
 
 Tests: `Liquidacion.render.test.tsx`, `mermaAgrupada.test.ts`.
 
@@ -335,20 +335,20 @@ Tests: `ReporteGrupo.render.test.tsx`.
 
 | Archivo | Qué es |
 |---|---|
-| `ReporteCompras.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `ReporteCompras.jsx` | Reportes → Compras: reporte fiscal mensual (lo suma la base). |
 
 ### `modulos/reportes/cuentas-por-cobrar/`
 
 | Archivo | Qué es |
 |---|---|
-| `ReporteCuentasPorCobrar.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `ReporteCuentasPorCobrar.jsx` | Reportes → CxC: envoltura de `TablaCuentasPorCobrar`. |
 
 ### `modulos/reportes/cuentas-por-pagar/`
 
 | Archivo | Qué es |
 |---|---|
-| `cuentasPorPagar.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
-| `ReporteCuentasPorPagar.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `cuentasPorPagar.ts` | Agrupaciones de CxP: saldo por `facturado_a` (siempre los 3), vistas, filas, deuda total. |
+| `ReporteCuentasPorPagar.jsx` | Reportes → CxP: compras + egresos por `facturado_a`, vistas General/Compras/Egresos, docs pendientes por proveedor (lógica en `cuentasPorPagar.ts`). |
 
 Tests: `ReporteCuentasPorPagar.render.test.tsx`, `ReporteCuentasPorPagar.test.js`.
 
@@ -356,18 +356,18 @@ Tests: `ReporteCuentasPorPagar.render.test.tsx`, `ReporteCuentasPorPagar.test.js
 
 | Archivo | Qué es |
 |---|---|
-| `frappeReportes.ts` | Usuarios · bitácora · nómina · kardex · gasto unificado · proveedores. |
-| `ReporteGastos.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `frappeReportes.ts` | `reportes_api`: gasto unificado (compras + egresos) por `facturado_a` y rango. |
+| `ReporteGastos.jsx` | Reportes → Gasto por cuenta en un rango. |
 
 ### `modulos/reportes/gastos-anual/`
 
 | Archivo | Qué es |
 |---|---|
-| `gastosAnuales.ts` | CxP; gasto anual sin doble nómina; totales de nómina (espejo del backend); egresos. |
+| `gastosAnuales.ts` | Consolidado anual de todo lo que sale de caja: compras + egresos por mes/categoría; la nómina cae en la fecha de pago de su corrida; colores fijos por categoría. |
 | `kilosComprados.ts` | Kilos comprados: agrupa categoría→insumo→mes por cuenta (Maps, O(n)), totales por unidad sin mezclar Kg/L/PZA, `csvKilos` (BOM + CRLF). Test `kilosComprados.test.ts`. |
 | `KilosComprados.tsx` | Kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`. |
 | `ReporteGastosAnual.css` | Estilos de esta pantalla. |
-| `ReporteGastosAnual.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `ReporteGastosAnual.jsx` | Reportes → Gasto anual mes × categoría, detalle al clic, PDF; incluye `KilosComprados.tsx` (lógica en `gastosAnuales.ts`, tope ~2000 compras). |
 
 Tests: `gastosAnuales.test.js`, `KilosComprados.render.test.tsx`, `kilosComprados.test.ts`.
 
@@ -375,7 +375,7 @@ Tests: `gastosAnuales.test.js`, `KilosComprados.render.test.tsx`, `kilosComprado
 
 | Archivo | Qué es |
 |---|---|
-| `ReporteValorizacion.tsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `ReporteValorizacion.tsx` | Reportes → Valorización de envíos: lo mandado a sucursales al costo y a precio de venta. MP con margen `null`, nunca $0. |
 
 Tests: `ReporteValorizacion.test.ts`.
 
@@ -383,7 +383,7 @@ Tests: `ReporteValorizacion.test.ts`.
 
 | Archivo | Qué es |
 |---|---|
-| `ReportesVentasCategoria.jsx` | Reportes. CxP = compras + egresos por `facturado_a` (lógica en `modulos/reportes/cuentas-por-pagar/cuentasPorPagar.ts`). Gastos anual agrega en el navegador (tope ~2000 compras). Valorización: MP con margen `null`, nunca $0. Gastos anual incluye `KilosComprados.tsx` (kilos comprados por mes/cuenta + CSV; lógica en `modulos/reportes/gastos-anual/kilosComprados.ts`). |
+| `ReportesVentasCategoria.jsx` | Reportes → Ventas B2B por categoría por mes. |
 
 ## Compartido (`src/compartido/`)
 
@@ -394,8 +394,8 @@ Tests: `ReporteValorizacion.test.ts`.
 | Archivo | Qué es |
 |---|---|
 | `CantidadDual.tsx` | Cantidad en base o presentación con conversión visible. 🔴 Existe por el bug de UOM de $8,846. |
-| `NuevoInsumo.jsx` | Modales/formularios de alta. |
-| `SelectorTipoItem.tsx` | Buscador de clientes B2B; filtro de tipo de item. |
+| `NuevoInsumo.jsx` | Modal alta/edición de insumo (materia prima). |
+| `SelectorTipoItem.tsx` | Select de tipo de item (MP, pan…) con namespace CSS por pantalla. |
 | `TablaCuentasPorCobrar.jsx` | CxC (reporte y venta), filtro TODO/PAN/MATERIA PRIMA. |
 
 Tests: `CantidadDual.render.test.jsx`, `CantidadDual.test.ts`, `RegistroMovimiento.borrador.test.jsx`, `TablaCuentasPorCobrar.tipo.test.tsx`.
@@ -432,10 +432,10 @@ Tests: `posUtils.test.js`.
 
 | Archivo | Qué es |
 |---|---|
-| `clientesB2B.ts` | Sucursales internas/destino; grupos de proveedor. |
-| `constants.ts` | Identidad del negocio desde `VITE_*`; `PAGE_SIZE`, `TIPOS_ITEM`. |
+| `clientesB2B.ts` | Sucursales internas/extendidas: `esSucursalInterna`, destinos, `ocultaMateriaPrima`. Lee de `sucursalesConfig`. |
+| `constants.ts` | `COMPANY`, `BODEGA_CENTRAL`, `DEFAULT_CUSTOMER`, `SUCURSALES`, `PAGE_SIZE`, `TIPOS_ITEM` (de `tenant.ts`). |
 | `impuestos.ts` | Tasas y cascada IEPS→IVA (25.28%, no 24%). Test: `impuestos.test.js`. |
-| `tenant.ts` | Identidad del negocio desde `VITE_*`; `PAGE_SIZE`, `TIPOS_ITEM`. |
+| `tenant.ts` | Identidad del negocio desde `VITE_*` (`TENANT`); se hornea público en el bundle. |
 
 Tests: `impuestos.test.js`.
 
@@ -443,8 +443,8 @@ Tests: `impuestos.test.js`.
 
 | Archivo | Qué es |
 |---|---|
-| `borradorLocal.ts` | Autosave de formularios y del conteo físico. |
-| `conteoBorrador.ts` | Autosave de formularios y del conteo físico. |
+| `borradorLocal.ts` | Borrador local de formularios largos (envío, compra, venta B2B). |
+| `conteoBorrador.ts` | Borrador local del conteo físico (no se pierde al cerrar el modal). |
 | `db.ts` | Base `grace_pos`: `catalogo`, `stock`, `outbox` (ventas pendientes), `conteo`, `borradores`. |
 | `sync.ts` | Outbox: `drainOutbox` en orden, single-flight. Sin red → para; 4xx → esa fila `error` y sigue; 5xx → para sin condenar (🔴 si no, una venta durante un deploy se perdía). Push antes de pull. |
 | `uuid.ts` | UUID v4 con `getRandomValues` (la LAN es HTTP, `randomUUID` no existe ahí). |
@@ -470,7 +470,7 @@ Tests: `useAutoUppercase.test.jsx`, `useConexion.test.jsx`, `useInsumoForm.codig
 
 | Archivo | Qué es |
 |---|---|
-| `appConfig.ts` | Config ERPNext y sucursales (cache + pub/sub). 🔴 Sin destinos hardcodeados. |
+| `appConfig.ts` | Config global ERPNext (cuentas, Item Tax Templates); caché por sesión con fallback. |
 | `frappeAuth.ts` | Login/logout, rol, POS profile. `getUser()` valida localStorage (no escalar rol por DevTools). `pedirRecuperacion`/`cambiarConLlave` (sin sesión; tras cambiar cierra la sesión que abre Frappe). |
 | `FrappeBase.ts` | Fetch, CSRF si existe, parseo de error. |
 | `frappeEgresos.ts` | Egresos, CxP, `marcarPagado(…, cobro?)`, `cobrosParaEgreso`. |
@@ -483,7 +483,7 @@ Tests: `useAutoUppercase.test.jsx`, `useConexion.test.jsx`, `useInsumoForm.codig
 | `frappeSales.ts` | Venta B2B, CxC, cobros. 🔴 Factura de la Hoja: el factor de impuesto sale de `custom_impuesto` del Item (`renglonDeFactura`), no de la plantilla. |
 | `frappeStock.ts` | Movimientos: entradas, salidas, mermas, ajustes, regalos, traspasos, conteo. |
 | `printService.ts` | Cliente del print-server (`/print/...`): tickets de venta, corte, traspaso, B2B, Hoja, nómina, egreso. |
-| `sucursalesConfig.ts` | Config ERPNext y sucursales (cache + pub/sub). 🔴 Sin destinos hardcodeados. |
+| `sucursalesConfig.ts` | Sucursales internas/extendidas del servidor, caché + pub/sub. 🔴 Sin destinos hardcodeados (fallback vacío). |
 
 Tests: `frappeAuth.recuperar.test.ts`, `frappePedido.test.ts`, `frappePurchase.buscar.test.js`, `frappeSales.buscar.test.js`, `frappeSales.cxc.test.js`, `frappeSales.facturaItems.test.ts`, `frappeSales.totales.test.js`, `frappeStock.envio.test.js`.
 
@@ -511,23 +511,23 @@ Tests: `frappeAuth.recuperar.test.ts`, `frappePedido.test.ts`, `frappePurchase.b
 | Archivo | Qué es |
 |---|---|
 | `buscarPan.ts` | Buscador (sin acentos). 🔴 Solo filtra lo que se pinta; guardar manda todo. |
-| `cierreRuta.ts` | Previsualizar liquidación; agrupar y repartir merma de polvorón/muerto. |
-| `entradaPan.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
+| `cierreRuta.ts` | PURO: cierre de ruta de camioneta: renglones de captura, excesos y `previsualizar` la liquidación. |
+| `entradaPan.ts` | PURO: Entrada de Pan: filas desde el pedido, item_code, payload, valor y costo editable. |
 | `entregaPueblo.ts` | Entrega de pueblo: conceptos (PÉRDIDA → MERMA), `resumenEntrega` (centavos enteros: diferencia, entregado; sin tope: los gastos son informe), `razonesGasto` (la razón de cada gasto para el Estado de cuenta), `conSigno` y `claseDiferencia` (color de texto `.dif` de `global.css`). Espejo de `caja_cobro.armar_entrega`. |
-| `errorFrappe.ts` | Errores legibles; rate-limit de login + anti-XSS; detectar deploy nuevo; leer aviso de mantenimiento con el reloj de la torre. |
-| `formato.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
+| `errorFrappe.ts` | Traduce errores crudos de Frappe (HTML, stack) a mensajes para el usuario; `logError`. |
+| `formato.ts` | `numero`/`pesos`/`cantidad` para México (coma de miles), sin `Intl` currency. |
 | `hojaDia.ts` | Hoja del día: bloques por categoría, `totalCapturado`, `estadoEnviado`, `ticketDeHoja`, `conDescuento`, borrador por fecha/destino, `conLlegadas`, `ajustesALoQueLlego`. |
-| `hora.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
-| `itemGroups.ts` | Margen/filtro de pan; árbol de grupos por nested set. |
+| `hora.ts` | Fechas y horas: `hoyISO` LOCAL (🔴 nunca `toISOString`), `horaFrappe` (TIME sin cero a la izquierda), `haceCuanto`, fechas corta/larga, rangos. |
+| `itemGroups.ts` | Árbol de Item Group por nested set: `hojasDe`, `bucketsCategorias`. |
 | `liquidacion.ts` | Vendido, comisión 10% + `COMISION_FIJA` (espejo de `hoja_calculo.COMISION_FIJA`). |
-| `mantenimiento.ts` | Errores legibles; rate-limit de login + anti-XSS; detectar deploy nuevo; leer aviso de mantenimiento con el reloj de la torre. |
-| `precioCanal.ts` | Precio B2B; precio por canal (🔴 `custom_precio_por_kg` es de COMPRA); margen del pan. |
-| `produccionCalc.ts` | Recetas (🔴 aquí vivió el −$1M); entrada de pan; conteo; consumo; mapa de stock. |
-| `reloj.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
+| `mantenimiento.ts` | Lee `/mantenimiento/aviso` (nginx del SPA) y saca la cuenta regresiva. |
+| `precioCanal.ts` | PURO: precio de venta por canal según el almacén (`tipoPrecioPorAlmacen`, `resolverPrecioVenta`). 🔴 `custom_precio_por_kg` es de COMPRA, no entra a la cadena. |
+| `produccionCalc.ts` | PURO: recetas: factor de producción, escalar ingredientes, costeo. 🔴 Aquí vivió el −$1M (escala mal del consumo). |
+| `reloj.ts` | Texto del reloj de la barra, hora local, listas fijas en vez de `Intl`. |
 | `reporteCamionetas.ts` | Reporte de camionetas: totales por camioneta y `conMerma` (sobrepone la merma tecleada por DIFERENCIA contra la guardada). |
-| `security.ts` | Errores legibles; rate-limit de login + anti-XSS; detectar deploy nuevo; leer aviso de mantenimiento con el reloj de la torre. |
-| `uom.ts` | `pesos`/`numero` (sin `Intl` currency); `hoyISO` LOCAL (🔴 nunca `toISOString`); reloj; alias UOM. |
-| `version.ts` | Errores legibles; rate-limit de login + anti-XSS; detectar deploy nuevo; leer aviso de mantenimiento con el reloj de la torre. |
+| `security.ts` | `rateLimiter` del login, `sanitizar`/`sanitizarObjeto` anti-XSS, `validar`. |
+| `uom.ts` | `fmtUom`: alias de UOM solo para mostrar; no cambia lo que va a la API. |
+| `version.ts` | Detecta deploy nuevo comparando el bundle del `index.html` con el cargado. |
 
 Tests: `buscarPan.test.ts`, `cierreRuta.test.ts`, `entregaPueblo.test.ts`, `errorFrappe.test.js`, `formato.test.ts`, `hojaDia.test.ts`, `hora.test.js`, `itemGroups.test.js`, `liquidacion.test.js`, `precioCanal.test.ts`, `produccionCalc.test.ts`, `reloj.test.ts`, `reporteCamionetas.test.ts`, `security.test.js`, `uom.test.js`, `version.test.js`.
 
@@ -548,7 +548,7 @@ Tests: `egresoDesglose.test.ts`.
 
 ## `print-server/`
 
-Flask aparte, corre en la PC de la caja e imprime en la térmica por USB. `print_server.py` (servidor; 🔴 la versión del repo es la que corre), `test_fmt.py` (redondeo de montos), `setup.sh` / `setup_windows.bat` (instalación), `requirements.txt`, `README.md`, `DejaVuSansMono.ttf`.
+Flask aparte, corre en la TORRE (servicio de systemd) e imprime en la térmica por USB. `print_server.py` (servidor; 🔴 la versión del repo es la que corre), `test_fmt.py` (redondeo de montos), `setup.sh` / `setup_windows.bat` (instalación), `requirements.txt`, `README.md`, `DejaVuSansMono.ttf`.
 
 ## `testsprite-plans/`
 
