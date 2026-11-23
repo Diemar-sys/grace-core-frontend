@@ -1198,9 +1198,9 @@
   .nc-btn-primary,
   .nc-btn-borrador { min-width: unset; width: 100%; text-align: center; justify-content: center; }
 
-  /* Tabla: ocultar Stock final (4a) en NuevaVentaB2B */
-  .nc-tabla thead tr th:nth-child(4),
-  .nc-tabla tbody tr td:nth-child(4) { display: none; }
+  /* Ocultar Stock final (Envío, Venta B2B). Por CLASE: `.nc-tabla` la usan 5 pantallas
+     y la 4a es Total en Compra y Conteo físico en el Conteo. */
+  .nc-tabla .col-stock-final { display: none; }
 
   /* Inputs más compactos */
   .nc-input.cantidad { min-width: 60px; }

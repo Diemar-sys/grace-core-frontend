@@ -418,7 +418,7 @@ function NuevoEnvioSucursal({ onSuccess, onCancel, sucursalDefault = null }) {
                 <th>Producto</th>
                 <th>Stock disp.</th>
                 <th>Cantidad</th>
-                <th>Stock final</th>
+                <th className="col-stock-final">Stock final</th>
                 <th></th>
               </tr>
             </thead>
@@ -593,7 +593,7 @@ function FilaEnvio({ fila, onChange, onEliminar, onFocusNext, inputRef, soloUna,
           onEnter={onFocusNext} />
       </td>
 
-      <td>
+      <td className="col-stock-final">
         {!fila.item_code || stock == null ? (
           <span className="nc-uom-empty">—</span>
         ) : sinStock ? (

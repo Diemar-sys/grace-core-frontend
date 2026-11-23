@@ -377,7 +377,7 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
                 <th>Producto</th>
                 <th>Stock disp.</th>
                 <th>Cantidad</th>
-                <th>Stock final</th>
+                <th className="col-stock-final">Stock final</th>
                 <th>Precio venta</th>
                 <th>Impuesto</th>
                 <th>Total</th>
@@ -659,7 +659,7 @@ function FilaProducto({ fila, rowIdx, reservadoOtras = 0, onChange, onImpuesto, 
       </td>
 
       {/* Stock final (= stock disp - cantidad capturada) */}
-      <td>
+      <td className="col-stock-final">
         {!fila.item_code || stock == null ? (
           <span className="nc-uom-empty">—</span>
         ) : sinStock ? (

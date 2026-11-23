@@ -249,7 +249,7 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
                 <tr>
                   <th style={{ width: '40%' }}>Insumo / Ingrediente</th>
                   <th style={{ width: '20%' }}>Cantidad</th>
-                  <th style={{ width: '15%' }}>Unidad</th>
+                  <th className="col-unidad" style={{ width: '15%' }}>Unidad</th>
                   <th style={{ width: '25%' }}>Código</th>
                   <th style={{ width: '5%' }}></th>
                 </tr>
@@ -288,7 +288,7 @@ function NuevaReceta({ onSuccess, onCancel, editBOM = null }) {
                         onChange={e => updateIngrediente(row._id, 'qty', e.target.value)}
                         min="0" step="0.001" placeholder="0.000" />
                     </td>
-                    <td>
+                    <td className="col-unidad">
                       <input value={row.uom} readOnly placeholder="—" style={{ background: '#f9fafb', color: '#6b7280' }} />
                     </td>
                     <td>

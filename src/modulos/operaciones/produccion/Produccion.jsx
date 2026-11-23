@@ -410,7 +410,7 @@ function Produccion() {
                   <tr>
                     <th>Producto Final</th>
                     <th>Cantidad que produce</th>
-                    <th>Departamento</th>
+                    <th className="col-depto">Departamento</th>
                     <th>Estado</th>
                     {!soloLectura && <th className="col-actions">Acciones</th>}
                   </tr>
@@ -425,7 +425,7 @@ function Produccion() {
                       <tr key={r.name}>
                         <td className="cell-name">{r.item_name || r.item}</td>
                         <td className="cell-qty">{r.quantity} {r.uom}</td>
-                        <td className="cell-code">{r.custom_departamento || '—'}</td>
+                        <td className="cell-code col-depto">{r.custom_departamento || '—'}</td>
                         <td>
                           {r.docstatus === 1 && r.is_active
                             ? <span className="prod-badge-activa">Activa</span>

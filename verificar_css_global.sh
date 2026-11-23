@@ -32,6 +32,9 @@ prohibir '(^|[{};])body\{[^}]*position:fixed'          'body{position:fixed} sin
 prohibir '(^|[{};])html,body\{[^}]*overflow:hidden'    'html,body{overflow:hidden} sin acotar'
 prohibir '(^|[{};])body \*\{visibility:hidden'         'body *{visibility:hidden} sin acotar'
 prohibir '(^|[{};])body \*\{display:none'              'body *{display:none} sin acotar'
+# Esconder columna por NÚMERO: si la tabla cambia, se esconde otra. Así se
+# ocultaban Cantidad (merma/salida), Total (compra) y la 3a de toda .sys-table (23-nov).
+prohibir 'nth-child\([0-9]+\)\{display:none'           'columna oculta por nth-child (va por clase)'
 
 # Lo que SÍ debe seguir: el reset de caja vive en index.css desde el 08-sep.
 if grep -qE '(^|[{};])\*\{box-sizing:border-box' $CSS; then

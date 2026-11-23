@@ -319,7 +319,6 @@
 
 @media (max-width: 768px) {
   .rm-container { border-radius: 0; max-height: var(--modal-max-h); padding: 16px 16px 0; }
-  .rm-tabla th:nth-child(3), .rm-tabla td:nth-child(3) { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -331,8 +330,8 @@
   .rm-btn-primary,
   .rm-btn-secondary { min-width: unset; width: 100%; text-align: center; font-size: 16px; }
 
-  /* Ocultar columna UOM (3a ya oculta) y Stock actual si existe */
-  .rm-tabla th:nth-child(4), .rm-tabla td:nth-child(4) { display: none; }
+  /* Celular: fuera Stock final (se deduce). Por CLASE: el número de columna cambia. */
+  .rm-tabla .col-stock-final { display: none; }
   .rm-qty-input   { width: 70px; }
 }
 

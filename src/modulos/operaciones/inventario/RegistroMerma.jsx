@@ -236,7 +236,7 @@ function RegistroMerma({ onSuccess, onCancel }) {
               <th style={{ width: '35%' }}>Producto</th>
               <th style={{ width: '17%' }}>Stock disp.</th>
               <th style={{ width: '17%' }}>Cantidad</th>
-              <th style={{ width: '17%' }}>Stock final</th>
+              <th className="col-stock-final" style={{ width: '17%' }}>Stock final</th>
               <th style={{ width: '14%' }}></th>
             </tr>
           </thead>
@@ -394,7 +394,7 @@ function FilaProducto({ fila, tipoItem, stockLoaded, onChange, onEliminar, soloU
         )}
       </td>
 
-      <td style={{ textAlign: 'center' }}>
+      <td className="col-stock-final" style={{ textAlign: 'center' }}>
         {!fila.item_code || stockFinal == null ? <span style={{ color: '#9ca3af' }}>—</span>
           : sinStock ? <span style={{ color: '#9ca3af' }}>—</span>
           : (
