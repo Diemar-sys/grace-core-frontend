@@ -251,14 +251,14 @@ export default function ReportePorGrupo() {
   return (
     <Layout>
       <div className="page-container comprasv2">
-        <div className="page-header">
+        {/* 24-nov (Diemar): los filtros suben al renglón del título → más alto para la tabla */}
+        <div className="page-header cam-encabezado">
           <div className="cam-titulo">
             <h1>{g.nombre}</h1>
             <span className="header-subtitle">{g.sub}</span>
           </div>
-        </div>
 
-        <div className="filtros-section">
+        <div className="filtros-section cam-filtros">
           <div className="filtro-group filtro-sm">
             <label htmlFor="cam-grupo">Grupo</label>
             <select id="cam-grupo" className="comp-date-input" value={grupo}
@@ -299,14 +299,12 @@ export default function ReportePorGrupo() {
             </button>
           </div>}
         </div>
+        </div>
 
-        {!esCamionetas && (<>
-          <p className="ped-nota cam-nota">
-            Los mismos números del Estado de cuenta de la Hoja, día por día. Máximo 32 días por consulta.
-            {grupo === 'PUEBLOS' && ' Monto = el efectivo que regresó. El 35% y los $100 de chofer, decoración y desgaste son fijos del dueño, no medidos. Los gastos se capturan en Hoja → Estado de cuenta → «Registrar entrega».'}
-          </p>
+        {/* 24-nov (Diemar): sin nota arriba, todo el alto para la tabla (el tope de 32 días lo avisa el servidor) */}
+        {!esCamionetas && (
           <ReporteGrupo grupo={grupo} desde={desde} hasta={hasta} elegido={elegida} onDestinos={setDelGrupo} onError={setError} />
-        </>)}
+        )}
 
         {esCamionetas && (<>
         <p className="ped-nota cam-nota">

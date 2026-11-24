@@ -373,6 +373,12 @@
 .comprasv2 .cam-guardar:hover:not(:disabled) { background: var(--tv-marca); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(200,80,60,0.25); }
 .comprasv2 .cam-guardar:disabled { opacity: 0.45; cursor: default; }
 .cam-nota { margin: var(--space-4) 0 var(--space-5); }
+/* 24-nov: título y filtros en un solo renglón (los filtros sin tarjeta propia); si no caben, bajan */
+.comprasv2 .page-header.cam-encabezado { align-items: flex-end; flex-wrap: wrap; gap: var(--space-4); }
+.comprasv2 .filtros-section.cam-filtros {
+  background: transparent; border: none; box-shadow: none; padding: 0; margin: 0 0 0 auto; gap: var(--space-3);
+}
+.cam-encabezado + .cam-nota { margin-top: 0; }
 
 /* Cada camioneta: tarjeta blanca flotando sobre la masa */
 .cam-bloque {
@@ -423,5 +429,6 @@
 
 @media (max-width: 768px) {
   .cam-acciones { margin-left: 0; width: 100%; }
+  .comprasv2 .filtros-section.cam-filtros { margin-left: 0; width: 100%; }
   .cam-bloque { padding: var(--space-4); border-radius: 16px; }
 }

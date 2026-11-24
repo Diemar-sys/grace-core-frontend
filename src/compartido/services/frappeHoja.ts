@@ -111,11 +111,16 @@ export interface EstadoCuenta {
 }
 
 /** 12-nov: Reportes → por grupo (PUEBLOS, CLIENTES, SUCURSALES). Columnas y sumas del servidor. */
+/** `mano`: la columna se escribe a mano (P.REAL: tarjeta, banco, depósito, nómina, seguro, otro) */
+export interface ColumnaReporte { clave: string; titulo: string; mano?: boolean }
+
 export interface ReporteGrupoDatos {
   grupo: string; desde: string; hasta: string;
-  columnas: { clave: string; titulo: string }[];
-  /** `columnas` del destino (cada pueblo la suya); sin ella, las del grupo */
-  destinos: { destino: string; columnas?: { clave: string; titulo: string }[]; total: Record<string, number>; sin_cobrar: number;
+  columnas: ColumnaReporte[];
+  /** `columnas` del destino (cada pueblo la suya, P.REAL la del jefe); sin ella, las del grupo.
+   *  `puede_capturar` (solo P.REAL): Luis/Administrator escriben las columnas `mano`. */
+  destinos: { destino: string; columnas?: ColumnaReporte[]; total: Record<string, number>; sin_cobrar: number;
+              puede_capturar?: boolean;
               dias: ({ fecha: string; nota: string; sin_cobrar?: number } & Record<string, number | string | undefined>)[] }[];
   total: Record<string, number>;
 }
@@ -184,6 +189,10 @@ class HojaService extends FrappeBase {
   /** 09-oct: lo que Eva le entregó a Luis de esa factura (solo Administrator y luis.th). */
   reporteGrupo(grupo: string, desde: string, hasta: string) {
     return this._get<ReporteGrupoDatos>('reporte_grupo', { grupo, desde, hasta });
+  }
+  /** 24-nov: lo que Luis escribe de P.REAL (solo los campos que cambiaron; null = 0). Solo Luis/Administrator. */
+  guardarCuentaPuertaReal(capturas: ({ fecha: string } & Record<string, string | number | null>)[]) {
+    return this._post<{ guardadas: number }>('guardar_cuenta_preal', { capturas });
   }
   /** 13-nov: entrega de un pueblo de UN día: el EFECTIVO que regresó + en qué gastó de él. Todo o nada. */
   registrarEntrega(factura: string, efectivo: number, gastos: GastoEntrega[]) {

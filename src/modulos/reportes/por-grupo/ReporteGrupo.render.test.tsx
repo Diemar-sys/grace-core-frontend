@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import ReporteGrupo from './ReporteGrupo';
 import { hojaService } from '../../../compartido/services/frappeHoja';
 
-vi.mock('../../../compartido/services/frappeHoja', () => ({ hojaService: { reporteGrupo: vi.fn() } }));
+vi.mock('../../../compartido/services/frappeHoja', () => ({ hojaService: { reporteGrupo: vi.fn(), guardarCuentaPuertaReal: vi.fn() } }));
 const h = vi.mocked(hojaService);
 
 // 17-nov: la tabla del jefe — MONTO (efectivo) | 35% | fijos | gastos | TOTAL GASTOS | GANANCIA
@@ -65,5 +65,51 @@ describe('ReporteGrupo', () => {
     const onError = vi.fn();
     render(<ReporteGrupo grupo="CLIENTES" desde="2026-09-01" hasta="2026-11-12" elegido="" onDestinos={vi.fn()} onError={onError} />);
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith('El rango va de 1 a 32 días.'));
+  });
+
+  // 24-nov: P.REAL (la tabla del jefe). Las columnas `mano` son input SOLO con puede_capturar; «Guardar» manda
+  // solo lo que cambió y vuelve a pedir el reporte (las diferencias las recalcula el servidor).
+  const PREAL_COLS = [{ clave: 'monto', titulo: 'MONTO' }, { clave: 'nomina', titulo: 'NÓMINA', mano: true },
+    { clave: 'final', titulo: 'DIFERENCIA FINAL' }];
+  const sucursales = (puede: boolean) => ({
+    grupo: 'SUCURSALES', desde: '2026-11-16', hasta: '2026-11-19', columnas: [{ clave: 'venta', titulo: 'VENTA' }],
+    destinos: [{ destino: 'P.REAL', sin_cobrar: 0, puede_capturar: puede, columnas: PREAL_COLS,
+      total: { monto: 45418, nomina: 5829, final: 19898.65 },
+      // los días completos del jefe: al recalcular en vivo, el día que no se tocó da lo mismo que el servidor
+      dias: [{ fecha: '2026-11-16', nota: '', monto: 22608, descuento: 3843.36, abarrote: 480, s_tarjeta: 8933, banco: 8933,
+               c_tarjeta: 8677.75, deposito: 16132, nomina: 0, seguro: 0, otro: 0, final: -5565.11 },
+             { fecha: '2026-11-19', nota: '', monto: 22810, descuento: 3877.7, abarrote: 1803.2, s_tarjeta: 6174, banco: 6174,
+               c_tarjeta: 5999.64, deposito: 14812, nomina: 5829, seguro: 0, otro: 19710.9, final: 25463.76 }] }],
+    total: { venta: 45418 },
+  });
+
+  it('🔴 P.REAL: sin permiso solo lee; con permiso captura y guarda solo lo cambiado', async () => {
+    h.reporteGrupo.mockResolvedValue(sucursales(false) as any);
+    const { unmount } = render(<ReporteGrupo grupo="SUCURSALES" desde="2026-11-16" hasta="2026-11-19" elegido="" onDestinos={vi.fn()} onError={vi.fn()} />);
+    const sec = (await screen.findByRole('heading', { name: 'P.REAL' })).closest('section')!;
+    expect(within(sec).queryAllByRole('textbox')).toHaveLength(0);
+    expect(within(sec).queryByRole('button', { name: /Guardar/ })).toBeNull();
+    expect(within(sec).getAllByRole('row')[2]).toHaveTextContent('$22,810.00$5,829.00$25,463.76');
+    expect(within(sec).getAllByRole('row')[1]).toHaveTextContent('-$5,565.11');
+    unmount();
+
+    h.reporteGrupo.mockResolvedValue(sucursales(true) as any);
+    h.guardarCuentaPuertaReal.mockResolvedValue({ guardadas: 1 });
+    render(<ReporteGrupo grupo="SUCURSALES" desde="2026-11-16" hasta="2026-11-19" elegido="" onDestinos={vi.fn()} onError={vi.fn()} />);
+    const sec2 = (await screen.findByRole('heading', { name: 'P.REAL' })).closest('section')!;
+    expect(within(sec2).getByLabelText('NÓMINA 2026-11-19')).toHaveValue('5829');
+    const guardar = within(sec2).getByRole('button', { name: 'Guardar' });
+    expect(guardar).toBeDisabled();                                   // nada cambió
+    fireEvent.change(within(sec2).getByLabelText('NÓMINA 2026-11-16'), { target: { value: '5,829' } });
+    // en vivo: −5,565.11 + 5,829 = 263.89 en el renglón y en el TOTAL, antes de guardar
+    expect(within(sec2).getAllByRole('row')[1]).toHaveTextContent('$22,608.00$263.89');
+    expect(within(sec2).getAllByRole('row')[3]).toHaveTextContent('TOTAL$45,418.00$11,658.00$25,727.65');
+    fireEvent.change(within(sec2).getByLabelText('NÓMINA 2026-11-19'), { target: { value: 'abc' } });
+    expect(within(sec2).getByRole('button', { name: 'Guardar (1)' })).toBeDisabled();   // uno bueno + uno inválido: no se guarda
+    expect(sec2).toHaveTextContent('no es un número');
+    fireEvent.change(within(sec2).getByLabelText('NÓMINA 2026-11-19'), { target: { value: '5829' } });
+    fireEvent.click(within(sec2).getByRole('button', { name: 'Guardar (1)' }));
+    await vi.waitFor(() => expect(h.guardarCuentaPuertaReal).toHaveBeenCalledWith([{ fecha: '2026-11-16', nomina: 5829 }]));
+    await vi.waitFor(() => expect(h.reporteGrupo).toHaveBeenCalledTimes(3));   // recarga: el servidor recalcula
   });
 });

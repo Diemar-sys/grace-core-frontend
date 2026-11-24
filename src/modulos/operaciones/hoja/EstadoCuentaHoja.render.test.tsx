@@ -63,7 +63,8 @@ describe('EstadoCuentaHoja', () => {
     expect(screen.getByText('Diferencia').nextSibling).toHaveTextContent('−$50.00');
     expect(screen.queryByText('Entregado')).toBeNull();
     expect(screen.queryByText(/POR ENTREGAR|Entregado a Luis|Falta entregar/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Registrar entrega' })).toBeInTheDocument();
+    // 🔴 24-nov (Diemar): ya entregó (parte): la entrega es UNA por día, no se ofrece otra aunque quede saldo
+    expect(screen.queryByRole('button', { name: 'Registrar entrega' })).toBeNull();
     // 17-nov: FECHA (con su día), PAN, EFECTIVO, DIFERENCIA, GASTOS; la diferencia es texto de color, sin píldora
     expect(screen.getAllByRole('columnheader').map(c => c.textContent)).toEqual(['FECHA', 'PAN', 'EFECTIVO', 'DIFERENCIA', 'GASTOS', 'Acciones']);
     expect(screen.queryByRole('spinbutton')).toBeNull();                      // sin casilla de LIQUIDADO
@@ -105,6 +106,21 @@ describe('EstadoCuentaHoja', () => {
     expect(screen.queryByRole('button', { name: 'Registrar entrega' })).toBeNull();
   });
 
+  // 24-nov (Diemar): entrega con SOLO gastos (no regresó efectivo): el día sigue «pendiente» pero ya se registró
+  it('🔴 pueblo: día con gastos registrados y sin efectivo no vuelve a ofrecer «Registrar entrega»', async () => {
+    const solo = { ...ISMA, camioneta: false, puede_liquidar: false, destino: 'MILA', cliente: 'MILAGRO', pueblo: true, puede_cobrar: true,
+      dias: [dia('2026-11-06', 'SI-G', { venta: 350, recibir: 350, debe: 350, egreso: 120, efectivo: 0, diferencia: -350, entregado: -120 }),
+             dia('2026-11-07', 'SI-H', { venta: 200, recibir: 200, debe: 200, efectivo: 0, diferencia: -200, entregado: 0 })],
+      total: { ...ISMA.total, venta: 550, recibir: 550, pagado: 0, debe: 550, egreso: 120, sueldo: 0, comision: 0, ayudante: 0 } };
+    h.deudores.mockResolvedValue([...DEUDORES, { destino: 'MILA', grupo: 'PUEBLOS', cliente: 'MILAGRO', camioneta: false }]);
+    h.estadoCuenta.mockResolvedValue(solo as any);
+    render(<EstadoCuentaHoja />);
+    await elegir('MILA');
+    const fila = (fecha: string) => screen.getByText(fecha).closest('tr')!;
+    expect(within(await screen.findByText('06-NOV VIERNES').then((e) => e.closest('tr')!)).queryByRole('button', { name: 'Registrar entrega' })).toBeNull();
+    expect(within(fila('07-NOV SÁBADO')).getByRole('button', { name: 'Registrar entrega' })).toBeInTheDocument();
+  });
+
   // 13-nov (Diemar): día por día; 17-nov: el gasto es informe (solo la razón; puede pasar del efectivo)
   it('🔴 pueblo: «Registrar entrega» manda el EFECTIVO y los gastos de ESE día; la diferencia no se mueve con los gastos', async () => {
     const MILA = { ...ISMA, destino: 'MILA', cliente: 'MILAGRO', camioneta: false, pueblo: true, puede_liquidar: false,
@@ -139,10 +155,12 @@ describe('EstadoCuentaHoja', () => {
     // el pie: la sumatoria del servidor; los montos del gasto van en Reportes, no aquí
     expect(screen.getByText('TOTAL').closest('tr')!).toHaveTextContent(/^TOTAL\$4,880\.00\$2,680\.00−\$2,200\.00$/);
     // los botones viven en la última columna, no entre los números
-    expect(within(fila('10-NOV MARTES')).getByRole('button', { name: 'Registrar entrega' }).closest('td')).toHaveClass('hoja-estado__col-acciones');
-    // un botón por día al que todavía le falta pan (09 y 10), ninguno en los completos ni el general de arriba
+    expect(within(fila('09-NOV LUNES')).getByRole('button', { name: 'Registrar entrega' }).closest('td')).toHaveClass('hoja-estado__col-acciones');
+    // 🔴 24-nov: un botón solo por día SIN ENTREGAR (09); el 10 ya entregó parte (con saldo y gastos): sin botón.
+    // Ninguno en los completos ni el general de arriba
     const botones = screen.getAllByRole('button', { name: 'Registrar entrega' });
-    expect(botones).toHaveLength(2);
+    expect(botones).toHaveLength(1);
+    expect(within(fila('10-NOV MARTES')).queryByRole('button', { name: 'Registrar entrega' })).toBeNull();
     fireEvent.click(botones[0]);
     const modal = await screen.findByRole('dialog', { name: 'Registrar entrega' });
     expect(within(modal).getByText('Entrega de MILA · 09/11/2026')).toBeInTheDocument();
@@ -167,7 +185,7 @@ describe('EstadoCuentaHoja', () => {
     expect(h.estadoCuenta).toHaveBeenCalledTimes(2);                              // recargó
     // si el servidor lo rechaza, el mensaje se ve y la ventana no se cierra
     h.registrarEntrega.mockRejectedValue(new Error('SI-10 no es una factura viva de la hoja.'));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Registrar entrega' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Registrar entrega' })[0]);
     const otro = await screen.findByRole('dialog', { name: 'Registrar entrega' });
     fireEvent.change(within(otro).getByLabelText('Efectivo que regresó'), { target: { value: '115' } });
     fireEvent.click(within(otro).getByRole('button', { name: 'Guardar entrega' }));

@@ -365,7 +365,9 @@ export default function EstadoCuentaHoja() {
                       {estado.pueblo && (
                         <td className="hoja-estado__col-acciones">
                           <span className="hoja-estado__acciones">
-                            {estado.puede_cobrar && d.debe > 0 && d.tipo !== 'abarrotes' && (
+                            {/* 24-nov (Diemar): la entrega es UNA por día: ya registrada (cobro o gastos) no se ofrece otra
+                                vez aunque quede saldo (la diferencia se queda en su día). Para corregir: «Deshacer cobro». */}
+                            {estado.puede_cobrar && d.estado === 'pendiente' && !d.egreso && d.debe > 0 && d.tipo !== 'abarrotes' && (
                               <button type="button" className="hoja-estado__entrega" onClick={() => setEntrega(d)}>{p.cobrar}</button>
                             )}
                             {estado.puede_deshacer && d.pagado > 0 && d.tipo !== 'abarrotes' && (
