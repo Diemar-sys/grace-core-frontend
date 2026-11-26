@@ -24,6 +24,20 @@ const esPan = (item: Item | null | undefined): boolean =>
 // Misma tabla que el backend (sales_invoice.A_PRECIO_DE_COMPRA), que es quien manda.
 const A_PRECIO_DE_COMPRA = new Set(['DELI|7500000000063']);  // NATA DELICIAS DE LA CUENTA
 
+// 26-nov (Diemar): P.REAL (ALEJANDRO TORRES) paga su abarrote con 20% menos desde el 01-nov, sobre el TOTAL
+// con impuesto. Lo aplica el SERVIDOR (sales_invoice.DESCUENTO_ABARROTE, misma tabla); aquí solo se enseña antes
+// de confirmar. Siempre sobre el total SIN descontar: $750 → $150 → $600, nunca otro 20% sobre los $600.
+const DESCUENTO_ABARROTE: Record<string, { pct: number; desde: string }> = {
+  'ALEJANDRO TORRES': { pct: 20, desde: '2026-11-01' },
+};
+
+/** { pct, monto } del descuento de ese cliente en esa fecha sobre `total` (con impuesto); 0 si no lleva. */
+export function descuentoCliente(cliente: string, fecha: string, total: number) {
+  const regla = DESCUENTO_ABARROTE[cliente];
+  if (!regla || fecha < regla.desde) return { pct: 0, monto: 0 };
+  return { pct: regla.pct, monto: Math.round(total * regla.pct) / 100 };
+}
+
 export function precioB2B(item: Item, esAbarrote: boolean, cliente = ''): number {
   const tienda = A_PRECIO_DE_COMPRA.has(`${cliente}|${item.item_code}`)
     ? item.custom_precio_de_compra

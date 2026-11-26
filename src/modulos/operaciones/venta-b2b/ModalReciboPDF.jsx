@@ -58,6 +58,7 @@ function ModalReciboPDF({ datos, onClose }) {
       totales.iva > 0 ? `<tr><td>IVA 16%</td><td style="text-align:right">$${fmt2(totales.iva)}</td></tr>` : '',
       totales.ieps > 0 ? `<tr><td>IEPS 8%</td><td style="text-align:right">$${fmt2(totales.ieps)}</td></tr>` : '',
       ajuste !== 0 ? `<tr><td>Ajuste</td><td style="text-align:right">$${fmt2(ajuste)}</td></tr>` : '',
+      totales.descuento > 0 ? `<tr><td>Descuento ${totales.descuentoPct}%</td><td style="text-align:right">-$${fmt2(totales.descuento)}</td></tr>` : '',
     ].join('');
 
     const html = `<!DOCTYPE html>
@@ -227,6 +228,11 @@ function ModalReciboPDF({ datos, onClose }) {
               {ajuste !== 0 && (
                 <div className="nc-recibo-total-fila">
                   <span>Ajuste</span><span>${fmt2(ajuste)}</span>
+                </div>
+              )}
+              {totales.descuento > 0 && (
+                <div className="nc-recibo-total-fila">
+                  <span>Descuento {totales.descuentoPct}%</span><span>-${fmt2(totales.descuento)}</span>
                 </div>
               )}
               <div className="nc-recibo-total-fila nc-recibo-grand-total">

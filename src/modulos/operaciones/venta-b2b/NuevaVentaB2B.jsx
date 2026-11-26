@@ -17,7 +17,7 @@ import { partirImpuesto } from '../../../compartido/components/compras/compraUti
 import '../../../compartido/styles/NuevaCompra.css';
 import { numero } from '../../../compartido/utils/formato';
 import { hoyISO } from '../../../compartido/utils/hora';
-import { precioB2B, visibleEnB2B, precioConImpuesto } from './ventaB2B';
+import { precioB2B, visibleEnB2B, precioConImpuesto, descuentoCliente } from './ventaB2B';
 
 const FILA_VACIA = () => ({
   _id: Math.random(),
@@ -207,7 +207,11 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
   const round2 = (n) => Math.round(n * 100) / 100;
   totales.iva = round2(totales.iva);
   totales.ieps = round2(totales.ieps);
-  totales.total = calcVenta.total;
+  // 26-nov: P.REAL 20% sobre el total con impuesto (lo pone el servidor; aquí se enseña igual)
+  const desc = descuentoCliente(cliente?.name || '', fecha, calcVenta.total);
+  totales.descuentoPct = desc.pct;
+  totales.descuento = desc.monto;
+  totales.total = round2(calcVenta.total - desc.monto);
 
   // ── Validaciones ────────────────────────────────────────────────────────
   const validar = () => {
@@ -449,6 +453,12 @@ function NuevaVentaB2B({ onSuccess, onCancel, initialData = null }) {
             <div className="nc-resumen-fila">
               <span>IEPS 8%</span>
               <span className="monto">${fmt(totales.ieps)}</span>
+            </div>
+          )}
+          {totales.descuento > 0 && (
+            <div className="nc-resumen-fila">
+              <span>Descuento {totales.descuentoPct}%</span>
+              <span className="monto">-${fmt(totales.descuento)}</span>
             </div>
           )}
           <div className="nc-resumen-fila total">

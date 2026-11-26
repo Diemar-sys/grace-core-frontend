@@ -210,6 +210,8 @@ def render_b2b_image(data):
         tline('IEPS 8%', data['ieps'])
     if data['ajuste'] != 0:
         tline('Ajuste', data['ajuste'])
+    if data.get('descuento', 0) > 0:   # 26-nov: P.REAL 20% sobre el total con impuesto
+        tline('Descuento', -data['descuento'])
     rows.append({'rule': True})
     rows.append({'lr': ('TOTAL:', money(data['total'])), 'size': 30})
     rows.append({'rule': True})
@@ -947,7 +949,7 @@ def imprimir_venta_b2b():
             'subtotal_iva16': float(data.get('subtotal_iva16', 0)),
             'subtotal_ieps': float(data.get('subtotal_ieps', 0)),
             'subtotal_tasa0': float(data.get('subtotal_tasa0', 0)),
-            'ajuste': ajuste, 'total': total,
+            'ajuste': ajuste, 'total': total, 'descuento': float(data.get('descuento', 0) or 0),
             'es_borrador': bool(data.get('es_borrador', 0)),
         })
         p = get_printer()

@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-24.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-26.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -297,7 +297,7 @@ Tests: `CargaDrive.render.test.tsx`, `charolas.test.ts`, `gruposDestino.test.ts`
 | `ModalReciboPDF.jsx` | Recibo PDF de la venta B2B. |
 | `NuevaVentaB2B.jsx` | Alta de venta B2B; precio en `modulos/operaciones/venta-b2b/ventaB2B.ts` (excepción DELI nata a precio de compra). Escáner: Enter con código de barras busca exacto; pan no entra a B2B. |
 | `VentaB2B.jsx` | Venta mayoreo de abarrote/MP + CxC con «Cobrar». 🔴 El pan ya no se vende aquí (va por la Hoja). |
-| `ventaB2B.ts` | Venta B2B: precio por tipo (materia prima al costo sin impuesto), qué items se ven (el pan ya no: va por la Hoja), precio con impuesto. |
+| `ventaB2B.ts` | Venta B2B: precio por tipo (materia prima al costo sin impuesto), qué items se ven (el pan ya no: va por la Hoja), precio con impuesto. `descuentoCliente`: P.REAL 20% del total con impuesto desde el 01-nov, solo se ENSEÑA (lo aplica `sales_invoice.py`; misma tabla en los dos). |
 
 Tests: `NuevaVentaB2B.escaner.render.test.tsx`, `NuevaVentaB2B.precio.test.ts`.
 

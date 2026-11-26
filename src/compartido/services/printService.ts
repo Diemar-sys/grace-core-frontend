@@ -108,7 +108,7 @@ export async function imprimirVentaB2BTermico({ noVenta, cliente, fecha, hora, f
       subtotal_ieps: t.subtotalIeps || 0,
       subtotal_tasa0: t.subtotalTasa0 || 0,
       iva: t.iva || 0, ieps: t.ieps || 0,
-      ajuste, total: t.total || 0,
+      ajuste, descuento: t.descuento || 0, total: t.total || 0,
       es_borrador: esBorrador ? 1 : 0,
     }),
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { precioB2B, precioConImpuesto, visibleEnB2B } from './ventaB2B';
+import { precioB2B, precioConImpuesto, visibleEnB2B, descuentoCliente } from './ventaB2B';
 import { calcularTotalesVenta } from '../../../compartido/services/frappeSales';
 import { IMPUESTOS_MAP } from '../../../compartido/config/impuestos';
 
@@ -110,5 +110,17 @@ describe('precioB2B — excepción DELI: la nata a precio de compra (Diemar 24-s
   });
   it('🔴 el precio sale del catálogo: si la compra lo sube, DELI lo sigue', () => {
     expect(precioB2B({ ...NATA, custom_precio_de_compra: '42' }, true, 'DELI')).toBe(42);
+  });
+});
+
+// 26-nov: P.REAL 20% del abarrote, sobre el total con impuesto, desde el 01-nov. Formas de mentir: a otro
+// cliente, antes del 01-nov, o sobre lo ya descontado. Debe dar lo mismo que el servidor (centavos).
+describe('descuentoCliente — P.REAL 20%', () => {
+  it('$750 → $150; $1,997.47 → $399.49; otro cliente o antes del 01-nov → 0', () => {
+    expect(descuentoCliente('ALEJANDRO TORRES', '2026-11-26', 750)).toEqual({ pct: 20, monto: 150 });
+    expect(descuentoCliente('ALEJANDRO TORRES', '2026-11-01', 1997.47).monto).toBe(399.49);
+    expect(descuentoCliente('ALEJANDRO TORRES', '2026-10-31', 750).monto).toBe(0);
+    expect(descuentoCliente('ZAKIA', '2026-11-26', 750).monto).toBe(0);
+    expect(descuentoCliente('DELI', '2026-11-26', 750).monto).toBe(0);
   });
 });
