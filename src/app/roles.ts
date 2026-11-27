@@ -13,7 +13,7 @@ const ROUTE: Record<string, string> = {
   catalogo: '/catalogo', inventario: '/inventario', compras: '/compras',
   venta_b2b: '/venta-b2b', envio_sucursal: '/envio-sucursal', proveedores: '/proveedores',
   pos: '/pos', pedido: '/pedido', produccion: '/produccion', egresos: '/egresos', nomina: '/nomina',
-  hoja: '/hoja',
+  hoja: '/hoja', pedido_vivo: '/pedido-vivo',
 };
 
 // Debe cubrir todo MODULOS_REPORTES de Panel.jsx: una tarjeta sin su ruta aquí
@@ -35,7 +35,7 @@ function rutasDe(modulos: string[], { reportes = false, cuentas = false }: { rep
 
 const MOD_ALMACEN     = ['catalogo', 'inventario', 'compras', 'proveedores', 'pedido', 'egresos'];
 const MOD_OPERACIONES = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pedido', 'egresos', 'hoja'];
-const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'pedido', 'produccion', 'egresos', 'nomina', 'hoja'];
+const MOD_GERENTE     = ['catalogo', 'inventario', 'compras', 'venta_b2b', 'envio_sucursal', 'proveedores', 'pos', 'pedido', 'produccion', 'egresos', 'nomina', 'hoja', 'pedido_vivo'];
 
 export const ROLES: Record<string, RoleConfig> = {
   Vendedor: {
@@ -70,7 +70,8 @@ export const ROLES: Record<string, RoleConfig> = {
   Cliente: {
     modulosPanel: [],
     reportes: false,
-    rutas: ['/mi-cuenta'],
+    // 27-nov: + el pedido en vivo (DELI y P.REAL editan su columna; a los demás clientes el servidor los rechaza)
+    rutas: ['/mi-cuenta', '/pedido-vivo'],
     inicio: '/mi-cuenta',
   },
   Gerente: {

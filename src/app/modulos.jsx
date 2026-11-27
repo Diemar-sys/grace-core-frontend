@@ -36,6 +36,7 @@ export const MODULOS = [
   { key: "proveedores", path: "/proveedores", icon: <IconProveedores />,nombre: "Proveedores",     sub: "Catálogos",         color: "#6a1b9a",    bg: "#f3e5f5" },
   { key: "pos",         path: "/pos",         icon: <IconPOS />,        nombre: "Punto de Venta",  sub: "Ventas",            color: "#bf360c",    bg: "#fbe9e7" },
   { key: "pedido",      path: "/pedido",      icon: <IconProduccion />, nombre: "Pedido del día",  sub: "Importar de Drive", color: "#7c3aed",    bg: "#ede9fe" },
+  { key: "pedido_vivo", path: "/pedido-vivo", icon: <IconProduccion />, nombre: "Pedido en vivo",  sub: "Capturar sin Drive", color: "#7c3aed",    bg: "#ede9fe" },
   { key: "produccion",  path: "/produccion",  icon: <IconProduccion />, nombre: "Producción",      sub: "Recetas y consumo", color: "#3b848aff",  bg: "#d1f0f3ff" },
   { key: "egresos",     path: "/egresos",     icon: <IconEgresos />,    nombre: "Egresos",         sub: "Gastos y pagos",    color: "#dc2626",    bg: "#fee2e2" },
   { key: "hoja",        path: "/hoja",        icon: <IconVentaB2B />,   nombre: "Hoja del día",    sub: "Cobrar lo que se llevó cada destino", color: "#15803d", bg: "#dcfce7" },

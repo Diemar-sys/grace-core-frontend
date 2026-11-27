@@ -31,6 +31,7 @@ const ConsultasPOS = lazy(() => import('../modulos/consultas/punto-de-venta/Cons
 const Kardex = lazy(() => import('../modulos/consultas/kardex/Kardex'));
 const Liquidacion = lazy(() => import('../modulos/repartidor/liquidacion/Liquidacion'));
 const MiCuenta = lazy(() => import('../modulos/cliente/mi-cuenta/MiCuenta'));
+const PedidoVivo = lazy(() => import('../modulos/operaciones/pedido-vivo/PedidoVivo'));
 const ReportesVentasCategoria = lazy(() => import('../modulos/reportes/ventas-categoria/ReportesVentasCategoria'));
 const ReporteGastos = lazy(() => import('../modulos/reportes/gastos/ReporteGastos'));
 const ReporteGastosAnual = lazy(() => import('../modulos/reportes/gastos-anual/ReporteGastosAnual'));
@@ -98,6 +99,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Pedido />
+              </ProtectedRoute>
+            }
+          />
+          {/* 27-nov: pedido en vivo (adiós Drive). Luis todo; DELI y P.REAL su columna (lo decide el servidor). */}
+          <Route
+            path="/pedido-vivo"
+            element={
+              <ProtectedRoute>
+                <PedidoVivo />
               </ProtectedRoute>
             }
           />

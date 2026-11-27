@@ -1,0 +1,66 @@
+/* Pedido en vivo — la pestaña PRODUCCIÓN: tarjeta bento con la rejilla adentro, encabezados y columnas
+   CLAVE/PRODUCTO fijos al desplazarse. Responsive por clase (nunca nth-child). Tokens de global.css. */
+.pv { padding: 1.25rem clamp(.5rem, 2vw, 2rem); width: 100%; box-sizing: border-box; color: var(--color-text); }
+
+.pv-cabecera { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.pv-cabecera h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -.02em; }
+.pv-cabecera label { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--color-text-muted); }
+.pv-pildora {
+  padding: .3rem .9rem; border-radius: var(--radius-pill); font-size: .8rem; font-weight: 600;
+  background: var(--color-success-bg); color: var(--color-success);
+}
+.pv-pildora.cerrado { background: var(--color-danger-bg); color: var(--color-danger); }
+.pv-total { margin-left: auto; font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; }
+.pv-error {
+  background: var(--color-danger-bg); color: var(--color-danger); border-radius: var(--radius-card);
+  padding: .7rem 1rem; margin-bottom: 1rem; cursor: pointer;
+}
+
+/* la tarjeta: la rejilla se desplaza ADENTRO, la página no */
+.pv-marco {
+  background: var(--color-surface); border-radius: var(--radius-bento); box-shadow: var(--shadow-bento);
+  overflow: auto; max-height: calc(100vh - 220px);
+}
+.pv-tabla { border-collapse: separate; border-spacing: 0; font-size: .82rem; min-width: 100%; }
+.pv-tabla th, .pv-tabla td {
+  border-bottom: 1px solid var(--color-hairline); border-right: 1px solid var(--color-hairline);
+  padding: 0; text-align: center; white-space: nowrap;
+}
+.pv-tabla thead th {
+  position: sticky; background: var(--color-surface-sunk); font-size: .7rem; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--color-text-muted); padding: .35rem .5rem; z-index: 2;
+}
+.pv-grupos th { top: 0; }
+.pv-destinos th { top: 1.75rem; min-width: 4.2rem; }
+.pv-destinos th.pv-mia { background: var(--color-brand-light); color: var(--color-brand); }
+
+/* CLAVE y PRODUCTO fijos a la izquierda */
+.pv-fija { position: sticky; background: var(--color-surface); z-index: 1; text-align: left !important; }
+thead .pv-fija { z-index: 3; }
+.pv-clave { left: 0; min-width: 3.6rem; padding: 0 .5rem !important; color: var(--color-text-muted); }
+.pv-producto { left: 3.6rem; min-width: 11rem; padding: 0 .6rem !important; font-weight: 500; }
+
+.pv-seccion td {
+  text-align: left; padding: .45rem .7rem; font-weight: 700; letter-spacing: .04em;
+  background: var(--color-brand-bg); position: sticky; left: 0;
+}
+
+/* celdas: las mías se escriben, las ajenas solo se leen */
+.pv-ajena { padding: .3rem .4rem !important; color: var(--color-text-soft); background: var(--color-surface-sunk); }
+.pv-celda input {
+  width: 100%; min-width: 3.6rem; box-sizing: border-box; border: none; background: transparent;
+  text-align: center; font: inherit; padding: .35rem .3rem; outline: none;
+}
+.pv-celda input:focus { background: var(--color-brand-light); box-shadow: inset 0 0 0 2px var(--color-brand); }
+.pv-celda.guardando input { background: var(--color-warning-bg); }
+.pv-celda.error input { background: var(--color-danger-bg); box-shadow: inset 0 0 0 2px var(--color-danger); }
+
+.pv-totales td {
+  position: sticky; bottom: 0; background: var(--color-surface-sunk); font-weight: 700;
+  padding: .45rem .4rem; font-size: .78rem;
+}
+
+@media (max-width: 720px) {
+  .pv-producto { min-width: 8rem; }
+  .pv-total { margin-left: 0; }
+}

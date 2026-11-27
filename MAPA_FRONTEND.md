@@ -245,6 +245,17 @@ Tests: `bolilloDia.test.ts`, `EstadoCuentaHoja.render.test.tsx`, `HojaDelDia.ren
 
 Tests: `ConteoFisico.test.js`, `Inventario.test.jsx`, `stockMP.test.js`.
 
+### `modulos/operaciones/pedido-vivo/`
+
+| Archivo | Qué es |
+|---|---|
+| `PedidoVivo.tsx` | `/pedido-vivo` — pedido en vivo (adiós Drive): la pestaña PRODUCCIÓN con una columna por destino (agrupados SUCURSALES/CLIENTES/PUEBLOS/CAMIONETAS), secciones, total $ por destino. Cada celda se guarda al salir (Enter baja). 🔴 Qué columna se edita, `$`, totales y cierre 6:45 vienen del servidor (`pedido_vivo.py`); Luis y Diemar todo, DELI y P.REAL la suya. |
+| `PedidoVivo.css` | Estilos: tarjeta bento, encabezados y CLAVE/PRODUCTO fijos, columna propia resaltada. |
+| `frappePedidoVivo.ts` | Servicio: `abrir(fecha)`, `guardarCelda`. |
+| `rejilla.ts` | PURO: `agruparPorSeccion` (O(n)), `piezasDeTexto` (enteros 0–9999, igual que el servidor). |
+
+Tests: `rejilla.test.ts`.
+
 ### `modulos/operaciones/pedido/`
 
 | Archivo | Qué es |

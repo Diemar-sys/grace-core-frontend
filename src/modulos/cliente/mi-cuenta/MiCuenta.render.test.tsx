@@ -36,9 +36,10 @@ const CUENTA = {
 describe('Mi cuenta (cliente)', () => {
   beforeEach(() => { vi.clearAllMocks(); s.miCuenta.mockResolvedValue(CUENTA); });
 
-  it('el nivel Cliente solo entra a /mi-cuenta', () => {
+  // 27-nov: + /pedido-vivo (DELI y P.REAL capturan su columna; el servidor rechaza a los demás clientes).
+  it('el nivel Cliente solo entra a /mi-cuenta y al pedido en vivo', () => {
     const c = getRoleConfig('Cliente');
-    expect(c.rutas).toEqual(['/mi-cuenta']);
+    expect(c.rutas).toEqual(['/mi-cuenta', '/pedido-vivo']);
     expect(c.inicio).toBe('/mi-cuenta');
     expect(c.modulosPanel).toEqual([]);
   });
