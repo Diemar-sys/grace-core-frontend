@@ -45,6 +45,13 @@ export default defineConfig({
         secure: false,
         cookieDomainRewrite: '',
       },
+      // Realtime (pedido en vivo): socket.io de Frappe. El nginx de Frappe reescribe Origin y
+      // pone X-Frappe-Site-Name, igual que en prod (nginx.conf del SPA → :8080 → websocket).
+      '^/socket.io': {
+        target: 'http://bakedata.local:8080',
+        changeOrigin: true,
+        ws: true,
+      },
       // Impresión en dev → print-server local. Quita el prefijo /print.
       '^/print': {
         target: 'http://localhost:6789',

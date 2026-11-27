@@ -23,7 +23,7 @@
 | Archivo | Qué es |
 |---|---|
 | `package.json` / `pnpm-lock.yaml` / `pnpm-workspace.yaml` | Deps y scripts (`dev`, `build`, `lint`, `typecheck`, `test`, `test:watch`, `preview`). El workspace fuerza versiones parchadas (axios, ws, socket.io-parser). |
-| `vite.config.js` | Vite + Vitest. `TZ=America/Mexico_City` en tests. `manualChunks` en orden fijo (otro orden = chunk circular). Proxy dev `/api` → `bakedata.local:8080`, `/print` → `:6789`. |
+| `vite.config.js` | Vite + Vitest. `TZ=America/Mexico_City` en tests. `manualChunks` en orden fijo (otro orden = chunk circular). Proxy dev `/api` → `bakedata.local:8080`, `/socket.io` (ws, realtime de Frappe) → `:8080`, `/print` → `:6789`. |
 | `tsconfig.json` | `strict`, `allowJs`, 🔴 `checkJs:false`: tsc no revisa `.jsx` → `lint` es obligatorio. |
 | `eslint.config.js` | ESLint 9 flat. |
 | `preflight.sh` | Gate antes de push a `main`: HEAD limpio → install, typecheck, lint, test, build. 🔴 Nació de un archivo sin `git add` que rompió prod. |
