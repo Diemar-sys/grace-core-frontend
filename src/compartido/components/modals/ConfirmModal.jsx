@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Modal de confirmación genérico.
@@ -59,7 +60,9 @@ function ConfirmModal({
     return () => document.removeEventListener('keydown', handler);
   }, [loading, onCancel]);
 
-  return (
+  // 27-nov: al body. Un ancestro con `transform` (las animaciones anim-fade-up con fill `both`)
+  // vuelve `position: fixed` relativo a ESE ancestro: el velo cubría solo la tarjeta, no la pantalla.
+  return createPortal(
     <div className="edit-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="del-modal">
         {icon && (
@@ -123,7 +126,8 @@ function ConfirmModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

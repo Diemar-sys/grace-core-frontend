@@ -1,6 +1,6 @@
 # MAPA DEL FRONTEND — `bake-data-frontend`
 
-> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-26.
+> Qué es cada archivo y dónde vive lo delicado. Actualizado 2026-11-27.
 > Se pone al día al CERRAR EL DÍA, antes de generar el `commit_*.sh` (va en el mismo commit que el código).
 > La historia (fechas, mutantes, incidentes) vive en las bitácoras y en `git log`, no aquí.
 
@@ -305,9 +305,9 @@ Tests: `NuevaVentaB2B.escaner.render.test.tsx`, `NuevaVentaB2B.precio.test.ts`.
 
 | Archivo | Qué es |
 |---|---|
-| `frappeNomina.ts` | Nómina: empleados, sucursales, corridas (crear/cancelar), último renglón, costo real. Datos personales con `admin_password`. |
+| `frappeNomina.ts` | Nómina: empleados, sucursales, corridas (crear/cancelar), último renglón, costo real, `darDeBaja`. Datos personales y baja con `admin_password`. |
 | `Nomina.css` | Estilos de esta pantalla. |
-| `Nomina.tsx` | Corrida, empleados, reporte. |
+| `Nomina.tsx` | Corrida, empleados (Editar → «Dar de baja» con fecha de salida y clave de Administrator), reporte. |
 | `nominaTotales.ts` | Totales de la corrida de nómina (espejo del backend) y payload del ticket. |
 
 Tests: `nominaTotales.test.js`, `Nomina.confirmar.render.test.tsx`.
@@ -414,7 +414,7 @@ Tests: `compraUtils.impuesto.test.ts`, `compraUtils.test.js`.
 
 | Archivo | Qué es |
 |---|---|
-| `ConfirmModal.jsx` | Modal de confirmar (con `useConfirmModal`). |
+| `ConfirmModal.jsx` | Modal de confirmar (con `useConfirmModal`). Se monta en `document.body` (portal): dentro de una tarjeta animada el velo no cubría la pantalla. |
 | `ModalEntradaPan.jsx` | Precarga lo que FALTA del pedido; costo editable solo Gerente sin receta. |
 | `ModalError.jsx` | 🔴 recibe string, nunca objeto: React #31. |
 | `ModalRegistrarPago.jsx` | Cobra el SALDO; despliega productos. |

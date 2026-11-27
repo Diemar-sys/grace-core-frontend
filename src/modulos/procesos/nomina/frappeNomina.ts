@@ -158,6 +158,15 @@ class FrappeNominaService extends FrappeBase {
     return json?.message;
   }
 
+  /** Baja: sale de la lista y de corridas nuevas; sus corridas viejas no se tocan. Candado Administrator. */
+  async darDeBaja(name: string, fecha_salida: string, admin_password: string): Promise<Empleado> {
+    const json = await this._fetch(METHOD('dar_de_baja'), {
+      method: 'POST',
+      body: JSON.stringify({ name, fecha_salida, admin_password }),
+    });
+    return json?.message;
+  }
+
   async cancelarCorrida(name: string): Promise<{ name: string; docstatus: number }> {
     const json = await this._fetch(METHOD('cancelar_corrida'), {
       method: 'POST',

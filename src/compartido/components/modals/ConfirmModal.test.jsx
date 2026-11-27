@@ -78,8 +78,8 @@ describe('ConfirmModal — passwordPrompt', () => {
   const conPass = { ...defaults, passwordPrompt: 'Tu contraseña', confirmLabel: 'Revertir' };
 
   it('sin passwordPrompt no aparece ningún campo de contraseña', () => {
-    const { container } = render(<ConfirmModal {...defaults} />);
-    expect(container.querySelector('input[type="password"]')).toBeNull();
+    render(<ConfirmModal {...defaults} />);
+    expect(document.body.querySelector('input[type="password"]')).toBeNull();
   });
 
   it('Confirmar está deshabilitado mientras la contraseña esté vacía', () => {
@@ -93,16 +93,16 @@ describe('ConfirmModal — passwordPrompt', () => {
 
   it('entrega la contraseña tecleada a onConfirm', () => {
     const onConfirm = vi.fn();
-    const { container } = render(<ConfirmModal {...conPass} onConfirm={onConfirm} />);
-    fireEvent.change(container.querySelector('input[type="password"]'), { target: { value: 's3cr3t' } });
+    render(<ConfirmModal {...conPass} onConfirm={onConfirm} />);
+    fireEvent.change(document.body.querySelector('input[type="password"]'), { target: { value: 's3cr3t' } });
     screen.getByText('Revertir').click();
     expect(onConfirm).toHaveBeenCalledWith('s3cr3t');
   });
 
   it('Enter confirma con la contraseña; vacía no hace nada', () => {
     const onConfirm = vi.fn();
-    const { container } = render(<ConfirmModal {...conPass} onConfirm={onConfirm} />);
-    const input = container.querySelector('input[type="password"]');
+    render(<ConfirmModal {...conPass} onConfirm={onConfirm} />);
+    const input = document.body.querySelector('input[type="password"]');
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: 'abc' } });
@@ -111,9 +111,9 @@ describe('ConfirmModal — passwordPrompt', () => {
   });
 
   it('con error el modal SIGUE ofreciendo reintentar la contraseña', () => {
-    const { container } = render(<ConfirmModal {...conPass} error="Contraseña incorrecta" />);
+    render(<ConfirmModal {...conPass} error="Contraseña incorrecta" />);
     expect(screen.getByText('Contraseña incorrecta')).toBeInTheDocument();
-    expect(container.querySelector('input[type="password"]')).not.toBeNull();
+    expect(document.body.querySelector('input[type="password"]')).not.toBeNull();
     expect(screen.getByText('Revertir')).toBeInTheDocument();
   });
 
@@ -131,11 +131,25 @@ describe('ConfirmModal — passwordPrompt', () => {
 
   it('loading deshabilita el campo y no confirma con Enter', () => {
     const onConfirm = vi.fn();
-    const { container } = render(<ConfirmModal {...conPass} onConfirm={onConfirm} loading={true} />);
-    const input = container.querySelector('input[type="password"]');
+    render(<ConfirmModal {...conPass} onConfirm={onConfirm} loading={true} />);
+    const input = document.body.querySelector('input[type="password"]');
     expect(input).toBeDisabled();
     fireEvent.change(input, { target: { value: 'abc' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+});
+
+describe('ConfirmModal — cubre la pantalla', () => {
+  it('se monta en el body, no dentro de la tarjeta que lo abre (un ancestro con transform encerraba el velo)', () => {
+    const { container } = render(
+      <div style={{ transform: 'translateY(0)' }}>
+        <ConfirmModal title="t" description="d" confirmLabel="ok" onConfirm={() => {}} onCancel={() => {}} />
+      </div>,
+    );
+    const velo = document.body.querySelector('.edit-overlay');
+    expect(velo).not.toBeNull();
+    expect(velo.parentElement).toBe(document.body);
+    expect(container.querySelector('.edit-overlay')).toBeNull();
   });
 });

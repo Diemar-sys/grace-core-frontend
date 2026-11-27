@@ -21,6 +21,10 @@ const money = (n: Num) =>
 
 type Flash = (tipo: 'ok' | 'error', texto: string) => void;
 
+// 27-nov: el scroll es de `.main-content` (Layout), no de la ventana: window.scrollTo no hacía nada.
+// scrollIntoView sube el contenedor que sea hasta el inicio de la pantalla de Nómina.
+const subirAlInicio = () => document.querySelector('.nomina')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
 function proximoMiercoles(): string {
   const d = new Date();
   const diff = (3 - d.getDay() + 7) % 7; 
@@ -250,7 +254,7 @@ function Corrida({ empleados, flash }: { empleados: Empleado[]; flash: Flash }) 
       setSemanaAl(det.semana_al || '');
       setFilas((det.renglones || []).length ? det.renglones.map(filaDesde) : [filaVacia()]);
       setBorradorId(c.name);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      subirAlInicio();
       flash('ok', `Editando borrador ${c.name}`);
     } catch (e) { flash('error', (e as Error).message); }
   };
@@ -506,6 +510,8 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
   const [nuevaSuc, setNuevaSuc] = useState('');
   const [editando, setEditando] = useState<string | null>(null); // name del empleado en edición, o null = alta
   const [adminPwd, setAdminPwd] = useState('');
+  const [fechaSalida, setFechaSalida] = useState('');
+  const [preguntaBaja, setPreguntaBaja] = useState(false);
   // Alma y Luis salían mezclados en una sola lista de 31. 'todas' | 'ALMA RODRIGUEZ'
   // | 'LUIS TORRES' | '' (los que aún no tienen nómina asignada).
   const [filtro, setFiltro] = useState('todas');
@@ -527,9 +533,26 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
       fecha_nacimiento: e.date_of_birth || '', genero: e.gender || 'Male',
       sucursal: e.branch || '', nomina_de: e.custom_nomina_de || '',
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    subirAlInicio();
   };
-  const cancelarEdicion = () => { setEditando(null); setAdminPwd(''); setForm(FORM_VACIO); };
+  const cancelarEdicion = () => { setEditando(null); setAdminPwd(''); setFechaSalida(''); setForm(FORM_VACIO); };
+
+  // 27-nov: ya no trabaja aquí → Left con fecha de salida; sus corridas viejas no se tocan.
+  const pedirBaja = () => {
+    if (!fechaSalida) { flash('error', 'Escribe la fecha de salida'); return; }
+    if (!adminPwd) { flash('error', 'Escribe la contraseña de Administrator'); return; }
+    setPreguntaBaja(true);
+  };
+  const darDeBaja = async () => {
+    setPreguntaBaja(false);
+    if (!editando) return;
+    try {
+      const res = await nominaService.darDeBaja(editando, fechaSalida, adminPwd);
+      flash('ok', `${res.employee_name} dado de baja`);
+      cancelarEdicion();
+      recargar();
+    } catch (e) { flash('error', (e as Error).message); }
+  };
 
   const guardar = async () => {
     if (!form.nombre.trim()) { flash('error', 'El nombre es obligatorio'); return; }
@@ -572,6 +595,19 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
 
   return (
     <div className="nomina-empleados">
+      {preguntaBaja && (
+        <ConfirmModal
+          title={`¿Dar de baja a ${form.nombre}?`}
+          description={`Sale de la lista y de las nóminas nuevas a partir del ${fechaSalida}. Sus nóminas pagadas se quedan igual.`}
+          confirmLabel="Sí, dar de baja"
+          subdescription={undefined} icon={undefined} iconStyle={undefined}
+          confirmClassName={undefined} confirmStyle={undefined} error={undefined}
+          onFallback={undefined} fallbackLabel={undefined} fallbackDescription={undefined}
+          passwordPrompt={undefined}
+          onCancel={() => setPreguntaBaja(false)}
+          onConfirm={darDeBaja}
+        />
+      )}
       <div className={'nomina-form' + (editando ? ' editando' : '')}>
         <h2>{editando ? 'Editar empleado' : 'Alta de empleado'}</h2>
         <label>Nombre<input value={form.nombre} onChange={e => set('nombre', e.target.value)} /></label>
@@ -603,10 +639,18 @@ function Empleados({ empleados, sucursales, recargar, flash }: {
           </label>
         )}
         {editando ? (
-          <div className="nomina-form-acc">
-            <button onClick={cancelarEdicion}>Cancelar</button>
-            <button className="primary" onClick={guardar}>Guardar cambios</button>
-          </div>
+          <>
+            <div className="nomina-form-acc">
+              <button onClick={cancelarEdicion}>Cancelar</button>
+              <button className="primary" onClick={guardar}>Guardar cambios</button>
+            </div>
+            <div className="nomina-baja">
+              <label>Fecha de salida
+                <input type="date" value={fechaSalida} onChange={e => setFechaSalida(e.target.value)} />
+              </label>
+              <button className="nomina-baja-btn" onClick={pedirBaja}>Dar de baja</button>
+            </div>
+          </>
         ) : (
           <button className="primary" onClick={guardar}>Dar de alta</button>
         )}
